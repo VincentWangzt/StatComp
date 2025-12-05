@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from utils.batch_jacobian import compute_jacobian
 import scipy.stats as st
 import os
+from typing import Type
 
 
 class Toy_2D(object):
@@ -59,6 +60,7 @@ class Toy_2D(object):
             ax.set_title(f"{self.name}", fontsize=20, y=1.04)
         if save_to_path is not None:
             plt.savefig(save_to_path, bbox_inches='tight')
+        plt.close()
 
 
 class Banana_shape(Toy_2D):
@@ -519,7 +521,7 @@ class Langevin_post(object):
         plt.close()
 
 
-target_distribution: dict[str, Toy_2D] = {
+target_distribution: dict[str, Type[Toy_2D]] = {
     "banana": Banana_shape,
     "multimodal": Multimodal,
     "x_shaped": X_shaped,
