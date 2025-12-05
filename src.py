@@ -196,7 +196,7 @@ class ReverseUIVI():
                                       datetime.now().strftime("%Y%m%d_%H%M%S"))
         os.makedirs(self.save_path, exist_ok=True)
 
-    def warmup(self, epochs=100, lr=1e-4, batch_size=16, epoch_size=8192):
+    def warmup(self, epochs=10, lr=1e-4, batch_size=512, epoch_size=8192):
 
         # Create dataset for warm-up
         optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
@@ -224,19 +224,29 @@ class ReverseUIVI():
             )
 
             print(f"Warm-up Loss(epoch {epoch + 1}): {loss}")
+            self.print_KL()
 
-        epsilon_test = torch.randn(
-            1024,
-            self.vi_model.epsilon_dim,
-        ).to(self.device)
+    def print_KL(self, n_ite_samples=10000):
+        import ite
+        print("\nCalculating KL Divergence using 'ite' package...")
+        # A. True Joint Distribution Samples: (epsilon, z)
+        true_eps = torch.randn(n_ite_samples,
+                               self.vi_model.epsilon_dim).to(self.device)
         with torch.no_grad():
-            z_test, _ = self.vi_model.forward(epsilon_test)
-            z_test = z_test.detach()
-            _, log_prob = self.reverse_model.forward(epsilon_test, z_test)
-        print(
-            "Warm-up completed. Test log likelihood:",
-            torch.mean(log_prob).item(),
-        )
+            true_z, _ = self.vi_model.forward(true_eps)
+        true_joint = torch.cat([true_eps, true_z], dim=1).cpu().numpy()
+
+        with torch.no_grad():
+            generated_eps = self.reverse_model.sample(
+                true_z, num_samples=1)[1].squeeze(1)
+        generated_joint = torch.cat([generated_eps, true_z],
+                                    dim=1).cpu().numpy()
+
+        # C. Estimate KL
+        # Compare true joint vs generated joint
+        cost_obj = ite.cost.BDKL_KnnK()
+        kl_div = cost_obj.estimation(generated_joint, true_joint)
+        print(f"   KL Divergence: {kl_div:.4f}")
 
     def learn(self, num_epochs=100, num_per_epoch=100, batch_size=64):
         self.warmup()
@@ -260,21 +270,6 @@ class ReverseUIVI():
                 # Sample z from variational distribution
                 z, neg_score_implicit = self.vi_model.forward(epsilon)
 
-                dataset = TensorDataset(z.clone().detach(),
-                                        epsilon.clone().detach())
-                dataloader = DataLoader(
-                    dataset,
-                    batch_size=batch_size // 4,
-                    shuffle=True,
-                )
-                reverse_loss = train_flow_matching(
-                    dataloader,
-                    self.reverse_model,
-                    torch.optim.Adam(self.reverse_model.parameters(), lr=1e-3),
-                    epochs=1,
-                )
-                reverse_total_loss += reverse_loss
-
                 # Compute log prob under target distribution
                 log_prob_target = self.target_model.logp(z)
 
@@ -295,6 +290,26 @@ class ReverseUIVI():
                 optimizer_vi.zero_grad()
                 loss.backward()
                 optimizer_vi.step()
+
+                # Train reverse model
+                with torch.no_grad():
+                    epsilon_rev = torch.randn(
+                        1024, self.vi_model.epsilon_dim).to(self.device)
+                    z_rev, _ = self.vi_model.forward(epsilon_rev)
+                dataset = TensorDataset(z_rev.clone().detach(),
+                                        epsilon_rev.clone().detach())
+                dataloader = DataLoader(
+                    dataset,
+                    batch_size=64,
+                    shuffle=True,
+                )
+                reverse_loss = train_flow_matching(
+                    dataloader,
+                    self.reverse_model,
+                    torch.optim.Adam(self.reverse_model.parameters(), lr=1e-3),
+                    epochs=1,
+                )
+                reverse_total_loss += reverse_loss
 
                 total_loss += loss.item()
 
@@ -332,6 +347,7 @@ class ReverseUIVI():
                 quiver=quiver_plot,
                 t=epoch,
             )
+            self.print_KL()
 
 
 if __name__ == "__main__":
