@@ -6,8 +6,14 @@ import torch.nn as nn
 from datetime import datetime
 from torch.utils.data import DataLoader, TensorDataset
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    torch.cuda.manual_seed_all(42)
+else:
+    device = torch.device("cpu")
 
+torch.manual_seed(42)
 
 class ConditionalRealNVP(nn.Module):
     """RealNVP for conditional density estimation"""
@@ -32,13 +38,13 @@ class ConditionalRealNVP(nn.Module):
             # Each coupling layer conditions on z and part of epsilon
             self.scale_nets.append(
                 nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.ReLU(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.ReLU(), nn.Linear(hidden_dim,
+                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
+                              nn.Tanh(), nn.Linear(hidden_dim,
                                                    epsilon_dim // 2)))
             self.translate_nets.append(
                 nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.ReLU(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.ReLU(), nn.Linear(hidden_dim,
+                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
+                              nn.Tanh(), nn.Linear(hidden_dim,
                                                    epsilon_dim // 2)))
 
     def forward(self, epsilon, z):
@@ -131,12 +137,11 @@ class MixtureGaussian(nn.Module):
         super(MixtureGaussian, self).__init__()
         self.epsilon_dim = epsilon_dim
         self.h_dim = h_dim
-        self.out_dim = out_dim
+        self.out_dim = out_dim * 2
         self.log_var_min = -10
-        self.mu = nn.Sequential(nn.Linear(self.epsilon_dim, self.h_dim),
+        self.net = nn.Sequential(nn.Linear(self.epsilon_dim, self.h_dim),
                                 nn.ReLU(), nn.Linear(self.h_dim, self.h_dim),
                                 nn.ReLU(), nn.Linear(self.h_dim, self.out_dim))
-        self.log_var = nn.Parameter(torch.ones(out_dim), requires_grad=True)
         self.device = device
 
     def reparameterize(self, mu, log_var):
@@ -145,16 +150,16 @@ class MixtureGaussian(nn.Module):
         return mu + std * u, u / std
 
     def getmu(self, epsilon):
-        return self.mu(epsilon)
+        return self.net(epsilon).chunk(2, dim=-1)[0]
 
-    def getstd(self):
-        log_var = self.log_var.clamp(min=self.log_var_min)
+    def getstd(self, epsilon):
+        log_var = self.net(epsilon).chunk(2, dim=-1)[1].clamp(min=self.log_var_min)
         std = torch.exp(log_var / 2)
         return std
 
     def forward(self, epsilon):
-        mu = self.mu(epsilon)
-        log_var = self.log_var.clamp(min=self.log_var_min)
+        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
+        log_var = log_var.clamp(min=self.log_var_min)
         z, neg_score_implicit = self.reparameterize(mu, log_var)
         return z, neg_score_implicit
 
@@ -166,8 +171,8 @@ class MixtureGaussian(nn.Module):
         return Z
 
     def neg_score(self, z, epsilon):
-        mu = self.mu(epsilon)
-        log_var = self.log_var.clamp(min=self.log_var_min)
+        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
+        log_var = log_var.clamp(min=self.log_var_min)
         var = torch.exp(log_var)
         neg_score = (z - mu) / (var)
         return neg_score
@@ -196,7 +201,7 @@ class ReverseUIVI():
                                       datetime.now().strftime("%Y%m%d_%H%M%S"))
         os.makedirs(self.save_path, exist_ok=True)
 
-    def warmup(self, epochs=10, lr=1e-4, batch_size=512, epoch_size=8192):
+    def warmup(self, epochs=10, lr=1e-5, batch_size=8192, epoch_size=8192):
 
         # Create dataset for warm-up
         optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
@@ -208,7 +213,7 @@ class ReverseUIVI():
             ).to(self.device)
             with torch.no_grad():
                 z_samples, _ = self.vi_model.forward(epsilon_samples)
-                z_samples = z_samples.detach()
+                z_samples = z_samples.clone().detach()
             dataset = TensorDataset(z_samples, epsilon_samples)
             dataloader = DataLoader(
                 dataset,
@@ -220,7 +225,7 @@ class ReverseUIVI():
                 dataloader,
                 self.reverse_model,
                 optimizer,
-                epochs=1,
+                epochs=100,
             )
 
             print(f"Warm-up Loss(epoch {epoch + 1}): {loss}")
@@ -228,7 +233,7 @@ class ReverseUIVI():
 
     def print_KL(self, n_ite_samples=10000):
         import ite
-        print("\nCalculating KL Divergence using 'ite' package...")
+        # print("\nCalculating KL Divergence using 'ite' package...")
         # A. True Joint Distribution Samples: (epsilon, z)
         true_eps = torch.randn(n_ite_samples,
                                self.vi_model.epsilon_dim).to(self.device)
@@ -246,9 +251,11 @@ class ReverseUIVI():
         # Compare true joint vs generated joint
         cost_obj = ite.cost.BDKL_KnnK()
         kl_div = cost_obj.estimation(generated_joint, true_joint)
-        print(f"   KL Divergence: {kl_div:.4f}")
+        print(f"KL Divergence: {kl_div:.4f}")
+        return kl_div
 
-    def learn(self, num_epochs=100, num_per_epoch=100, batch_size=64):
+    def learn(self, num_epochs=100, num_per_epoch=100, batch_size=128):
+        self.print_KL()
         self.warmup()
         optimizer_vi = torch.optim.Adam(self.vi_model.parameters(), lr=1e-3)
         scheduler_vi = torch.optim.lr_scheduler.StepLR(
@@ -278,7 +285,7 @@ class ReverseUIVI():
                         z, num_samples=100)
                     neg_score = self.vi_model.neg_score(z_aux, epsilon_aux)
                     neg_score = neg_score.mean(dim=1)
-                    neg_score = neg_score.detach()
+                    neg_score = neg_score.clone().detach()
 
                 # Compute loss
                 loss = -torch.mean(
@@ -292,24 +299,27 @@ class ReverseUIVI():
                 optimizer_vi.step()
 
                 # Train reverse model
-                with torch.no_grad():
-                    epsilon_rev = torch.randn(
-                        1024, self.vi_model.epsilon_dim).to(self.device)
-                    z_rev, _ = self.vi_model.forward(epsilon_rev)
-                dataset = TensorDataset(z_rev.clone().detach(),
-                                        epsilon_rev.clone().detach())
-                dataloader = DataLoader(
-                    dataset,
-                    batch_size=64,
-                    shuffle=True,
-                )
-                reverse_loss = train_flow_matching(
-                    dataloader,
-                    self.reverse_model,
-                    torch.optim.Adam(self.reverse_model.parameters(), lr=1e-3),
-                    epochs=1,
-                )
-                reverse_total_loss += reverse_loss
+                reverse_optimizer = torch.optim.Adam(
+                    self.reverse_model.parameters(), lr=1e-5)
+                for _ in range(16):
+                    with torch.no_grad():
+                        epsilon_rev = torch.randn(
+                            8192, self.vi_model.epsilon_dim).to(self.device)
+                        z_rev, _ = self.vi_model.forward(epsilon_rev)
+                    dataset = TensorDataset(z_rev.clone().detach(),
+                                            epsilon_rev.clone().detach())
+                    dataloader = DataLoader(
+                        dataset,
+                        batch_size=8192,
+                        shuffle=True,
+                    )
+                    reverse_loss = train_flow_matching(
+                        dataloader,
+                        self.reverse_model,
+                        reverse_optimizer,
+                        epochs=5,
+                    )
+                    reverse_total_loss += reverse_loss / 16
 
                 total_loss += loss.item()
 
