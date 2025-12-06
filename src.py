@@ -1,240 +1,117 @@
 import torch
-from models.target_models import target_distribution
-from models.networks import SIMINet
+from models.target_models import target_distribution, DEFAULT_BBOX
+from models.networks import SIMINet, ConditionalRealNVP, ConditionalGaussian
 import os
 import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 from datetime import datetime
 from torch.utils.data import DataLoader, TensorDataset
+import yaml
+import argparse
+from utils.logging import get_logger, set_file_handler
 
-if torch.cuda.is_available():
+# 1207 TODO:
+# 1. Refine and add comments
+# 2. Add KL to baseline as a metric
+
+def load_config(path: str):
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Reverse UIVI Runner")
+    default_cfg = os.path.join(os.path.dirname(__file__), 'configs',
+                               'reverse_uivi.yaml')
+    parser.add_argument('--config',
+                        type=str,
+                        default=default_cfg,
+                        help='Path to YAML config file')
+    return parser.parse_args()
+
+
+# Parse CLI and load configuration
+args = parse_args()
+CONFIG_PATH = args.config
+cfg = load_config(CONFIG_PATH)
+# Setup logging (console + optional file under save path)
+logger = get_logger("reverse_uivi")
+
+# Device and seeds
+use_cuda = cfg.get('use_cuda_if_available', True) and torch.cuda.is_available()
+if use_cuda:
     device = torch.device("cuda")
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    torch.cuda.manual_seed_all(42)
+    os.environ["CUDA_VISIBLE_DEVICES"] = cfg.get('cuda_visible_devices', "0")
+    torch.cuda.manual_seed_all(cfg.get('seed', 42))
 else:
     device = torch.device("cpu")
 
-torch.manual_seed(42)
+torch.manual_seed(cfg.get('seed', 42))
 
-class ConditionalRealNVP(nn.Module):
-    """RealNVP for conditional density estimation"""
-
-    def __init__(
-        self,
-        z_dim,
-        epsilon_dim,
-        hidden_dim=128,
-        num_layers=4,
-        device='cpu',
-    ):
-        super().__init__()
-        self.epsilon_dim = epsilon_dim
-        self.device = device
-
-        # Scaling and translation networks for each coupling layer
-        self.scale_nets = nn.ModuleList()
-        self.translate_nets = nn.ModuleList()
-
-        for _ in range(num_layers):
-            # Each coupling layer conditions on z and part of epsilon
-            self.scale_nets.append(
-                nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim,
-                                                   epsilon_dim // 2)))
-            self.translate_nets.append(
-                nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim,
-                                                   epsilon_dim // 2)))
-
-    def forward(self, epsilon, z):
-        """Forward pass: epsilon -> base_dist"""
-        batch_size = epsilon.shape[0]
-        log_det = torch.zeros(batch_size).to(self.device)
-
-        # Forward: epsilon -> u (base distribution)
-        u = epsilon.clone()
-        for i in range(len(self.scale_nets)):
-            # Split
-            u1, u2 = u.chunk(2, dim=-1)
-
-            # Compute scale and translation
-            scale = torch.tanh(self.scale_nets[i](torch.cat([u1, z], dim=-1)))
-            translate = self.translate_nets[i](torch.cat([u1, z], dim=-1))
-            # Transform
-            u2 = u2 * torch.exp(scale) + translate
-            log_det += scale.sum(dim=-1)
-
-            # Concatenate (alternate split)
-            u = torch.cat([u2, u1], dim=-1) if i % 2 == 0 else torch.cat(
-                [u1, u2], dim=-1)
-
-        log_prob_u = -0.5 * torch.sum(u**2, dim=-1)
-        log_prob = log_prob_u + log_det
-
-        return u, log_prob
-
-    def sample(self, z, num_samples=100):
-        """Sample epsilon given a batch of z"""
-        # Sample from base distribution
-        with torch.no_grad():
-            batch_size = z.shape[0]
-            u = torch.randn(batch_size, num_samples,
-                            self.epsilon_dim).to(self.device)
-            z_aux = z.clone().detach().unsqueeze(1).repeat(1, num_samples, 1)
-            for i in reversed(range(len(self.scale_nets))):
-                # Split
-                u1, u2 = u.chunk(2, dim=-1)
-
-                # Compute scale and translation
-                scale = torch.tanh(self.scale_nets[i](torch.cat(
-                    [u1, z_aux],
-                    dim=-1,
-                )))
-                translate = self.translate_nets[i](torch.cat(
-                    [u1, z_aux],
-                    dim=-1,
-                ))
-
-                # Inverse transform
-                u2 = (u2 - translate) * torch.exp(-scale)
-
-                # Concatenate (alternate split)
-                u = torch.cat([u2, u1], dim=-1) if i % 2 == 0 else torch.cat(
-                    [u1, u2], dim=-1)
-            return z_aux, u
-
-
-# Training for flow matching
-def train_flow_matching(dataloader, model, optimizer, epochs=100):
-    model.train()
-    optimizer.zero_grad()
-    # Training loop
-    for epoch in range(epochs):
-        total_loss = 0
-        for batch in dataloader:
-            # maximize log likelihood
-            z, epsilon = batch
-            z = z.to(model.device)
-            epsilon = epsilon.to(model.device)
-
-            u, log_prob = model(epsilon, z)
-            loss = -torch.mean(log_prob)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            total_loss += loss.item()
-
-        # print(f"Epoch {epoch + 1}, Loss: {total_loss / len(dataloader)}")
-    return total_loss / len(dataloader)
-
-
-class MixtureGaussian(nn.Module):
-
-    def __init__(self, epsilon_dim, h_dim, out_dim, device):
-        super(MixtureGaussian, self).__init__()
-        self.epsilon_dim = epsilon_dim
-        self.h_dim = h_dim
-        self.out_dim = out_dim * 2
-        self.log_var_min = -10
-        self.net = nn.Sequential(nn.Linear(self.epsilon_dim, self.h_dim),
-                                nn.ReLU(), nn.Linear(self.h_dim, self.h_dim),
-                                nn.ReLU(), nn.Linear(self.h_dim, self.out_dim))
-        self.device = device
-
-    def reparameterize(self, mu, log_var):
-        std = torch.exp(log_var / 2)
-        u = torch.randn_like(mu)
-        return mu + std * u, u / std
-
-    def getmu(self, epsilon):
-        return self.net(epsilon).chunk(2, dim=-1)[0]
-
-    def getstd(self, epsilon):
-        log_var = self.net(epsilon).chunk(2, dim=-1)[1].clamp(min=self.log_var_min)
-        std = torch.exp(log_var / 2)
-        return std
-
-    def forward(self, epsilon):
-        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
-        log_var = log_var.clamp(min=self.log_var_min)
-        z, neg_score_implicit = self.reparameterize(mu, log_var)
-        return z, neg_score_implicit
-
-    def sampling(self, num=1000, sigma=1):
-        with torch.no_grad():
-            epsilon = torch.randn([num, self.epsilon_dim], ).to(self.device)
-            epsilon = epsilon * sigma
-            Z, _ = self.forward(epsilon)
-        return Z
-
-    def neg_score(self, z, epsilon):
-        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
-        log_var = log_var.clamp(min=self.log_var_min)
-        var = torch.exp(log_var)
-        neg_score = (z - mu) / (var)
-        return neg_score
+# Log configs and environment at start
+logger.info(f"Using config: {CONFIG_PATH}")
+logger.info("Starting run with configuration:")
+logger.info(yaml.dump(cfg, sort_keys=False))
+logger.info(f"Device: {device}")
 
 
 class ReverseUIVI():
 
-    def __init__(self, target_dist: str, device):
-        self.target_dist = target_dist
+    def __init__(self, device, cfg):
+        self.target_dist = cfg['experiment']['target_dist']
         self.device = device
-        self.target_model = target_distribution[target_dist](device=device)
-        self.vi_model = MixtureGaussian(
-            epsilon_dim=4,
-            h_dim=64,
-            out_dim=2,
+        self.cfg = cfg
+        # target
+        self.target_model = target_distribution[self.target_dist](
+            device=device)
+        # vi model from config
+        model_config = cfg['models']
+        assert model_config['vi_model_type'] == 'ConditionalGaussian', \
+            "Only ConditionalGaussian VI model is supported in Reverse UIVI."
+        assert model_config['reverse_model_type'] == 'ConditionalRealNVP', \
+            "Only ConditionalRealNVP reverse model is supported in Reverse UIVI."
+        self.epsilon_dim = model_config['epsilon_dim']
+        self.z_dim = model_config['z_dim']
+
+        self.vi_model = ConditionalGaussian(
+            epsilon_dim=model_config['epsilon_dim'],
+            hidden_dim=model_config['vi_hidden_dim'],
+            z_dim=model_config['z_dim'],
             device=self.device,
         ).to(self.device)
+
+        # reverse model from config
         self.reverse_model = ConditionalRealNVP(
-            z_dim=2,
-            epsilon_dim=4,
-            hidden_dim=64,
-            num_layers=4,
+            z_dim=model_config['z_dim'],
+            epsilon_dim=model_config['epsilon_dim'],
+            hidden_dim=model_config['reverse_hidden_dim'],
+            num_layers=model_config['reverse_num_layers'],
             device=self.device,
         ).to(self.device)
-        self.save_path = os.path.join("results", "reverse_uivi", target_dist,
-                                      datetime.now().strftime("%Y%m%d_%H%M%S"))
+
+        # save path
+        self.exp_name = cfg['experiment']['name']
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.save_path = os.path.join("results", self.exp_name,
+                                      self.target_dist, timestamp)
         os.makedirs(self.save_path, exist_ok=True)
 
-    def warmup(self, epochs=10, lr=1e-5, batch_size=8192, epoch_size=8192):
+        # attach file logger under save path
+        set_file_handler(self.save_path, filename="run.log")
+        logger.info(f"Artifacts will be saved to: {self.save_path}")
 
-        # Create dataset for warm-up
-        optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
+        # TensorBoard writer
+        self.tb_path = self.save_path.replace("results", "tb_logs")
+        os.makedirs(self.tb_path, exist_ok=True)
 
-        for epoch in range(epochs):
-            epsilon_samples = torch.randn(
-                epoch_size,
-                self.vi_model.epsilon_dim,
-            ).to(self.device)
-            with torch.no_grad():
-                z_samples, _ = self.vi_model.forward(epsilon_samples)
-                z_samples = z_samples.clone().detach()
-            dataset = TensorDataset(z_samples, epsilon_samples)
-            dataloader = DataLoader(
-                dataset,
-                batch_size=batch_size,
-                shuffle=True,
-            )
+        self.writer = SummaryWriter(log_dir=self.tb_path)
 
-            loss = train_flow_matching(
-                dataloader,
-                self.reverse_model,
-                optimizer,
-                epochs=100,
-            )
-
-            print(f"Warm-up Loss(epoch {epoch + 1}): {loss}")
-            self.print_KL()
-
-    def print_KL(self, n_ite_samples=10000):
+    def calculate_KL(self):
         import ite
         # print("\nCalculating KL Divergence using 'ite' package...")
         # A. True Joint Distribution Samples: (epsilon, z)
+        n_ite_samples = self.cfg['kl']['n_ite_samples']
         true_eps = torch.randn(n_ite_samples,
                                self.vi_model.epsilon_dim).to(self.device)
         with torch.no_grad():
@@ -251,115 +128,240 @@ class ReverseUIVI():
         # Compare true joint vs generated joint
         cost_obj = ite.cost.BDKL_KnnK()
         kl_div = cost_obj.estimation(generated_joint, true_joint)
-        print(f"KL Divergence: {kl_div:.4f}")
+        # logger.debug(f"KL Divergence: {kl_div:.4f}")
         return kl_div
 
-    def learn(self, num_epochs=100, num_per_epoch=100, batch_size=128):
-        self.print_KL()
+    def train_reverse_model(
+        self,
+        optimizer,
+        epochs,
+        batch_size,
+        progress_bar=True,
+        log_func=None,
+    ):
+        self.reverse_model.train()
+        iterator = range(epochs)
+        if progress_bar:
+            iterator = tqdm(iterator, desc="Reverse Model Training")
+        for epoch in iterator:
+            epsilon_samples, z_samples = self.vi_model.sampling(
+                num=batch_size, )
+            optimizer.zero_grad()
+            u, log_prob = self.reverse_model.forward(epsilon_samples,
+                                                     z_samples)
+            loss = -torch.mean(log_prob)
+            loss.backward()
+            optimizer.step()
+            if log_func is not None:
+                log_func(loss.item(), epoch)
+
+    def warmup(self):
+        wcfg = self.cfg['warmup']
+        if not wcfg['enabled']:
+            return
+        lr = wcfg['lr']
+        batch_size = wcfg['batch_size']
+        epochs = wcfg['epochs']
+        kl_freq = wcfg['kl_log_freq']
+        loss_log_freq = wcfg['loss_log_freq']
+        sample_loss = 0
+
+        optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
+
+        def log_func(loss, epoch):
+            self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
+            nonlocal sample_loss
+            sample_loss += loss
+            if epoch % kl_freq == 0:
+                kl_div = self.calculate_KL()
+                self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
+                logger.debug(
+                    f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
+            if epoch % loss_log_freq == 0:
+                avg_loss = sample_loss / loss_log_freq
+                sample_loss = 0
+                logger.debug(
+                    f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}"
+                )
+
+        self.train_reverse_model(
+            optimizer,
+            epochs,
+            batch_size,
+            progress_bar=True,
+            log_func=log_func,
+        )
+
+    def learn(self):
+        # initial warmup
         self.warmup()
-        optimizer_vi = torch.optim.Adam(self.vi_model.parameters(), lr=1e-3)
+        # training configs
+        tcfg = self.cfg['train']
+        num_epochs = tcfg['epochs']
+        batch_size = tcfg['batch_size']
+        reverse_sample_num = tcfg['reverse_sample_num']
+        vi_opt_cfg = tcfg['vi']
+        vi_lr = vi_opt_cfg['lr']
+        vi_scheduler_cfg = vi_opt_cfg['scheduler']
+        assert vi_scheduler_cfg['type'] == 'StepLR', \
+            "Only StepLR scheduler is supported for VI optimizer."
+
+        # VI optimizer
+        optimizer_vi = torch.optim.Adam(self.vi_model.parameters(), lr=vi_lr)
         scheduler_vi = torch.optim.lr_scheduler.StepLR(
             optimizer_vi,
-            step_size=1000,
-            gamma=0.9,
+            step_size=vi_scheduler_cfg['step_size'],
+            gamma=vi_scheduler_cfg['gamma'],
         )
-        for epoch in range(1, num_epochs + 1):
 
-            total_loss = 0
-            reverse_total_loss = 0
-            for _ in range(num_per_epoch):
-                # Sample epsilon
-                epsilon = torch.randn(
-                    batch_size,
-                    self.vi_model.epsilon_dim,
-                ).to(self.device)
+        # Reverse training cfg
+        rev_train_cfg = tcfg['reverse']
+        reverse_lr = rev_train_cfg['lr']
+        rev_batch_size = rev_train_cfg['batch_size']
+        rev_epochs = rev_train_cfg['epochs']
+        rev_update_freq = rev_train_cfg['update_freq']
+        rev_reuse_optimizer = rev_train_cfg['reuse_optimizer']
 
-                # Sample z from variational distribution
-                z, neg_score_implicit = self.vi_model.forward(epsilon)
+        if rev_reuse_optimizer:
+            reverse_optimizer = torch.optim.Adam(
+                self.reverse_model.parameters(), lr=reverse_lr)
+        else:
+            reverse_optimizer = None
 
-                # Compute log prob under target distribution
-                log_prob_target = self.target_model.logp(z)
+        # Sampling cfg
+        sample_cfg = tcfg['sample']
+        sample_freq = sample_cfg['freq']
+        sample_num = sample_cfg['num']
+        sample_save_path = os.path.join(self.save_path, "samples")
+        if not os.path.exists(sample_save_path):
+            os.makedirs(sample_save_path)
 
-                with torch.no_grad():
-                    z_aux, epsilon_aux = self.reverse_model.sample(
-                        z, num_samples=100)
-                    neg_score = self.vi_model.neg_score(z_aux, epsilon_aux)
-                    neg_score = neg_score.mean(dim=1)
-                    neg_score = neg_score.clone().detach()
+        # Logging cfg
+        log_cfg = tcfg['log']
+        kl_log_freq = log_cfg['kl_log_freq']
+        loss_log_freq = log_cfg['loss_log_freq']
+        reverse_log_freq = log_cfg['reverse_log_freq']
+        sample_loss = 0
+        sample_reverse_loss = 0
 
-                # Compute loss
-                loss = -torch.mean(
-                    log_prob_target + torch.sum(
-                        z * neg_score,
-                        dim=-1,
-                    ), )
-
-                optimizer_vi.zero_grad()
-                loss.backward()
-                optimizer_vi.step()
-
-                # Train reverse model
-                reverse_optimizer = torch.optim.Adam(
-                    self.reverse_model.parameters(), lr=1e-5)
-                for _ in range(16):
-                    with torch.no_grad():
-                        epsilon_rev = torch.randn(
-                            8192, self.vi_model.epsilon_dim).to(self.device)
-                        z_rev, _ = self.vi_model.forward(epsilon_rev)
-                    dataset = TensorDataset(z_rev.clone().detach(),
-                                            epsilon_rev.clone().detach())
-                    dataloader = DataLoader(
-                        dataset,
-                        batch_size=8192,
-                        shuffle=True,
-                    )
-                    reverse_loss = train_flow_matching(
-                        dataloader,
-                        self.reverse_model,
-                        reverse_optimizer,
-                        epochs=5,
-                    )
-                    reverse_total_loss += reverse_loss / 16
-
-                total_loss += loss.item()
-
-            scheduler_vi.step()
-            print(f"Epoch {epoch}, Loss: {total_loss / num_per_epoch}")
-            print(
-                f"Epoch {epoch}, Reverse Loss: {reverse_total_loss / num_per_epoch}"
-            )
-            with torch.no_grad():
-                Z = self.vi_model.sampling()
-                os.makedirs(os.path.join(self.save_path, "samples"),
-                            exist_ok=True)
-                torch.save(
-                    Z,
-                    os.path.join(self.save_path, "samples",
-                                 "samples_epoch_" + str(epoch) + '.pt'),
+        def rev_log_func(loss, epoch_inner, epoch_outer):
+            epoch = (epoch_outer - 1) * rev_epochs + epoch_inner
+            nonlocal sample_reverse_loss
+            sample_reverse_loss += loss
+            if epoch_inner % reverse_log_freq == 0:
+                avg_loss = sample_reverse_loss / reverse_log_freq
+                sample_reverse_loss = 0
+                logger.debug(
+                    f"Epoch {epoch_outer}, Inner epoch {epoch_inner}, Reverse Model Loss: {avg_loss:.4f}"
                 )
-            os.makedirs(os.path.join(self.save_path, "figures"), exist_ok=True)
-            save_to_path = os.path.join(
-                self.save_path,
-                "figures",
-                "figure_epoch_" + str(epoch) + '.png',
-            )
-            bbox = {
-                "multimodal": [-5, 5, -5, 5],
-                "banana": [-3.5, 3.5, -6, 1],
-                "x_shaped": [-5, 5, -5, 5],
-            }
-            quiver_plot = False
-            self.target_model.contour_plot(
-                bbox[self.target_dist],
-                fnet=None,
-                samples=Z.cpu().numpy(),
-                save_to_path=save_to_path,
-                quiver=quiver_plot,
-                t=epoch,
-            )
-            self.print_KL()
+            self.writer.add_scalar("train/reverse_model_loss", loss, epoch)
+
+        # Plotting cfg
+        plot_cfg = tcfg['plot']
+        plot_freq = plot_cfg['freq']
+        plot_num = plot_cfg['num']
+        plot_save_path = os.path.join(self.save_path, "plots")
+        if not os.path.exists(plot_save_path):
+            os.makedirs(plot_save_path)
+
+        # Main training loop
+        self.vi_model.train()
+        for epoch in tqdm(range(1, num_epochs + 1), desc="Main Training"):
+
+            # Sample epsilon
+            epsilon = torch.randn(batch_size,
+                                  self.vi_model.epsilon_dim).to(self.device)
+
+            # Sample z from variational distribution
+            z, neg_score_implicit = self.vi_model.forward(epsilon)
+
+            # Compute log prob under target distribution
+            log_prob_target = self.target_model.logp(z)
+
+            with torch.no_grad():
+                self.reverse_model.eval()
+                z_aux, epsilon_aux = self.reverse_model.sample(
+                    z,
+                    num_samples=reverse_sample_num,
+                )
+                neg_score = self.vi_model.neg_score(z_aux, epsilon_aux)
+                neg_score = neg_score.mean(dim=1)
+                neg_score = neg_score.clone().detach()
+
+            # Compute loss
+            loss = -torch.mean(log_prob_target + torch.sum(
+                z * neg_score,
+                dim=-1,
+            ))
+
+            optimizer_vi.zero_grad()
+            loss.backward()
+            optimizer_vi.step()
+
+            # TensorBoard scalars
+            self.writer.add_scalar("train/loss", loss, epoch)
+            scheduler_vi.step()
+            sample_loss += loss.item()
+
+            if epoch % loss_log_freq == 0:
+                avg_loss = sample_loss / loss_log_freq
+                logger.debug(f"Epoch {epoch}, VI Model Loss: {avg_loss:.4f}")
+                sample_loss = 0
+
+            # Train reverse model
+            if (epoch % rev_update_freq) == 0:
+                if not rev_reuse_optimizer:
+                    reverse_optimizer = torch.optim.Adam(
+                        self.reverse_model.parameters(), lr=reverse_lr)
+                # logger.debug(
+                #     f"Training reverse model at epoch {epoch} for {rev_epochs} epochs..."
+                # )
+                self.train_reverse_model(
+                    reverse_optimizer,
+                    rev_epochs,
+                    rev_batch_size,
+                    progress_bar=False,
+                    log_func=lambda l, e: rev_log_func(l, e, epoch),
+                )
+
+            if epoch % sample_freq == 0:
+                _, z_sample = self.vi_model.sampling(num=sample_num)
+
+                torch.save(
+                    z_sample,
+                    os.path.join(
+                        sample_save_path,
+                        f"samples_epoch_{epoch}.pt",
+                    ),
+                )
+                logger.debug(f"Saved {sample_num} samples at epoch {epoch}.")
+
+            if epoch % kl_log_freq == 0:
+                kl_div = self.calculate_KL()
+                logger.debug(f"Epoch {epoch}, KL Divergence: {kl_div:.4f}")
+                self.writer.add_scalar("train/kl_div", kl_div, epoch)
+
+            if epoch % plot_freq == 0:
+                _, z_plot = self.vi_model.sampling(num=plot_num)
+
+                self.target_model.contour_plot(
+                    DEFAULT_BBOX[self.target_dist],
+                    fnet=None,
+                    samples=z_plot.cpu().numpy(),
+                    save_to_path=os.path.join(
+                        plot_save_path,
+                        f"contour_epoch_{epoch}.png",
+                    ),
+                    quiver=False,
+                    t=epoch,
+                )
+                logger.debug(f"Saved contour plot at epoch {epoch}.")
+
+        # Close writer at end
+        self.writer.close()
+        logger.info("Training completed.")
 
 
 if __name__ == "__main__":
-    reverse_uivi = ReverseUIVI(target_dist="banana", device=device)
-    reverse_uivi.learn(num_epochs=100, num_per_epoch=100, batch_size=64)
+    reverse_uivi = ReverseUIVI(device=device, cfg=cfg)
+    reverse_uivi.learn()

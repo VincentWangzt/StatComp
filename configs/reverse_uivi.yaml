@@ -1,0 +1,61 @@
+# Global settings
+seed: 42
+cuda_visible_devices: "0"
+use_cuda_if_available: true
+
+# Experiment settings
+experiment:
+  name: reverse_uivi
+  target_dist: banana
+
+# Model settings
+models:
+  vi_model_type: ConditionalGaussian
+  reverse_model_type: ConditionalRealNVP
+  epsilon_dim: 4
+  z_dim: 2
+  vi_hidden_dim: 64
+  reverse_hidden_dim: 64
+  reverse_num_layers: 4 
+
+# Warmup settings
+warmup:
+  enabled: true
+  epochs: 10
+  lr: 1.0e-6
+  batch_size: 8192
+  epochs: 10000
+  kl_log_freq: 100
+  loss_log_freq: 100
+
+# Training settings
+train:
+  epochs: 10000
+  batch_size: 8192
+  reverse_sample_num: 100
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.9
+  reverse:
+    lr: 1.0e-5
+    batch_size: 8192
+    epochs: 5
+    update_freq: 1
+    reuse_optimizer: true
+  log:
+    kl_log_freq: 10
+    loss_log_freq: 10
+    reverse_log_freq: 5
+  sample:
+    freq: 500
+    num: 10000
+  plot:
+    freq: 100
+    num: 1000
+
+# KL estimation
+kl:
+  n_ite_samples: 10000

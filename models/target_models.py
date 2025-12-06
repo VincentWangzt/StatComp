@@ -7,6 +7,12 @@ import scipy.stats as st
 import os
 from typing import Type
 
+DEFAULT_BBOX = {
+    "multimodal": [-5, 5, -5, 5],
+    "banana": [-3.5, 3.5, -6, 1],
+    "x_shaped": [-5, 5, -5, 5],
+}
+
 
 class Toy_2D(object):
 
