@@ -14,6 +14,8 @@ from utils.logging import get_logger, set_file_handler
 # 1207 TODO:
 # 1. Refine and add comments
 # 2. Add KL to baseline as a metric
+# 3. Add environment.yml or requirements.txt [Done]
+
 
 def load_config(path: str):
     with open(path, 'r') as f:
