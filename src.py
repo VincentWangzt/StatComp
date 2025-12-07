@@ -15,17 +15,12 @@ import ite
 import math
 import time
 
-# 1207 TODO:
-# 1. Refine and add comments [Done]
-# 2. Add KL to baseline as a metric
-# 3. Add environment.yml or requirements.txt [Done]
-# 4. Revise the loss implementation [Done]
-# 5. Saving and loading checkpoints [Done]
-# 6. Add an metric recording average distance from epsilon_aux to original epsilon [Done]
-# 7. Log the total training time and the average step time [Done]
-# 8. Restucture the learn() to be more modular, and add more things from local variable to self
-# 9. Add readme and scripts and documentation of scripts
-# 10. Perhaps move resume to a parameter when initializing? or just pass in the args. Anyway, the parsing of args should be moved inside the __main__ section.
+# 1208 TODO:
+# 1. Add KL to baseline as a metric
+# 2. Restucture the learn() to be more modular, and add more things from local variable to self
+# 3. Add readme and scripts and documentation of scripts
+# 4. Perhaps move resume to a parameter when initializing? or just pass in the args. Anyway, the parsing of args should be moved inside the __main__ section.
+# 5. Fix env.yml
 
 
 def load_config(path: str) -> dict[str, Any]:
