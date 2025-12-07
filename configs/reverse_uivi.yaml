@@ -1,14 +1,28 @@
 # Global settings
+# - `seed`: Random seed used for reproducibility across torch operations.
+# - `cuda_visible_devices`: Comma-separated GPU indices exposed to the process.
+# - `use_cuda_if_available`: Toggle GPU usage if CUDA is available.
 seed: 42
 cuda_visible_devices: "0"
 use_cuda_if_available: true
 
 # Experiment settings
+# - `name`: Experiment name; used to create `results/<name>/...` and
+#   `tb_logs/<name>/...` directories.
+# - `target_dist`: Target distribution key; selects a predefined target model
+#   (e.g., `banana`, 'multi-modal', 'x_shaped').
 experiment:
   name: reverse_uivi
   target_dist: banana
 
 # Model settings
+# - `vi_model_type`: Must be `ConditionalGaussian` for Reverse UIVI.
+# - `reverse_model_type`: Must be `ConditionalRealNVP`.
+# - `epsilon_dim`: Dimension of epsilon (noise input to VI).
+# - `z_dim`: Dimension of latent z.
+# - `vi_hidden_dim`: Hidden size of the VI MLP.
+# - `reverse_hidden_dim`: Hidden size used in RealNVP scale/translate nets.
+# - `reverse_num_layers`: Number of coupling layers in the RealNVP.
 models:
   vi_model_type: ConditionalGaussian
   reverse_model_type: ConditionalRealNVP
@@ -19,9 +33,14 @@ models:
   reverse_num_layers: 4 
 
 # Warmup settings
+# - `enabled`: Whether to run warmup.
+# - `epochs`: Number of warmup epochs.
+# - `lr`: Learning rate for reverse optimizer during warmup.
+# - `batch_size`: Batch size of VI samples used to train the reverse model.
+# - `kl_log_freq`: Frequency (in epochs) to log KL estimates via ITE.
+# - `loss_log_freq`: Frequency to log running-average loss to file for the reverse model.
 warmup:
   enabled: true
-  epochs: 10
   lr: 1.0e-6
   batch_size: 8192
   epochs: 10000
@@ -29,6 +48,27 @@ warmup:
   loss_log_freq: 100
 
 # Training settings
+# - `epochs`: Number of VI outer iterations.
+# - `batch_size`: epsilon batch size for VI forward passes.
+# - `reverse_sample_num`: Number of epsilon samples per z when estimating score term.
+# - `vi.lr`: Learning rate for VI optimizer.
+# - `vi.scheduler`: Learning rate scheduler configuration (Only StepLR supported).
+# - `reverse`: Hyperparameters for reverse flow training during main loop.
+#     * `lr`: Reverse optimizer LR.
+#     * `batch_size`: sample batch size drawn from VI to fit the reverse.
+#     * `epochs`: Inner epochs per reverse update.
+#     * `update_freq`: Frequency (in VI epochs) to trigger reverse updates.
+#     * `reuse_optimizer`: If true, reuse the same optimizer instance across updates.
+# - `log`: Logging frequencies.
+#     * `kl_log_freq`: KL estimation frequency in VI epochs.
+#     * `loss_log_freq`: VI loss logging frequency (running average).
+#     * `reverse_log_freq`: Reverse loss logging frequency within inner loop.
+# - `sample`: Periodically save z samples to disk.
+#     * `freq`: VI epochs between saved sample batches.
+#     * `num`: Number of samples to save each time.
+# - `plot`: Periodically generate contour plots using the target model.
+#     * `freq`: VI epochs between plots.
+#     * `num`: Number of samples used for plotting overlays.
 train:
   epochs: 10000
   batch_size: 8192
@@ -57,5 +97,7 @@ train:
     num: 1000
 
 # KL estimation
+# - `n_ite_samples`: Number of samples passed to the ITE estimator to compute
+#   KL between the VI joint (epsilon,z) and the joint induced by the reverse flow.
 kl:
   n_ite_samples: 10000

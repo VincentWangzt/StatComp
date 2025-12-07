@@ -10,14 +10,26 @@ from torch.utils.data import DataLoader, TensorDataset
 import yaml
 import argparse
 from utils.logging import get_logger, set_file_handler
+from typing import Any, Callable
+import ite
 
 # 1207 TODO:
-# 1. Refine and add comments
+# 1. Refine and add comments [Done]
 # 2. Add KL to baseline as a metric
 # 3. Add environment.yml or requirements.txt [Done]
+# 4. Revise the loss implementation
+# 5. Saving and loading checkpoints
 
 
-def load_config(path: str):
+def load_config(path: str) -> dict[str, Any]:
+    '''
+    load configuration from a YAML file
+    
+    Args:
+        path (str): path to the YAML config file
+    Returns:
+        dict: configuration dictionary
+    '''
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
@@ -59,14 +71,29 @@ logger.info(f"Device: {device}")
 
 
 class ReverseUIVI():
+    '''
+    The main Reverse UIVI class that encapsulates the model, training, and evaluation.
+    
+    Key components:
+    - Target model: provides `logp` and plotting utilities.
+    - VI model: parameterizes q_phi(z|epsilon)
+    - Reverse model: parameterizes q_psi(epsilon|z) via normalizing flow
+    - Logging and artifact paths: under `results/` and `tb_logs/`.
+    
+    Args:
+        device (torch.device): The device to run the computations on.
+        cfg (dict): Configuration dictionary containing all hyperparameters and settings.
+    '''
 
     def __init__(self, device, cfg):
         self.target_dist = cfg['experiment']['target_dist']
         self.device = device
         self.cfg = cfg
+
         # target
         self.target_model = target_distribution[self.target_dist](
             device=device)
+
         # vi model from config
         model_config = cfg['models']
         assert model_config['vi_model_type'] == 'ConditionalGaussian', \
@@ -109,38 +136,52 @@ class ReverseUIVI():
 
         self.writer = SummaryWriter(log_dir=self.tb_path)
 
-    def calculate_KL(self):
-        import ite
-        # print("\nCalculating KL Divergence using 'ite' package...")
-        # A. True Joint Distribution Samples: (epsilon, z)
+    def calculate_KL(self) -> float:
+        '''
+        Calculate the KL divergence between the true joint distribution and the
+        joint distribution induced by the reverse model using the ITE package.
+        Returns:
+            kl_div (float): Estimated KL divergence value.
+        '''
         n_ite_samples = self.cfg['kl']['n_ite_samples']
-        true_eps = torch.randn(n_ite_samples,
-                               self.vi_model.epsilon_dim).to(self.device)
-        with torch.no_grad():
-            true_z, _ = self.vi_model.forward(true_eps)
+
+        # Sample from true joint
+        true_eps, true_z = self.vi_model.sampling(num=n_ite_samples)
         true_joint = torch.cat([true_eps, true_z], dim=1).cpu().numpy()
 
+        # Sample epsilon from reverse model given true z
         with torch.no_grad():
             generated_eps = self.reverse_model.sample(
                 true_z, num_samples=1)[1].squeeze(1)
         generated_joint = torch.cat([generated_eps, true_z],
                                     dim=1).cpu().numpy()
 
-        # C. Estimate KL
-        # Compare true joint vs generated joint
+        # Estimate KL divergence using ITE
         cost_obj = ite.cost.BDKL_KnnK()
         kl_div = cost_obj.estimation(generated_joint, true_joint)
-        # logger.debug(f"KL Divergence: {kl_div:.4f}")
+
         return kl_div
 
     def train_reverse_model(
         self,
-        optimizer,
-        epochs,
-        batch_size,
-        progress_bar=True,
-        log_func=None,
-    ):
+        optimizer: torch.optim.Optimizer,
+        epochs: int,
+        batch_size: int,
+        progress_bar: bool = True,
+        log_func: Callable[[float, int], None] = None,
+    ) -> None:
+        '''
+        Train the reverse model. Generate samples from the VI model and then optimize the reverse model to maximize the log-reverse-probablity of these samples.
+        
+        Args:
+            optimizer (torch.optim.Optimizer): Optimizer for the reverse model.
+            epochs (int): Number of training epochs.
+            batch_size (int): Batch size for training.
+            progress_bar (bool, optional): Whether to display a progress bar. Defaults to True.
+            log_func (Callable[[float, int], None], optional): Function to log training progress. Defaults to None. The first argument is the loss, the second is the epoch.
+        Returns:
+            None
+        '''
         self.reverse_model.train()
         iterator = range(epochs)
         if progress_bar:
@@ -157,7 +198,13 @@ class ReverseUIVI():
             if log_func is not None:
                 log_func(loss.item(), epoch)
 
-    def warmup(self):
+    def warmup(self) -> None:
+        '''
+        Warm up the reverse model by training it for a specified number of epochs. Logs the KL divergence and reverse model loss during warmup. Configured via the 'warmup' section in the configuration dictionary.
+        
+        Returns:
+            None
+        '''
         wcfg = self.cfg['warmup']
         if not wcfg['enabled']:
             return
@@ -195,8 +242,25 @@ class ReverseUIVI():
         )
 
     def learn(self):
+        '''
+        Run the full training procedure for Reverse UIVI.
+
+        Algorithm overview:
+        1. Warm up the reverse flow.
+        2. For each VI step:
+            - Sample z from VI q_phi(z|epsilon).
+            - Compute target log-density `log p(z)` from the target model.
+            - Estimate the score function term using samples from the reverse model q_psi(epsilon|z).
+            - Loss = -E_z[log p(z) + StopGrad(E_epsilon'~q_psi[score_phi(z|epsilon')])^T * z]
+        3. Periodically update the reverse flow for several inner epochs using
+            samples from the current VI.
+        
+        Returns:
+            None
+        '''
         # initial warmup
         self.warmup()
+
         # training configs
         tcfg = self.cfg['train']
         num_epochs = tcfg['epochs']
@@ -268,6 +332,7 @@ class ReverseUIVI():
 
         # Main training loop
         self.vi_model.train()
+
         for epoch in tqdm(range(1, num_epochs + 1), desc="Main Training"):
 
             # Sample epsilon
@@ -326,6 +391,7 @@ class ReverseUIVI():
                     log_func=lambda l, e: rev_log_func(l, e, epoch),
                 )
 
+            # Generate and save samples
             if epoch % sample_freq == 0:
                 _, z_sample = self.vi_model.sampling(num=sample_num)
 
@@ -338,11 +404,13 @@ class ReverseUIVI():
                 )
                 logger.debug(f"Saved {sample_num} samples at epoch {epoch}.")
 
+            # Log KL divergence
             if epoch % kl_log_freq == 0:
                 kl_div = self.calculate_KL()
                 logger.debug(f"Epoch {epoch}, KL Divergence: {kl_div:.4f}")
                 self.writer.add_scalar("train/kl_div", kl_div, epoch)
 
+            # Generate and save contour plots
             if epoch % plot_freq == 0:
                 _, z_plot = self.vi_model.sampling(num=plot_num)
 

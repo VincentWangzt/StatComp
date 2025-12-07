@@ -205,12 +205,15 @@ class LRwaveform(object):
         self.alpha = alpha
 
     def logp(self, Z, batchdataset, batchlabel, scale_sto=1):
-        """
-        output: the \E_{Y|X}\log \E p(Y|X,z), as the test log ll
+        r"""
+        :params:
         Z: the target inference parameters, shape = [T, (x_dim + 1)]
         batchdataset: the batch bataset with shape = [batchsize, (x_dim + 1)]
         batchlabel: onehot for the the label corresponding to the batchdataset, shape = [n,1]
         scale_sto: num_datasets/batchsize
+
+        :returns: 
+        the \E_{Y|X}\log \E p(Y|X,z), as the test log ll
         """
         B = Z.shape[0]
         W = Z
@@ -220,13 +223,14 @@ class LRwaveform(object):
         return (torch.logsumexp(logpy_xz, dim=1).mean(0) - np.log(B))
 
     def score(self, Z, batchdataset, batchlabel, scale_sto):
-        """
-        INPUT:
+        r"""
+        :params:
         Z: the target inference parameters, shape = [batch, (x_dim + 1)]
         batchdataset: the batch bataset with shape = [batchsize, (x_dim + 1)]
         batchlabel: the label corresponding to the batchdataset, shape = [n,1]
         scale_sto: num_datasets/batchsize
-        OUTPUT:
+
+        :returns:
         -Z + \nabla_Z\log p(Y|X,Z), where p(y_i = 1|x_i,w) = sigmoid(Z\cdot x_i)
         """
         # batchlabel[batchlabel == -1] = 0
@@ -252,7 +256,7 @@ class Bnn(object):
         self.loglambda = loglambda
 
     def logp(self, Z, batchdataset, batchlabel, scale_sto=1, max_param=50.0):
-        """
+        r"""
         return the log posterior distribution \log P(W|Y,X).
         """
         log_gamma = self.loggamma * torch.ones(Z.size(0)).to(self.device)
@@ -281,7 +285,7 @@ class Bnn(object):
         return (log_lik_data * scale_sto + log_prior_w)
 
     def score(self, Z, batchdataset, batchlabel, scale_sto=1, max_param=50.0):
-        """
+        r"""
         return the score function of posterior distribution \nabla \log P(W|Y,X).
         """
         batch_Z = Z.shape[0]
@@ -329,7 +333,7 @@ class Bnn(object):
                  mean_y_train,
                  std_y_train,
                  max_param=50.0):
-        """
+        r"""
         return the test RMSE and test log-likelihood of posterior distribution \nabla \log P(W|Y,X).
         """
         log_gamma = self.loggamma * torch.ones(
@@ -363,7 +367,7 @@ class Bnn(object):
                   mean_y_train,
                   std_y_train,
                   max_param=50.0):
-        """
+        r"""
         return the predicted response variable \hat{y} given the independent variables.
         """
         W1 = Z[:, :(self.d) * self.n_hidden].reshape(
