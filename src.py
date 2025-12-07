@@ -13,6 +13,7 @@ from utils.logging import get_logger, set_file_handler
 from typing import Any, Callable
 import ite
 import math
+import time
 
 # 1207 TODO:
 # 1. Refine and add comments [Done]
@@ -21,7 +22,7 @@ import math
 # 4. Revise the loss implementation [Done]
 # 5. Saving and loading checkpoints
 # 6. Add an metric recording average distance from epsilon_aux to original epsilon [Done]
-# 7. Log the total training time and the average step time
+# 7. Log the total training time and the average step time [Done]
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -229,6 +230,8 @@ class ReverseUIVI():
         sample_loss = 0
 
         optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
+        warmup_start_time = time.perf_counter()
+        last_time = time.perf_counter()
 
         def log_func(loss, epoch):
             self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
@@ -241,9 +244,13 @@ class ReverseUIVI():
                     f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
             if epoch % loss_log_freq == 0:
                 avg_loss = sample_loss / loss_log_freq
+                current_time = time.perf_counter()
+                nonlocal last_time
+                avg_step_time = (current_time - last_time) / loss_log_freq
+                last_time = current_time
                 sample_loss = 0
                 logger.debug(
-                    f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}"
+                    f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s"
                 )
 
         self.train_reverse_model(
@@ -252,6 +259,11 @@ class ReverseUIVI():
             batch_size,
             progress_bar=True,
             log_func=log_func,
+        )
+        warmup_end_time = time.perf_counter()
+        warmup_time = warmup_end_time - warmup_start_time
+        logger.info(
+            f"Warmup completed for {epochs} epochs. Total time: {warmup_time:.3f}s, Avg epoch time: {warmup_time/epochs:.6f}s"
         )
 
     # ---------- UIVI (HMC-based epsilon|z sampling) helpers ----------
@@ -400,10 +412,10 @@ class ReverseUIVI():
             eps_current = torch.where(accept_mask.unsqueeze(-1), eps_prop,
                                       eps_current)
 
-            accepts.append(accept_prob.detach())
+            accepts.append(accept_mask.float().clone().detach())
             # After burn-in, record sample
             if step >= burn_in_steps:
-                samples.append(eps_current.detach())
+                samples.append(eps_current.clone().detach())
 
         # Stack samples: list of S tensors [B, De] -> [S, B, De] -> [B, S, De]
         eps_out = torch.stack(samples, dim=0).transpose(0, 1)
@@ -518,10 +530,15 @@ class ReverseUIVI():
 
         # Main training loop
         self.vi_model.train()
+        # Timing accumulators
+        last_time = time.perf_counter()
+        train_start_time = time.perf_counter()
 
         for epoch in tqdm(range(1, num_epochs + 1), desc="Main Training"):
+            epoch_start_time = time.perf_counter()
 
             # Sample epsilon (used both for VI forward and as HMC init for uivi)
+            t_vi0 = time.perf_counter()
             epsilon = torch.randn(batch_size,
                                   self.vi_model.epsilon_dim).to(self.device)
 
@@ -530,6 +547,11 @@ class ReverseUIVI():
 
             # Compute log prob under target distribution
             log_prob_target = self.target_model.logp(z)
+
+            t_vi1 = time.perf_counter()
+            time_vi_sample_step = t_vi1 - t_vi0
+
+            t_ns0 = time.perf_counter()
 
             if self.reverse_model is not None:
                 with torch.no_grad():
@@ -559,6 +581,11 @@ class ReverseUIVI():
                 neg_score = neg_score.mean(dim=1)
                 neg_score = neg_score.clone().detach()
 
+            t_ns1 = time.perf_counter()
+            time_neg_score_step = t_ns1 - t_ns0
+
+            t_bw0 = time.perf_counter()
+
             # Compute loss
             loss = -torch.mean(log_prob_target + torch.sum(
                 z * neg_score,
@@ -568,11 +595,28 @@ class ReverseUIVI():
             optimizer_vi.zero_grad()
             loss.backward()
             optimizer_vi.step()
+            scheduler_vi.step()
+
+            t_bw1 = time.perf_counter()
+            time_backward_step = t_bw1 - t_bw0
 
             # TensorBoard scalars
             self.writer.add_scalar("train/loss", loss.item(), epoch)
-            scheduler_vi.step()
-            sample_loss += loss.item()
+            self.writer.add_scalar(
+                "time/vi_sample_step",
+                time_vi_sample_step,
+                epoch,
+            )
+            self.writer.add_scalar(
+                "time/neg_score_step",
+                time_neg_score_step,
+                epoch,
+            )
+            self.writer.add_scalar(
+                "time/backward_step",
+                time_backward_step,
+                epoch,
+            )
 
             # Log the average distance from epsilon_aux to original epsilon
             avg_eps_distance = torch.mean(
@@ -583,14 +627,23 @@ class ReverseUIVI():
             self.writer.add_scalar("train/avg_epsilon_distance",
                                    avg_eps_distance, epoch)
 
+            sample_loss += loss.item()
             if epoch % loss_log_freq == 0:
                 avg_loss = sample_loss / loss_log_freq
-                logger.debug(f"Epoch {epoch}, VI Model Loss: {avg_loss:.4f}")
+                current_time = time.perf_counter()
+                avg_epoch_time = (current_time - last_time) / loss_log_freq
+
+                logger.debug(
+                    f"Epoch {epoch}: Avg Loss: {avg_loss:.4f}, Avg Epoch Time: {avg_epoch_time:.4f}s"
+                )
+                # Reset accumulators
                 sample_loss = 0
+                last_time = current_time
 
             # Train reverse model
             if (self.reverse_model is not None
                     and (epoch % rev_update_freq) == 0):
+                time_rev0 = time.perf_counter()
                 if not rev_reuse_optimizer:
                     reverse_optimizer = torch.optim.Adam(
                         self.reverse_model.parameters(), lr=reverse_lr)
@@ -600,6 +653,13 @@ class ReverseUIVI():
                     rev_batch_size,
                     progress_bar=False,
                     log_func=lambda l, e: rev_log_func(l, e, epoch),
+                )
+                time_rev1 = time.perf_counter()
+                time_reverse_step = time_rev1 - time_rev0
+                self.writer.add_scalar(
+                    "time/avg_reverse_model_train_step",
+                    time_reverse_step / rev_update_freq,
+                    epoch,
                 )
 
             # Generate and save samples
@@ -618,12 +678,21 @@ class ReverseUIVI():
             # Log KL divergence
             if self.reverse_model is not None and kl_log_freq > 0 and (
                     epoch % kl_log_freq == 0):
+                t_kl0 = time.perf_counter()
                 kl_div = self.calculate_KL()
+                t_kl1 = time.perf_counter()
+                time_kl_step = t_kl1 - t_kl0
+                self.writer.add_scalar(
+                    "time/avg_kl_calculation_step",
+                    time_kl_step / kl_log_freq,
+                    epoch,
+                )
                 logger.debug(f"Epoch {epoch}, KL Divergence: {kl_div:.4f}")
                 self.writer.add_scalar("train/kl_div", kl_div, epoch)
 
             # Generate and save contour plots
             if epoch % plot_freq == 0:
+                t_plot0 = time.perf_counter()
                 _, z_plot = self.vi_model.sampling(num=plot_num)
 
                 self.target_model.contour_plot(
@@ -638,10 +707,28 @@ class ReverseUIVI():
                     t=epoch,
                 )
                 logger.debug(f"Saved contour plot at epoch {epoch}.")
+                t_plot1 = time.perf_counter()
+                time_plot_step = t_plot1 - t_plot0
+                self.writer.add_scalar(
+                    "time/avg_plotting_step",
+                    time_plot_step / plot_freq,
+                    epoch,
+                )
+            epoch_end_time = time.perf_counter()
+            epoch_time = epoch_end_time - epoch_start_time
+            self.writer.add_scalar(
+                "time/epoch",
+                epoch_time,
+                epoch,
+            )
 
         # Close writer at end
+        total_time = time.perf_counter() - train_start_time
+        avg_epoch_time = total_time / max(1, num_epochs)
+        logger.info(
+            f"Training completed. Total time: {total_time:.3f}s, Avg epoch time: {avg_epoch_time:.6f}s"
+        )
         self.writer.close()
-        logger.info("Training completed.")
 
 
 if __name__ == "__main__":
