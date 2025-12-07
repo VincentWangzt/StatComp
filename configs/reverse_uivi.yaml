@@ -63,6 +63,9 @@ warmup:
 #     * `kl_log_freq`: KL estimation frequency in VI epochs.
 #     * `loss_log_freq`: VI loss logging frequency (running average).
 #     * `reverse_log_freq`: Reverse loss logging frequency within inner loop.
+# - `checkpoint`: Checkpoint saving settings.
+#     * `enabled`: Whether to save checkpoints.
+#     * `freq`: VI epochs between saved checkpoints.
 # - `sample`: Periodically save z samples to disk.
 #     * `freq`: VI epochs between saved sample batches.
 #     * `num`: Number of samples to save each time.
