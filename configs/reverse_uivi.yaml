@@ -82,13 +82,13 @@ train:
   reverse:
     lr: 1.0e-5
     batch_size: 8192
-    epochs: 5
+    epochs: 50
     update_freq: 1
     reuse_optimizer: true
   log:
     kl_log_freq: 10
     loss_log_freq: 10
-    reverse_log_freq: 5
+    reverse_log_freq: 500
   sample:
     freq: 500
     num: 10000
