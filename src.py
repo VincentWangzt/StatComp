@@ -20,9 +20,12 @@ import time
 # 2. Add KL to baseline as a metric
 # 3. Add environment.yml or requirements.txt [Done]
 # 4. Revise the loss implementation [Done]
-# 5. Saving and loading checkpoints
+# 5. Saving and loading checkpoints [Done]
 # 6. Add an metric recording average distance from epsilon_aux to original epsilon [Done]
 # 7. Log the total training time and the average step time [Done]
+# 8. Restucture the learn() to be more modular, and add more things from local variable to self
+# 9. Add readme and scripts and documentation of scripts
+# 10. Perhaps move resume to a parameter when initializing? or just pass in the args. Anyway, the parsing of args should be moved inside the __main__ section.
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -46,6 +49,27 @@ def parse_args():
                         type=str,
                         default=default_cfg,
                         help='Path to YAML config file')
+    parser.add_argument(
+        '--resume_ckpt_dir',
+        type=str,
+        default=None,
+        help=
+        'Path to a checkpoint directory (e.g., results/<exp>/<target>/<timestamp>/checkpoints/epoch_<epoch>) to resume models from',
+    )
+    parser.add_argument(
+        '--load_optimizer',
+        action='store_true',
+        default=False,
+        help=
+        'When resuming, also load optimizer and scheduler states if available. This will also override the starting epoch (and warmup) based on the checkpoint directory.',
+    )
+    parser.add_argument(
+        '--no_override_start_epoch',
+        action='store_true',
+        default=False,
+        help=
+        'Disable overriding starting epoch when resuming; do not skip warmup',
+    )
     return parser.parse_args()
 
 
@@ -89,11 +113,17 @@ class ReverseUIVI():
         cfg (dict): Configuration dictionary containing all hyperparameters and settings.
     '''
 
-    def __init__(self, device, cfg):
+    def __init__(
+        self,
+        device: torch.device,
+        cfg: dict[str, Any],
+        resume_ckpt_dir: str | None = None,
+    ):
         self.exp_name = cfg['experiment']['name']
         self.target_dist = cfg['experiment']['target_dist']
         self.device = device
         self.cfg = cfg
+        self.resume_ckpt_dir = resume_ckpt_dir
 
         # target
         self.target_model = target_distribution[self.target_dist](
@@ -125,6 +155,53 @@ class ReverseUIVI():
                 num_layers=model_config['reverse_num_layers'],
                 device=self.device,
             ).to(self.device)
+
+        # Optionally resume models from checkpoint directory
+        if self.resume_ckpt_dir is not None:
+            logger.info(
+                f"Resume requested. Checkpoint dir: {self.resume_ckpt_dir}")
+            try:
+                # VI model checkpoint
+                vi_ckpt_path = os.path.join(
+                    self.resume_ckpt_dir,
+                    'vi_model.pt',
+                )
+                if os.path.isfile(vi_ckpt_path):
+                    state = torch.load(
+                        vi_ckpt_path,
+                        map_location=self.device,
+                    )
+                    self.vi_model.load_state_dict(state)
+                    logger.info(
+                        f"Loaded VI model checkpoint from {vi_ckpt_path}")
+                else:
+                    logger.warning(
+                        f"VI checkpoint not found at {vi_ckpt_path}; using default initialization."
+                    )
+                # Reverse model checkpoint (if applicable)
+                if self.reverse_model is not None:
+                    rev_ckpt_path = os.path.join(
+                        self.resume_ckpt_dir,
+                        'reverse_model.pt',
+                    )
+                    if os.path.isfile(rev_ckpt_path):
+                        state = torch.load(
+                            rev_ckpt_path,
+                            map_location=self.device,
+                        )
+                        self.reverse_model.load_state_dict(state)
+                        logger.info(
+                            f"Loaded reverse model checkpoint from {rev_ckpt_path}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Reverse model checkpoint not found at {rev_ckpt_path}; using default initialization."
+                        )
+            except Exception as e:
+                logger.error(
+                    f"Failed to load checkpoints from {self.resume_ckpt_dir}: {e}."
+                )
+                raise e
 
         # save path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -442,9 +519,13 @@ class ReverseUIVI():
         Returns:
             None
         '''
-        # initial warmup (only for reverse_uivi)
+        # Determine resume behaviors from CLI flags
+        load_opt_sched = args.load_optimizer
+        override_start_epoch = not args.no_override_start_epoch
+        # initial warmup (only for reverse_uivi) unless resuming with epoch override
         if self.reverse_model is not None:
-            self.warmup()
+            if not (self.resume_ckpt_dir is not None and override_start_epoch):
+                self.warmup()
 
         # training configs
         tcfg = self.cfg['train']
@@ -464,6 +545,39 @@ class ReverseUIVI():
             step_size=vi_scheduler_cfg['step_size'],
             gamma=vi_scheduler_cfg['gamma'],
         )
+        # If resuming, optionally load optimizer & scheduler states
+        if self.resume_ckpt_dir is not None and load_opt_sched:
+            try:
+                vi_opt_path = os.path.join(self.resume_ckpt_dir, 'vi_optim.pt')
+                vi_sched_path = os.path.join(
+                    self.resume_ckpt_dir,
+                    'vi_sched.pt',
+                )
+                if os.path.isfile(vi_opt_path):
+                    opt_state = torch.load(
+                        vi_opt_path,
+                        map_location=self.device,
+                    )
+                    optimizer_vi.load_state_dict(opt_state)
+                    logger.info(f"Loaded VI optimizer from {vi_opt_path}")
+                else:
+                    logger.warning(
+                        f"VI optimizer checkpoint not found at {vi_opt_path}; using fresh optimizer."
+                    )
+                if os.path.isfile(vi_sched_path):
+                    sched_state = torch.load(
+                        vi_sched_path,
+                        map_location=self.device,
+                    )
+                    scheduler_vi.load_state_dict(sched_state)
+                    logger.info(f"Loaded VI scheduler from {vi_sched_path}")
+                else:
+                    logger.warning(
+                        f"VI scheduler checkpoint not found at {vi_sched_path}; using fresh scheduler."
+                    )
+            except Exception as e:
+                logger.error(f"Failed to load VI optimizer/scheduler: {e}.")
+                raise e
 
         # Reverse training cfg (if applicable)
         if self.reverse_model is not None:
@@ -479,6 +593,29 @@ class ReverseUIVI():
                     self.reverse_model.parameters(), lr=reverse_lr)
             else:
                 reverse_optimizer = None
+            # If resuming and allowed, load reverse optimizer only when reusing optimizer
+            if (self.resume_ckpt_dir is not None and load_opt_sched
+                    and rev_reuse_optimizer and reverse_optimizer is not None):
+                try:
+                    rev_opt_path = os.path.join(
+                        self.resume_ckpt_dir,
+                        'reverse_optim.pt',
+                    )
+                    if os.path.isfile(rev_opt_path):
+                        ro_state = torch.load(
+                            rev_opt_path,
+                            map_location=self.device,
+                        )
+                        reverse_optimizer.load_state_dict(ro_state)
+                        logger.info(
+                            f"Loaded reverse optimizer from {rev_opt_path}")
+                    else:
+                        logger.warning(
+                            f"Reverse optimizer checkpoint not found at {rev_opt_path}; using fresh optimizer."
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to load reverse optimizer: {e}.")
+                    raise e
         else:
             reverse_optimizer = None
 
@@ -508,6 +645,14 @@ class ReverseUIVI():
         sample_loss = 0
         sample_reverse_loss = 0
 
+        # Checkpoint cfg
+        ckpt_cfg = tcfg['checkpoint']
+        ckpt_enabled = ckpt_cfg['enabled']
+        ckpt_freq = ckpt_cfg['freq']
+        ckpt_base_path = os.path.join(self.save_path, "checkpoints")
+        if ckpt_enabled:
+            os.makedirs(ckpt_base_path, exist_ok=True)
+
         def rev_log_func(loss, epoch_inner, epoch_outer):
             epoch = (epoch_outer - 1) * rev_epochs + epoch_inner
             nonlocal sample_reverse_loss
@@ -534,7 +679,33 @@ class ReverseUIVI():
         last_time = time.perf_counter()
         train_start_time = time.perf_counter()
 
-        for epoch in tqdm(range(1, num_epochs + 1), desc="Main Training"):
+        # Determine starting epoch (override when resuming)
+        start_epoch = 1
+        if self.resume_ckpt_dir is not None and override_start_epoch:
+            try:
+                base = os.path.basename(self.resume_ckpt_dir.rstrip('/'))
+                if base.startswith('epoch_'):
+                    parsed = int(base.split('_')[1])
+                    start_epoch = parsed + 1
+                    logger.info(
+                        f"Starting training from epoch {start_epoch} due to resume."
+                    )
+                else:
+                    logger.warning(
+                        f"Resume dir '{self.resume_ckpt_dir}' does not end with 'epoch_<n>'; starting from epoch 1."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Failed to parse starting epoch from resume dir '{self.resume_ckpt_dir}': {e}. Starting from epoch 1."
+                )
+                raise e
+
+        for epoch in tqdm(
+                range(start_epoch, num_epochs + 1),
+                desc="Main Training",
+                initial=start_epoch - 1,
+                total=num_epochs,
+        ):
             epoch_start_time = time.perf_counter()
 
             # Sample epsilon (used both for VI forward and as HMC init for uivi)
@@ -675,6 +846,38 @@ class ReverseUIVI():
                 )
                 logger.debug(f"Saved {sample_num} samples at epoch {epoch}.")
 
+            # Save checkpoints
+            if ckpt_enabled and (epoch % ckpt_freq == 0):
+                epoch_ckpt_dir = os.path.join(ckpt_base_path, f"epoch_{epoch}")
+                os.makedirs(epoch_ckpt_dir, exist_ok=True)
+                # Save VI model
+                vi_ckpt_path = os.path.join(epoch_ckpt_dir, "vi_model.pt")
+                torch.save(self.vi_model.state_dict(), vi_ckpt_path)
+                # Save VI optimizer and scheduler
+                vi_opt_path = os.path.join(epoch_ckpt_dir, "vi_optim.pt")
+                vi_sched_path = os.path.join(epoch_ckpt_dir, "vi_sched.pt")
+                torch.save(optimizer_vi.state_dict(), vi_opt_path)
+                torch.save(scheduler_vi.state_dict(), vi_sched_path)
+                # Save reverse model (if exists)
+                if self.reverse_model is not None:
+                    rev_ckpt_path = os.path.join(
+                        epoch_ckpt_dir,
+                        "reverse_model.pt",
+                    )
+                    torch.save(self.reverse_model.state_dict(), rev_ckpt_path)
+                    # Save reverse optimizer only if reusing optimizer
+                    if rev_reuse_optimizer and reverse_optimizer is not None:
+                        rev_opt_path = os.path.join(
+                            epoch_ckpt_dir,
+                            "reverse_optim.pt",
+                        )
+                        torch.save(
+                            reverse_optimizer.state_dict(),
+                            rev_opt_path,
+                        )
+                logger.debug(
+                    f"Saved checkpoints at epoch {epoch} to {epoch_ckpt_dir}.")
+
             # Log KL divergence
             if self.reverse_model is not None and kl_log_freq > 0 and (
                     epoch % kl_log_freq == 0):
@@ -732,5 +935,7 @@ class ReverseUIVI():
 
 
 if __name__ == "__main__":
-    runner = ReverseUIVI(device=device, cfg=cfg)
+    runner = ReverseUIVI(device=device,
+                         cfg=cfg,
+                         resume_ckpt_dir=args.resume_ckpt_dir)
     runner.learn()

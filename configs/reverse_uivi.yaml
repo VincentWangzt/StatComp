@@ -89,11 +89,14 @@ train:
     kl_log_freq: 10
     loss_log_freq: 10
     reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 1000
   sample:
     freq: 500
     num: 10000
   plot:
-    freq: 100
+    freq: 500
     num: 1000
 
 # KL estimation
