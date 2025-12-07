@@ -12,13 +12,16 @@ import argparse
 from utils.logging import get_logger, set_file_handler
 from typing import Any, Callable
 import ite
+import math
 
 # 1207 TODO:
 # 1. Refine and add comments [Done]
 # 2. Add KL to baseline as a metric
 # 3. Add environment.yml or requirements.txt [Done]
-# 4. Revise the loss implementation
+# 4. Revise the loss implementation [Done]
 # 5. Saving and loading checkpoints
+# 6. Add an metric recording average distance from epsilon_aux to original epsilon [Done]
+# 7. Log the total training time and the average step time
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -35,7 +38,7 @@ def load_config(path: str) -> dict[str, Any]:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Reverse UIVI Runner")
+    parser = argparse.ArgumentParser(description="UIVI / Reverse-UIVI Runner")
     default_cfg = os.path.join(os.path.dirname(__file__), 'configs',
                                'reverse_uivi.yaml')
     parser.add_argument('--config',
@@ -50,7 +53,7 @@ args = parse_args()
 CONFIG_PATH = args.config
 cfg = load_config(CONFIG_PATH)
 # Setup logging (console + optional file under save path)
-logger = get_logger("reverse_uivi")
+logger = get_logger("uivi_runner")
 
 # Device and seeds
 use_cuda = cfg.get('use_cuda_if_available', True) and torch.cuda.is_available()
@@ -86,6 +89,7 @@ class ReverseUIVI():
     '''
 
     def __init__(self, device, cfg):
+        self.exp_name = cfg['experiment']['name']
         self.target_dist = cfg['experiment']['target_dist']
         self.device = device
         self.cfg = cfg
@@ -97,9 +101,7 @@ class ReverseUIVI():
         # vi model from config
         model_config = cfg['models']
         assert model_config['vi_model_type'] == 'ConditionalGaussian', \
-            "Only ConditionalGaussian VI model is supported in Reverse UIVI."
-        assert model_config['reverse_model_type'] == 'ConditionalRealNVP', \
-            "Only ConditionalRealNVP reverse model is supported in Reverse UIVI."
+            "Only ConditionalGaussian VI model is supported."
         self.epsilon_dim = model_config['epsilon_dim']
         self.z_dim = model_config['z_dim']
 
@@ -110,17 +112,20 @@ class ReverseUIVI():
             device=self.device,
         ).to(self.device)
 
-        # reverse model from config
-        self.reverse_model = ConditionalRealNVP(
-            z_dim=model_config['z_dim'],
-            epsilon_dim=model_config['epsilon_dim'],
-            hidden_dim=model_config['reverse_hidden_dim'],
-            num_layers=model_config['reverse_num_layers'],
-            device=self.device,
-        ).to(self.device)
+        # reverse model only needed for reverse_uivi
+        self.reverse_model = None
+        if self.exp_name == 'reverse_uivi':
+            assert model_config['reverse_model_type'] == 'ConditionalRealNVP', \
+                "Only ConditionalRealNVP reverse model is supported in Reverse UIVI."
+            self.reverse_model = ConditionalRealNVP(
+                z_dim=model_config['z_dim'],
+                epsilon_dim=model_config['epsilon_dim'],
+                hidden_dim=model_config['reverse_hidden_dim'],
+                num_layers=model_config['reverse_num_layers'],
+                device=self.device,
+            ).to(self.device)
 
         # save path
-        self.exp_name = cfg['experiment']['name']
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.save_path = os.path.join("results", self.exp_name,
                                       self.target_dist, timestamp)
@@ -143,6 +148,10 @@ class ReverseUIVI():
         Returns:
             kl_div (float): Estimated KL divergence value.
         '''
+        if self.reverse_model is None:
+            raise RuntimeError(
+                "KL calculation is only available for reverse_uivi where reverse_model exists."
+            )
         n_ite_samples = self.cfg['kl']['n_ite_samples']
 
         # Sample from true joint
@@ -182,6 +191,8 @@ class ReverseUIVI():
         Returns:
             None
         '''
+        if self.reverse_model is None:
+            return
         self.reverse_model.train()
         iterator = range(epochs)
         if progress_bar:
@@ -205,7 +216,9 @@ class ReverseUIVI():
         Returns:
             None
         '''
-        wcfg = self.cfg['warmup']
+        if self.reverse_model is None:
+            return
+        wcfg = self.cfg.get('warmup', {'enabled': False})
         if not wcfg['enabled']:
             return
         lr = wcfg['lr']
@@ -241,6 +254,162 @@ class ReverseUIVI():
             log_func=log_func,
         )
 
+    # ---------- UIVI (HMC-based epsilon|z sampling) helpers ----------
+    def _log_q_z_given_epsilon(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log q_phi(z | epsilon) for diagonal Gaussian parameterization.
+        Supports broadcasting over leading dimensions.
+
+        Args:
+            z (torch.Tensor): shape [..., Dz]
+            epsilon (torch.Tensor): shape [..., De]
+        Returns:
+            log_q (torch.Tensor): shape [...]
+        """
+        mu, log_var = self.vi_model.net(epsilon).chunk(2, dim=-1)
+        log_var = log_var.clamp(min=self.vi_model.log_var_min)
+        var = torch.exp(log_var)
+        # Gaussian log-likelihood per sample
+        const = -0.5 * z.shape[-1] * math.log(2 * math.pi)
+        ll = const - 0.5 * (log_var.sum(dim=-1) +
+                            ((z - mu)**2 / var).sum(dim=-1))
+        return ll
+
+    def _log_q_epsilon(self, epsilon: torch.Tensor) -> torch.Tensor:
+        """
+        Compute log q(epsilon) under standard normal prior.
+        Supports broadcasting over leading dimensions.
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+        Returns:
+            log_q (torch.Tensor): shape [...]
+        """
+        const = -0.5 * epsilon.shape[-1] * math.log(2 * math.pi)
+        return const - 0.5 * (epsilon**2).sum(dim=-1)
+
+    def _log_q_phi_eps_given_z(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log q_phi(epsilon | z) = log q(epsilon) + log q_phi(z | epsilon) - const, where the const = log q_phi(z) is ignored.
+        Supports broadcasting over leading dimensions.
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+            z (torch.Tensor): shape [..., Dz]
+        Returns:
+            log_q_phi (torch.Tensor): shape [...]
+        """
+        return self._log_q_epsilon(epsilon) + self._log_q_z_given_epsilon(
+            z, epsilon)
+
+    def _grad_log_q_phi(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute the gradient of log q_phi(epsilon | z) w.r.t. epsilon.
+        Args:
+            epsilon (torch.Tensor): shape [B, De]
+            z (torch.Tensor): shape [B, Dz]
+        Returns:
+            grad (torch.Tensor): shape [B, De]
+        """
+        epsilon = epsilon.clone().detach().requires_grad_(True)
+        logp = self._log_q_phi_eps_given_z(epsilon, z)
+        logp_sum = logp.sum()
+        grad = torch.autograd.grad(logp_sum,
+                                   epsilon,
+                                   retain_graph=False,
+                                   create_graph=False)[0]
+        return grad.detach()
+
+    def sample_epsilon_hmc(
+        self,
+        z: torch.Tensor,
+        eps_init: torch.Tensor,
+        num_samples: int,
+        burn_in_steps: int,
+        step_size: float,
+        leapfrog_steps: int,
+    ) -> tuple[torch.Tensor, torch.Tensor, float]:
+        """
+        Sequential HMC per (z, epsilon) starting from eps_init.
+        Runs `burn_in_steps` transitions, then collects `num_samples` samples.
+        Returns tiled z, sampled epsilon, and average acceptance rate.
+        
+        Args:
+            z (torch.Tensor): shape [B, Dz]
+            eps_init (torch.Tensor): shape [B, De]
+            num_samples (int): number of samples to collect after burn-in
+            burn_in_steps (int): number of burn-in HMC steps
+            step_size (float): leapfrog step size
+            leapfrog_steps (int): number of leapfrog steps per HMC transition
+        Returns:
+            (z_aux, eps_aux, acc_rate) (torch.Tensor, torch.Tensor, float):
+            z_aux has shape [B, S, Dz] (tiled z),
+            eps_aux has shape [B, S, De] (sampled epsilons),
+            acc_rate is the average acceptance rate (float).
+        """
+        B, Dz = z.shape
+        De = self.epsilon_dim
+        S = num_samples
+        device = self.device
+
+        z_aux = z.unsqueeze(1).expand(B, S, Dz).clone().detach()
+        eps_current = eps_init.clone().detach().to(device)  # [B, De]
+
+        samples = []
+        accepts = []
+
+        total_steps = burn_in_steps + S
+        for step in range(total_steps):
+            # Resample momentum
+            p0 = torch.randn(B, De, device=device)
+
+            # Current energies
+            logp0 = self._log_q_phi_eps_given_z(eps_current, z)
+            K0 = 0.5 * (p0**2).sum(dim=-1)
+
+            # Leapfrog from current state (batched over B)
+            p = p0 + 0.5 * step_size * self._grad_log_q_phi(eps_current, z)
+            eps_prop = eps_current
+            for t in range(leapfrog_steps):
+                eps_prop = eps_prop + step_size * p
+                grad = self._grad_log_q_phi(eps_prop, z)
+                if t != leapfrog_steps - 1:
+                    p = p + step_size * grad
+            p = p + 0.5 * step_size * grad
+
+            # Proposed energies
+            logp_prop = self._log_q_phi_eps_given_z(eps_prop, z)
+            K_prop = 0.5 * (p**2).sum(dim=-1)
+
+            dH = (K_prop - logp_prop) - (K0 - logp0)
+            accept_prob = torch.exp((-dH).clamp(max=0))
+            u = torch.rand_like(accept_prob)
+            accept_mask = (u < accept_prob)
+
+            # Update current
+            eps_current = torch.where(accept_mask.unsqueeze(-1), eps_prop,
+                                      eps_current)
+
+            accepts.append(accept_prob.detach())
+            # After burn-in, record sample
+            if step >= burn_in_steps:
+                samples.append(eps_current.detach())
+
+        # Stack samples: list of S tensors [B, De] -> [S, B, De] -> [B, S, De]
+        eps_out = torch.stack(samples, dim=0).transpose(0, 1)
+        acc_rate = torch.stack(accepts, dim=0).mean().item()
+        return z_aux.detach(), eps_out.detach(), acc_rate
+
     def learn(self):
         '''
         Run the full training procedure for Reverse UIVI.
@@ -255,11 +424,15 @@ class ReverseUIVI():
         3. Periodically update the reverse flow for several inner epochs using
             samples from the current VI.
         
+        In the case of uivi, the reverse model is None, and we use HMC to sample
+        epsilon ~ q(epsilon|z) instead.
+        
         Returns:
             None
         '''
-        # initial warmup
-        self.warmup()
+        # initial warmup (only for reverse_uivi)
+        if self.reverse_model is not None:
+            self.warmup()
 
         # training configs
         tcfg = self.cfg['train']
@@ -280,19 +453,32 @@ class ReverseUIVI():
             gamma=vi_scheduler_cfg['gamma'],
         )
 
-        # Reverse training cfg
-        rev_train_cfg = tcfg['reverse']
-        reverse_lr = rev_train_cfg['lr']
-        rev_batch_size = rev_train_cfg['batch_size']
-        rev_epochs = rev_train_cfg['epochs']
-        rev_update_freq = rev_train_cfg['update_freq']
-        rev_reuse_optimizer = rev_train_cfg['reuse_optimizer']
+        # Reverse training cfg (if applicable)
+        if self.reverse_model is not None:
+            rev_train_cfg = tcfg['reverse']
+            reverse_lr = rev_train_cfg['lr']
+            rev_batch_size = rev_train_cfg['batch_size']
+            rev_epochs = rev_train_cfg['epochs']
+            rev_update_freq = rev_train_cfg['update_freq']
+            rev_reuse_optimizer = rev_train_cfg['reuse_optimizer']
 
-        if rev_reuse_optimizer:
-            reverse_optimizer = torch.optim.Adam(
-                self.reverse_model.parameters(), lr=reverse_lr)
+            if rev_reuse_optimizer:
+                reverse_optimizer = torch.optim.Adam(
+                    self.reverse_model.parameters(), lr=reverse_lr)
+            else:
+                reverse_optimizer = None
         else:
             reverse_optimizer = None
+
+        # HMC cfg (for uivi)
+        hmc_cfg = self.cfg.get('hmc', {
+            'step_size': 0.20,
+            'leapfrog_steps': 5,
+            'burn_in_steps': 5,
+        })
+        hmc_step_size = hmc_cfg['step_size']
+        hmc_leapfrog_steps = hmc_cfg['leapfrog_steps']
+        hmc_burn_in_steps = hmc_cfg['burn_in_steps']
 
         # Sampling cfg
         sample_cfg = tcfg['sample']
@@ -304,9 +490,9 @@ class ReverseUIVI():
 
         # Logging cfg
         log_cfg = tcfg['log']
-        kl_log_freq = log_cfg['kl_log_freq']
+        kl_log_freq = log_cfg.get('kl_log_freq', 0)
         loss_log_freq = log_cfg['loss_log_freq']
-        reverse_log_freq = log_cfg['reverse_log_freq']
+        reverse_log_freq = log_cfg.get('reverse_log_freq', 0)
         sample_loss = 0
         sample_reverse_loss = 0
 
@@ -335,7 +521,7 @@ class ReverseUIVI():
 
         for epoch in tqdm(range(1, num_epochs + 1), desc="Main Training"):
 
-            # Sample epsilon
+            # Sample epsilon (used both for VI forward and as HMC init for uivi)
             epsilon = torch.randn(batch_size,
                                   self.vi_model.epsilon_dim).to(self.device)
 
@@ -345,12 +531,30 @@ class ReverseUIVI():
             # Compute log prob under target distribution
             log_prob_target = self.target_model.logp(z)
 
-            with torch.no_grad():
-                self.reverse_model.eval()
-                z_aux, epsilon_aux = self.reverse_model.sample(
+            if self.reverse_model is not None:
+                with torch.no_grad():
+                    self.reverse_model.eval()
+                    z_aux, epsilon_aux = self.reverse_model.sample(
+                        z,
+                        num_samples=reverse_sample_num,
+                    )
+            else:
+                # UIVI: use HMC to sample epsilon ~ q(epsilon|z)
+                z_aux, epsilon_aux, acc_rate = self.sample_epsilon_hmc(
                     z,
+                    eps_init=epsilon,
                     num_samples=reverse_sample_num,
+                    burn_in_steps=hmc_burn_in_steps,
+                    step_size=hmc_step_size,
+                    leapfrog_steps=hmc_leapfrog_steps,
                 )
+                self.writer.add_scalar(
+                    "train/hmc_accept_rate",
+                    acc_rate,
+                    epoch,
+                )
+
+            with torch.no_grad():
                 neg_score = self.vi_model.neg_score(z_aux, epsilon_aux)
                 neg_score = neg_score.mean(dim=1)
                 neg_score = neg_score.clone().detach()
@@ -366,9 +570,18 @@ class ReverseUIVI():
             optimizer_vi.step()
 
             # TensorBoard scalars
-            self.writer.add_scalar("train/loss", loss, epoch)
+            self.writer.add_scalar("train/loss", loss.item(), epoch)
             scheduler_vi.step()
             sample_loss += loss.item()
+
+            # Log the average distance from epsilon_aux to original epsilon
+            avg_eps_distance = torch.mean(
+                torch.norm(
+                    epsilon_aux - epsilon.unsqueeze(1),
+                    dim=-1,
+                )).item()
+            self.writer.add_scalar("train/avg_epsilon_distance",
+                                   avg_eps_distance, epoch)
 
             if epoch % loss_log_freq == 0:
                 avg_loss = sample_loss / loss_log_freq
@@ -376,13 +589,11 @@ class ReverseUIVI():
                 sample_loss = 0
 
             # Train reverse model
-            if (epoch % rev_update_freq) == 0:
+            if (self.reverse_model is not None
+                    and (epoch % rev_update_freq) == 0):
                 if not rev_reuse_optimizer:
                     reverse_optimizer = torch.optim.Adam(
                         self.reverse_model.parameters(), lr=reverse_lr)
-                # logger.debug(
-                #     f"Training reverse model at epoch {epoch} for {rev_epochs} epochs..."
-                # )
                 self.train_reverse_model(
                     reverse_optimizer,
                     rev_epochs,
@@ -405,7 +616,8 @@ class ReverseUIVI():
                 logger.debug(f"Saved {sample_num} samples at epoch {epoch}.")
 
             # Log KL divergence
-            if epoch % kl_log_freq == 0:
+            if self.reverse_model is not None and kl_log_freq > 0 and (
+                    epoch % kl_log_freq == 0):
                 kl_div = self.calculate_KL()
                 logger.debug(f"Epoch {epoch}, KL Divergence: {kl_div:.4f}")
                 self.writer.add_scalar("train/kl_div", kl_div, epoch)
@@ -433,5 +645,5 @@ class ReverseUIVI():
 
 
 if __name__ == "__main__":
-    reverse_uivi = ReverseUIVI(device=device, cfg=cfg)
-    reverse_uivi.learn()
+    runner = ReverseUIVI(device=device, cfg=cfg)
+    runner.learn()
