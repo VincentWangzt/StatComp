@@ -14,13 +14,15 @@ from typing import Any, Callable
 import ite
 import math
 import time
+import numpy as np
 
 # 1208 TODO:
-# 1. Add KL to baseline as a metric
+# 1. Add KL to baseline as a metric [Test]
 # 2. Restucture the learn() to be more modular, and add more things from local variable to self
 # 3. Add readme and scripts and documentation of scripts
 # 4. Perhaps move resume to a parameter when initializing? or just pass in the args. Anyway, the parsing of args should be moved inside the __main__ section.
 # 5. Fix env.yml
+# 6. Inspect mcmc_baseline.py
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -124,6 +126,12 @@ class ReverseUIVI():
         self.target_model = target_distribution[self.target_dist](
             device=device)
 
+        # baseline sample
+        self.baseline_samples = self._load_baseline_samples()
+
+        # kl ite samples
+        self.n_ite_samples = cfg['kl']['n_ite_samples']
+
         # vi model from config
         model_config = cfg['models']
         assert model_config['vi_model_type'] == 'ConditionalGaussian', \
@@ -214,6 +222,56 @@ class ReverseUIVI():
 
         self.writer = SummaryWriter(log_dir=self.tb_path)
 
+    def _load_baseline_samples(self) -> np.ndarray:
+        """
+        Load baseline MCMC samples from a configured path (`self.cfg['baseline']['baseline_path']`) for the current target. If not available, use a default path `baselines/hmc/{target_dist}.pt`.
+
+        Returns:
+            samples (np.ndarray): Loaded baseline samples on cpu.
+        
+        """
+        baseline_cfg = self.cfg.get('baseline', {})
+        baseline_path = baseline_cfg.get('baseline_path', None)
+
+        if not baseline_path:
+            baseline_path = f'baselines/hmc/{self.target_dist}.pt'
+            logger.warning(
+                f"baseline_path not found, using default: {baseline_path}")
+        try:
+            samples = torch.load(baseline_path, map_location='cpu')
+            if isinstance(samples, dict):
+                samples = samples['samples']
+            samples = torch.as_tensor(samples, dtype=torch.float32)
+            logger.info(
+                f"Loaded baseline samples from {baseline_path}, shape: {samples.shape}"
+            )
+            return samples.cpu().numpy()
+        except Exception as e:
+            logger.error(
+                f"Failed to load baseline samples from {baseline_path}: {e}")
+            raise e
+
+    def evaluate_vi_to_baseline_kl(self) -> float:
+        """
+        Estimate KL divergence KL(q_phi(z) || q_baseline(z)) using `ite.cost.BDKL_KnnK`.
+        Returns:
+            kl_div (float): Estimated KL divergence value.
+        """
+        if self.baseline_samples is None:
+            raise RuntimeError(
+                "Baseline samples not loaded; cannot compute KL divergence.")
+
+        _, z = self.vi_model.sampling(num=self.n_ite_samples)
+        z_np = z.cpu().numpy()
+
+        cost_obj = ite.cost.BDKL_KnnK()
+        try:
+            kl_div = cost_obj.estimation(z_np, self.baseline_samples)
+            return float(kl_div)
+        except Exception as e:
+            logger.error(f"KL estimation failed: {e}")
+            raise e
+
     def calculate_KL(self) -> float:
         '''
         Calculate the KL divergence between the true joint distribution and the
@@ -225,10 +283,9 @@ class ReverseUIVI():
             raise RuntimeError(
                 "KL calculation is only available for reverse_uivi where reverse_model exists."
             )
-        n_ite_samples = self.cfg['kl']['n_ite_samples']
 
         # Sample from true joint
-        true_eps, true_z = self.vi_model.sampling(num=n_ite_samples)
+        true_eps, true_z = self.vi_model.sampling(num=self.n_ite_samples)
         true_joint = torch.cat([true_eps, true_z], dim=1).cpu().numpy()
 
         # Sample epsilon from reverse model given true z
@@ -634,7 +691,7 @@ class ReverseUIVI():
 
         # Logging cfg
         log_cfg = tcfg['log']
-        kl_log_freq = log_cfg.get('kl_log_freq', 0)
+        kl_log_freq = log_cfg['kl_log_freq']
         loss_log_freq = log_cfg['loss_log_freq']
         reverse_log_freq = log_cfg.get('reverse_log_freq', 0)
         sample_loss = 0
@@ -874,10 +931,23 @@ class ReverseUIVI():
                     f"Saved checkpoints at epoch {epoch} to {epoch_ckpt_dir}.")
 
             # Log KL divergence
-            if self.reverse_model is not None and kl_log_freq > 0 and (
-                    epoch % kl_log_freq == 0):
+            if kl_log_freq > 0 and (epoch % kl_log_freq == 0):
                 t_kl0 = time.perf_counter()
-                kl_div = self.calculate_KL()
+
+                # Compute KL divergence against baseline
+                baseline_kl = self.evaluate_vi_to_baseline_kl()
+                self.writer.add_scalar(
+                    "train/vi_kl_to_baseline",
+                    baseline_kl,
+                    epoch,
+                )
+
+                if self.reverse_model is not None:
+                    # Compute KL divergence between true joint and reverse-induced joint
+                    rev_kl_div = self.calculate_KL()
+                    self.writer.add_scalar("train/reverse_kl_div", rev_kl_div,
+                                           epoch)
+
                 t_kl1 = time.perf_counter()
                 time_kl_step = t_kl1 - t_kl0
                 self.writer.add_scalar(
@@ -885,8 +955,10 @@ class ReverseUIVI():
                     time_kl_step / kl_log_freq,
                     epoch,
                 )
-                logger.debug(f"Epoch {epoch}, KL Divergence: {kl_div:.4f}")
-                self.writer.add_scalar("train/kl_div", kl_div, epoch)
+                kl_log_message = f"Epoch {epoch}, VI KL to baseline: {baseline_kl:.4f}"
+                if self.reverse_model is not None:
+                    kl_log_message += f", Reverse KL: {rev_kl_div:.4f}"
+                logger.debug(kl_log_message)
 
             # Generate and save contour plots
             if epoch % plot_freq == 0:

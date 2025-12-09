@@ -107,3 +107,8 @@ train:
 #   KL between the VI joint (epsilon,z) and the joint induced by the reverse flow.
 kl:
   n_ite_samples: 10000
+
+# Baseline path for KL estimation
+# - `baseline_path`: Filepath to a saved baseline sample for KL estimation.
+baseline:
+  baseline_path: baselines/hmc/banana.pt

@@ -40,6 +40,7 @@ train:
   # Logging and sampling
   log:
     loss_log_freq: 10
+    kl_log_freq: 10
   checkpoint:
     enabled: true
     freq: 1000
@@ -49,3 +50,11 @@ train:
   plot:
     freq: 500
     num: 1000
+
+kl:
+  # Number of samples to use when estimating KL with ITE
+  n_ite_samples: 10000
+
+baseline:
+  # Filepath to saved baseline samples
+  baseline_path: baselines/hmc/banana.pt
