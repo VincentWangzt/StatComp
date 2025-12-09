@@ -1,3 +1,4 @@
+--extra-index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 numpy==2.3.5
 pandas==2.3.3
 pip==25.3
@@ -5,10 +6,11 @@ protobuf==6.33.0
 PyYAML==6.0.3
 scipy==1.16.2
 tensorboard==2.20.0
+tqdm==4.67.1
+triton==3.5.0
+--extra-index-url https://download.pytorch.org/whl/cu126
 torch==2.9.0
 torchaudio==2.9.0
 torchvision==0.24.0
-tqdm==4.67.1
-triton==3.5.0
-# This would install torch for CUDA 12.8, please modify it according to your CUDA version
+# This would install torch for CUDA 12.6, please modify it according to your CUDA version
 # For other installation options, please refer to https://pytorch.org/get-started/locally/
