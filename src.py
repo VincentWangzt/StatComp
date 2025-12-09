@@ -15,6 +15,7 @@ import ite
 import math
 import time
 import numpy as np
+import json
 
 # 1208 TODO:
 # 1. Add KL to baseline as a metric [Done]
@@ -65,7 +66,7 @@ def parse_args():
         action='store_true',
         default=False,
         help=
-        'Disable overriding starting epoch when resuming; do not skip warmup',
+        'Disable overriding starting epoch when resuming; do not skip warmup. Only effective when --load_optimizer is also set.',
     )
     return parser.parse_args()
 
@@ -101,10 +102,29 @@ class ReverseUIVI():
         self.device = device
         self.cfg = cfg
 
+        # save path
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.save_path = os.path.join("results", self.exp_name,
+                                      self.target_dist, timestamp)
+        os.makedirs(self.save_path, exist_ok=True)
+
+        # attach file logger under save path
+        set_file_handler(self.save_path, filename="run.log")
+        logger.info(f"Artifacts will be saved to: {self.save_path}")
+
+        # Log configs and environment at start
+        logger.info(f"Using config: {args.config}")
+        logger.info("Starting run with configuration:")
+        logger.info(yaml.dump(cfg, sort_keys=False))
+        logger.info(f"Device: {device}")
+        logger.info(
+            f"Commandline args: {json.dumps(vars(args), indent=4, ensure_ascii=False)}"
+        )
+
         # Determine resume behaviors from CLI flags
-        self.resume_ckpt_dir = args.resume_ckpt_dir
-        self.load_opt_sched = args.load_optimizer
-        self.override_start_epoch = not args.no_override_start_epoch
+        self.resume_ckpt_dir: bool = args.resume_ckpt_dir
+        self.load_opt_sched: bool = args.load_optimizer
+        self.override_start_epoch: bool = args.load_optimizer and not args.no_override_start_epoch
 
         # target
         self.target_model = target_distribution[self.target_dist](
@@ -146,16 +166,6 @@ class ReverseUIVI():
         # Optionally resume models from checkpoint directory
         if self.resume_ckpt_dir is not None:
             self.load_model_checkpoints()
-
-        # save path
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.save_path = os.path.join("results", self.exp_name,
-                                      self.target_dist, timestamp)
-        os.makedirs(self.save_path, exist_ok=True)
-
-        # attach file logger under save path
-        set_file_handler(self.save_path, filename="run.log")
-        logger.info(f"Artifacts will be saved to: {self.save_path}")
 
         # TensorBoard writer
         self.tb_path = self.save_path.replace("results", "tb_logs")
@@ -1062,12 +1072,6 @@ if __name__ == "__main__":
         device = torch.device("cpu")
 
     torch.manual_seed(cfg.get('seed', 42))
-
-    # Log configs and environment at start
-    logger.info(f"Using config: {CONFIG_PATH}")
-    logger.info("Starting run with configuration:")
-    logger.info(yaml.dump(cfg, sort_keys=False))
-    logger.info(f"Device: {device}")
 
     runner = ReverseUIVI(device=device, cfg=cfg, args=args)
     runner.learn()
