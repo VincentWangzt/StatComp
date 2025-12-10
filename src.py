@@ -237,9 +237,21 @@ class ReverseUIVI():
         self.training_sample_cfg = self.training_cfg['sample']
         self.training_sample_freq = self.training_sample_cfg['freq']
         self.training_sample_num = self.training_sample_cfg['num']
-        self.training_sample_save_path = os.path.join(self.save_path,
-                                                      "samples")
+        self.training_sample_save_path = os.path.join(
+            self.save_path,
+            "samples",
+        )
+        self.training_joint_sample_save_path = os.path.join(
+            self.save_path,
+            "joint_samples",
+        )
+        self.training_reverse_sample_save_path = os.path.join(
+            self.save_path,
+            "reverse_samples",
+        )
         os.makedirs(self.training_sample_save_path, exist_ok=True)
+        os.makedirs(self.training_joint_sample_save_path, exist_ok=True)
+        os.makedirs(self.training_reverse_sample_save_path, exist_ok=True)
 
         # Logging config
         self.training_log_cfg = self.training_cfg['log']
@@ -962,8 +974,13 @@ class ReverseUIVI():
 
             # Generate and save samples
             if epoch % self.training_sample_freq == 0:
-                _, z_sample = self.vi_model.sampling(
+                epsilon_sample, z_sample = self.vi_model.sampling(
                     num=self.training_sample_num)
+
+                joint_sample = {
+                    'epsilon': epsilon_sample,
+                    'z': z_sample,
+                }
 
                 torch.save(
                     z_sample,
@@ -972,6 +989,31 @@ class ReverseUIVI():
                         f"samples_epoch_{epoch}.pt",
                     ),
                 )
+                torch.save(
+                    joint_sample,
+                    os.path.join(
+                        self.training_joint_sample_save_path,
+                        f"joint_samples_epoch_{epoch}.pt",
+                    ),
+                )
+
+                if self.reverse_model is not None:
+                    reverse_z_tiled, reverse_epsilon_tiled = self.reverse_model.sample(
+                        z_sample,
+                        num_samples=100,
+                    )
+                    reverse_sample = {
+                        'epsilon': reverse_epsilon_tiled,
+                        'z': reverse_z_tiled,
+                    }
+                    torch.save(
+                        reverse_sample,
+                        os.path.join(
+                            self.training_reverse_sample_save_path,
+                            f"reverse_samples_epoch_{epoch}.pt",
+                        ),
+                    )
+
                 logger.debug(
                     f"Saved {self.training_sample_num} samples at epoch {epoch}."
                 )

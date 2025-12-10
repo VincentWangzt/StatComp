@@ -140,15 +140,29 @@ class ConditionalRealNVP(nn.Module):
         for _ in range(num_layers):
             # Each coupling layer conditions on z and part of epsilon
             self.scale_nets.append(
-                nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim,
-                                                   epsilon_dim // 2)))
+                nn.Sequential(
+                    nn.Linear(
+                        z_dim + epsilon_dim // 2,
+                        hidden_dim,
+                    ), nn.SiLU(), nn.Linear(
+                        hidden_dim,
+                        hidden_dim,
+                    ), nn.SiLU(), nn.Linear(
+                        hidden_dim,
+                        epsilon_dim // 2,
+                    )))
             self.translate_nets.append(
-                nn.Sequential(nn.Linear(z_dim + epsilon_dim // 2, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim, hidden_dim),
-                              nn.Tanh(), nn.Linear(hidden_dim,
-                                                   epsilon_dim // 2)))
+                nn.Sequential(
+                    nn.Linear(
+                        z_dim + epsilon_dim // 2,
+                        hidden_dim,
+                    ), nn.SiLU(), nn.Linear(
+                        hidden_dim,
+                        hidden_dim,
+                    ), nn.SiLU(), nn.Linear(
+                        hidden_dim,
+                        epsilon_dim // 2,
+                    )))
 
     def forward(
         self,
@@ -174,7 +188,8 @@ class ConditionalRealNVP(nn.Module):
             u1, u2 = u.chunk(2, dim=-1)
 
             # Compute scale and translation
-            scale = torch.tanh(self.scale_nets[i](torch.cat([u1, z], dim=-1)))
+            # scale = torch.tanh(self.scale_nets[i](torch.cat([u1, z], dim=-1)))
+            scale = self.scale_nets[i](torch.cat([u1, z], dim=-1))
             translate = self.translate_nets[i](torch.cat([u1, z], dim=-1))
             # Transform
             u2 = u2 * torch.exp(scale) + translate
@@ -189,7 +204,11 @@ class ConditionalRealNVP(nn.Module):
 
         return u, log_prob
 
-    def sample(self, z, num_samples=100):
+    def sample(
+        self,
+        z: torch.Tensor,
+        num_samples: int = 100,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Sample `epsilon ~ q_psi(epsilon|z)` using the inverse of the flow. No gradients computed.
 
@@ -211,10 +230,14 @@ class ConditionalRealNVP(nn.Module):
                 u1, u2 = u.chunk(2, dim=-1)
 
                 # Compute scale and translation
-                scale = torch.tanh(self.scale_nets[i](torch.cat(
+                # scale = torch.tanh(self.scale_nets[i](torch.cat(
+                #     [u1, z_aux],
+                #     dim=-1,
+                # )))
+                scale = self.scale_nets[i](torch.cat(
                     [u1, z_aux],
                     dim=-1,
-                )))
+                ))
                 translate = self.translate_nets[i](torch.cat(
                     [u1, z_aux],
                     dim=-1,
