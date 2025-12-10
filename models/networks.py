@@ -376,7 +376,7 @@ class ConditionalGaussianReverse(nn.Module):
         assert z.dim() == 2 and z.shape[1] == self.z_dim
         B = z.shape[0]
         S = num_samples
-        z_aux = z.detach().to(self.device).unsqueeze(1).repeat(1, S, 1)
+        z_aux = z.clone().detach().to(self.device).unsqueeze(1).repeat(1, S, 1)
 
         A, b, cond_cov = self._conditional_params()
         # Means: [B,S,De] = (z_aux @ A^T) + b
