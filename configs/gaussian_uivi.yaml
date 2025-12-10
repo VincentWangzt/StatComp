@@ -1,0 +1,72 @@
+experiment:
+  name: reverse_uivi
+  target_dist: banana
+
+use_cuda_if_available: true
+cuda_visible_devices: "0"
+seed: 42
+
+models:
+  vi_model_type: ConditionalGaussian
+  reverse_model_type: ConditionalGaussianReverse
+  epsilon_dim: 2
+  z_dim: 2
+  vi_hidden_dim: 64
+  # unused by GaussianReverse
+  reverse_hidden_dim: 128
+  reverse_num_layers: 4
+
+train:
+  epochs: 10000
+  batch_size: 8192
+  reverse_sample_num: 100
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.9
+  reverse:
+    # unused by GaussianReverse
+    lr: 1.0e-5
+    # samples used for fitting per update
+    batch_size: 8192
+    # one call to fit per update
+    epochs: 1 
+    update_freq: 1
+    reuse_optimizer: false
+  sample:
+    freq: 500
+    num: 10000
+  log:
+    kl_log_freq: 1
+    loss_log_freq: 10
+    reverse_log_freq: 1000
+  checkpoint:
+    enabled: true
+    freq: 1000
+  plot:
+    freq: 500
+    num: 10000
+
+warmup:
+  enabled: true
+  # unused by GaussianReverse
+  lr: 1.0e-5
+  # samples used for fitting per update
+  batch_size: 8192
+  # one call to fit per update
+  epochs: 1 
+  kl_log_freq: 1
+  loss_log_freq: 1
+
+baseline:
+  baseline_path: baselines/hmc/banana.pt
+
+kl:
+  n_ite_samples: 10000
+
+hmc:  # used only in UIVI mode; kept for compatibility
+  step_size: 0.20
+  leapfrog_steps: 5
+  burn_in_steps: 5

@@ -1,6 +1,6 @@
 import torch
 from models.target_models import target_distribution, DEFAULT_BBOX
-from models.networks import SIMINet, ConditionalRealNVP, ConditionalGaussian
+from models.networks import SIMINet, ConditionalRealNVP, ConditionalGaussian, ConditionalGaussianReverse
 import os
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
@@ -101,6 +101,8 @@ class ReverseUIVI():
         self.target_dist = cfg['experiment']['target_dist']
         self.device = device
         self.cfg = cfg
+        # track reverse model type explicitly
+        self.reverse_model_type: str | None = None
 
         # save path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -153,15 +155,26 @@ class ReverseUIVI():
         # reverse model only needed for reverse_uivi
         self.reverse_model = None
         if self.exp_name == 'reverse_uivi':
-            assert model_config['reverse_model_type'] == 'ConditionalRealNVP', \
-                "Only ConditionalRealNVP reverse model is supported in Reverse UIVI."
-            self.reverse_model = ConditionalRealNVP(
-                z_dim=model_config['z_dim'],
-                epsilon_dim=model_config['epsilon_dim'],
-                hidden_dim=model_config['reverse_hidden_dim'],
-                num_layers=model_config['reverse_num_layers'],
-                device=self.device,
-            ).to(self.device)
+            rtype = model_config['reverse_model_type']
+            self.reverse_model_type = rtype
+            if rtype == 'ConditionalRealNVP':
+                self.reverse_model = ConditionalRealNVP(
+                    z_dim=model_config['z_dim'],
+                    epsilon_dim=model_config['epsilon_dim'],
+                    hidden_dim=model_config['reverse_hidden_dim'],
+                    num_layers=model_config['reverse_num_layers'],
+                    device=self.device,
+                ).to(self.device)
+            if rtype == 'ConditionalGaussianReverse':
+                self.reverse_model = ConditionalGaussianReverse(
+                    z_dim=model_config['z_dim'],
+                    epsilon_dim=model_config['epsilon_dim'],
+                    device=self.device,
+                ).to(self.device)
+            if rtype != 'ConditionalRealNVP' and rtype != 'ConditionalGaussianReverse':
+                raise AssertionError(
+                    "Unsupported reverse_model_type. Use 'ConditionalRealNVP' or 'ConditionalGaussianReverse'."
+                )
 
         # Optionally resume models from checkpoint directory
         if self.resume_ckpt_dir is not None:
@@ -172,6 +185,19 @@ class ReverseUIVI():
         os.makedirs(self.tb_path, exist_ok=True)
 
         self.writer = SummaryWriter(log_dir=self.tb_path)
+
+        # Warmup configuration
+        self.warmup_cfg = self.cfg.get('warmup', {'enabled': False})
+        self.warmup_enabled = self.warmup_cfg['enabled']
+        self.warmup_batch_size = None
+        self.warmup_epochs = None
+        self.warmup_kl_log_freq = None
+        self.warmup_loss_log_freq = None
+        if self.warmup_enabled:
+            self.warmup_batch_size = self.warmup_cfg['batch_size']
+            self.warmup_epochs = self.warmup_cfg['epochs']
+            self.warmup_kl_log_freq = self.warmup_cfg['kl_log_freq']
+            self.warmup_loss_log_freq = self.warmup_cfg['loss_log_freq']
 
         # --------- Training/Experiment configuration ---------
         self.training_cfg = self.cfg['train']
@@ -217,10 +243,14 @@ class ReverseUIVI():
 
         # Create reverse optimizer if applicable
         if self.reverse_model is not None:
-            if self.rev_reuse_optimizer:
-                self.training_reverse_optimizer = torch.optim.Adam(
-                    self.reverse_model.parameters(), lr=self.reverse_lr)
-            else:
+            # Optimizer only needed for flow model
+            if self.reverse_model_type == 'ConditionalRealNVP':
+                if self.rev_reuse_optimizer:
+                    self.training_reverse_optimizer = torch.optim.Adam(
+                        self.reverse_model.parameters(), lr=self.reverse_lr)
+                if not self.rev_reuse_optimizer:
+                    self.training_reverse_optimizer = None
+            if self.reverse_model_type == 'ConditionalGaussianReverse':
                 self.training_reverse_optimizer = None
 
         # HMC config (for UIVI)
@@ -262,6 +292,8 @@ class ReverseUIVI():
         # running accumulators
         self.training_sample_loss = 0.0
         self.training_sample_reverse_loss = 0.0
+        self.warmup_sample_loss = 0.0
+        self.warmup_last_time = 0.0
 
         # Checkpoint config
         self.ckpt_cfg = self.training_cfg['checkpoint']
@@ -382,7 +414,7 @@ class ReverseUIVI():
 
     def train_reverse_model(
         self,
-        optimizer: torch.optim.Optimizer,
+        optimizer: torch.optim.Optimizer | None,
         epochs: int,
         batch_size: int,
         progress_bar: bool = True,
@@ -392,7 +424,7 @@ class ReverseUIVI():
         Train the reverse model. Generate samples from the VI model and then optimize the reverse model to maximize the log-reverse-probablity of these samples.
         
         Args:
-            optimizer (torch.optim.Optimizer): Optimizer for the reverse model.
+            optimizer (torch.optim.Optimizer | None): Optimizer for the reverse model.
             epochs (int): Number of training epochs.
             batch_size (int): Batch size for training.
             progress_bar (bool, optional): Whether to display a progress bar. Defaults to True.
@@ -402,21 +434,50 @@ class ReverseUIVI():
         '''
         if self.reverse_model is None:
             return
-        self.reverse_model.train()
         iterator = range(epochs)
         if progress_bar:
             iterator = tqdm(iterator, desc="Reverse Model Training")
-        for epoch in iterator:
+        # Two modes:
+        # - Flow-based (ConditionalRealNVP): optimize log-prob.
+        # - GaussianReverse: call fit() using current VI samples.
+        if self.reverse_model_type == 'ConditionalRealNVP':
+            self.reverse_model.train()
+            for epoch in iterator:
+                epsilon_samples, z_samples = self.vi_model.sampling(
+                    num=batch_size)
+                optimizer.zero_grad()
+                _, log_prob = self.reverse_model.forward(
+                    epsilon_samples,
+                    z_samples,
+                )
+                loss = -torch.mean(log_prob)
+                loss.backward()
+                optimizer.step()
+                if log_func is not None:
+                    log_func(loss.item(), epoch)
+        elif self.reverse_model_type == 'ConditionalGaussianReverse':
             epsilon_samples, z_samples = self.vi_model.sampling(
-                num=batch_size, )
-            optimizer.zero_grad()
-            u, log_prob = self.reverse_model.forward(epsilon_samples,
-                                                     z_samples)
-            loss = -torch.mean(log_prob)
-            loss.backward()
-            optimizer.step()
-            if log_func is not None:
-                log_func(loss.item(), epoch)
+                num=batch_size * epochs)
+            self.reverse_model.fit(epsilon_samples, z_samples)
+            log_func(0.0, epochs)  # log zero loss for consistency
+
+    def _warmup_log_func(self, loss, epoch):
+        self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
+        self.warmup_sample_loss += loss
+        if epoch % self.warmup_kl_log_freq == 0:
+            kl_div = self.calculate_rev_KL()
+            self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
+            logger.debug(f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
+        if epoch % self.warmup_loss_log_freq == 0:
+            avg_loss = self.warmup_sample_loss / self.warmup_loss_log_freq
+            current_time = time.perf_counter()
+            avg_step_time = (current_time -
+                             self.warmup_last_time) / self.warmup_loss_log_freq
+            self.warmup_last_time = current_time
+            self.warmup_sample_loss = 0.0
+            logger.debug(
+                f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s"
+            )
 
     def warmup(self) -> None:
         '''
@@ -427,51 +488,34 @@ class ReverseUIVI():
         '''
         if self.reverse_model is None:
             return
-        wcfg = self.cfg.get('warmup', {'enabled': False})
-        if not wcfg['enabled']:
+        if not self.warmup_enabled:
             return
-        lr = wcfg['lr']
-        batch_size = wcfg['batch_size']
-        epochs = wcfg['epochs']
-        kl_freq = wcfg['kl_log_freq']
-        loss_log_freq = wcfg['loss_log_freq']
-        sample_loss = 0
 
-        optimizer = torch.optim.Adam(self.reverse_model.parameters(), lr=lr)
+        # For flow model, use optimizer; for GaussianReverse, no optimizer.
+        optimizer = None
+        if self.reverse_model_type == 'ConditionalRealNVP':
+            lr = self.warmup_cfg['lr']
+            optimizer = torch.optim.Adam(
+                self.reverse_model.parameters(),
+                lr=lr,
+            )
+
+        self.warmup_sample_loss = 0.0
+
         warmup_start_time = time.perf_counter()
-        last_time = time.perf_counter()
-
-        def log_func(loss, epoch):
-            self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
-            nonlocal sample_loss
-            sample_loss += loss
-            if epoch % kl_freq == 0:
-                kl_div = self.calculate_rev_KL()
-                self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
-                logger.debug(
-                    f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
-            if epoch % loss_log_freq == 0:
-                avg_loss = sample_loss / loss_log_freq
-                current_time = time.perf_counter()
-                nonlocal last_time
-                avg_step_time = (current_time - last_time) / loss_log_freq
-                last_time = current_time
-                sample_loss = 0
-                logger.debug(
-                    f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s"
-                )
+        self.warmup_last_time = time.perf_counter()
 
         self.train_reverse_model(
             optimizer,
-            epochs,
-            batch_size,
+            self.warmup_epochs,
+            self.warmup_batch_size,
             progress_bar=True,
-            log_func=log_func,
+            log_func=self._warmup_log_func,
         )
         warmup_end_time = time.perf_counter()
         warmup_time = warmup_end_time - warmup_start_time
         logger.info(
-            f"Warmup completed for {epochs} epochs. Total time: {warmup_time:.3f}s, Avg epoch time: {warmup_time/epochs:.6f}s"
+            f"Warmup completed for {self.warmup_epochs} epochs. Total time: {warmup_time:.3f}s, Avg epoch time: {warmup_time/self.warmup_epochs:.6f}s"
         )
 
     def save_checkpoint(self, epoch: int):
@@ -953,9 +997,13 @@ class ReverseUIVI():
             if (self.reverse_model is not None
                     and (epoch % (self.rev_update_freq or 1)) == 0):
                 time_rev0 = time.perf_counter()
-                if not self.rev_reuse_optimizer:
-                    self.training_reverse_optimizer = torch.optim.Adam(
-                        self.reverse_model.parameters(), lr=self.reverse_lr)
+                if self.reverse_model_type == 'ConditionalRealNVP':
+                    if not self.rev_reuse_optimizer:
+                        self.training_reverse_optimizer = torch.optim.Adam(
+                            self.reverse_model.parameters(),
+                            lr=self.reverse_lr)
+                if self.reverse_model_type == 'ConditionalGaussianReverse':
+                    self.training_reverse_optimizer = None
                 self.train_reverse_model(
                     self.training_reverse_optimizer,
                     self.rev_epochs,

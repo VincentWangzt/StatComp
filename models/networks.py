@@ -252,6 +252,142 @@ class ConditionalRealNVP(nn.Module):
             return z_aux.clone().detach(), u.clone().detach()
 
 
+class ConditionalGaussianReverse(nn.Module):
+    """
+    Gaussian reverse model for q_psi(epsilon|z) via joint Gaussian. Assume the joint distribution is Gaussian.
+
+    Provides:
+    - fit(epsilon, z): estimate joint mean/cov from provided data (no gradients)
+    - sample(z, num_samples): sample epsilon' from conditional Gaussian q(epsilon|z)
+
+    Args:
+        z_dim (int): Dimension of z.
+        epsilon_dim (int): Dimension of epsilon.
+        device (torch.device): Storage and compute device for parameters and outputs.
+    """
+
+    def __init__(
+        self,
+        z_dim: int,
+        epsilon_dim: int,
+        device: torch.device,
+    ):
+        super().__init__()
+        self.z_dim = z_dim
+        self.epsilon_dim = epsilon_dim
+        self.device = device
+        self.jitter = 1e-6
+
+        # Parameters of joint Gaussian over [epsilon, z]
+        self.mu: torch.Tensor
+        self.Sigma: torch.Tensor
+        self.register_buffer(
+            'mu',
+            torch.zeros(epsilon_dim + z_dim, dtype=torch.float32),
+        )
+        self.register_buffer(
+            'Sigma',
+            torch.eye(epsilon_dim + z_dim, dtype=torch.float32),
+        )
+
+    @torch.no_grad()
+    def fit(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> None:
+        """
+        Fit joint Gaussian parameters from provided samples.
+        epsilon: [..., De], z: [..., Dz]
+
+        Args:
+            epsilon (torch.Tensor): Samples of epsilon with shape [..., De].
+            z (torch.Tensor): Samples of z with shape [..., Dz].
+            jitter (float): Small value added to the diagonal of covariance for numerical stability.
+        """
+        assert epsilon.shape[-1] == self.epsilon_dim and z.shape[
+            -1] == self.z_dim, "Dimension mismatch in fit inputs."
+        epsilon = epsilon.clone().detach().reshape(-1, self.epsilon_dim)
+        z = z.clone().detach().reshape(-1, self.z_dim)
+        # Concatenate samples
+        X = torch.cat([epsilon, z], dim=1)  # [N, z_dim + epsilon_dim]
+        mu = X.mean(dim=0)  # (z_dim + epsilon_dim,)
+        Xc = X - mu
+        # Covariance with variables in columns: Sigma = (Xc^T Xc)/(N-1)
+        N = X.shape[0]
+        Sigma = (Xc.t() @ Xc) / max(1, N - 1)
+        Sigma = Sigma + self.jitter * torch.eye(
+            self.epsilon_dim + self.z_dim,
+            device=self.device,
+            dtype=Sigma.dtype,
+        )
+        self.mu.copy_(mu)
+        self.Sigma.copy_(Sigma)
+
+    def _conditional_params(
+            self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Compute A, b, cond_cov for epsilon|z from stored mu/Sigma.
+        Returns:
+            (A, b, cond_cov) (torch.Tensor, torch.Tensor, torch.Tensor): where epsilon|z ~ N(Az + b, cond_cov)
+        """
+        mu = self.mu
+        Sigma = self.Sigma
+        mu_e = mu[:self.epsilon_dim]
+        mu_z = mu[self.epsilon_dim:]
+        S_ee = Sigma[:self.epsilon_dim, :self.epsilon_dim]
+        S_ez = Sigma[:self.epsilon_dim, self.epsilon_dim:]
+        S_ze = Sigma[self.epsilon_dim:, :self.epsilon_dim]
+        S_zz = Sigma[self.epsilon_dim:, self.epsilon_dim:]
+        # Regularized inverse for stability
+        S_zz_reg = S_zz + self.jitter * torch.eye(
+            self.z_dim,
+            device=self.device,
+            dtype=Sigma.dtype,
+        )
+        S_zz_inv = torch.linalg.inv(S_zz_reg)
+        A = S_ez @ S_zz_inv
+        b = mu_e - A @ mu_z
+        cond_cov = S_ee - A @ S_ze
+        # Ensure SPD
+        try:
+            torch.linalg.cholesky(cond_cov)  #TODO
+        except RuntimeError:
+            eigvals, eigvecs = torch.linalg.eigh(cond_cov)
+            eigvals = torch.clamp(eigvals, min=1e-10)
+            cond_cov = (eigvecs * eigvals) @ eigvecs.transpose(0, 1)
+        return A, b, cond_cov
+
+    @torch.no_grad()
+    def sample(
+        self,
+        z: torch.Tensor,
+        num_samples: int = 100,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Sample epsilon' ~ q_psi(epsilon|z) using conditional Gaussian.
+
+        Args:
+            z (torch.Tensor): [B, Dz]
+            num_samples (int): samples per z
+        Returns:
+            (z_aux, epsilon_aux): shapes [B, S, Dz], [B, S, De]
+        """
+        assert z.dim() == 2 and z.shape[1] == self.z_dim
+        B = z.shape[0]
+        S = num_samples
+        z_aux = z.detach().to(self.device).unsqueeze(1).repeat(1, S, 1)
+
+        A, b, cond_cov = self._conditional_params()
+        # Means: [B,S,De] = (z_aux @ A^T) + b
+        mean = torch.matmul(z_aux, A.transpose(0, 1)) + b.view(1, 1, -1)
+        # Cholesky of cond_cov
+        L = torch.linalg.cholesky(cond_cov)
+        noise = torch.randn(B, S, self.epsilon_dim, device=self.device)
+        eps = mean + torch.matmul(noise, L.transpose(0, 1))
+        return z_aux.clone().detach(), eps.clone().detach()
+
+
 class ConditionalGaussian(nn.Module):
     """
     Conditional Gaussian `q_phi(z|epsilon)` parameterized by an MLP.
