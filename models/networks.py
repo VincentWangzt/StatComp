@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from argparse import Namespace
+import math
+import torch.distributions as dist
 
 
 class SIMINet(nn.Module):
@@ -295,7 +297,7 @@ class ConditionalGaussianReverse(nn.Module):
         self,
         epsilon: torch.Tensor,
         z: torch.Tensor,
-    ) -> None:
+    ) -> tuple[float, int]:
         """
         Fit joint Gaussian parameters from provided samples.
         epsilon: [..., De], z: [..., Dz]
@@ -304,6 +306,8 @@ class ConditionalGaussianReverse(nn.Module):
             epsilon (torch.Tensor): Samples of epsilon with shape [..., De].
             z (torch.Tensor): Samples of z with shape [..., Dz].
             jitter (float): Small value added to the diagonal of covariance for numerical stability.
+        Returns:
+            (avg_nll, num_steps) (float, int): Average negative log-likelihood and number of steps (always 1 here).
         """
         assert epsilon.shape[-1] == self.epsilon_dim and z.shape[
             -1] == self.z_dim, "Dimension mismatch in fit inputs."
@@ -323,6 +327,11 @@ class ConditionalGaussianReverse(nn.Module):
         )
         self.mu.copy_(mu)
         self.Sigma.copy_(Sigma)
+        # Compute average negative log-likelihood
+        mvn = dist.MultivariateNormal(self.mu, self.Sigma)
+        log_probs = mvn.log_prob(X)
+        avg_nll = -log_probs.mean().item()
+        return avg_nll, 1
 
     def _conditional_params(
             self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -507,3 +516,318 @@ class ConditionalGaussian(nn.Module):
         var = torch.exp(log_var)
         neg_score = (z - mu) / (var)
         return neg_score
+
+
+class ConditionalMixtureOfGaussianReverse(nn.Module):
+    """
+    Mixture-of-Gaussians reverse model for q_psi(epsilon|z) via a joint GMM.
+
+    We model the joint [epsilon, z] with a K-component Gaussian mixture:
+        p([e, z]) = sum_k pi_k N([e, z]; mu_k, Sigma_k)
+
+    Then the conditional is a mixture:
+        p(e|z) = sum_k w_k(z) N(e; mu_{e|z,k}, Sigma_{e|z,k}),
+    where w_k(z) \propto pi_k N(z; mu_{z,k}, Sigma_{zz,k}).
+
+    Construction parameters follow the requested signature. Here, `hidden_dim`
+    is used as the number of mixture components K for consistency with the
+    rest of the codebase's configuration style.
+
+    Args:
+        z_dim (int): Dimension of z.
+        epsilon_dim (int): Dimension of epsilon.
+        hidden_dim (int): Number of mixture components K.
+        device (torch.device): Device for parameters and outputs.
+    """
+
+    def __init__(
+        self,
+        z_dim: int,
+        epsilon_dim: int,
+        hidden_dim: int,
+        device: torch.device,
+    ):
+        super().__init__()
+        self.z_dim = z_dim
+        self.epsilon_dim = epsilon_dim
+        self.num_components = hidden_dim
+        self.device = device
+        self.jitter = 1e-8
+        self.min_eps = 1e-12
+
+        D = self.epsilon_dim + self.z_dim
+
+        # Mixture parameters stored as buffers (no gradients required)
+        self.pi: torch.Tensor
+        self.mu: torch.Tensor
+        self.Sigma: torch.Tensor
+        self.cond_A: torch.Tensor
+        self.cond_b: torch.Tensor
+        self.cond_cov: torch.Tensor
+        self.register_buffer(
+            'pi',
+            torch.ones(self.num_components) / self.num_components,
+        )
+        self.register_buffer(
+            'mu',
+            torch.zeros(self.num_components, D),
+        )
+        self.register_buffer(
+            'Sigma',
+            torch.stack(
+                [torch.eye(D) for _ in range(self.num_components)],
+                dim=0,
+            ),
+        )
+        self.register_buffer(
+            "cond_A",
+            torch.zeros(self.num_components, self.epsilon_dim, self.z_dim),
+        )
+        self.register_buffer(
+            "cond_b",
+            torch.zeros(self.num_components, self.epsilon_dim),
+        )
+        self.register_buffer(
+            "cond_cov",
+            torch.zeros(self.num_components, self.epsilon_dim,
+                        self.epsilon_dim),
+        )
+
+    @torch.no_grad()
+    def fit(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+        max_iters: int = 1000,
+        tol: float = 1e-6,
+        initialize: bool = False,
+    ) -> tuple[float, int]:
+        """
+        Fit GMM parameters to joint samples X = [epsilon, z] via EM in one call.
+
+        Args:
+            epsilon (torch.Tensor): [..., De]
+            z (torch.Tensor): [..., Dz]
+            max_iters (int): Maximum EM iterations.
+            tol (float): Convergence threshold on average log-likelihood change.
+            initialize (bool): If True, reset parameters before fitting.
+        Returns:
+            (avg_nll, num_steps) (float, int): Average negative log-likelihood and number of iterations.
+        """
+        assert epsilon.shape[-1] == self.epsilon_dim and z.shape[
+            -1] == self.z_dim, "Dimension mismatch in fit inputs."
+
+        epsilon = epsilon.clone().detach().reshape(-1, self.epsilon_dim)
+        z = z.clone().detach().reshape(-1, self.z_dim)
+
+        # Concatenate samples
+        X = torch.cat([epsilon, z], dim=1).to(self.device)  # [N, D]
+        N, D = X.shape
+        K = self.num_components
+        num_steps = 0
+
+        if initialize:
+            rand_idx = torch.randperm(N, device=self.device)[:K]
+            self.mu.copy_(X[rand_idx])
+            # Initialize cov to global variance + jitter
+            global_cov = torch.cov(
+                X.T) + self.jitter * torch.eye(D, device=self.device)
+            self.Sigma.copy_(global_cov.unsqueeze(0).expand(K, -1, -1))
+            self.pi.fill_(1.0 / K)
+
+        prev_ll = -float('inf')
+        for _ in range(max_iters):
+
+            Sigma_safe = self.Sigma + self.jitter * torch.eye(
+                D, device=self.device).unsqueeze(0)  # [K, D, D]
+
+            # E-step: responsibilities r[n, k]
+            mvn = dist.MultivariateNormal(self.mu, Sigma_safe)
+            log_N = mvn.log_prob(X.unsqueeze(1))  # [N, K]
+            log_pi = torch.log(self.pi.clamp_min(self.min_eps))
+            log_probs = log_pi + log_N  # [N, K]
+
+            # log-sum-exp normalize
+            m = torch.max(log_probs, dim=1, keepdim=True).values  # [N,1]
+            exp_shifted = torch.exp(log_probs - m)  # [N, K]
+            denom = exp_shifted.sum(dim=1, keepdim=True)  # [N,1]
+            r = exp_shifted / denom.clamp_min(self.min_eps)  # [N, K]
+
+            # M-step
+            Nk = r.sum(dim=0)  # [K]
+            self.pi = (Nk / N).clamp_min(self.min_eps)  # [K]
+            self.mu = (r.transpose(0, 1) @ X) / Nk.view(K, 1)
+            Xc = X.unsqueeze(1) - self.mu.unsqueeze(0)  # [N, K, D]
+            sigma_new = torch.einsum('nk,nki,nkj->kij', r, Xc, Xc) / Nk.view(
+                K, 1, 1)
+            self.Sigma = sigma_new + self.jitter * torch.eye(
+                D, device=self.device).unsqueeze(0)  # [K, D, D]
+
+            num_steps += 1
+
+            # Check convergence by log-likelihood
+            ll = m + torch.log(denom.clamp_min(self.min_eps))
+            ll = ll.mean().item()
+            if abs(ll - prev_ll) < tol:
+                prev_ll = ll
+                break
+            prev_ll = ll
+        # After fitting, cache conditional parameters
+        self._cache_conditionals()
+
+        avg_nll = -prev_ll
+        return avg_nll, num_steps
+
+    def _cache_conditionals(self):
+        """Compute and cache per-component conditional parameters."""
+        A, b, cond_cov = self._conditional_params_per_component()
+        self.cond_A.copy_(A)
+        self.cond_b.copy_(b)
+        self.cond_cov.copy_(cond_cov)
+
+    def _conditional_params_per_component(self):
+        """
+        Compute per-component conditional parameters for e|z, epsilon | z ~ N(A_k z + b_k, cond_cov_k) for component k.
+        Returns:
+            (A, b, cond_cov) (torch.Tensor, torch.Tensor, torch.Tensor): where
+                A: [K, De, Dz]
+                b: [K, De]
+                cond_cov: [K, De, De]
+        """
+        K = self.num_components
+        De, Dz = self.epsilon_dim, self.z_dim
+        D = De + Dz
+        mu = self.mu  # [K, D]
+        Sigma = self.Sigma  # [K, D, D]
+
+        mu_e = mu[:, :De]  # [K, De]
+        mu_z = mu[:, De:]  # [K, Dz]
+        S_ee = Sigma[:, :De, :De]  # [K, De, De]
+        S_ez = Sigma[:, :De, De:]  # [K, De, Dz]
+        S_ze = Sigma[:, De:, :De]  # [K, Dz, De]
+        S_zz = Sigma[:, De:, De:]  # [K, Dz, Dz]
+
+        eye_z = torch.eye(Dz, device=self.device).expand(K, Dz, Dz)
+        S_zz_reg = S_zz + self.jitter * eye_z
+        S_ez_T = S_ez.transpose(1, 2)  # [K, Dz, De]
+        A_T = torch.linalg.solve(S_zz_reg, S_ez_T)  # [K, Dz, De]
+        A = A_T.transpose(1, 2)  # [K, De, Dz]
+        # b_k = mu_e - A mu_z
+        b = mu_e - torch.matmul(A, mu_z.unsqueeze(-1)).squeeze(-1)  # [K, De]
+        cond_cov = S_ee - torch.matmul(A, S_ze)  # [K, De, De]
+
+        # Ensure SPD per component
+        try:
+            torch.linalg.cholesky(cond_cov)
+        except RuntimeError:
+            eigvals, eigvecs = torch.linalg.eigh(cond_cov)
+            eigvals = torch.clamp(eigvals, min=self.min_eps)
+            cond_cov = torch.matmul(eigvecs * eigvals, eigvecs.transpose(1, 2))
+
+        return A, b, cond_cov
+
+    @torch.no_grad()
+    def sample(
+        self,
+        z: torch.Tensor,
+        num_samples: int = 100,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Sample epsilon' ~ q_psi(epsilon|z) using the conditional GMM.
+
+        Args:
+            z (torch.Tensor): [B, Dz]
+            num_samples (int): samples per z
+        Returns:
+            (z_aux, epsilon_aux): shapes [B, S, Dz], [B, S, De]
+        """
+        assert z.dim() == 2 and z.shape[1] == self.z_dim
+        B = z.shape[0]
+        S = int(num_samples)
+        z = z.to(self.device)
+
+        De, Dz = self.epsilon_dim, self.z_dim
+        K = self.num_components
+
+        # 1. Compute Gating Probabilities w_k(z)
+        #    log w_k \propto log pi_k + log N(z; mu_z, Sigma_zz)
+        mu_z = self.mu[:, De:]  # [K, Dz]
+        S_zz = self.Sigma[:, De:, De:]  # [K, Dz, Dz]
+
+        # Add jitter for stability
+        S_zz_safe = S_zz + self.jitter * torch.eye(
+            Dz, device=self.device).unsqueeze(0)
+
+        # Calculate log_prob for all z against all K components
+        # mvn_z batch shape: [K], event shape: [Dz]
+        mvn_z = dist.MultivariateNormal(mu_z, S_zz_safe)
+
+        # z: [B, Dz] -> [B, 1, Dz] to broadcast against K
+        log_Nz = mvn_z.log_prob(z.unsqueeze(1))  # [B, K]
+
+        # [1, K]
+        log_pi = torch.log(self.pi.clamp_min(self.min_eps)).unsqueeze(0)
+        log_w: torch.Tensor = log_pi + log_Nz  # [B, K]
+
+        # Normalize to probabilities
+        log_w_max = log_w.max(dim=1, keepdim=True).values
+        probs = torch.exp(log_w - log_w_max)  # [B, K]
+        probs = probs / probs.sum(dim=1, keepdim=True).clamp_min(self.min_eps)
+
+        # 2. Sample Component Indices
+        # We need S samples per batch item B.
+        # comp_idx: [B, S]
+        comp_idx = torch.multinomial(probs, num_samples=S, replacement=True)
+
+        # Flatten indices to [B*S] for efficient indexing
+        comp_idx_flat = comp_idx.view(-1)
+
+        # 3. Compute Conditional Means for ALL components
+        # mean_k(z) = A_k @ z + b_k
+        # A: [K, De, Dz], z: [B, Dz]
+        # We use einsum to compute all K means for all B inputs at once.
+        # Result means_all: [B, K, De]
+        means_all = torch.einsum('kez, bz -> bke', self.cond_A,
+                                 z) + self.cond_b.unsqueeze(0)
+
+        # 4. Gather Parameters for the specific sampled components
+        # We need to extract the specific mean and covariance for each of the (B*S) samples.
+
+        # A. Gather Means
+        # Expand means_all to [B, S, K, De] to match sampling structure, then flatten B*S
+        means_expanded = means_all.unsqueeze(1).expand(B, S, K, De).reshape(
+            B * S, K, De)
+
+        # Gather: select the k dimension based on comp_idx_flat
+        # indices must match dims: [B*S, 1, De]
+        gather_idx = comp_idx_flat.view(B * S, 1, 1).expand(B * S, 1, De)
+        selected_means = torch.gather(
+            means_expanded,
+            1,
+            gather_idx,
+        ).squeeze(1)  # [B*S, De]
+
+        # B. Gather Covariances
+        # cond_cov is [K, De, De]. We just index into it directly using the flat indices.
+        # selected_covs: [B*S, De, De]
+        selected_covs = self.cond_cov[comp_idx_flat]
+
+        # Add tiny jitter to ensure positive definiteness for the sampler
+        selected_covs = selected_covs + self.jitter * torch.eye(
+            De, device=self.device).unsqueeze(0)
+
+        # 5. Create Batched Distribution and Sample
+        # This creates a batch of (B*S) independent Multivariate Normals
+        mvn_conditional = dist.MultivariateNormal(
+            selected_means,
+            selected_covs,
+        )
+
+        # Sample (no arguments needed, shapes are in the distribution parameters)
+        epsilon_flat = mvn_conditional.sample()  # [B*S, De]
+
+        # 6. Reshape and Return
+        epsilon_aux = epsilon_flat.view(B, S, De)
+        z_aux = z.unsqueeze(1).expand(B, S, Dz)
+
+        return z_aux.clone().detach(), epsilon_aux.clone().detach()

@@ -1,6 +1,12 @@
 import torch
 from models.target_models import target_distribution, DEFAULT_BBOX
-from models.networks import SIMINet, ConditionalRealNVP, ConditionalGaussian, ConditionalGaussianReverse
+from models.networks import (
+    SIMINet,
+    ConditionalRealNVP,
+    ConditionalGaussian,
+    ConditionalGaussianReverse,
+    ConditionalMixtureOfGaussianReverse,
+)
 import os
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
@@ -17,13 +23,10 @@ import time
 import numpy as np
 import json
 
-# 1208 TODO:
-# 1. Add KL to baseline as a metric [Done]
-# 2. Restucture the learn() to be more modular, and add more things from local variable to self [Done]
-# 3. Add readme and scripts and documentation of scripts
-# 4. Perhaps move resume to a parameter when initializing? or just pass in the args. Anyway, the parsing of args should be moved inside the __main__ section. [Done]
-# 5. Fix env.yml [Done]
-# 6. Perhaps reuse or refactor hmc related code
+# 1211 TODO:
+# 0. Initialization configuration for reverse model, especially for mixture of Gaussian reverse model [Important!]
+# 1. Add readme and scripts and documentation of scripts
+# 2. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -171,9 +174,20 @@ class ReverseUIVI():
                     epsilon_dim=model_config['epsilon_dim'],
                     device=self.device,
                 ).to(self.device)
-            if rtype != 'ConditionalRealNVP' and rtype != 'ConditionalGaussianReverse':
+            if rtype == 'ConditionalMixtureOfGaussianReverse':
+                # Note: reuse reverse_hidden_dim as K (num components)
+                self.reverse_model = ConditionalMixtureOfGaussianReverse(
+                    z_dim=model_config['z_dim'],
+                    epsilon_dim=model_config['epsilon_dim'],
+                    hidden_dim=model_config['reverse_hidden_dim'],
+                    device=self.device,
+                ).to(self.device)
+            if rtype not in [
+                    'ConditionalRealNVP', 'ConditionalGaussianReverse',
+                    'ConditionalMixtureOfGaussianReverse'
+            ]:
                 raise AssertionError(
-                    "Unsupported reverse_model_type. Use 'ConditionalRealNVP' or 'ConditionalGaussianReverse'."
+                    "Unsupported reverse_model_type. Use 'ConditionalRealNVP', 'ConditionalGaussianReverse', or 'ConditionalMixtureOfGaussianReverse'."
                 )
 
         # Optionally resume models from checkpoint directory
@@ -250,7 +264,10 @@ class ReverseUIVI():
                         self.reverse_model.parameters(), lr=self.reverse_lr)
                 if not self.rev_reuse_optimizer:
                     self.training_reverse_optimizer = None
-            if self.reverse_model_type == 'ConditionalGaussianReverse':
+            if self.reverse_model_type in [
+                    'ConditionalGaussianReverse',
+                    'ConditionalMixtureOfGaussianReverse',
+            ]:
                 self.training_reverse_optimizer = None
 
         # HMC config (for UIVI)
@@ -292,8 +309,10 @@ class ReverseUIVI():
         # running accumulators
         self.training_sample_loss = 0.0
         self.training_sample_reverse_loss = 0.0
+        self.training_steps = 0
         self.warmup_sample_loss = 0.0
         self.warmup_last_time = 0.0
+        self.warmup_steps = 0
 
         # Checkpoint config
         self.ckpt_cfg = self.training_cfg['checkpoint']
@@ -313,6 +332,7 @@ class ReverseUIVI():
     def _training_rev_log_func(
         self,
         loss: float,
+        steps: int,
         epoch_inner: int,
         epoch_outer: int,
     ):
@@ -320,18 +340,23 @@ class ReverseUIVI():
         Logging hook for reverse model training across inner/outer epochs.
         Args:
             loss (float): Loss value for the current inner epoch.
+            steps (int): Number of steps taken in the current inner epoch.
             epoch_inner (int): Current inner epoch number.
             epoch_outer (int): Current outer epoch number.
         """
         epoch = (epoch_outer - 1) * self.rev_epochs + epoch_inner
         self.training_sample_reverse_loss += loss
+        self.training_steps += steps
         if self.training_reverse_log_freq and self.training_reverse_log_freq > 0 and epoch_inner % self.training_reverse_log_freq == 0:
             avg_loss = self.training_sample_reverse_loss / self.training_reverse_log_freq
             self.training_sample_reverse_loss = 0.0
+            avg_steps = self.training_steps / self.training_reverse_log_freq
+            self.training_steps = 0
             logger.debug(
-                f"Epoch {epoch_outer}, Inner epoch {epoch_inner}, Reverse Model Loss: {avg_loss:.4f}"
+                f"Epoch {epoch_outer}, Inner epoch {epoch_inner}, Reverse Model Loss: {avg_loss:.4f}, Avg Steps: {avg_steps:.4f}"
             )
         self.writer.add_scalar("train/reverse_model_loss", loss, epoch)
+        self.writer.add_scalar("train/reverse_model_steps", steps, epoch)
 
     def _load_baseline_samples(self) -> np.ndarray:
         """
@@ -418,7 +443,7 @@ class ReverseUIVI():
         epochs: int,
         batch_size: int,
         progress_bar: bool = True,
-        log_func: Callable[[float, int], None] = None,
+        log_func: Callable[[float, int, int], None] = None,
     ) -> None:
         '''
         Train the reverse model. Generate samples from the VI model and then optimize the reverse model to maximize the log-reverse-probablity of these samples.
@@ -428,7 +453,7 @@ class ReverseUIVI():
             epochs (int): Number of training epochs.
             batch_size (int): Batch size for training.
             progress_bar (bool, optional): Whether to display a progress bar. Defaults to True.
-            log_func (Callable[[float, int], None], optional): Function to log training progress. Defaults to None. The first argument is the loss, the second is the epoch.
+            log_func (Callable[[float, int, int], None], optional): Function to log training progress. Defaults to None. The first argument is the loss, the second is the steps, and the third is the epoch.
         Returns:
             None
         '''
@@ -454,16 +479,29 @@ class ReverseUIVI():
                 loss.backward()
                 optimizer.step()
                 if log_func is not None:
-                    log_func(loss.item(), epoch)
-        elif self.reverse_model_type == 'ConditionalGaussianReverse':
+                    log_func(loss.item(), 1, epoch)
+        elif self.reverse_model_type == 'ConditionalGaussianReverse' or self.reverse_model_type == 'ConditionalMixtureOfGaussianReverse':
             epsilon_samples, z_samples = self.vi_model.sampling(
                 num=batch_size * epochs)
-            self.reverse_model.fit(epsilon_samples, z_samples)
-            log_func(0.0, epochs)  # log zero loss for consistency
+            nll, steps = self.reverse_model.fit(
+                epsilon_samples,
+                z_samples,
+                initialize=True,
+            )
+            if log_func is not None:
+                log_func(nll, steps, epochs)
 
-    def _warmup_log_func(self, loss, epoch):
+    def _warmup_log_func(self, loss: float, steps: int, epoch: int) -> None:
+        '''
+        Logging hook for reverse model warmup.
+        Args:
+            loss (float): Loss value for the current epoch.
+            steps (int): Number of steps taken in the current epoch.
+            epoch (int): Current epoch number.
+        '''
         self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
         self.warmup_sample_loss += loss
+        self.warmup_steps += steps
         if epoch % self.warmup_kl_log_freq == 0:
             kl_div = self.calculate_rev_KL()
             self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
@@ -475,8 +513,9 @@ class ReverseUIVI():
                              self.warmup_last_time) / self.warmup_loss_log_freq
             self.warmup_last_time = current_time
             self.warmup_sample_loss = 0.0
+            avg_steps = self.warmup_steps / self.warmup_loss_log_freq
             logger.debug(
-                f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s"
+                f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s, Avg Steps: {avg_steps:.4f}"
             )
 
     def warmup(self) -> None:
@@ -896,6 +935,7 @@ class ReverseUIVI():
 
             # Sample z from variational distribution
             z, neg_score_implicit = self.vi_model.forward(epsilon)
+            z_prev = z.clone()
 
             # Compute log prob under target distribution
             log_prob_target = self.target_model.logp(z)
@@ -1002,15 +1042,18 @@ class ReverseUIVI():
                         self.training_reverse_optimizer = torch.optim.Adam(
                             self.reverse_model.parameters(),
                             lr=self.reverse_lr)
-                if self.reverse_model_type == 'ConditionalGaussianReverse':
+                if self.reverse_model_type in [
+                        'ConditionalGaussianReverse',
+                        'ConditionalMixtureOfGaussianReverse',
+                ]:
                     self.training_reverse_optimizer = None
                 self.train_reverse_model(
                     self.training_reverse_optimizer,
                     self.rev_epochs,
                     self.rev_batch_size,
                     progress_bar=False,
-                    log_func=lambda l, e: self._training_rev_log_func(
-                        l, e, epoch),
+                    log_func=lambda l, s, e: self._training_rev_log_func(
+                        l, s, e, epoch),
                 )
                 time_rev1 = time.perf_counter()
                 time_reverse_step = time_rev1 - time_rev0

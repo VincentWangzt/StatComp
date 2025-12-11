@@ -1,0 +1,73 @@
+# Global settings
+seed: 42
+cuda_visible_devices: "0"
+use_cuda_if_available: true
+
+# Experiment settings
+experiment:
+  name: reverse_uivi
+  target_dist: banana
+
+# Model settings
+# - vi_model_type: ConditionalGaussian
+# - reverse_model_type: ConditionalMixtureOfGaussianReverse
+# - epsilon_dim, z_dim: dimensions for epsilon and z
+# - vi_hidden_dim: MLP hidden size for VI
+# - reverse_hidden_dim: number of Gaussian components K for the mixture
+models:
+  vi_model_type: ConditionalGaussian
+  reverse_model_type: ConditionalMixtureOfGaussianReverse
+  epsilon_dim: 4
+  z_dim: 2
+  vi_hidden_dim: 64
+  reverse_hidden_dim: 16
+  # unused for mixture but kept for parity
+  reverse_num_layers: 4
+
+# Warmup settings (single EM fit call)
+warmup:
+  enabled: true
+  lr: 1.0e-6  # unused for mixture
+  batch_size: 8192
+  epochs: 1
+  kl_log_freq: 1
+  loss_log_freq: 1
+
+# Training settings
+train:
+  epochs: 10000
+  batch_size: 8192
+  reverse_sample_num: 100
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.9
+  reverse:
+    lr: 1.0e-5   # unused for mixture
+    batch_size: 8192
+    epochs: 1
+    update_freq: 1
+    reuse_optimizer: false
+  log:
+    kl_log_freq: 10
+    loss_log_freq: 10
+    reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 1000
+  sample:
+    freq: 500
+    num: 10000
+  plot:
+    freq: 500
+    num: 1000
+
+# KL estimation
+kl:
+  n_ite_samples: 10000
+
+# Baseline path for KL estimation
+baseline:
+  baseline_path: baselines/hmc/banana.pt
