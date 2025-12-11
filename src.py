@@ -25,7 +25,7 @@ import json
 
 # 1211 TODO:
 # 0. Initialization configuration for reverse model, especially for mixture of Gaussian reverse model [Done]
-# 1. Add readme and scripts and documentation of scripts
+# 1. Add readme and scripts and documentation of scripts [Done]
 # 2. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
 
 logger = get_logger()
