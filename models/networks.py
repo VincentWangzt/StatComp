@@ -3,6 +3,9 @@ import torch.nn as nn
 from argparse import Namespace
 import math
 import torch.distributions as dist
+from utils.logging import get_logger
+
+logger = get_logger()
 
 
 class SIMINet(nn.Module):
@@ -297,6 +300,7 @@ class ConditionalGaussianReverse(nn.Module):
         self,
         epsilon: torch.Tensor,
         z: torch.Tensor,
+        initialize: bool = False,
     ) -> tuple[float, int]:
         """
         Fit joint Gaussian parameters from provided samples.
@@ -306,6 +310,7 @@ class ConditionalGaussianReverse(nn.Module):
             epsilon (torch.Tensor): Samples of epsilon with shape [..., De].
             z (torch.Tensor): Samples of z with shape [..., Dz].
             jitter (float): Small value added to the diagonal of covariance for numerical stability.
+            initialize (bool): If True, reset parameters before fitting. Unused for Gaussian.
         Returns:
             (avg_nll, num_steps) (float, int): Average negative log-likelihood and number of steps (always 1 here).
         """
@@ -360,8 +365,10 @@ class ConditionalGaussianReverse(nn.Module):
         cond_cov = S_ee - A @ S_ze
         # Ensure SPD
         try:
-            torch.linalg.cholesky(cond_cov)  #TODO
+            torch.linalg.cholesky(cond_cov)
         except RuntimeError:
+            logger.warning(
+                "Detected not SPD conditional covariance. Fixing...")
             eigvals, eigvecs = torch.linalg.eigh(cond_cov)
             eigvals = torch.clamp(eigvals, min=1e-10)
             cond_cov = (eigvecs * eigvals) @ eigvecs.transpose(0, 1)
@@ -552,8 +559,8 @@ class ConditionalMixtureOfGaussianReverse(nn.Module):
         self.epsilon_dim = epsilon_dim
         self.num_components = hidden_dim
         self.device = device
-        self.jitter = 1e-8
-        self.min_eps = 1e-12
+        self.jitter = 1e-4
+        self.min_eps = 1e-4
 
         D = self.epsilon_dim + self.z_dim
 
@@ -648,30 +655,46 @@ class ConditionalMixtureOfGaussianReverse(nn.Module):
             log_probs = log_pi + log_N  # [N, K]
 
             # log-sum-exp normalize
-            m = torch.max(log_probs, dim=1, keepdim=True).values  # [N,1]
-            exp_shifted = torch.exp(log_probs - m)  # [N, K]
-            denom = exp_shifted.sum(dim=1, keepdim=True)  # [N,1]
-            r = exp_shifted / denom.clamp_min(self.min_eps)  # [N, K]
+            # log_denom: [N,1]
+            log_denom = torch.logsumexp(log_probs, dim=1, keepdim=True)
+            r = torch.exp(log_probs - log_denom)  # [N, K]
 
             # M-step
-            Nk = r.sum(dim=0)  # [K]
-            self.pi = (Nk / N).clamp_min(self.min_eps)  # [K]
-            self.mu = (r.transpose(0, 1) @ X) / Nk.view(K, 1)
+            Nk = r.sum(dim=0).clamp_min(self.min_eps)  # [K]
+            pi_new = (Nk / N)  #[K]
+            mu_new = (r.transpose(0, 1) @ X) / Nk.view(K, 1)  # [K, D]
+            self.pi.copy_(pi_new)
+            self.mu.copy_(mu_new)
             Xc = X.unsqueeze(1) - self.mu.unsqueeze(0)  # [N, K, D]
             sigma_new = torch.einsum('nk,nki,nkj->kij', r, Xc, Xc) / Nk.view(
                 K, 1, 1)
-            self.Sigma = sigma_new + self.jitter * torch.eye(
-                D, device=self.device).unsqueeze(0)  # [K, D, D]
+            sigma_new = sigma_new + self.jitter * torch.eye(
+                D,
+                device=self.device,
+            ).unsqueeze(0)
+
+            self.Sigma.copy_(sigma_new)
 
             num_steps += 1
 
             # Check convergence by log-likelihood
-            ll = m + torch.log(denom.clamp_min(self.min_eps))
-            ll = ll.mean().item()
+            ll = log_denom.mean().item()
             if abs(ll - prev_ll) < tol:
                 prev_ll = ll
                 break
             prev_ll = ll
+        cond = torch.linalg.cond(self.Sigma)
+        if torch.any(cond > 1e6):
+            logger.warning(
+                "Detected ill-conditioned Sigma after GMM fit. Fixing...")
+            eigvals, eigvecs = torch.linalg.eigh(self.Sigma)
+            eigvals = torch.clamp(
+                eigvals,
+                min=eigvals.max() / 1e6,
+            )
+            Sigma_fixed = eigvecs @ torch.diag_embed(
+                eigvals) @ eigvecs.transpose(1, 2)
+            self.Sigma.copy_(Sigma_fixed)
         # After fitting, cache conditional parameters
         self._cache_conditionals()
 
@@ -720,6 +743,8 @@ class ConditionalMixtureOfGaussianReverse(nn.Module):
         try:
             torch.linalg.cholesky(cond_cov)
         except RuntimeError:
+            logger.warning(
+                "Detected not SPD conditional covariance. Fixing...")
             eigvals, eigvecs = torch.linalg.eigh(cond_cov)
             eigvals = torch.clamp(eigvals, min=self.min_eps)
             cond_cov = torch.matmul(eigvecs * eigvals, eigvecs.transpose(1, 2))
@@ -787,8 +812,11 @@ class ConditionalMixtureOfGaussianReverse(nn.Module):
         # A: [K, De, Dz], z: [B, Dz]
         # We use einsum to compute all K means for all B inputs at once.
         # Result means_all: [B, K, De]
-        means_all = torch.einsum('kez, bz -> bke', self.cond_A,
-                                 z) + self.cond_b.unsqueeze(0)
+        means_all = torch.einsum(
+            'kez, bz -> bke',
+            self.cond_A,
+            z,
+        ) + self.cond_b.unsqueeze(0)
 
         # 4. Gather Parameters for the specific sampled components
         # We need to extract the specific mean and covariance for each of the (B*S) samples.

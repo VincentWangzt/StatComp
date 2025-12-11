@@ -25,15 +25,19 @@ models:
   reverse_num_layers: 4
 
 # Warmup settings (single EM fit call)
+# - initialize: If true, initialize parameters via k-means before fitting
 warmup:
   enabled: true
   lr: 1.0e-6  # unused for mixture
   batch_size: 8192
   epochs: 1
+  initialize: true
   kl_log_freq: 1
   loss_log_freq: 1
 
 # Training settings
+# - reverse:
+#     * initialize: If true, initialize parameters via k-means before fitting
 train:
   epochs: 10000
   batch_size: 8192
@@ -48,12 +52,13 @@ train:
     lr: 1.0e-5   # unused for mixture
     batch_size: 8192
     epochs: 1
+    initialize: false
     update_freq: 1
     reuse_optimizer: false
   log:
     kl_log_freq: 10
     loss_log_freq: 10
-    reverse_log_freq: 500
+    reverse_log_freq: 10
   checkpoint:
     enabled: true
     freq: 1000

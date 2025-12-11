@@ -37,6 +37,7 @@ models:
 # - `epochs`: Number of warmup epochs.
 # - `lr`: Learning rate for reverse optimizer during warmup.
 # - `batch_size`: Batch size of VI samples used to train the reverse model.
+# - `initialize`: If true, initialize reverse model parameters via k-means before fitting. Not used for RealNVP.
 # - `kl_log_freq`: Frequency (in epochs) to log KL estimates via ITE.
 # - `loss_log_freq`: Frequency to log running-average loss to file for the reverse model.
 warmup:
@@ -44,6 +45,7 @@ warmup:
   lr: 1.0e-6
   batch_size: 8192
   epochs: 10000
+  initialize: true
   kl_log_freq: 100
   loss_log_freq: 100
 
@@ -57,6 +59,7 @@ warmup:
 #     * `lr`: Reverse optimizer LR.
 #     * `batch_size`: sample batch size drawn from VI to fit the reverse.
 #     * `epochs`: Inner epochs per reverse update.
+#     * `initialize`: If true, initialize reverse model parameters via k-means before fitting. Not used for RealNVP.
 #     * `update_freq`: Frequency (in VI epochs) to trigger reverse updates.
 #     * `reuse_optimizer`: If true, reuse the same optimizer instance across updates.
 # - `log`: Logging frequencies.
@@ -86,6 +89,7 @@ train:
     lr: 1.0e-5
     batch_size: 8192
     epochs: 50
+    initialize: false
     update_freq: 1
     reuse_optimizer: true
   log:

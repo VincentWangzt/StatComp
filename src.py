@@ -24,9 +24,11 @@ import numpy as np
 import json
 
 # 1211 TODO:
-# 0. Initialization configuration for reverse model, especially for mixture of Gaussian reverse model [Important!]
+# 0. Initialization configuration for reverse model, especially for mixture of Gaussian reverse model [Done]
 # 1. Add readme and scripts and documentation of scripts
 # 2. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
+
+logger = get_logger()
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -72,10 +74,6 @@ def parse_args():
         'Disable overriding starting epoch when resuming; do not skip warmup. Only effective when --load_optimizer is also set.',
     )
     return parser.parse_args()
-
-
-# Setup logging (console + optional file under save path)
-logger = get_logger("uivi_runner")
 
 
 class ReverseUIVI():
@@ -205,11 +203,13 @@ class ReverseUIVI():
         self.warmup_enabled = self.warmup_cfg['enabled']
         self.warmup_batch_size = None
         self.warmup_epochs = None
+        self.warmup_init = None
         self.warmup_kl_log_freq = None
         self.warmup_loss_log_freq = None
         if self.warmup_enabled:
             self.warmup_batch_size = self.warmup_cfg['batch_size']
             self.warmup_epochs = self.warmup_cfg['epochs']
+            self.warmup_init = self.warmup_cfg['initialize']
             self.warmup_kl_log_freq = self.warmup_cfg['kl_log_freq']
             self.warmup_loss_log_freq = self.warmup_cfg['loss_log_freq']
 
@@ -245,6 +245,7 @@ class ReverseUIVI():
             self.reverse_lr = self.rev_train_cfg['lr']
             self.rev_batch_size = self.rev_train_cfg['batch_size']
             self.rev_epochs = self.rev_train_cfg['epochs']
+            self.rev_init = self.rev_train_cfg['initialize']
             self.rev_update_freq = self.rev_train_cfg['update_freq']
             self.rev_reuse_optimizer = self.rev_train_cfg['reuse_optimizer']
         else:
@@ -252,6 +253,7 @@ class ReverseUIVI():
             self.reverse_lr = None
             self.rev_batch_size = None
             self.rev_epochs = None
+            self.rev_init = None
             self.rev_update_freq = None
             self.rev_reuse_optimizer = False
 
@@ -442,6 +444,7 @@ class ReverseUIVI():
         optimizer: torch.optim.Optimizer | None,
         epochs: int,
         batch_size: int,
+        initialize: bool = False,
         progress_bar: bool = True,
         log_func: Callable[[float, int, int], None] = None,
     ) -> None:
@@ -452,6 +455,7 @@ class ReverseUIVI():
             optimizer (torch.optim.Optimizer | None): Optimizer for the reverse model.
             epochs (int): Number of training epochs.
             batch_size (int): Batch size for training.
+            initialize (bool, optional): Whether to re-initialize parameters before fitting. Defaults to False.
             progress_bar (bool, optional): Whether to display a progress bar. Defaults to True.
             log_func (Callable[[float, int, int], None], optional): Function to log training progress. Defaults to None. The first argument is the loss, the second is the steps, and the third is the epoch.
         Returns:
@@ -486,7 +490,7 @@ class ReverseUIVI():
             nll, steps = self.reverse_model.fit(
                 epsilon_samples,
                 z_samples,
-                initialize=True,
+                initialize=initialize,
             )
             if log_func is not None:
                 log_func(nll, steps, epochs)
@@ -548,6 +552,7 @@ class ReverseUIVI():
             optimizer,
             self.warmup_epochs,
             self.warmup_batch_size,
+            initialize=self.warmup_init,
             progress_bar=True,
             log_func=self._warmup_log_func,
         )
@@ -930,8 +935,10 @@ class ReverseUIVI():
 
             # Sample epsilon (used both for VI forward and as HMC init for uivi)
             t_vi0 = time.perf_counter()
-            epsilon = torch.randn(self.training_batch_size,
-                                  self.vi_model.epsilon_dim).to(self.device)
+            epsilon = torch.randn(
+                self.training_batch_size,
+                self.vi_model.epsilon_dim,
+            ).to(self.device)
 
             # Sample z from variational distribution
             z, neg_score_implicit = self.vi_model.forward(epsilon)
@@ -1051,6 +1058,7 @@ class ReverseUIVI():
                     self.training_reverse_optimizer,
                     self.rev_epochs,
                     self.rev_batch_size,
+                    initialize=self.rev_init,
                     progress_bar=False,
                     log_func=lambda l, s, e: self._training_rev_log_func(
                         l, s, e, epoch),

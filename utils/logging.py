@@ -6,7 +6,7 @@ from typing import Optional
 _LOGGER: Optional[logging.Logger] = None
 
 
-def get_logger(name: str = "statcomp") -> logging.Logger:
+def get_logger(name: str = "uivi") -> logging.Logger:
     global _LOGGER
     if _LOGGER is not None:
         return _LOGGER
@@ -51,3 +51,6 @@ def set_file_handler(log_dir: str, filename: str = "run.log") -> None:
             datefmt="%Y-%m-%d %H:%M:%S",
         ))
     logger.addHandler(fh)
+
+
+get_logger()  # Initialize the default logger at module load time
