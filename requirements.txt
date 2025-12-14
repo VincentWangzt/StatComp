@@ -13,5 +13,6 @@ matplotlib==3.10.6
 torch==2.9.0
 torchaudio==2.9.0
 torchvision==0.24.0
+normflows==1.7.3
 # This would install torch for CUDA 12.6, please modify it according to your CUDA version
 # For other installation options, please refer to https://pytorch.org/get-started/locally/

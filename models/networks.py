@@ -209,6 +209,23 @@ class ConditionalRealNVP(nn.Module):
 
         return u, log_prob
 
+    def log_prob(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log probability `log q_psi(epsilon|z)` for given `epsilon` and `z`.
+
+        Args:
+            epsilon (torch.Tensor): Input `epsilon` of shape `[..., D_epsilon]`.
+            z (torch.Tensor): Conditioning variable of shape `[..., D_z]`.
+        Returns:
+            log_prob (torch.Tensor): Log probability `log q_psi(epsilon|z)`.
+        """
+        _, log_prob = self.forward(epsilon, z)
+        return log_prob
+
     def sample(
         self,
         z: torch.Tensor,
@@ -218,11 +235,11 @@ class ConditionalRealNVP(nn.Module):
         Sample `epsilon ~ q_psi(epsilon|z)` using the inverse of the flow. No gradients computed.
 
         Args:
-            z (torch.Tensor): Conditioning batch `[..., D_z]`.
+            z (torch.Tensor): Conditioning batch `[B, D_z]`.
             num_samples (int): Number of samples per `z`.
         Returns:
             (z_aux, epsilon_aux) (torch.Tensor, torch.Tensor): Tiled conditioning `z_aux` and samples `epsilon_aux` with
-            shapes `[..., num_samples, D_z]` and `[..., num_samples, D_epsilon]`.
+            shapes `[B, num_samples, D_z]` and `[B, num_samples, D_epsilon]`.
         """
         # Sample from base distribution
         with torch.no_grad():
@@ -254,6 +271,22 @@ class ConditionalRealNVP(nn.Module):
                 # Concatenate (alternate split)
                 u = torch.cat([u2, u1], dim=-1) if i % 2 == 0 else torch.cat(
                     [u1, u2], dim=-1)
+            if torch.isnan(u).any():
+                logger.warning("NaN detected in RealNVP sampling output.")
+                mask = ~torch.isnan(u).any(dim=-1)
+                u = u[mask]
+                z_aux = z_aux[mask]
+                logger.debug(
+                    f"Detected and removed {mask.numel() - mask.sum().item()} NaN samples, keeping {mask.sum().item()} valid samples."
+                )
+            if torch.isinf(u).any():
+                logger.warning("Inf detected in RealNVP sampling output.")
+                mask = ~torch.isinf(u).any(dim=-1)
+                u = u[mask]
+                z_aux = z_aux[mask]
+                logger.debug(
+                    f"Detected and removed {mask.numel() - mask.sum().item()} Inf samples, keeping {mask.sum().item()} valid samples."
+                )
             return z_aux.clone().detach(), u.clone().detach()
 
 
@@ -859,3 +892,77 @@ class ConditionalMixtureOfGaussianReverse(nn.Module):
         z_aux = z.unsqueeze(1).expand(B, S, Dz)
 
         return z_aux.clone().detach(), epsilon_aux.clone().detach()
+
+
+class ConditionalRealNVPAI(nn.Module):
+    """
+    RealNVP for conditional density estimation with activation input. Estimates q_psi(epsilon|z) via normalizing flow. **This is a wrapper for `normflows` based implementation provided as in AISIVI.** Hidden dimension hardwired to `2*(epsilon_dim + z_dim)`.
+
+    Args:
+        z_dim (int): Dimension of `z`.
+        epsilon_dim (int): Dimension of `epsilon`.
+        num_layers (int): Number of coupling layers.
+        device (torch.device): Device for computation.
+    """
+
+    def __init__(
+            self,
+            z_dim: int,
+            epsilon_dim: int,
+            num_layers: int = 4,
+            device: torch.device = torch.device("cpu"),
+    ):
+        super().__init__()
+        from utils.cnf import generate_cond_real_nvp
+        self.epsilon_dim = epsilon_dim
+        self.z_dim = z_dim
+        self.device = device
+        self.net = generate_cond_real_nvp(
+            K=num_layers,
+            latent_size=epsilon_dim,
+            context_size=z_dim,
+            device=device,
+        )
+
+    def log_prob(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log probability `log q_psi(epsilon|z)` for given `epsilon` and `z`.
+
+        Args:
+            epsilon (torch.Tensor): Input `epsilon` of shape `[..., D_epsilon]`.
+            z (torch.Tensor): Conditioning variable of shape `[..., D_z]`.
+        Returns:
+            log_prob (torch.Tensor): Log probability `log q_psi(epsilon|z)`.
+        """
+        log_prob = self.net.log_prob(epsilon, context=z)
+        return log_prob
+
+    def sample(
+        self,
+        z: torch.Tensor,
+        num_samples: int = 100,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Sample `epsilon ~ q_psi(epsilon|z)` using the inverse of the flow. No gradients computed.
+
+        Args:
+            z (torch.Tensor): Conditioning batch `[B, D_z]`.
+            num_samples (int): Number of samples per `z`.
+        Returns:
+            (z_aux, epsilon_aux) (torch.Tensor, torch.Tensor): Tiled conditioning `z_aux` and samples `epsilon_aux` with
+            shapes `[B, num_samples, D_z]` and `[B, num_samples, D_epsilon]`.
+        """
+        # Sample from base distribution
+        with torch.no_grad():
+            eps_aux, _ = self.net.sample(num_samples, context=z)
+            eps_aux: torch.Tensor = eps_aux.reshape(
+                -1,
+                num_samples,
+                self.epsilon_dim,
+            ).clone().detach()
+            z_aux = z.clone().detach().unsqueeze(1).repeat(1, num_samples, 1)
+            return z_aux, eps_aux

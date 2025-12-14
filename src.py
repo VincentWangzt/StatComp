@@ -6,6 +6,7 @@ from models.networks import (
     ConditionalGaussian,
     ConditionalGaussianReverse,
     ConditionalMixtureOfGaussianReverse,
+    ConditionalRealNVPAI,
 )
 import os
 import torch.nn as nn
@@ -166,13 +167,20 @@ class ReverseUIVI():
                     num_layers=model_config['reverse_num_layers'],
                     device=self.device,
                 ).to(self.device)
-            if rtype == 'ConditionalGaussianReverse':
+            elif rtype == 'ConditionalRealNVPAI':
+                self.reverse_model = ConditionalRealNVPAI(
+                    z_dim=model_config['z_dim'],
+                    epsilon_dim=model_config['epsilon_dim'],
+                    num_layers=model_config['reverse_num_layers'],
+                    device=self.device,
+                ).to(self.device)
+            elif rtype == 'ConditionalGaussianReverse':
                 self.reverse_model = ConditionalGaussianReverse(
                     z_dim=model_config['z_dim'],
                     epsilon_dim=model_config['epsilon_dim'],
                     device=self.device,
                 ).to(self.device)
-            if rtype == 'ConditionalMixtureOfGaussianReverse':
+            elif rtype == 'ConditionalMixtureOfGaussianReverse':
                 # Note: reuse reverse_hidden_dim as K (num components)
                 self.reverse_model = ConditionalMixtureOfGaussianReverse(
                     z_dim=model_config['z_dim'],
@@ -180,12 +188,9 @@ class ReverseUIVI():
                     hidden_dim=model_config['reverse_hidden_dim'],
                     device=self.device,
                 ).to(self.device)
-            if rtype not in [
-                    'ConditionalRealNVP', 'ConditionalGaussianReverse',
-                    'ConditionalMixtureOfGaussianReverse'
-            ]:
+            else:
                 raise AssertionError(
-                    "Unsupported reverse_model_type. Use 'ConditionalRealNVP', 'ConditionalGaussianReverse', or 'ConditionalMixtureOfGaussianReverse'."
+                    "Unsupported reverse_model_type. Use 'ConditionalRealNVP', 'ConditionalGaussianReverse', 'ConditionalMixtureOfGaussianReverse', or 'ConditionalRealNVPAI'."
                 )
 
         # Optionally resume models from checkpoint directory
@@ -260,7 +265,7 @@ class ReverseUIVI():
         # Create reverse optimizer if applicable
         if self.reverse_model is not None:
             # Optimizer only needed for flow model
-            if self.reverse_model_type == 'ConditionalRealNVP':
+            if self.reverse_model_type == 'ConditionalRealNVP' or self.reverse_model_type == 'ConditionalRealNVPAI':
                 if self.rev_reuse_optimizer:
                     self.training_reverse_optimizer = torch.optim.Adam(
                         self.reverse_model.parameters(), lr=self.reverse_lr)
@@ -349,7 +354,7 @@ class ReverseUIVI():
         epoch = (epoch_outer - 1) * self.rev_epochs + epoch_inner
         self.training_sample_reverse_loss += loss
         self.training_steps += steps
-        if self.training_reverse_log_freq and self.training_reverse_log_freq > 0 and epoch_inner % self.training_reverse_log_freq == 0:
+        if self.training_reverse_log_freq and self.training_reverse_log_freq > 0 and epoch % self.training_reverse_log_freq == 0:
             avg_loss = self.training_sample_reverse_loss / self.training_reverse_log_freq
             self.training_sample_reverse_loss = 0.0
             avg_steps = self.training_steps / self.training_reverse_log_freq
@@ -427,11 +432,14 @@ class ReverseUIVI():
         true_joint = torch.cat([true_eps, true_z], dim=1).cpu().numpy()
 
         # Sample epsilon from reverse model given true z
+        _, rev_true_z = self.vi_model.sampling(num=self.n_ite_samples)
         with torch.no_grad():
-            generated_eps = self.reverse_model.sample(
-                true_z, num_samples=1)[1].squeeze(1)
-        generated_joint = torch.cat([generated_eps, true_z],
-                                    dim=1).cpu().numpy()
+            generated_z, generated_eps = self.reverse_model.sample(
+                rev_true_z, num_samples=1)
+            generated_z = generated_z.reshape(-1, self.z_dim)
+            generated_eps = generated_eps.reshape(-1, self.epsilon_dim)
+        generated_joint = torch.cat([generated_eps, generated_z],
+                                    dim=-1).cpu().numpy()
 
         # Estimate KL divergence using ITE
         cost_obj = ite.cost.BDKL_KnnK()
@@ -469,13 +477,13 @@ class ReverseUIVI():
         # Two modes:
         # - Flow-based (ConditionalRealNVP): optimize log-prob.
         # - GaussianReverse: call fit() using current VI samples.
-        if self.reverse_model_type == 'ConditionalRealNVP':
+        if self.reverse_model_type == 'ConditionalRealNVP' or self.reverse_model_type == 'ConditionalRealNVPAI':
             self.reverse_model.train()
             for epoch in iterator:
                 epsilon_samples, z_samples = self.vi_model.sampling(
                     num=batch_size)
                 optimizer.zero_grad()
-                _, log_prob = self.reverse_model.forward(
+                log_prob = self.reverse_model.log_prob(
                     epsilon_samples,
                     z_samples,
                 )
@@ -536,7 +544,7 @@ class ReverseUIVI():
 
         # For flow model, use optimizer; for GaussianReverse, no optimizer.
         optimizer = None
-        if self.reverse_model_type == 'ConditionalRealNVP':
+        if self.reverse_model_type == 'ConditionalRealNVP' or self.reverse_model_type == 'ConditionalRealNVPAI':
             lr = self.warmup_cfg['lr']
             optimizer = torch.optim.Adam(
                 self.reverse_model.parameters(),
@@ -942,10 +950,12 @@ class ReverseUIVI():
 
             # Sample z from variational distribution
             z, neg_score_implicit = self.vi_model.forward(epsilon)
-            z_prev = z.clone()
 
             # Compute log prob under target distribution
-            log_prob_target = self.target_model.logp(z)
+            # log_prob_target = self.target_model.logp(z)
+            log_prob_target: torch.Tensor = self.target_model.score(
+                z.clone().detach()) * z
+            log_prob_target = log_prob_target.sum(dim=-1)
 
             t_vi1 = time.perf_counter()
             time_vi_sample_step = t_vi1 - t_vi0
@@ -1044,7 +1054,7 @@ class ReverseUIVI():
             if (self.reverse_model is not None
                     and (epoch % (self.rev_update_freq or 1)) == 0):
                 time_rev0 = time.perf_counter()
-                if self.reverse_model_type == 'ConditionalRealNVP':
+                if self.reverse_model_type == 'ConditionalRealNVP' or self.reverse_model_type == 'ConditionalRealNVPAI':
                     if not self.rev_reuse_optimizer:
                         self.training_reverse_optimizer = torch.optim.Adam(
                             self.reverse_model.parameters(),

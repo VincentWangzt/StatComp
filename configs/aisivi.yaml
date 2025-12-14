@@ -17,7 +17,7 @@ experiment:
 
 # Model settings
 # - `vi_model_type`: Must be `ConditionalGaussian` for Reverse UIVI.
-# - `reverse_model_type`: Must be `ConditionalRealNVP`.
+# - `reverse_model_type`: Must be one of `ConditionalRealNVP`, `ConditionalRealNVPAI`, `ConditionalGaussianReverse`, `ConditionalMixtureOfGaussianReverse`.
 # - `epsilon_dim`: Dimension of epsilon (noise input to VI).
 # - `z_dim`: Dimension of latent z.
 # - `vi_hidden_dim`: Hidden size of the VI MLP.
@@ -25,11 +25,11 @@ experiment:
 # - `reverse_num_layers`: Number of coupling layers in the RealNVP.
 models:
   vi_model_type: ConditionalGaussian
-  reverse_model_type: ConditionalRealNVP
+  reverse_model_type: ConditionalRealNVPAI
   epsilon_dim: 4
   z_dim: 2
   vi_hidden_dim: 64
-  reverse_hidden_dim: 128
+  reverse_hidden_dim: 128 # Not used by ConditionalRealNVPAI
   reverse_num_layers: 16
 
 # Warmup settings
@@ -42,11 +42,11 @@ models:
 # - `loss_log_freq`: Frequency to log running-average loss to file for the reverse model.
 warmup:
   enabled: true
-  lr: 1.0e-6
+  lr: 1.0e-2
   batch_size: 8192
-  epochs: 10000
+  epochs: 500
   initialize: true
-  kl_log_freq: 100
+  kl_log_freq: 10
   loss_log_freq: 100
 
 # Training settings
@@ -80,21 +80,21 @@ train:
   batch_size: 8192
   reverse_sample_num: 100
   vi:
-    lr: 1.0e-3
+    lr: 5.0e-4
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.9
+      gamma: 0.1
   reverse:
-    lr: 1.0e-5
+    lr: 1.0e-4
     batch_size: 8192
-    epochs: 50
+    epochs: 5
     initialize: false
     update_freq: 1
-    reuse_optimizer: true
+    reuse_optimizer: true # TODO: try reuse across training and warmup
   log:
     kl_log_freq: 10
-    loss_log_freq: 10
+    loss_log_freq: 100
     reverse_log_freq: 500
   checkpoint:
     enabled: true
@@ -103,7 +103,7 @@ train:
     freq: 500
     num: 10000
   plot:
-    freq: 500
+    freq: 100
     num: 1000
 
 # KL estimation
