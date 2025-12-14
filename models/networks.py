@@ -517,23 +517,34 @@ class ConditionalGaussian(nn.Module):
         z, neg_score_implicit = self.reparameterize(mu, log_var)
         return z, neg_score_implicit
 
+    def sample_epsilon(
+        self,
+        num: int = 1000,
+    ) -> torch.Tensor:
+        """
+        Sample `num` epsilon from standard normal.
+
+        Args:
+            num (int): Number of samples.
+        Returns:
+            epsilon (torch.Tensor): Samples of shape `[num, D_epsilon]`.
+        """
+        return torch.randn([num, self.epsilon_dim], ).to(self.device)
+
     def sampling(
         self,
         num: int = 1000,
-        sigma: float = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Sample pairs `(epsilon, z)` from the conditional Gaussian. No gradients computed.
 
         Args:
             num (int): Number of samples.
-            sigma (float, optional): Scale of the `epsilon` prior, default to 1.
         Returns:
             (epsilon, z) (torch.Tensor, torch.Tensor): `epsilon` and `z` samples.
         """
         with torch.no_grad():
-            epsilon = torch.randn([num, self.epsilon_dim], ).to(self.device)
-            epsilon = epsilon * sigma
+            epsilon = self.sample_epsilon(num=num)
             Z, _ = self.forward(epsilon)
         return epsilon.clone().detach(), Z.clone().detach()
 
@@ -556,6 +567,41 @@ class ConditionalGaussian(nn.Module):
         var = torch.exp(log_var)
         neg_score = (z - mu) / (var)
         return neg_score
+
+
+class ConditionalGaussianUniform(ConditionalGaussian):
+    """
+    Conditional Gaussian `q_phi(z|epsilon)` parameterized by an MLP. The prior on epsilon is `U[0,1]`.
+
+    Args:
+        epsilon_dim (int): Dimension of `epsilon`.
+        hidden_dim (int): Hidden size of the MLP.
+        z_dim (int): Dimension of latent `z`.
+        device (torch.device): Device for computation.
+    """
+
+    def __init__(
+        self,
+        epsilon_dim: int,
+        hidden_dim: int,
+        z_dim: int,
+        device: torch.device,
+    ):
+        super().__init__(epsilon_dim, hidden_dim, z_dim, device)
+
+    def sample_epsilon(
+        self,
+        num: int = 1000,
+    ) -> torch.Tensor:
+        """
+        Sample `num` epsilon from uniform [0,1].
+
+        Args:
+            num (int): Number of samples.
+        Returns:
+            epsilon (torch.Tensor): Samples of shape `[num, D_epsilon]`.
+        """
+        return torch.rand([num, self.epsilon_dim], ).to(self.device)
 
 
 class ConditionalMixtureOfGaussianReverse(nn.Module):
@@ -910,6 +956,7 @@ class ConditionalRealNVPAI(nn.Module):
             z_dim: int,
             epsilon_dim: int,
             num_layers: int = 4,
+            logit: bool = False,
             device: torch.device = torch.device("cpu"),
     ):
         super().__init__()
@@ -922,6 +969,7 @@ class ConditionalRealNVPAI(nn.Module):
             latent_size=epsilon_dim,
             context_size=z_dim,
             device=device,
+            logit=logit,
         )
 
     def log_prob(

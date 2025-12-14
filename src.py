@@ -7,6 +7,7 @@ from models.networks import (
     ConditionalGaussianReverse,
     ConditionalMixtureOfGaussianReverse,
     ConditionalRealNVPAI,
+    ConditionalGaussianUniform,
 )
 import os
 import torch.nn as nn
@@ -32,6 +33,7 @@ import json
 # 5. Support for unified sample save format [Done]
 # 6. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
 # 7. Switch to numpy or other lightweight saving backend.
+# 8. Add NaN and Inf detection all over the code.
 
 logger = get_logger()
 
@@ -147,17 +149,27 @@ class ReverseUIVI():
         # vi model from config
         model_config = cfg['models']
         self.vi_model_type = model_config['vi_model_type']
-        assert self.vi_model_type == 'ConditionalGaussian', \
-            "Only ConditionalGaussian VI model is supported."
         self.epsilon_dim = model_config['epsilon_dim']
         self.z_dim = model_config['z_dim']
 
-        self.vi_model = ConditionalGaussian(
-            epsilon_dim=model_config['epsilon_dim'],
-            hidden_dim=model_config['vi_hidden_dim'],
-            z_dim=model_config['z_dim'],
-            device=self.device,
-        ).to(self.device)
+        if self.vi_model_type == 'ConditionalGaussian':
+            self.vi_model = ConditionalGaussian(
+                epsilon_dim=model_config['epsilon_dim'],
+                hidden_dim=model_config['vi_hidden_dim'],
+                z_dim=model_config['z_dim'],
+                device=self.device,
+            ).to(self.device)
+        elif self.vi_model_type == 'ConditionalGaussianUniform':
+            self.vi_model = ConditionalGaussianUniform(
+                epsilon_dim=model_config['epsilon_dim'],
+                hidden_dim=model_config['vi_hidden_dim'],
+                z_dim=model_config['z_dim'],
+                device=self.device,
+            ).to(self.device)
+        else:
+            raise AssertionError(
+                "Unsupported vi_model_type. Use 'ConditionalGaussian' or 'ConditionalGaussianUniform'."
+            )
 
         # reverse model only needed for reverse_uivi
         self.reverse_model = None
@@ -177,6 +189,7 @@ class ReverseUIVI():
                     z_dim=model_config['z_dim'],
                     epsilon_dim=model_config['epsilon_dim'],
                     num_layers=model_config['reverse_num_layers'],
+                    logit=model_config['reverse_logit'],
                     device=self.device,
                 ).to(self.device)
             elif rtype == 'ConditionalGaussianReverse':
@@ -486,8 +499,13 @@ class ReverseUIVI():
                     z_samples,
                 )
                 loss = -torch.mean(log_prob)
-                loss.backward()
-                optimizer.step()
+                if torch.isfinite(loss):
+                    loss.backward()
+                    optimizer.step()
+                else:
+                    logger.warning(
+                        f"NaN or Inf detected in reverse model loss at epoch {epoch}. Skipping update."
+                    )
                 if log_func is not None:
                     log_func(loss.item(), 1, epoch)
         elif self.reverse_model_type == 'ConditionalGaussianReverse' or self.reverse_model_type == 'ConditionalMixtureOfGaussianReverse':
@@ -989,10 +1007,8 @@ class ReverseUIVI():
 
             # Sample epsilon (used both for VI forward and as HMC init for uivi)
             t_vi0 = time.perf_counter()
-            epsilon = torch.randn(
-                self.training_batch_size,
-                self.vi_model.epsilon_dim,
-            ).to(self.device)
+            epsilon = self.vi_model.sample_epsilon(
+                num=self.training_batch_size)
 
             # Sample z from variational distribution
             z, neg_score_implicit = self.vi_model.forward(epsilon)

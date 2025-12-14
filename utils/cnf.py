@@ -167,11 +167,14 @@ class ConditionalNormalizingFlowAI(nf.ConditionalNormalizingFlow):
         return eps_z, lps
 
 
-def generate_cond_real_nvp(K,
-                           latent_size,
-                           context_size,
-                           device,
-                           act_norm=True):
+def generate_cond_real_nvp(
+    K,
+    latent_size,
+    context_size,
+    device,
+    act_norm=True,
+    logit=False,
+):
     b = torch.Tensor([1 if i % 2 == 0 else 0 for i in range(latent_size)])
     flows = []
     for i in range(K):
@@ -193,7 +196,8 @@ def generate_cond_real_nvp(K,
             flows += [CondMaskedAffineFlow(1 - b, t, s)]
         if act_norm:
             flows += [ActNorm(latent_size)]
-    # flows += [Logit(0.0)]
+    if logit:
+        flows += [Logit(0.0)]
 
     # Set q0
     q0 = nf.distributions.DiagGaussian(latent_size, trainable=False)

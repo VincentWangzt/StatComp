@@ -16,7 +16,7 @@ experiment:
   target_dist: banana
 
 # Model settings
-# - `vi_model_type`: Must be `ConditionalGaussian` for Reverse UIVI.
+# - `vi_model_type`: Must be one of `ConditionalGaussian`, `ConditionalGaussianUniform`.
 # - `reverse_model_type`: Must be one of `ConditionalRealNVP`, `ConditionalRealNVPAI`, `ConditionalGaussianReverse`, `ConditionalMixtureOfGaussianReverse`.
 # - `epsilon_dim`: Dimension of epsilon (noise input to VI).
 # - `z_dim`: Dimension of latent z.
@@ -31,6 +31,7 @@ models:
   vi_hidden_dim: 64
   reverse_hidden_dim: 128 # Not used by ConditionalRealNVPAI
   reverse_num_layers: 16
+  reverse_logit: false # Only used by ConditionalRealNVPAI
 
 # Warmup settings
 # - `enabled`: Whether to run warmup.
@@ -84,7 +85,7 @@ train:
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.1
+      gamma: 0.2
   reverse:
     lr: 1.0e-4
     batch_size: 8192
