@@ -24,10 +24,14 @@ import time
 import numpy as np
 import json
 
-# 1211 TODO:
-# 0. Initialization configuration for reverse model, especially for mixture of Gaussian reverse model [Done]
-# 1. Add readme and scripts and documentation of scripts [Done]
-# 2. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
+# 1214 TODO:
+# 1. Reuse of optimizer across warmup and training. (Seems not necessary now using aisivi implementation of cnf.)
+# 2. Ablation on ActNorm layer, debug ConditionalRealNVP
+# 3. Regularization terms for dealing with decrease of entropy(Reverse model loss)?
+# 4. Support for different initial distribution (q_epsilon) in VI model (and reverse model?).
+# 5. Support for unified sample save format [Done]
+# 6. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
+# 7. Switch to numpy or other lightweight saving backend.
 
 logger = get_logger()
 
@@ -142,7 +146,8 @@ class ReverseUIVI():
 
         # vi model from config
         model_config = cfg['models']
-        assert model_config['vi_model_type'] == 'ConditionalGaussian', \
+        self.vi_model_type = model_config['vi_model_type']
+        assert self.vi_model_type == 'ConditionalGaussian', \
             "Only ConditionalGaussian VI model is supported."
         self.epsilon_dim = model_config['epsilon_dim']
         self.z_dim = model_config['z_dim']
@@ -295,17 +300,7 @@ class ReverseUIVI():
             self.save_path,
             "samples",
         )
-        self.training_joint_sample_save_path = os.path.join(
-            self.save_path,
-            "joint_samples",
-        )
-        self.training_reverse_sample_save_path = os.path.join(
-            self.save_path,
-            "reverse_samples",
-        )
         os.makedirs(self.training_sample_save_path, exist_ok=True)
-        os.makedirs(self.training_joint_sample_save_path, exist_ok=True)
-        os.makedirs(self.training_reverse_sample_save_path, exist_ok=True)
 
         # Logging config
         self.training_log_cfg = self.training_cfg['log']
@@ -320,6 +315,9 @@ class ReverseUIVI():
         self.warmup_sample_loss = 0.0
         self.warmup_last_time = 0.0
         self.warmup_steps = 0
+        # Timing
+        self.warmup_start_time = None
+        self.train_start_time = None
 
         # Checkpoint config
         self.ckpt_cfg = self.training_cfg['checkpoint']
@@ -553,7 +551,7 @@ class ReverseUIVI():
 
         self.warmup_sample_loss = 0.0
 
-        warmup_start_time = time.perf_counter()
+        self.warmup_start_time = time.perf_counter()
         self.warmup_last_time = time.perf_counter()
 
         self.train_reverse_model(
@@ -565,10 +563,58 @@ class ReverseUIVI():
             log_func=self._warmup_log_func,
         )
         warmup_end_time = time.perf_counter()
-        warmup_time = warmup_end_time - warmup_start_time
+        warmup_time = warmup_end_time - self.warmup_start_time
         logger.info(
             f"Warmup completed for {self.warmup_epochs} epochs. Total time: {warmup_time:.3f}s, Avg epoch time: {warmup_time/self.warmup_epochs:.6f}s"
         )
+
+    def save_samples(self, epoch: int):
+        '''
+        Save samples from the VI model, joint samples, and reverse model samples at the given epoch.
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        current_sample_time = time.perf_counter()
+        epsilon_sample, z_sample = self.vi_model.sampling(
+            num=self.training_sample_num)
+        reverse_epsilon_sample = None
+        if self.reverse_model is not None:
+            reverse_epsilon_sample = self.reverse_model.sample(
+                z=z_sample, num_samples=1)[1].squeeze(1)
+
+        sample_dict = {
+            'z':
+            z_sample,
+            'epsilon':
+            epsilon_sample,
+            'epsilon_reverse':
+            reverse_epsilon_sample,
+            'epoch':
+            epoch,
+            'train_time':
+            current_sample_time - self.train_start_time,
+            'time_since_warmup':
+            current_sample_time - self.warmup_start_time
+            if self.warmup_start_time is not None else None,
+            'exp_name':
+            self.exp_name,
+            'target_dist':
+            self.target_dist,
+            'reverse_model_type':
+            self.reverse_model_type,
+            'vi_model_type':
+            self.vi_model_type,
+        }
+
+        torch.save(
+            sample_dict,
+            os.path.join(
+                self.training_sample_save_path,
+                f"samples_epoch_{epoch}.pt",
+            ))
+
+        logger.debug(
+            f"Saved {self.training_sample_num} samples at epoch {epoch}.")
 
     def save_checkpoint(self, epoch: int):
         '''
@@ -910,7 +956,7 @@ class ReverseUIVI():
         self.vi_model.train()
         # Timing accumulators
         last_time = time.perf_counter()
-        train_start_time = time.perf_counter()
+        self.train_start_time = time.perf_counter()
 
         # Determine starting epoch (override when resuming)
         start_epoch = 1
@@ -1083,49 +1129,7 @@ class ReverseUIVI():
 
             # Generate and save samples
             if epoch % self.training_sample_freq == 0:
-                epsilon_sample, z_sample = self.vi_model.sampling(
-                    num=self.training_sample_num)
-
-                joint_sample = {
-                    'epsilon': epsilon_sample,
-                    'z': z_sample,
-                }
-
-                torch.save(
-                    z_sample,
-                    os.path.join(
-                        self.training_sample_save_path,
-                        f"samples_epoch_{epoch}.pt",
-                    ),
-                )
-                torch.save(
-                    joint_sample,
-                    os.path.join(
-                        self.training_joint_sample_save_path,
-                        f"joint_samples_epoch_{epoch}.pt",
-                    ),
-                )
-
-                if self.reverse_model is not None:
-                    reverse_z_tiled, reverse_epsilon_tiled = self.reverse_model.sample(
-                        z_sample,
-                        num_samples=100,
-                    )
-                    reverse_sample = {
-                        'epsilon': reverse_epsilon_tiled,
-                        'z': reverse_z_tiled,
-                    }
-                    torch.save(
-                        reverse_sample,
-                        os.path.join(
-                            self.training_reverse_sample_save_path,
-                            f"reverse_samples_epoch_{epoch}.pt",
-                        ),
-                    )
-
-                logger.debug(
-                    f"Saved {self.training_sample_num} samples at epoch {epoch}."
-                )
+                self.save_samples(epoch)
 
             # Save checkpoints
             if self.ckpt_enabled and (epoch % self.ckpt_freq == 0):
@@ -1195,7 +1199,7 @@ class ReverseUIVI():
             )
 
         # Close writer at end
-        total_time = time.perf_counter() - train_start_time
+        total_time = time.perf_counter() - self.train_start_time
         avg_epoch_time = total_time / max(1, self.training_num_epochs)
         logger.info(
             f"Training completed. Total time: {total_time:.3f}s, Avg epoch time: {avg_epoch_time:.6f}s"
