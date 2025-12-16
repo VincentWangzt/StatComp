@@ -1063,10 +1063,15 @@ class ReverseUIVI():
                 dim=-1,
             ))
 
-            self.optimizer_vi.zero_grad()
-            loss.backward()
-            self.optimizer_vi.step()
-            self.scheduler_vi.step()
+            if torch.isfinite(loss):
+                self.optimizer_vi.zero_grad()
+                loss.backward()
+                self.optimizer_vi.step()
+                self.scheduler_vi.step()
+            else:
+                logger.warning(
+                    f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
+                )
 
             t_bw1 = time.perf_counter()
             time_backward_step = t_bw1 - t_bw0

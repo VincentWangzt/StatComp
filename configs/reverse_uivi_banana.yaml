@@ -24,14 +24,14 @@ experiment:
 # - `reverse_hidden_dim`: Hidden size used in RealNVP scale/translate nets.
 # - `reverse_num_layers`: Number of coupling layers in the RealNVP.
 models:
-  vi_model_type: ConditionalGaussian
+  vi_model_type: ConditionalGaussianUniform
   reverse_model_type: ConditionalRealNVPAI
   epsilon_dim: 4
   z_dim: 2
   vi_hidden_dim: 64
   reverse_hidden_dim: 128 # Not used by ConditionalRealNVPAI
   reverse_num_layers: 16
-  reverse_logit: false # Only used by ConditionalRealNVPAI
+  reverse_logit: true # Only used by ConditionalRealNVPAI
 
 # Warmup settings
 # - `enabled`: Whether to run warmup.
@@ -85,18 +85,18 @@ train:
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.2
+      gamma: 0.5
   reverse:
-    lr: 1.0e-4
+    lr: 1.0e-3
     batch_size: 8192
-    epochs: 5
+    epochs: 1
     initialize: false
     update_freq: 1
     reuse_optimizer: true # TODO: try reuse across training and warmup
   log:
     kl_log_freq: 10
     loss_log_freq: 100
-    reverse_log_freq: 500
+    reverse_log_freq: 100
   checkpoint:
     enabled: true
     freq: 1000
@@ -104,7 +104,7 @@ train:
     freq: 500
     num: 10000
   plot:
-    freq: 100
+    freq: 500
     num: 1000
 
 # KL estimation

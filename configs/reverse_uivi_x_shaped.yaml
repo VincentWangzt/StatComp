@@ -13,7 +13,7 @@ use_cuda_if_available: true
 #   (e.g., `banana`, 'multimodal', 'x_shaped').
 experiment:
   name: reverse_uivi
-  target_dist: banana
+  target_dist: x_shaped
 
 # Model settings
 # - `vi_model_type`: Must be one of `ConditionalGaussian`, `ConditionalGaussianUniform`.
@@ -24,14 +24,14 @@ experiment:
 # - `reverse_hidden_dim`: Hidden size used in RealNVP scale/translate nets.
 # - `reverse_num_layers`: Number of coupling layers in the RealNVP.
 models:
-  vi_model_type: ConditionalGaussianUniform
+  vi_model_type: ConditionalGaussian
   reverse_model_type: ConditionalRealNVPAI
   epsilon_dim: 4
   z_dim: 2
   vi_hidden_dim: 64
   reverse_hidden_dim: 128 # Not used by ConditionalRealNVPAI
   reverse_num_layers: 16
-  reverse_logit: true # Only used by ConditionalRealNVPAI
+  reverse_logit: false # Only used by ConditionalRealNVPAI
 
 # Warmup settings
 # - `enabled`: Whether to run warmup.
@@ -81,13 +81,13 @@ train:
   batch_size: 8192
   reverse_sample_num: 100
   vi:
-    lr: 5.0e-4
+    lr: 1.0e-3
     scheduler:
       type: StepLR
       step_size: 1000
       gamma: 0.5
   reverse:
-    lr: 1.0e-3
+    lr: 1.0e-2
     batch_size: 8192
     epochs: 1
     initialize: false
@@ -96,7 +96,7 @@ train:
   log:
     kl_log_freq: 10
     loss_log_freq: 100
-    reverse_log_freq: 500
+    reverse_log_freq: 100
   checkpoint:
     enabled: true
     freq: 1000
@@ -104,7 +104,7 @@ train:
     freq: 500
     num: 10000
   plot:
-    freq: 100
+    freq: 500
     num: 1000
 
 # KL estimation
@@ -116,4 +116,4 @@ kl:
 # Baseline path for KL estimation
 # - `baseline_path`: Filepath to a saved baseline sample for KL estimation.
 baseline:
-  baseline_path: baselines/hmc/banana.pt
+  baseline_path: baselines/hmc/x_shaped.pt
