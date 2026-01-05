@@ -1049,9 +1049,11 @@ class ReverseUIVI():
             
             # Apply annealing factor if enabled
             if self.annealing_enabled:
-                annealing_factor = annealing(epoch, 
-                                            warm_up_interval=self.annealing_warm_up_interval, 
-                                            anneal=True)
+                annealing_factor = annealing(
+                    epoch, 
+                    warm_up_interval=self.annealing_warm_up_interval, 
+                    anneal=self.annealing_enabled
+                )
                 log_prob_target = log_prob_target * annealing_factor
                 self.writer.add_scalar("train/annealing_factor", annealing_factor, epoch)
 
@@ -1105,14 +1107,17 @@ class ReverseUIVI():
                 
                 # Log gradient statistics if enabled
                 if self.training_grad_log_freq > 0 and epoch % self.training_grad_log_freq == 0:
-                    total_norm = 0.0
+                    # Use PyTorch's built-in utility for efficient gradient norm calculation
+                    total_norm = torch.nn.utils.clip_grad_norm_(
+                        self.vi_model.parameters(), 
+                        float('inf')  # No clipping, just compute the norm
+                    ).item()
+                    
+                    # Calculate gradient variance
                     grad_variances = []
                     for param in self.vi_model.parameters():
                         if param.grad is not None:
-                            param_norm = param.grad.data.norm(2)
-                            total_norm += param_norm.item() ** 2
                             grad_variances.append(param.grad.data.var().item())
-                    total_norm = total_norm ** 0.5
                     mean_grad_variance = sum(grad_variances) / len(grad_variances) if grad_variances else 0.0
                     
                     self.writer.add_scalar("train/grad_norm", total_norm, epoch)
