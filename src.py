@@ -1113,14 +1113,14 @@ class ReverseUIVI():
                         float('inf')  # No clipping, just compute the norm
                     ).item()
                     
-                    # Calculate gradient variance using PyTorch operations
+                    # Calculate gradient variance
                     grad_variances = [
                         param.grad.data.var().item() 
                         for param in self.vi_model.parameters() 
                         if param.grad is not None
                     ]
                     mean_grad_variance = (
-                        torch.tensor(grad_variances).mean().item() 
+                        sum(grad_variances) / len(grad_variances) 
                         if grad_variances else 0.0
                     )
                     
