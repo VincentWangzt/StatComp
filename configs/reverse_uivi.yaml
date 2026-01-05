@@ -92,7 +92,7 @@ train:
     epochs: 1
     initialize: false
     update_freq: 1
-    reuse_optimizer: true # TODO: try reuse across training and warmup
+    reuse_optimizer: true
   log:
     kl_log_freq: 10
     loss_log_freq: 100

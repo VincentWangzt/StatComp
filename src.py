@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import yaml
 import argparse
 from utils.logging import get_logger, set_file_handler
+from utils.annealing import annealing
 from typing import Any, Callable
 import ite
 import math
@@ -29,10 +30,6 @@ import json
 # 4. [Restructure] Create base trainer class for UIVI, implement the other methods as subclasses.
 # 5. [Restructure] Use OmegaConf to manage configurations. Seperate target and model configs.
 # 6. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
-# 7. Add annealing to logp calculation
-# 9. Add logging of configs to tensorboard, text and hParam
-# 11. Add W2 distance as metric
-# 13. log grad variance and norms
 
 logger = get_logger()
 
@@ -219,6 +216,27 @@ class ReverseUIVI():
         os.makedirs(self.tb_path, exist_ok=True)
 
         self.writer = SummaryWriter(log_dir=self.tb_path)
+        
+        # Log configuration as hparams to TensorBoard
+        hparam_dict = {
+            'exp_name': self.exp_name,
+            'target_dist': self.target_dist,
+            'vi_model_type': self.vi_model_type,
+            'epsilon_dim': self.epsilon_dim,
+            'z_dim': self.z_dim,
+            'batch_size': cfg['train']['batch_size'],
+            'epochs': cfg['train']['epochs'],
+            'vi_lr': cfg['train']['vi']['lr'],
+        }
+        if self.exp_name == 'reverse_uivi':
+            hparam_dict['reverse_model_type'] = model_config['reverse_model_type']
+            hparam_dict['reverse_lr'] = cfg['train']['reverse']['lr']
+        metric_dict = {}
+        self.writer.add_hparams(hparam_dict, metric_dict)
+        
+        # Log full config as text to TensorBoard
+        config_text = yaml.dump(cfg, sort_keys=False)
+        self.writer.add_text('config/full', f'```yaml\n{config_text}\n```', 0)
 
         # Warmup configuration
         self.warmup_cfg = self.cfg.get('warmup', {'enabled': False})
@@ -320,6 +338,17 @@ class ReverseUIVI():
         self.training_loss_log_freq = self.training_log_cfg['loss_log_freq']
         self.training_reverse_log_freq = self.training_log_cfg.get(
             'reverse_log_freq', 0)
+        self.training_grad_log_freq = self.training_log_cfg.get(
+            'grad_log_freq', 0)
+        
+        # Annealing config
+        self.annealing_cfg = self.cfg.get('annealing', {
+            'enabled': False,
+            'warm_up_interval': 10000
+        })
+        self.annealing_enabled = self.annealing_cfg.get('enabled', False)
+        self.annealing_warm_up_interval = self.annealing_cfg.get('warm_up_interval', 10000)
+        
         # running accumulators
         self.training_sample_loss = 0.0
         self.training_sample_reverse_loss = 0.0
@@ -1012,11 +1041,19 @@ class ReverseUIVI():
             # Sample z from variational distribution
             z, neg_score_implicit = self.vi_model.forward(epsilon)
 
-            # Compute log prob under target distribution
+            # Compute log prob under target distribution with optional annealing
             # log_prob_target = self.target_model.logp(z)
             log_prob_target: torch.Tensor = self.target_model.score(
                 z.clone().detach()) * z
             log_prob_target = log_prob_target.sum(dim=-1)
+            
+            # Apply annealing factor if enabled
+            if self.annealing_enabled:
+                annealing_factor = annealing(epoch, 
+                                            warm_up_interval=self.annealing_warm_up_interval, 
+                                            anneal=True)
+                log_prob_target = log_prob_target * annealing_factor
+                self.writer.add_scalar("train/annealing_factor", annealing_factor, epoch)
 
             t_vi1 = time.perf_counter()
             time_vi_sample_step = t_vi1 - t_vi0
@@ -1065,6 +1102,23 @@ class ReverseUIVI():
             if torch.isfinite(loss):
                 self.optimizer_vi.zero_grad()
                 loss.backward()
+                
+                # Log gradient statistics if enabled
+                if self.training_grad_log_freq > 0 and epoch % self.training_grad_log_freq == 0:
+                    total_norm = 0.0
+                    grad_variances = []
+                    for param in self.vi_model.parameters():
+                        if param.grad is not None:
+                            param_norm = param.grad.data.norm(2)
+                            total_norm += param_norm.item() ** 2
+                            grad_variances.append(param.grad.data.var().item())
+                    total_norm = total_norm ** 0.5
+                    mean_grad_variance = sum(grad_variances) / len(grad_variances) if grad_variances else 0.0
+                    
+                    self.writer.add_scalar("train/grad_norm", total_norm, epoch)
+                    self.writer.add_scalar("train/grad_variance", mean_grad_variance, epoch)
+                    logger.debug(f"Epoch {epoch}, Gradient Norm: {total_norm:.4f}, Gradient Variance: {mean_grad_variance:.6e}")
+                
                 self.optimizer_vi.step()
                 self.scheduler_vi.step()
             else:
