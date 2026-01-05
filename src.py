@@ -25,15 +25,14 @@ import time
 import numpy as np
 import json
 
-# 1214 TODO:
-# 1. Reuse of optimizer across warmup and training. (Seems not necessary now using aisivi implementation of cnf.)
-# 2. Ablation on ActNorm layer, debug ConditionalRealNVP
-# 3. Regularization terms for dealing with decrease of entropy(Reverse model loss)?
-# 4. Support for different initial distribution (q_epsilon) in VI model (and reverse model?).
-# 5. Support for unified sample save format [Done]
-# 6. All kinds of restructure: reuse hmc, reuse sampling and neg_score, perhaps mixin for save and load checkpoint, etc.
-# 7. Switch to numpy or other lightweight saving backend.
-# 8. Add NaN and Inf detection all over the code.
+# 0105 TODO:
+# 4. [Restructure] Create base trainer class for UIVI, implement the other methods as subclasses.
+# 5. [Restructure] Use OmegaConf to manage configurations. Seperate target and model configs.
+# 6. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
+# 7. Add annealing to logp calculation
+# 9. Add logging of configs to tensorboard, text and hParam
+# 11. Add W2 distance as metric
+# 13. log grad variance and norms
 
 logger = get_logger()
 
