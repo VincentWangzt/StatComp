@@ -5,22 +5,15 @@ from utils.logging import get_logger
 from omegaconf import OmegaConf, DictConfig
 from runner.runners import Runners
 
-# 0105 TODO:
-# 1. Support for different initial distribution (q_epsilon) in VI model (and reverse model?). [Done for VI]
-# 2. Add NaN and Inf detection all over the code.
-# 3. Clip the CNF scale outputs to avoid extreme values.
-# 4. [Restructure] Create base trainer class for UIVI, implement the other methods as subclasses. [Done]
-# 5. [Restructure] Use OmegaConf to manage configurations. Seperate target and model configs. [Done]
-# 6. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
-# 7. Add annealing to logp calculation
-# 8. Integrate AISIVI into the codebase [Done]
-# 9. Add logging of configs to tensorboard, text and hParam
-# 10. [Restructure] Rewrite the ConditionalRealNVP for better documentation. [Done]
-# 11. Add W2 distance as metric
-# 12. tweak the lr and scheduler settings, improve the training and inference speed.
-# 13. log grad variance and norms
-# 14. implement sivi and dsm-uivi
-# 15. Add not-ite based kl divergence, directly sample from prior or perhaps use EM / Gaussian .
+# 0107 TODO:
+# 1. Clip the CNF scale outputs to avoid extreme values.
+# 2. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
+# 3. Add annealing to logp calculation
+# 4. Add logging of configs to hParam
+# 5. Add W2 distance as metric
+# 6. tweak the lr and scheduler settings, improve the training and inference speed.
+# 7. implement dsm-uivi
+# 8. Add not-ite based kl divergence, directly sample from prior or perhaps use EM / Gaussian .
 
 logger = get_logger()
 
