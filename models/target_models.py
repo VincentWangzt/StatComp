@@ -1,3 +1,5 @@
+# type: ignore
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -16,13 +18,15 @@ DEFAULT_BBOX = {
 
 class Toy_2D(object):
 
-    def __init__(self, name):
+    def __init__(self, device, name: str = ''):
+        assert name != '', "Please provide a name for the 2D toy distribution."
+        self.device = device
         self.name = name
 
-    def logp(self, X):
+    def logp(self, X) -> torch.Tensor:
         pass
 
-    def score(self, X):
+    def score(self, X) -> torch.Tensor:
         pass
 
     def contour_plot(self,
@@ -73,8 +77,7 @@ class Banana_shape(Toy_2D):
     name = "banana_shape"
 
     def __init__(self, device):
-        self.device = device
-        super().__init__("Banana_shape")
+        super().__init__(device=device, name="Banana_shape")
 
     def logp(self, X):
         Y = torch.stack((X[:, 0], X[:, 0]**2 + X[:, 1] + 1), 1)
@@ -96,8 +99,7 @@ class X_shaped(Toy_2D):
     name = "x_shaped"
 
     def __init__(self, device):
-        self.device = device
-        super().__init__("X_shaped")
+        super().__init__(device=device, name="X_shaped")
 
     def logp(self, X):
         sigmasqinv_0 = torch.tensor([[2., -1.8], [-1.8, 2.]]).to(
@@ -135,8 +137,7 @@ class Multimodal(Toy_2D):
     name = "multimodal"
 
     def __init__(self, device):
-        self.device = device
-        super().__init__("Multimodal")
+        super().__init__(device=device, name="Multimodal")
 
     def logp(self, X):
         means = torch.tensor([[2.0, 0.0], [-2.0, 0.0]]).to(self.device)
@@ -158,8 +159,7 @@ class StudentTFullDim(Toy_2D):
     name = "StudentTFullDim"
 
     def __init__(self, device):
-        super().__init__("StudentTFullDim")
-        self.device = device
+        super().__init__(device=device, name="StudentTFullDim")
         self.df = 2.0
         self.seed = 50
         self.dim = 2
