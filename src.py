@@ -8,12 +8,13 @@ from runner.runners import Runners
 # 0107 TODO:
 # 1. Clip the CNF scale outputs to avoid extreme values.
 # 2. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
-# 3. Add annealing to logp calculation
+# 3. Add annealing to logp calculation [Done]
 # 4. Add logging of configs to hParam
 # 5. Add W2 distance as metric
 # 6. tweak the lr and scheduler settings, improve the training and inference speed.
 # 7. implement dsm-uivi
 # 8. Add not-ite based kl divergence, directly sample from prior or perhaps use EM / Gaussian .
+# 9. Add typing hints to runners
 
 logger = get_logger()
 

@@ -8,12 +8,12 @@ use_cuda: true
 
 runner_type: AISIVI
 target_type: banana
-vi_model_type: ConditionalGaussian
+vi_model_type: ConditionalGaussianUniform
 reverse_model_type: ConditionalRealNVP
 
 train:
   epochs: 10000
-  batch_size: 8192
+  batch_size: 128
   reverse_sample_num: 100
   vi:
     lr: 1.0e-3
@@ -26,6 +26,9 @@ train:
     batch_size: 8192
     epochs: 1
     update_freq: 1
+  annealing:
+    enabled: true
+    steps: 5000
   log:
     metric_log_freq: 10
     loss_log_freq: 100

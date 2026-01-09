@@ -11,6 +11,7 @@ import time
 import numpy as np
 from omegaconf import OmegaConf, DictConfig
 from collections import defaultdict
+from utils.annealing import annealing
 
 logger = get_logger()
 
@@ -124,6 +125,10 @@ class BaseSIVIRunner():
         # epochs and batch sizes
         self.training_num_epochs = self.training_cfg['epochs']
         self.training_batch_size = self.training_cfg['batch_size']
+
+        # Annealing config
+        self.use_annealing: bool = self.training_cfg['annealing']['enabled']
+        self.anneal_steps: int = self.training_cfg['annealing']['steps']
 
         # VI optimizer/scheduler config
         self.vi_opt_cfg = self.training_cfg['vi']
@@ -484,6 +489,14 @@ class BaseSIVIRunner():
                 z.clone().detach()) * z
             log_prob_target = log_prob_target.sum(dim=-1)
             # log_prob_target: shape (batch_size,)
+
+            # Apply annealing if enabled
+            anneal_factor = annealing(
+                t=epoch,
+                warm_up_interval=self.anneal_steps,
+                anneal=self.use_annealing,
+            )
+            log_prob_target = log_prob_target * anneal_factor
 
             t_vi1 = time.perf_counter()
             time_vi_sample_step = t_vi1 - t_vi0
