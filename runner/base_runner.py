@@ -74,8 +74,9 @@ class BaseSIVIRunner():
         logger.info(f"Artifacts will be saved to: {self.save_path}")
 
         # Determine resume behaviors
-        self.resume: bool = self.config.get('resume', False)
-        self.resume_config: DictConfig = self.config.get('resume_config', {})
+        self.resume_config: DictConfig = self.config.get(
+            'resume', {'enabled': False})
+        self.resume: bool = self.resume_config['enabled']
 
         # target
         self.target_model = target_distribution[self.target_type](
@@ -502,7 +503,7 @@ class BaseSIVIRunner():
         '''
         Load model state dicts from checkpoint directory when resuming training. Use default initialization if checkpoint files are missing. Will try to load optimizer and scheduler states if available.
         '''
-        ckpt_dir = self.config.resume_config.ckpt_dir
+        ckpt_dir = self.config.resume.ckpt_dir
         if not os.path.isdir(ckpt_dir) or not os.listdir(ckpt_dir):
             raise RuntimeError(
                 f"Checkpoint directory {ckpt_dir} does not exist or is empty.")
@@ -528,7 +529,7 @@ class BaseSIVIRunner():
             logger.error(f"Failed to load checkpoints from {ckpt_dir}: {e}.")
             raise e
 
-        if not self.config.resume_config.get('load_optimizer', False):
+        if not self.config.resume.get('load_optimizer', False):
             return
 
         logger.debug("Trying to load optimizer and scheduler states...")
@@ -565,7 +566,7 @@ class BaseSIVIRunner():
             logger.error(f"Failed to load VI optimizer/scheduler: {e}.")
             raise e
 
-        if self.config.resume_config.get("no_override_epoch", False):
+        if self.config.resume.get("no_override_epoch", False):
             return
 
         # Set starting epoch
@@ -719,8 +720,18 @@ class BaseSIVIRunner():
             # TensorBoard scalars
             self.writer.add_scalar("train/loss", loss.item(), epoch)
             self.writer.add_scalar(
-                "grad_norm/train_step",
+                "norm/grad_train_step",
                 grad_norm.item(),
+                epoch,
+            )
+            self.writer.add_scalar(
+                "norm/z_avg",
+                torch.norm(z, dim=1).mean().item(),
+                epoch,
+            )
+            self.writer.add_scalar(
+                "norm/epsilon_avg",
+                torch.norm(epsilon, dim=1).mean().item(),
                 epoch,
             )
 

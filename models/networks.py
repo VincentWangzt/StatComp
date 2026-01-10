@@ -430,7 +430,11 @@ class ConditionalGaussianUniform(ConditionalGaussian):
         all_in_bounds = in_bounds.all(dim=-1)
 
         # 2. Initialize log_prob with zeros (log(1) = 0)
-        log_prob = torch.zeros_like(all_in_bounds, device=self.device)
+        log_prob = torch.zeros_like(
+            all_in_bounds,
+            device=self.device,
+            dtype=epsilon.dtype,
+        )
 
         # 3. Set out-of-bounds entries to -inf
         log_prob[~all_in_bounds] = float('-inf')

@@ -404,7 +404,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         super().load_checkpoints()
         logger.debug("Trying to load reverse model checkpoints...")
         # Reverse model checkpoint
-        ckpt_dir = self.config.resume_config.ckpt_dir
+        ckpt_dir = self.config.resume.ckpt_dir
         rev_ckpt_path = os.path.join(
             ckpt_dir,
             'reverse_model.pt',
@@ -428,7 +428,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             )
             raise e
 
-        if not self.config.resume_config.get('load_optimizer', False):
+        if not self.config.resume.get('load_optimizer', False):
             return
 
         # load reverse optimizer only optimizer is not None
@@ -483,6 +483,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         Returns:
             None
         '''
+        if self.resume:
+            self.load_checkpoints()
+            self.resume = False  # only load once
+
         # Warmup reverse model if enabled
         if self.warmup_enabled:
             self.warmup()

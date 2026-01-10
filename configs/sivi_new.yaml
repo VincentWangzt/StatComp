@@ -6,28 +6,22 @@ seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
-runner_type: AISIVI
-target_type: x_shaped
+runner_type: SIVI
+target_type: banana
 vi_model_type: ConditionalGaussian
-reverse_model_type: ConditionalRealNVP
 
 train:
   epochs: 3000
   batch_size: 128
-  reverse_sample_num: 256
+  reverse_sample_num: 4096
   vi:
-    lr: 5.0e-4
+    lr: 1.0e-4
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.8
-  reverse:
-    lr: 1.0e-2
-    batch_size: 8192
-    epochs: 1
-    update_freq: 1
+      gamma: 0.5
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
     steps: 1000
   log:
@@ -42,7 +36,7 @@ train:
     freq: 500
     num: 10000
   plot:
-    freq: 500
+    freq: 100
     num: 1000
 
 metric:
@@ -55,9 +49,3 @@ metric:
     batch_size: 512
     num_batches: 10
     num_z_samples: 5000
-
-resume:
-  enabled: true
-  ckpt_dir: results/UIVI/x_shaped/20260111_031534/checkpoints/epoch_3000
-  load_optimizer: false
-  no_override_epoch: false

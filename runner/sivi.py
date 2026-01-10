@@ -73,7 +73,7 @@ class SIVIRunner(BaseSIVIRunner):
                 dim=-1,
             )).item()
         self.writer.add_scalar(
-            "train/avg_epsilon_distance",
+            "norm/avg_epsilon_distance",
             avg_eps_distance,
             self.curr_epoch,
         )

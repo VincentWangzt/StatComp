@@ -6,7 +6,7 @@ from typing import Optional
 _LOGGER: Optional[logging.Logger] = None
 
 
-def get_logger(name: str = "uivi") -> logging.Logger:
+def get_logger(name: str = "sivi") -> logging.Logger:
     global _LOGGER
     if _LOGGER is not None:
         return _LOGGER
