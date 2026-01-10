@@ -94,15 +94,16 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             )
             self.config.reverse_model['use_optimizer'] = True
 
-        self.training_reverse_optimizer = torch.optim.Adam(
-            self.reverse_model.parameters(),
-            lr=self.reverse_lr,
-        )
         if not self.config.reverse_model['use_optimizer']:
             logger.info(
                 "Reverse model optimizer disabled. Using `fit()` method instead."
             )
             self.training_reverse_optimizer = None
+        else:
+            self.training_reverse_optimizer = torch.optim.Adam(
+                self.reverse_model.parameters(),
+                lr=self.reverse_lr,
+            )
 
     def _get_reverse_model(self) -> BaseReverseConditionalModel:
         '''

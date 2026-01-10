@@ -129,6 +129,7 @@ class BaseSIVIRunner():
         # Annealing config
         self.use_annealing: bool = self.training_cfg['annealing']['enabled']
         self.anneal_steps: int = self.training_cfg['annealing']['steps']
+        self.anneal_scheme: str = self.training_cfg['annealing']['scheme']
 
         # VI optimizer/scheduler config
         self.vi_opt_cfg = self.training_cfg['vi']
@@ -495,6 +496,7 @@ class BaseSIVIRunner():
                 t=epoch,
                 warm_up_interval=self.anneal_steps,
                 anneal=self.use_annealing,
+                scheme=self.anneal_scheme,
             )
             log_prob_target = log_prob_target * anneal_factor
 

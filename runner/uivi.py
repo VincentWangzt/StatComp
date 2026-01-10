@@ -15,7 +15,7 @@ class UIVIRunner(BaseSIVIRunner):
     ):
         super().__init__(config=config, name=name)
         # HMC config (for UIVI)
-        self.reverse_model_type: str = self.config.reverse_model_type
+        self.reverse_model_type: str = "HMC"
 
         if 'reverse_model_config_path' not in self.config:
             default_reverse_model_config_path = f'configs/reverse_models/{self.reverse_model_type}.yaml'
@@ -27,16 +27,16 @@ class UIVIRunner(BaseSIVIRunner):
         logger.info(
             f"Using reverse model config path: {reverse_model_config_path}")
         _reverse_model_config = {
-            'reverse_model': OmegaConf.load(reverse_model_config_path)
+            'hmc': OmegaConf.load(reverse_model_config_path)
         }
         self.config = OmegaConf.merge(
             _reverse_model_config,
             self.config,
         )  # type: ignore
 
-        self.hmc_step_size = self.config.reverse_model.hmc.step_size
-        self.hmc_leapfrog_steps = self.config.reverse_model.hmc.leapfrog_steps
-        self.hmc_burn_in_steps = self.config.reverse_model.hmc.burn_in_steps
+        self.hmc_step_size = self.config.hmc.step_size
+        self.hmc_leapfrog_steps = self.config.hmc.leapfrog_steps
+        self.hmc_burn_in_steps = self.config.hmc.burn_in_steps
         self.training_reverse_sample_num = self.training_cfg.reverse_sample_num
 
     def _log_q_phi_eps_given_z(

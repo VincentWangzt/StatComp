@@ -6,29 +6,24 @@ seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
-runner_type: RUIVI
+runner_type: UIVI
 target_type: multimodal
 vi_model_type: ConditionalGaussian
-reverse_model_type: ConditionalRealNVP
 
 train:
   epochs: 10000
   batch_size: 128
-  reverse_sample_num: 100
+  reverse_sample_num: 5
   vi:
-    lr: 1.0e-4
+    lr: 1.0e-3
     scheduler:
       type: StepLR
       step_size: 1000
       gamma: 0.5
-  reverse:
-    lr: 1.0e-3
-    batch_size: 8192
-    epochs: 1
-    update_freq: 1
   annealing:
     enabled: true
     steps: 1000
+    scheme: sigmoid
   log:
     metric_log_freq: 10
     loss_log_freq: 100
@@ -41,7 +36,7 @@ train:
     freq: 500
     num: 10000
   plot:
-    freq: 100
+    freq: 500
     num: 1000
 
 metric:

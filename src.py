@@ -13,8 +13,9 @@ from runner.runners import Runners
 # 5. Add W2 distance as metric
 # 6. tweak the lr and scheduler settings, improve the training and inference speed.
 # 7. implement dsm-uivi
-# 8. Add not-ite based kl divergence, directly sample from prior or perhaps use EM / Gaussian .
+# 8. Add ELBO, directly sample from prior or perhaps use EM / Gaussian .
 # 9. Add typing hints to runners
+# 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian
 
 logger = get_logger()
 
