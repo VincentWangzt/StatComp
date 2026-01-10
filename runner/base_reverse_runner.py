@@ -8,6 +8,7 @@ import time
 from tqdm import tqdm
 from omegaconf import OmegaConf, DictConfig
 from runner.base_runner import BaseSIVIRunner
+from utils.metrics import compute_sliced_wasserstein
 
 logger = get_logger()
 
@@ -180,6 +181,37 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
 
         return kl_div
 
+    def calculate_rev_W2(self) -> float:
+        '''
+        Calculate the W2 distance between the true joint distribution and the
+        joint distribution induced by the reverse model.
+        Returns:
+            w2 (float): Estimated W2 distance.
+        '''
+        if self.reverse_model is None:
+            raise RuntimeError(
+                "W2 calculation is only available for reverse_uivi where reverse_model exists."
+            )
+
+        # Sample from true joint
+        true_eps, true_z = self.vi_model.sampling(num=self.n_w2_samples)
+        true_joint = torch.cat([true_eps, true_z], dim=1)
+
+        # Sample epsilon from reverse model given true z
+        _, rev_true_z = self.vi_model.sampling(num=self.n_w2_samples)
+        with torch.no_grad():
+            generated_z, generated_eps = self.reverse_model.sample(
+                rev_true_z, num_samples=1)
+            generated_z = generated_z.reshape(-1, self.z_dim)
+            generated_eps = generated_eps.reshape(-1, self.epsilon_dim)
+        generated_joint = torch.cat([generated_eps, generated_z], dim=-1)
+
+        return compute_sliced_wasserstein(
+            generated_joint,
+            true_joint,
+            num_projections=self.n_w2_projections,
+            device=self.device)
+
     def eval_kl_ite(self, epoch: int):
         """
         Evaluate KL divergence between VI and baseline using ITE and log to TensorBoard. Also evaluate the KL divergence between the true joint distribution and the joint distribution induced by the reverse model.
@@ -190,6 +222,17 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         rev_kl_div = self.calculate_rev_KL()
         self.writer.add_scalar("train/rev_model_kl_ite", rev_kl_div, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model KL ITE: {rev_kl_div:.4f}")
+
+    def eval_w2(self, epoch: int):
+        """
+        Evaluate W2 distance between VI and baseline using sliced wasserstein and log to TensorBoard. Also evaluate the W2 distance between the true joint distribution and the joint distribution induced by the reverse model.
+        Args:
+            epoch (int): Current epoch number.
+        """
+        super().eval_w2(epoch)
+        rev_w2 = self.calculate_rev_W2()
+        self.writer.add_scalar("train/rev_model_w2", rev_w2, epoch)
+        logger.debug(f"Epoch {epoch}, Reverse Model W2: {rev_w2:.4f}")
 
     def _train_reverse_model(
         self,
@@ -264,6 +307,11 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             kl_div = self.calculate_rev_KL()
             self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
             logger.debug(f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
+
+            w2_dist = self.calculate_rev_W2()
+            self.writer.add_scalar("warmup/w2_dist", w2_dist, epoch)
+            logger.debug(f"Warmup Epoch {epoch}, W2 Dist: {w2_dist:.4f}")
+
         if epoch % self.warmup_loss_log_freq == 0:
             avg_loss = self.warmup_sample_loss / self.warmup_loss_log_freq
             current_time = time.perf_counter()

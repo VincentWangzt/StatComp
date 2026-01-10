@@ -10,12 +10,12 @@ from runner.runners import Runners
 # 2. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
 # 3. Add annealing to logp calculation [Done]
 # 4. Add logging of configs to hParam
-# 5. Add W2 distance as metric
+# 5. Add W2 distance as metric [Done]
 # 6. tweak the lr and scheduler settings, improve the training and inference speed.
 # 7. implement dsm-uivi
 # 8. Add ELBO, directly sample from prior or perhaps use EM / Gaussian .
 # 9. Add typing hints to runners
-# 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian
+# 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian [Done]
 
 logger = get_logger()
 

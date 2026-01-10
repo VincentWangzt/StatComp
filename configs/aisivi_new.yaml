@@ -9,10 +9,10 @@ use_cuda: true
 runner_type: AISIVI
 target_type: multimodal
 vi_model_type: ConditionalGaussian
-reverse_model_type: ConditionalRealNVP
+reverse_model_type: ConditionalMixtureOfGaussianReverse
 
 train:
-  epochs: 10000
+  epochs: 3000
   batch_size: 128
   reverse_sample_num: 100
   vi:
@@ -27,7 +27,8 @@ train:
     epochs: 1
     update_freq: 1
   annealing:
-    enabled: true
+    enabled: false
+    scheme: linear
     steps: 1000
   log:
     metric_log_freq: 10
@@ -47,3 +48,6 @@ train:
 metric:
   kl_ite:
     num_samples: 10000
+  w2:
+    num_samples: 10000
+    num_projections: 1000

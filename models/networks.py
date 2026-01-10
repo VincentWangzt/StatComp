@@ -761,6 +761,90 @@ class ConditionalMixtureOfGaussianReverse(BaseReverseConditionalModel):
 
         return z_aux.clone().detach(), epsilon_aux.clone().detach()
 
+    def log_prob(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log probability `log q_psi(epsilon|z)` for given `epsilon` and `z`.
+        
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+            z (torch.Tensor): shape [..., Dz]
+        Returns:
+            log_prob (torch.Tensor): shape [...]
+        """
+        De, Dz = self.epsilon_dim, self.z_dim
+        D = De + Dz
+
+        # p(z)
+        mu_z = self.mu[:, De:]
+        S_zz = self.Sigma[:, De:, De:]
+        S_zz_safe = S_zz + self.jitter * torch.eye(
+            Dz, device=self.device).unsqueeze(0)
+        mvn_z = dist.MultivariateNormal(mu_z, S_zz_safe)
+        # z: [..., Dz] -> [..., 1, Dz]
+        log_Nz = mvn_z.log_prob(z.unsqueeze(-2))  # [..., K]
+
+        log_pi = torch.log(self.pi.clamp_min(self.jitter))  # [K]
+        log_p_z_joint = log_Nz + log_pi  # [..., K]
+        log_p_z = torch.logsumexp(log_p_z_joint, dim=-1)  # [...]
+
+        # p(epsilon, z)
+        X = torch.cat([epsilon, z], dim=-1)  # [..., D]
+        S_safe = self.Sigma + self.jitter * torch.eye(
+            D, device=self.device).unsqueeze(0)
+        mvn_joint = dist.MultivariateNormal(self.mu, S_safe)
+        log_N_joint = mvn_joint.log_prob(X.unsqueeze(-2))  # [..., K]
+        log_p_joint_k = log_N_joint + log_pi
+        log_p_joint = torch.logsumexp(log_p_joint_k, dim=-1)  # [...]
+
+        return log_p_joint - log_p_z
+
+    def score(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute score `\\nabla_epsilon log q_psi(epsilon|z)`.
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+            z (torch.Tensor): shape [..., Dz]
+        Returns:
+            score (torch.Tensor): shape [..., De]
+        """
+        De, Dz = self.epsilon_dim, self.z_dim
+        D = De + Dz
+
+        X = torch.cat([epsilon, z], dim=-1)  # [..., D]
+        S_safe = self.Sigma + self.jitter * torch.eye(
+            D, device=self.device).unsqueeze(0)
+        mvn_joint = dist.MultivariateNormal(self.mu, S_safe)
+
+        # log responsibilities
+        log_pi = torch.log(self.pi.clamp_min(self.jitter))
+        log_N_joint = mvn_joint.log_prob(X.unsqueeze(-2))  # [..., K]
+        log_unnorm_r = log_N_joint + log_pi  # [..., K]
+        log_p_X = torch.logsumexp(log_unnorm_r, dim=-1, keepdim=True)
+        r = torch.exp(log_unnorm_r - log_p_X)  # [..., K]
+
+        # Gradients per component
+        # -Sigma_k^{-1} (X - mu_k)
+        # X: [..., D]. mu_k: [K, D]
+        diff = X.unsqueeze(-2) - self.mu  # [..., K, D]
+        # S_safe: [K, D, D]
+
+        grad_k = -torch.linalg.solve(S_safe, diff)  # [..., K, D]
+
+        # Weighted sum: sum_k r_k * grad_k
+        grad = (r.unsqueeze(-1) * grad_k).sum(dim=-2)  # [..., D]
+
+        # Extract epsilon grad
+        grad_epsilon = grad[..., :De]
+        return grad_epsilon
+
 
 class ConditionalRealNVP(BaseReverseConditionalModel):
     """
@@ -992,6 +1076,51 @@ class ConditionalGaussianReverse(BaseReverseConditionalModel):
         noise = torch.randn(B, S, self.epsilon_dim, device=self.device)
         eps = mean + torch.matmul(noise, L.transpose(0, 1))
         return z_aux.clone().detach(), eps.clone().detach()
+
+    def log_prob(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log probability `log q_psi(epsilon|z)` for given `epsilon` and `z`.
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+            z (torch.Tensor): shape [..., Dz]
+        Returns:
+            log_prob (torch.Tensor): shape [...]
+        """
+        A, b, cond_cov = self._conditional_params()
+        # mean = z @ A.T + b
+        # z: [..., Dz]
+        mean = torch.matmul(z, A.transpose(0, 1)) + b
+
+        mvn = dist.MultivariateNormal(mean, cond_cov)
+        return mvn.log_prob(epsilon)
+
+    def score(
+        self,
+        epsilon: torch.Tensor,
+        z: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute score `\\nabla_epsilon log q_psi(epsilon|z)`.
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+            z (torch.Tensor): shape [..., Dz]
+        Returns:
+            score (torch.Tensor): shape [..., De]
+        """
+        A, b, cond_cov = self._conditional_params()
+
+        # Broadcast logic handled by matmul
+        mean = torch.matmul(z, A.transpose(0, 1)) + b
+
+        diff = epsilon - mean
+        # Solve cond_cov * x = diff.
+        # cond_cov: [De, De]. diff: [..., De] -> [..., De, 1]
+        score = -torch.linalg.solve(cond_cov, diff.unsqueeze(-1)).squeeze(-1)
+        return score
 
 
 ReverseModel: dict[str, type[BaseReverseConditionalModel]] = {

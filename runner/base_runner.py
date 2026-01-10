@@ -12,6 +12,7 @@ import numpy as np
 from omegaconf import OmegaConf, DictConfig
 from collections import defaultdict
 from utils.annealing import annealing
+from utils.metrics import compute_sliced_wasserstein
 
 logger = get_logger()
 
@@ -85,6 +86,9 @@ class BaseSIVIRunner():
 
         # kl ite samples
         self.n_ite_samples = self.config['metric']['kl_ite']['num_samples']
+        # w2 samples
+        self.n_w2_samples = self.config['metric']['w2']['num_samples']
+        self.n_w2_projections = self.config['metric']['w2']['num_projections']
 
         # vi model config
         self.vi_model_type: str = self.config.vi_model_type
@@ -263,6 +267,37 @@ class BaseSIVIRunner():
             logger.error(f"KL estimation failed: {e}")
             raise e
 
+    def evaluate_vi_to_baseline_w2(self) -> float:
+        """
+        Estimate Sliced Wasserstein-2 distance W2(q_phi(z), q_baseline(z)).
+        Returns:
+            w2 (float): Estimated W2 distance.
+        """
+        if self.baseline_samples is None:
+            raise RuntimeError(
+                "Baseline samples not loaded; cannot compute W2 distance.")
+
+        _, z = self.vi_model.sampling(num=self.n_w2_samples)
+
+        try:
+            # baseline_samples is numpy on cpu. z is torch on device usually.
+            # compute_sliced_wasserstein expects torch tensors.
+            # We can run W2 on CPU or GPU. Let's send baseline to device to run on GPU if available for speed.
+
+            baseline_tensor = torch.as_tensor(self.baseline_samples,
+                                              device=self.device)
+            # Use self.n_w2_projections
+            w2 = compute_sliced_wasserstein(
+                z,
+                baseline_tensor,
+                num_projections=self.n_w2_projections,
+                device=self.device,
+                p=2)
+            return float(w2)
+        except Exception as e:
+            logger.error(f"W2 estimation failed: {e}")
+            raise e
+
     def eval_kl_ite(self, epoch: int):
         '''
         Evaluate KL divergence between VI and baseline using ITE and log to TensorBoard.
@@ -272,6 +307,16 @@ class BaseSIVIRunner():
         kl_div = self.evaluate_vi_to_baseline_kl()
         self.writer.add_scalar("train/vi_kl_to_baseline", kl_div, epoch)
         logger.debug(f"Epoch {epoch}, VI KL to baseline: {kl_div:.4f}")
+
+    def eval_w2(self, epoch: int):
+        '''
+        Evaluate W2 distance between VI and baseline and log to TensorBoard.
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        w2_dist = self.evaluate_vi_to_baseline_w2()
+        self.writer.add_scalar("train/vi_w2_to_baseline", w2_dist, epoch)
+        logger.debug(f"Epoch {epoch}, VI W2 to baseline: {w2_dist:.4f}")
 
     def save_samples(self, epoch: int):
         '''
@@ -596,6 +641,13 @@ class BaseSIVIRunner():
 
                 time_kl_step = t_kl1 - t_kl0
                 time_scalars['kl_estimation'] = time_kl_step
+
+                t_w2_0 = time.perf_counter()
+                self.eval_w2(epoch)
+                t_w2_1 = time.perf_counter()
+
+                time_w2_step = t_w2_1 - t_w2_0
+                time_scalars['w2_estimation'] = time_w2_step
 
             # Generate and save contour plots
             if epoch % self.plot_freq == 0:
