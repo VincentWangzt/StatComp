@@ -51,3 +51,7 @@ metric:
   w2:
     num_samples: 10000
     num_projections: 1000
+  elbo:
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 1000

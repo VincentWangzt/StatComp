@@ -3,12 +3,12 @@ from omegaconf import DictConfig
 from runner.base_reverse_runner import BaseReverseConditionalRunner
 
 
-class RUIVIRunner(BaseReverseConditionalRunner):
+class RSIVIRunner(BaseReverseConditionalRunner):
 
     def __init__(
         self,
         config: DictConfig,
-        name: str = "RUIVI",
+        name: str = "RSIVI",
     ):
         super().__init__(config=config, name=name)
 

@@ -13,9 +13,10 @@ from runner.runners import Runners
 # 5. Add W2 distance as metric [Done]
 # 6. tweak the lr and scheduler settings, improve the training and inference speed.
 # 7. implement dsm-uivi
-# 8. Add ELBO, directly sample from prior or perhaps use EM / Gaussian .
+# 8. Add ELBO, use E_{epsilon^prime ~ q} q_phi(z|epsilon^prime) to estimate q_phi(z). [Done]
 # 9. Add typing hints to runners
 # 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian [Done]
+# 11. Add conditional diffusion target model support
 
 logger = get_logger()
 

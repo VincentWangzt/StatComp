@@ -90,6 +90,11 @@ class BaseSIVIRunner():
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
 
+        # elbo samples
+        self.n_elbo_z_samples = self.config['metric']['elbo']['num_z_samples']
+        self.n_elbo_batches = self.config['metric']['elbo']['num_batches']
+        self.n_elbo_batch_size = self.config['metric']['elbo']['batch_size']
+
         # vi model config
         self.vi_model_type: str = self.config.vi_model_type
         logger.info(f"VI model type: {self.vi_model_type}")
@@ -317,6 +322,132 @@ class BaseSIVIRunner():
         w2_dist = self.evaluate_vi_to_baseline_w2()
         self.writer.add_scalar("train/vi_w2_to_baseline", w2_dist, epoch)
         logger.debug(f"Epoch {epoch}, VI W2 to baseline: {w2_dist:.4f}")
+
+    def evaluate_elbo(self) -> tuple[float, float, float]:
+        """
+        Estimate ELBO using importance sampling for q_phi(z).
+        ELBO = E_{z ~ q_phi} [log p(z) - log q_phi(z)]
+        
+        To estimate log q_phi(z), we use:
+        q_phi(z) = E_{epsilon' ~ p(epsilon)} [q_phi(z|epsilon')]
+        approximated by Monte Carlo integration over epsilon'.
+        
+        We use multiple batches to also estimate the standard error of q_phi(z) estimation.
+        
+        Returns:
+            (elbo_mean, elbo_std_total, elbo_std_q) (float, float, float): Estimated ELBO mean, total std, and std from q(z) estimation.
+        """
+        # 1. Sample z from q_phi(z)
+        # We just need z samples, epsilon is implicitly integrated out in generation process.
+        _, z_samples = self.vi_model.sampling(num=self.n_elbo_z_samples)
+        # z_samples: [N_z, Dz]
+
+        # 2. Estimate log q_phi(z) for each z sample
+        # q_phi(z) \approx (1/K) \sum_{k=1}^K q_phi(z|epsilon'_k)
+        # log q_phi(z) \approx logsumexp(log q_phi(z|epsilon'_k)) - log K
+
+        # We perform this for multiple batches of epsilon' to get variance estimate
+        # Batches: B batches of size S
+
+        # Accumulate q(z) estimate (sum of probs)
+        # We work in log space for stability.
+        # Stores log(\sum q(z|e_k)) for each batch
+        batch_log_q_z_sums = []
+
+        with torch.no_grad():
+            for _ in range(self.n_elbo_batches):
+                # Sample epsilon' batch
+                # [S, De]
+                epsilon_prime = self.vi_model.sample_epsilon(
+                    num=self.n_elbo_batch_size)
+
+                # Expand to match shapes explicitly as requested using repeat
+                # z: [N_z, 1, Dz] -> [N_z, S, Dz]
+                # epsilon': [1, S, De] -> [N_z, S, De]
+                z_expanded = z_samples.unsqueeze(1).expand(
+                    -1,
+                    self.n_elbo_batch_size,
+                    -1,
+                )
+                eps_expanded = epsilon_prime.unsqueeze(0).expand(
+                    self.n_elbo_z_samples,
+                    -1,
+                    -1,
+                )
+
+                # [N_z, S]
+                log_q_z_given_eps = self.vi_model.logp(
+                    z_expanded,
+                    eps_expanded,
+                )
+
+                # Sum over S (in log domain) for this batch
+                batch_log_sum = torch.logsumexp(
+                    log_q_z_given_eps,
+                    dim=1,
+                )  # [N_z]
+                batch_log_q_z_sums.append(batch_log_sum)
+
+        # Stack: [N_z, B]
+        log_sums_tensor = torch.stack(batch_log_q_z_sums, dim=1)
+
+        # --- Total Estimate (using all B*S samples) ---
+        log_total_sum = torch.logsumexp(log_sums_tensor, dim=1)  # [N_z]
+        total_samples = self.n_elbo_batches * self.n_elbo_batch_size
+        log_q_z_mean = log_total_sum - torch.log(
+            torch.tensor(total_samples, device=self.device))
+
+        # --- Variance Estimation ---
+        # Estimator_b = (1/S) * exp(batch_log_sum_b)
+        # We want variance of the mean estimator.
+        # Var(Mean) = Var(Estimator_b) / B
+
+        log_estimators_b = log_sums_tensor - torch.log(
+            torch.tensor(self.n_elbo_batch_size, device=self.device))
+
+        # Using Delta method for variance of log q(z): Var(log X) \approx Var(X) / E[X]^2
+
+        estimators_b = torch.exp(log_estimators_b)  # [N_z, B]
+        var_estimators = torch.var(estimators_b, dim=1)  # [N_z]
+        mean_estimators = torch.exp(log_q_z_mean)  # [N_z]
+
+        # Squared standard error of mean estimator (of q(z))
+        sq_se_mean_q = var_estimators / self.n_elbo_batches
+
+        # Squared standard error of log q(z)
+        sq_se_log_q = sq_se_mean_q / (mean_estimators**2 + 1e-10)
+
+        # 3. Compute log p(z)
+        log_p_z = self.target_model.logp(z_samples)  # [N_z]
+
+        # 4. Compute ELBO per sample
+        # elbo_i = log p(z_i) - log q(z_i)
+        elbo_per_sample = log_p_z - log_q_z_mean
+
+        # Mean ELBO
+        elbo_mean = torch.mean(elbo_per_sample)
+
+        # Total ELBO Std (direct std of calculated ELBO)
+        elbo_std_total = torch.std(elbo_per_sample)
+
+        # Std arising from estimating q_phi(z) (Average std of the log q estimator)
+        elbo_std_q = torch.sqrt(torch.mean(sq_se_log_q))
+
+        return elbo_mean.item(), elbo_std_total.item(), elbo_std_q.item()
+
+    def eval_elbo(self, epoch: int):
+        '''
+        Evaluate ELBO metric and log to TensorBoard.
+        '''
+        elbo_val, elbo_std_total, elbo_std_q = self.evaluate_elbo()
+        self.writer.add_scalar("train/vi_elbo", elbo_val, epoch)
+        self.writer.add_scalar("train/vi_elbo_std_total", elbo_std_total,
+                               epoch)
+        self.writer.add_scalar("train/vi_elbo_std_q", elbo_std_q, epoch)
+
+        logger.debug(
+            f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}"
+        )
 
     def save_samples(self, epoch: int):
         '''
@@ -648,6 +779,13 @@ class BaseSIVIRunner():
 
                 time_w2_step = t_w2_1 - t_w2_0
                 time_scalars['w2_estimation'] = time_w2_step
+
+                # Evaluate ELBO
+                t_elbo0 = time.perf_counter()
+                self.eval_elbo(epoch)
+                t_elbo1 = time.perf_counter()
+
+                time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
 
             # Generate and save contour plots
             if epoch % self.plot_freq == 0:

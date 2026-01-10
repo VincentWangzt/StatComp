@@ -6,7 +6,7 @@ seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
-runner_type: RUIVI
+runner_type: RSIVI
 target_type: multimodal
 vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
