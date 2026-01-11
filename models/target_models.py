@@ -24,10 +24,10 @@ class Toy_2D(object):
         self.name = name
 
     def logp(self, X) -> torch.Tensor:
-        pass
+        raise NotImplementedError
 
     def score(self, X) -> torch.Tensor:
-        pass
+        raise NotImplementedError
 
     def contour_plot(self,
                      bbox,
@@ -71,6 +71,9 @@ class Toy_2D(object):
         if save_to_path is not None:
             plt.savefig(save_to_path, bbox_inches='tight')
         plt.close()
+
+    def trace_plot(self, u, figpath=None, figname=None, figtitle=""):
+        raise NotImplementedError
 
 
 class Banana_shape(Toy_2D):
@@ -413,7 +416,7 @@ class Bnn(object):
         self.loggamma = log_gamma_heu
 
 
-class Langevin_post(object):
+class Langevin_post(Toy_2D):
 
     def __init__(self,
                  num_interval=100,
@@ -529,6 +532,17 @@ class Langevin_post(object):
         plt.tight_layout()
         plt.savefig(os.path.join(figpath, figname), dpi=600)
         plt.close()
+
+    def contour_plot(
+        self,
+        bbox,
+        fnet=None,
+        samples=None,
+        save_to_path=None,
+        quiver=True,
+        t=None,
+    ):
+        raise NotImplementedError
 
 
 target_distribution: dict[str, Type[Toy_2D]] = {

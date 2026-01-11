@@ -1,0 +1,51 @@
+# Global settings
+# - `seed`: Random seed used for reproducibility across torch operations.
+# - `cuda_visible_devices`: Comma-separated GPU indices exposed to the process.
+# - `use_cuda`: Toggle GPU usage if CUDA is available.
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: UIVI
+target_type: Langevin_post
+vi_model_type: ConditionalGaussian
+
+train:
+  epochs: 10000
+  batch_size: 128
+  reverse_sample_num: 5
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.7
+  annealing:
+    enabled: true
+    steps: 5000
+    scheme: linear
+  log:
+    metric_log_freq: 100
+    loss_log_freq: 100
+    reverse_log_freq: 500
+    time_avg_window: 500
+  checkpoint:
+    enabled: true
+    freq: 1000
+  sample:
+    freq: 500
+    num: 10000
+  plot:
+    freq: 500
+    num: 10000
+
+metric:
+  kl_ite:
+    num_samples: 10000
+  w2:
+    num_samples: 10000
+    num_projections: 1000
+  elbo:
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 5000
