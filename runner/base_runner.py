@@ -707,10 +707,10 @@ class BaseSIVIRunner():
                     f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
                 )
                 logger.debug(
-                    f"Detected {~torch.isfinite(log_prob_target).sum()} non-finite values in log_prob_target."
+                    f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
                 )
                 logger.debug(
-                    f"Detected {~torch.isfinite(log_q_phi_z).sum()} non-finite values in log_q_phi_z."
+                    f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
                 )
 
             t_bw1 = time.perf_counter()
@@ -815,18 +815,28 @@ class BaseSIVIRunner():
                 t_plot0 = time.perf_counter()
                 _, z_plot = self.vi_model.sampling(num=self.plot_num)
 
-                self.target_model.contour_plot(
-                    self.config.target.bbox,
-                    fnet=None,
-                    samples=z_plot.cpu().numpy(),
-                    save_to_path=os.path.join(
-                        self.plot_save_path,
-                        f"contour_epoch_{epoch}.png",
-                    ),
-                    quiver=False,
-                    t=epoch,
-                )
-                logger.debug(f"Saved contour plot at epoch {epoch}.")
+                try:
+                    self.target_model.contour_plot(
+                        self.config.target.bbox,
+                        fnet=None,
+                        samples=z_plot.cpu().numpy(),
+                        save_to_path=os.path.join(
+                            self.plot_save_path,
+                            f"contour_epoch_{epoch}.png",
+                        ),
+                        quiver=False,
+                        t=epoch,
+                    )
+                    logger.debug(f"Saved contour plot at epoch {epoch}.")
+                except NotImplementedError:
+                    self.target_model.trace_plot(
+                        z_plot,
+                        figpath=self.plot_save_path,
+                        figname=f"trace_epoch_{epoch}.png",
+                        figtitle=f"Trace Plot at Epoch {epoch}",
+                    )
+                    logger.debug(f"Saved trace plot at epoch {epoch}.")
+
                 t_plot1 = time.perf_counter()
                 time_plot_step = t_plot1 - t_plot0
                 time_scalars['plot'] = time_plot_step
