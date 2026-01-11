@@ -8,7 +8,7 @@ use_cuda: true
 
 runner_type: RSIVI
 target_type: multimodal
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 
 train:
@@ -37,7 +37,7 @@ train:
     time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 1000
+    freq: 100
   sample:
     freq: 500
     num: 100000
@@ -55,3 +55,9 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+
+resume:
+  enabled: true
+  ckpt_dir: results/RSIVI/multimodal/20260111_151941/checkpoints/epoch_2000
+  load_optimizer: true
+  no_override_epoch: false
