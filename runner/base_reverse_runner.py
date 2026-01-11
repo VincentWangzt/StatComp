@@ -278,7 +278,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                     optimizer.step()
                 else:
                     logger.warning(
-                        f"NaN or Inf detected in reverse model loss at epoch {epoch}. Skipping update."
+                        f"NaN or Inf detected in reverse model loss at epoch {self.curr_epoch}. Skipping update."
                     )
                 if log_func is not None:
                     log_func(loss.item(), 1, epoch)

@@ -724,14 +724,26 @@ class BaseSIVIRunner():
                 grad_norm.item(),
                 epoch,
             )
+            z_norm = torch.norm(z, dim=1)
             self.writer.add_scalar(
-                "norm/z_avg",
-                torch.norm(z, dim=1).mean().item(),
+                "norm/z_norm_avg",
+                z_norm.mean().item(),
                 epoch,
             )
             self.writer.add_scalar(
-                "norm/epsilon_avg",
-                torch.norm(epsilon, dim=1).mean().item(),
+                "norm/z_norm_std",
+                z_norm.std().item(),
+                epoch,
+            )
+            epsilon_norm = torch.norm(epsilon, dim=1)
+            self.writer.add_scalar(
+                "norm/epsilon_norm_avg",
+                epsilon_norm.mean().item(),
+                epoch,
+            )
+            self.writer.add_scalar(
+                "norm/epsilon_norm_std",
+                epsilon_norm.std().item(),
                 epoch,
             )
 
