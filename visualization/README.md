@@ -6,7 +6,7 @@ This repository offers a comprehensive pipeline for processing, visualizing, and
 
 The codebase performs the following key functions:
 1.  **Data Standardization**: Unifies diverse output formats from different SIVI implementations into a standard structure.
-2.  **Metric Analysis**: Computes Kullback-Leibler (KL) divergence between generated samples and Hamiltonian Monte Carlo (HMC) baselines.
+2.  **Metric Analysis**: Computes Kullback-Leibler (KL) divergence and Wasserstein-2 (W2) distance between generated samples and Hamiltonian Monte Carlo (HMC) baselines.
 3.  **Visualization**: Generates high-quality plots to inspect model performance:
     - **KL Divergence Curves**: Tracking performance over training epochs and wall-clock time.
     - **Scatter Plots**: Visualizing sample distributions against target contours.
@@ -17,7 +17,7 @@ The codebase performs the following key functions:
 The pipeline expects raw experiment results in a `results/` directory. While the raw structure can vary (handled by `scripts/organize_data.py`), the processed data is standardized into `data/` with the following structure:
 
 ```
-data/{method}/{target}/{epoch}/epoch_{epoch}.pt
+data/{method}/{target}/run_{run_id}/{epoch}/epoch_{epoch}.pt
 ```
 
 Each `.pt` file must contain a dictionary with:
@@ -26,6 +26,7 @@ Each `.pt` file must contain a dictionary with:
 - `method`: `str` (method identifier).
 - `target`: `str` (target distribution name).
 - `epoch`: `int` (training epoch).
+- `run_id`: `int` (unique run identifier).
 
 
 ### Target Distributions
@@ -64,5 +65,4 @@ python scripts/plot_density.py        # Density plots (individual & overlay grid
     - `kl_divergence/`: KL curves and `kl_divergence.csv`.
     - `scatter_plots/`: Scatter grids (`all_scatter_plots_grid.png`) and individual plots.
     - `density_plots/`: Density grids (`all_density_overlay_grid.png`, etc.) and comparison plots.
-- **`REPORT.md`**: Summary report of the findings.
 

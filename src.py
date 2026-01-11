@@ -11,12 +11,14 @@ from runner.runners import Runners
 # 3. Add annealing to logp calculation [Done]
 # 4. Add logging of configs to hParam
 # 5. Add W2 distance as metric [Done]
-# 6. tweak the lr and scheduler settings, improve the training and inference speed.
+# 6. tweak the lr and scheduler settings, improve the training and inference speed. [Done]
 # 7. implement dsm-uivi
 # 8. Add ELBO, use E_{epsilon^prime ~ q} q_phi(z|epsilon^prime) to estimate q_phi(z). [Done]
 # 9. Add typing hints to runners
 # 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian [Done]
-# 11. Add conditional diffusion target model support
+# 11. Add conditional diffusion target model support [Done]
+# 12. Update README for main repo and visualization [Done]
+# 13. Add Config Documentation
 
 logger = get_logger()
 
