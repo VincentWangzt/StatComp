@@ -5,20 +5,13 @@ from utils.logging import get_logger
 from omegaconf import OmegaConf, DictConfig
 from runner.runners import Runners
 
-# 0107 TODO:
-# 1. Clip the CNF scale outputs to avoid extreme values.
-# 2. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
-# 3. Add annealing to logp calculation [Done]
-# 4. Add logging of configs to hParam
-# 5. Add W2 distance as metric [Done]
-# 6. tweak the lr and scheduler settings, improve the training and inference speed. [Done]
-# 7. implement dsm-uivi
-# 8. Add ELBO, use E_{epsilon^prime ~ q} q_phi(z|epsilon^prime) to estimate q_phi(z). [Done]
-# 9. Add typing hints to runners
-# 10. [Bugfix] Add logp to ReverseGaussian and ReverseMixureOfGaussian [Done]
-# 11. Add conditional diffusion target model support [Done]
-# 12. Update README for main repo and visualization [Done]
-# 13. Add Config Documentation
+# 0112 TODO:
+# 1. implement dsm-uivi [Done]
+# 2. Add typing hints to runners
+# 3. Add Config Documentation
+# 4. Clip the CNF scale outputs to avoid extreme values.
+# 5. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
+# 6. Add logging of configs to hParam
 
 logger = get_logger()
 

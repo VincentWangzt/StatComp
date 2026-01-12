@@ -1,5 +1,5 @@
 import torch
-from models.networks import ReverseModel, BaseReverseConditionalModel
+from models.reverse_model import ReverseModel, BaseReverseConditionalModel
 import os
 from utils.logging import get_logger
 from typing import Callable
@@ -58,7 +58,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
 
         # Enable reverse model training
         self.reverse_train = True
-        self.training_reverse_sample_num = self.training_cfg.reverse_sample_num
+
+        # whether to normalize the score output of reverse model to zero mean
+        self.normalize_reverse_score = self.training_cfg.setdefault(
+            'normalize_reverse_score', False)
         self.training_sample_reverse_loss = 0.0
 
         # Load warmup config
@@ -66,7 +69,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.warmup_enabled = self.warmup_cfg['enabled']
         self.warmup_batch_size = self.warmup_cfg['batch_size']
         self.warmup_epochs = self.warmup_cfg['epochs']
-        self.warmup_kl_log_freq = self.warmup_cfg['kl_log_freq']
+        self.warmup_kl_log_freq = self.warmup_cfg.setdefault('kl_log_freq', 0)
         self.warmup_loss_log_freq = self.warmup_cfg['loss_log_freq']
 
         # Load warmup accumulators
@@ -76,8 +79,8 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.warmup_start_time = 0.0
 
         # Load training configs
-        self.training_reverse_sample_num = self.training_cfg[
-            'reverse_sample_num']
+        self.training_reverse_sample_num = self.training_cfg.setdefault(
+            'reverse_sample_num', -1)
         self.training_reverse_log_freq = self.training_cfg['log'][
             'reverse_log_freq']
 
@@ -339,7 +342,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
 
         # For flow model, use optimizer; for GaussianReverse, no optimizer.
         optimizer = None
-        if self.reverse_model_type == 'ConditionalRealNVP' or self.reverse_model_type == 'ConditionalRealNVPAI':
+        if self.config.reverse_model['use_optimizer']:
             lr = self.warmup_cfg['lr']
             optimizer = torch.optim.Adam(
                 self.reverse_model.parameters(),

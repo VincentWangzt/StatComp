@@ -48,11 +48,14 @@ train:
 
 metric:
   kl_ite:
+    enabled: false
     num_samples: 10000
   w2:
+    enabled: true
     num_samples: 10000
     num_projections: 1000
   elbo:
+    enabled: true
     batch_size: 512
     num_batches: 10
     num_z_samples: 5000

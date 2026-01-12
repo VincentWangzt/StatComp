@@ -1,6 +1,6 @@
 import torch
 from models.target_models import target_distribution
-from models.networks import VIModel
+from models.vi_model import VIModel
 import os
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -86,12 +86,19 @@ class BaseSIVIRunner():
         self.baseline_samples = self._load_baseline_samples()
 
         # kl ite samples
+        self.metric_kl_enabled = self.config['metric']['kl_ite'].setdefault(
+            'enabled', True)
         self.n_ite_samples = self.config['metric']['kl_ite']['num_samples']
+
         # w2 samples
+        self.metric_w2_enabled = self.config['metric']['w2'].setdefault(
+            'enabled', True)
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
 
         # elbo samples
+        self.metric_elbo_enabled = self.config['metric']['elbo'].setdefault(
+            'enabled', True)
         self.n_elbo_z_samples = self.config['metric']['elbo']['num_z_samples']
         self.n_elbo_batches = self.config['metric']['elbo']['num_batches']
         self.n_elbo_batch_size = self.config['metric']['elbo']['batch_size']
@@ -789,26 +796,29 @@ class BaseSIVIRunner():
             if self.training_metric_log_freq > 0 and (
                     epoch % self.training_metric_log_freq == 0):
 
-                t_kl0 = time.perf_counter()
-                self.eval_kl_ite(epoch)
-                t_kl1 = time.perf_counter()
+                if self.metric_kl_enabled:
+                    t_kl0 = time.perf_counter()
+                    self.eval_kl_ite(epoch)
+                    t_kl1 = time.perf_counter()
 
-                time_kl_step = t_kl1 - t_kl0
-                time_scalars['kl_estimation'] = time_kl_step
+                    time_kl_step = t_kl1 - t_kl0
+                    time_scalars['kl_estimation'] = time_kl_step
 
-                t_w2_0 = time.perf_counter()
-                self.eval_w2(epoch)
-                t_w2_1 = time.perf_counter()
+                if self.metric_w2_enabled:
+                    t_w2_0 = time.perf_counter()
+                    self.eval_w2(epoch)
+                    t_w2_1 = time.perf_counter()
 
-                time_w2_step = t_w2_1 - t_w2_0
-                time_scalars['w2_estimation'] = time_w2_step
+                    time_w2_step = t_w2_1 - t_w2_0
+                    time_scalars['w2_estimation'] = time_w2_step
 
-                # Evaluate ELBO
-                t_elbo0 = time.perf_counter()
-                self.eval_elbo(epoch)
-                t_elbo1 = time.perf_counter()
+                if self.metric_elbo_enabled:
+                    # Evaluate ELBO
+                    t_elbo0 = time.perf_counter()
+                    self.eval_elbo(epoch)
+                    t_elbo1 = time.perf_counter()
 
-                time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
+                    time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
 
             # Generate and save contour plots
             if epoch % self.plot_freq == 0:
@@ -828,7 +838,7 @@ class BaseSIVIRunner():
                         t=epoch,
                     )
                     logger.debug(f"Saved contour plot at epoch {epoch}.")
-                except NotImplementedError:
+                except Exception as e:
                     self.target_model.trace_plot(
                         z_plot,
                         figpath=self.plot_save_path,

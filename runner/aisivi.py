@@ -70,6 +70,9 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         score = score.sum(dim=1)
         score = score.clone().detach()
 
+        if self.normalize_reverse_score:
+            score = score - score.mean(dim=0, keepdim=True)
+
         with torch.no_grad():
             # Log the average distance from epsilon_aux to original epsilon
             avg_eps_distance = torch.mean(
@@ -80,6 +83,21 @@ class AISIVIRunner(BaseReverseConditionalRunner):
             self.writer.add_scalar(
                 "norm/avg_epsilon_distance",
                 avg_eps_distance,
+                self.curr_epoch,
+            )
+            # Log the average norm of the score function
+            avg_score_norm = torch.mean(torch.norm(score, dim=-1)).item()
+            self.writer.add_scalar(
+                "norm/avg_score_norm",
+                avg_score_norm,
+                self.curr_epoch,
+            )
+
+            # Log the norm of the average of the score function
+            avg_of_score_norm = torch.norm(score.mean(dim=0)).item()
+            self.writer.add_scalar(
+                "norm/norm_of_avg_score",
+                avg_of_score_norm,
                 self.curr_epoch,
             )
 
