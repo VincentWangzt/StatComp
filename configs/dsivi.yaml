@@ -13,8 +13,8 @@ reverse_model_type: MLPDenoiseModel
 reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-CondDiff.yaml
 
 train:
-  epochs: 3000
-  batch_size: 1024
+  epochs: 10000
+  batch_size: 128
   normalize_reverse_score: false
   vi:
     lr: 1.0e-3
@@ -30,9 +30,9 @@ train:
   annealing:
     enabled: true
     scheme: linear
-    steps: 1000
+    steps: 5000
   log:
-    metric_log_freq: 10
+    metric_log_freq: 100
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500

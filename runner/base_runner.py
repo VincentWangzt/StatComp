@@ -331,7 +331,7 @@ class BaseSIVIRunner():
         self.writer.add_scalar("train/vi_w2_to_baseline", w2_dist, epoch)
         logger.debug(f"Epoch {epoch}, VI W2 to baseline: {w2_dist:.4f}")
 
-    def evaluate_elbo(self) -> tuple[float, float, float]:
+    def evaluate_elbo(self) -> tuple[float, float, float, float]:
         """
         Estimate ELBO using importance sampling for q_phi(z).
         ELBO = E_{z ~ q_phi} [log p(z) - log q_phi(z)]
@@ -343,7 +343,7 @@ class BaseSIVIRunner():
         We use multiple batches to also estimate the standard error of q_phi(z) estimation.
         
         Returns:
-            (elbo_mean, elbo_std_total, elbo_std_q) (float, float, float): Estimated ELBO mean, total std, and std from q(z) estimation.
+            (elbo_mean, elbo_std_total, elbo_std_q, elbo_ci_half) (float, float, float, float): Estimated ELBO mean, total std, std from q(z) estimation, and 1/2 width of 0.95 CI.
         """
         # 1. Sample z from q_phi(z)
         # We just need z samples, epsilon is implicitly integrated out in generation process.
@@ -441,20 +441,26 @@ class BaseSIVIRunner():
         # Std arising from estimating q_phi(z) (Average std of the log q estimator)
         elbo_std_q = torch.sqrt(torch.mean(sq_se_log_q))
 
-        return elbo_mean.item(), elbo_std_total.item(), elbo_std_q.item()
+        # 1/2 width of 0.95 confidence interval
+        elbo_ci_half = 1.96 * elbo_std_total / (self.n_elbo_z_samples**0.5)
+
+        return elbo_mean.item(), elbo_std_total.item(), elbo_std_q.item(
+        ), elbo_ci_half.item()
 
     def eval_elbo(self, epoch: int):
         '''
         Evaluate ELBO metric and log to TensorBoard.
         '''
-        elbo_val, elbo_std_total, elbo_std_q = self.evaluate_elbo()
+        elbo_val, elbo_std_total, elbo_std_q, elbo_ci_half = self.evaluate_elbo(
+        )
         self.writer.add_scalar("train/vi_elbo", elbo_val, epoch)
         self.writer.add_scalar("train/vi_elbo_std_total", elbo_std_total,
                                epoch)
         self.writer.add_scalar("train/vi_elbo_std_q", elbo_std_q, epoch)
+        self.writer.add_scalar("train/vi_elbo_ci_half", elbo_ci_half, epoch)
 
         logger.debug(
-            f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}"
+            f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}, CI Half: {elbo_ci_half:.4f}"
         )
 
     def save_samples(self, epoch: int):
