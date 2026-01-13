@@ -27,7 +27,8 @@ METHOD_NAMES = {
     "AISIVI": "AISIVI",
     "RSIVI": "RSIVI",
     "SIVI": "SIVI",
-    "UIVI": "UIVI"
+    "UIVI": "UIVI",
+    "DSIVI": "DSIVI",
 }
 TARGETS = ["banana", "multimodal", "x_shaped"]
 TARGET_NAMES = {
@@ -348,7 +349,7 @@ def plot_overlay_grid(hmc_samples):
                fontsize=11,
                bbox_to_anchor=(0.5, 1.02))
 
-    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.tight_layout(rect=(0, 0, 1, 0.98))
     save_path = PLOTS_DIR / "all_density_overlay_grid.png"
     plt.savefig(save_path, dpi=200, bbox_inches='tight')
     plt.close()

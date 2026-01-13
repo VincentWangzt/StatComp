@@ -7,5 +7,5 @@ warmup:
   enabled: true
   lr: 1.0e-3
   batch_size: 8192
-  epochs: 1000
+  epochs: 500
   loss_log_freq: 100

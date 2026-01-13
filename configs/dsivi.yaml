@@ -7,20 +7,19 @@ cuda_visible_devices: "0"
 use_cuda: true
 
 runner_type: DSIVI
-target_type: Langevin_post
+target_type: banana
 vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
-reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-CondDiff.yaml
 
 train:
-  epochs: 10000
-  batch_size: 128
+  epochs: 2000
+  batch_size: 1024
   normalize_reverse_score: false
   vi:
     lr: 1.0e-3
     scheduler:
       type: StepLR
-      step_size: 2000
+      step_size: 1000
       gamma: 0.7
   reverse:
     lr: 1.0e-3
@@ -28,11 +27,11 @@ train:
     epochs: 10
     update_freq: 1
   annealing:
-    enabled: true
+    enabled: false
     scheme: linear
-    steps: 5000
+    steps: 1000
   log:
-    metric_log_freq: 100
+    metric_log_freq: 10
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
@@ -48,7 +47,7 @@ train:
 
 metric:
   kl_ite:
-    enabled: false
+    enabled: true
     num_samples: 10000
   w2:
     enabled: true
