@@ -8,7 +8,7 @@ class BaseKernel:
     Base class for kernel functions.
     """
 
-    def __init__(self, h: float = -1, name: str = 'base'):
+    def __init__(self, h: float = -1, name: str = 'BaseKernel'):
         self._h: float = h
         self.name: str = name
 
@@ -77,6 +77,9 @@ class GaussianKernel(BaseKernel):
     Gaussian Kernel: k(x,y) = exp(-||x-y||^2 / (2h^2))
     """
 
+    def __init__(self, h: float = -1, name: str = 'GaussianKernel'):
+        super().__init__(h, name)
+
     def fit_h(self, samples: torch.Tensor) -> float:
 
         # Median heuristic
@@ -97,8 +100,7 @@ class GaussianKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self._h is None or (isinstance(self._h, (int, float))
-                                        and self._h < 0):
+        if fit_h or self.h < 0:
             self.fit_h(samples_x)
 
         pairwise_dists = ((samples_x[:, None, :] -
@@ -115,8 +117,7 @@ class GaussianKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if self._h is None or (isinstance(self._h,
-                                          (int, float)) and self._h < 0):
+        if self.h < 0:
             self.fit_h(samples_x)
 
         diff = samples_x[:, None, :] - samples_y[None, :, :]
@@ -140,6 +141,9 @@ class IMQKernel(BaseKernel):
     This corresponds to beta=-0.5, c=1 in usual IMQ definition k(x,y)=(c^2 + ||x-y||^2)^beta
     """
 
+    def __init__(self, h: float = -1, name: str = 'IMQKernel'):
+        super().__init__(h, name)
+
     def fit_h(self, samples: torch.Tensor) -> float:
 
         pairwise_dists = ((samples[:, None, :] -
@@ -158,8 +162,7 @@ class IMQKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self._h is None or (isinstance(self._h, (int, float))
-                                        and self._h < 0):
+        if fit_h or self.h < 0:
             self.fit_h(samples_x)
 
         pairwise_dists = ((samples_x[:, None, :] -
@@ -176,8 +179,7 @@ class IMQKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if self._h is None or (isinstance(self._h,
-                                          (int, float)) and self._h < 0):
+        if self.h < 0:
             self.fit_h(samples_x)
 
         diff = samples_x[:, None, :] - samples_y[None, :, :]
@@ -202,6 +204,9 @@ class LaplaceKernel(BaseKernel):
     Laplace Kernel: k(x,y) = exp(-||x-y||_1 / h)
     """
 
+    def __init__(self, h: float = -1, name: str = 'LaplaceKernel'):
+        super().__init__(h, name)
+
     def fit_h(self, samples: torch.Tensor) -> float:
         # Median heuristic
         pairwise_dists = torch.abs(samples[:, None, :] -
@@ -220,8 +225,7 @@ class LaplaceKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self._h is None or (isinstance(self._h, (int, float))
-                                        and self._h < 0):
+        if fit_h or self.h < 0:
             self.fit_h(samples_x)
 
         pairwise_dists = torch.abs(samples_x[:, None, :] -
@@ -238,8 +242,7 @@ class LaplaceKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if self._h is None or (isinstance(self._h,
-                                          (int, float)) and self._h < 0):
+        if self.h < 0:
             self.fit_h(samples_x)
 
         diff = samples_x[:, None, :] - samples_y[None, :, :]
@@ -261,6 +264,9 @@ class RieszKernel(BaseKernel):
     Riesz Kernel: k(x,y) = (||x||_1 + ||y||_1 - ||x-y||_1) / h
     """
 
+    def __init__(self, h: float = -1, name: str = 'RieszKernel'):
+        super().__init__(h, name)
+
     def fit_h(self, samples: torch.Tensor) -> float:
 
         norm_x = samples.norm(1, dim=-1)
@@ -280,8 +286,7 @@ class RieszKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self._h is None or (isinstance(self._h, (int, float))
-                                        and self._h < 0):
+        if fit_h or self.h < 0:
             self.fit_h(samples_x)
 
         norm_x = samples_x.norm(1, dim=-1)
@@ -300,8 +305,7 @@ class RieszKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        if self._h is None or (isinstance(self._h,
-                                          (int, float)) and self._h < 0):
+        if self.h < 0:
             self.fit_h(samples_x)
 
         norm_x = samples_x.norm(1, dim=-1)

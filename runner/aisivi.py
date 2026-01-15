@@ -1,6 +1,11 @@
 import torch
 from omegaconf import DictConfig
 from runner.base_reverse_runner import BaseReverseConditionalRunner
+from utils.metrics import compute_ksd
+from utils.kernels import GaussianKernel
+from utils.logging import get_logger
+
+logger = get_logger()
 
 
 class AISIVIRunner(BaseReverseConditionalRunner):
@@ -11,6 +16,60 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         name: str = "AISIVI",
     ):
         super().__init__(config=config, name=name)
+
+    def calculate_rev_KSD(self) -> tuple[float, float]:
+        '''
+        Calculate the Kernelized Stein Discrepancy (KSD) using the reverse denoising model.
+
+        Returns:
+            (ksd, h) (float, float): Estimated KSD value and kernel bandwidth.
+        '''
+        with torch.no_grad():
+            _, z_samples = self.vi_model.sampling(num=self.n_ksd_samples)
+            self.reverse_ksd_kernel = GaussianKernel()
+            h = self.reverse_ksd_kernel.fit_h(z_samples)
+            z_aux, epsilon_aux = self.reverse_model.sample(
+                z_samples,
+                num_samples=self.training_reverse_sample_num,
+            )
+            importance_sampling_weights = self.vi_model.log_q_epsilon(
+                epsilon_aux) - self.reverse_model.log_prob(epsilon_aux, z_aux)
+            importance_sampling_weights = importance_sampling_weights.detach()
+        z_aux.requires_grad_(True)
+        log_q_phi_z_aux = self.vi_model.logp(
+            z_aux, epsilon_aux) + importance_sampling_weights
+        log_q_phi_z = torch.logsumexp(
+            log_q_phi_z_aux,
+            dim=1,
+        ) - torch.log(
+            torch.tensor(
+                self.training_reverse_sample_num,
+                device=z_samples.device,
+                dtype=z_samples.dtype,
+            ))
+        score = torch.autograd.grad(
+            log_q_phi_z.sum(),
+            z_aux,
+            create_graph=False,
+        )[0]
+        score = score.sum(dim=1)
+        # shape (batch_size, z_dim)
+        score = score.clone().detach()
+        if self.normalize_reverse_score:
+            score = score - score.mean(dim=0, keepdim=True)
+
+        ksd = compute_ksd(
+            x=z_samples,
+            scores=score,
+            kernel=self.reverse_ksd_kernel,
+        )
+        return ksd, h
+
+    def eval_ksd(self, epoch: int):
+        super().eval_ksd(epoch)
+        rev_ksd, rev_h = self.calculate_rev_KSD()
+        self.writer.add_scalar("train/rev_model_ksd", rev_ksd, epoch)
+        self.writer.add_scalar("train/rev_model_ksd_h", rev_h, epoch)
 
     def calc_log_q_phi_z(
         self,
@@ -37,10 +96,29 @@ class AISIVIRunner(BaseReverseConditionalRunner):
                 num_samples=self.training_reverse_sample_num,
             )
 
-            importance_sampling_weights = self.vi_model.log_q_epsilon(
-                epsilon_aux) - self.reverse_model.log_prob(epsilon_aux, z_aux)
+            log_q_epsilon = self.vi_model.log_q_epsilon(epsilon_aux)
+            log_q_psi_epsilon_given_z = self.reverse_model.log_prob(
+                epsilon_aux,
+                z_aux,
+            )
+
+            if torch.isnan(log_q_epsilon).any():
+                logger.debug(
+                    f"{torch.isnan(log_q_epsilon).sum()} NaN detected in log_q_epsilon."
+                )
+            if torch.isnan(log_q_psi_epsilon_given_z).any():
+                logger.debug(
+                    f"{torch.isnan(log_q_psi_epsilon_given_z).sum()} NaN detected in log_q_psi_epsilon_given_z."
+                )
+
+            importance_sampling_weights = log_q_epsilon - log_q_psi_epsilon_given_z
 
             importance_sampling_weights = importance_sampling_weights.detach()
+
+        if torch.isnan(importance_sampling_weights).any():
+            logger.debug(
+                f"{torch.isnan(importance_sampling_weights).sum()} NaN detected in importance sampling weights."
+            )
 
         z_aux.requires_grad_(True)
 

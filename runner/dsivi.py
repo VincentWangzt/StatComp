@@ -7,6 +7,8 @@ from typing import Callable
 from utils.logging import get_logger
 from tqdm import tqdm
 import time
+from utils.metrics import compute_ksd
+from utils.kernels import GaussianKernel
 
 logger = get_logger()
 
@@ -50,6 +52,32 @@ class DSIVIRunner(BaseReverseConditionalRunner):
             epoch (int): Current epoch number.
         """
         BaseSIVIRunner.eval_w2(self, epoch)
+
+    def calculate_rev_KSD(self) -> tuple[float, float]:
+        '''
+        Calculate the Kernelized Stein Discrepancy (KSD) using the reverse denoising model.
+
+        Returns:
+            (ksd, h) (float, float): The estimated KSD and the kernel bandwidth h.
+
+        '''
+        with torch.no_grad():
+            _, z_samples = self.vi_model.sampling(num=self.n_ksd_samples)
+            self.reverse_ksd_kernel = GaussianKernel()
+            h = self.reverse_ksd_kernel.fit_h(z_samples)
+            scores = self.reverse_model.score(z_samples)
+            ksd = compute_ksd(
+                z_samples,
+                scores=scores,
+                kernel=self.reverse_ksd_kernel,
+            )
+        return ksd, h
+
+    def eval_ksd(self, epoch: int):
+        super().eval_ksd(epoch)
+        rev_ksd, rev_h = self.calculate_rev_KSD()
+        self.writer.add_scalar("train/rev_model_ksd", rev_ksd, epoch)
+        self.writer.add_scalar("train/rev_model_ksd_h", rev_h, epoch)
 
     def _train_reverse_model(
         self,

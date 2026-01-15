@@ -12,7 +12,7 @@ import numpy as np
 from omegaconf import OmegaConf, DictConfig
 from collections import defaultdict
 from utils.annealing import annealing
-from utils.metrics import compute_sliced_wasserstein
+from utils.metrics import compute_sliced_wasserstein, compute_ksd, compute_mmd
 
 logger = get_logger()
 
@@ -95,6 +95,21 @@ class BaseSIVIRunner():
             'enabled', True)
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
+
+        # ksd config
+        self.config.metric.setdefault('ksd', {})
+        self.metric_ksd_enabled = self.config['metric']['ksd'].setdefault(
+            'enabled', False)
+        self.n_ksd_samples = self.config['metric']['ksd'].setdefault(
+            'num_samples', 1000)
+
+        # mmd config
+        self.config.metric.setdefault('mmd', {})
+        self.metric_mmd_enabled = self.config['metric']['mmd'].setdefault(
+            'enabled', False)
+        self.n_mmd_samples = self.config['metric']['mmd'].setdefault(
+            'num_samples', 1000)
+        self._init_mmd_baseline_samples()
 
         # elbo samples
         self.metric_elbo_enabled = self.config['metric']['elbo'].setdefault(
@@ -463,6 +478,86 @@ class BaseSIVIRunner():
             f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}, CI Half: {elbo_ci_half:.4f}"
         )
 
+    def evaluate_ksd(self) -> float:
+        '''
+        Evaluate Kernelized Stein Discrepancy (KSD) for VI samples.
+        Returns:
+            ksd (float): Estimated KSD value.
+        '''
+        _, z = self.vi_model.sampling(num=self.n_ksd_samples)
+        scores = self.target_model.score(z)
+        try:
+            ksd = compute_ksd(
+                z,
+                scores=scores,
+            )
+            return float(ksd)
+        except Exception as e:
+            logger.error(f"KSD estimation failed: {e}")
+            raise e
+
+    def eval_ksd(self, epoch: int):
+        '''
+        Evaluate KSD metric and log to TensorBoard.
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        ksd_val = self.evaluate_ksd()
+        self.writer.add_scalar("train/vi_ksd", ksd_val, epoch)
+        logger.debug(f"Epoch {epoch}, VI KSD: {ksd_val:.4f}")
+
+    def _init_mmd_baseline_samples(self):
+        '''
+        Initialize baseline samples and kernel for MMD evaluation.
+        '''
+        if not self.metric_mmd_enabled:
+            return
+
+        if self.baseline_samples.shape[0] > self.n_mmd_samples:
+            self._mmd_baseline_subset = self.baseline_samples[np.random.choice(
+                self.baseline_samples.shape[0],
+                self.n_mmd_samples,
+                replace=False,
+            )]
+        else:
+            self._mmd_baseline_subset = self.baseline_samples
+
+        self.mmd_baseline_subset = torch.as_tensor(
+            self._mmd_baseline_subset).to(self.device)
+
+        from utils.kernels import GaussianKernel
+        self.mmd_baseline_kernel = GaussianKernel()
+        self.mmd_baseline_kernel.fit_h(self.mmd_baseline_subset)
+
+    def evaluate_mmd(self) -> float:
+        '''
+        Evaluate Maximum Mean Discrepancy (MMD) for VI samples.
+        Returns:
+            mmd (float): Estimated MMD value.
+        '''
+        _, z = self.vi_model.sampling(num=self.n_mmd_samples)
+
+        try:
+            mmd = compute_mmd(
+                z,
+                self.mmd_baseline_subset,
+                self.mmd_baseline_kernel,
+            )
+            return float(mmd)
+        except Exception as e:
+            logger.error(f"MMD estimation failed: {e}")
+            raise e
+
+    def eval_mmd(self, epoch: int):
+        '''
+        Evaluate MMD metric and log to TensorBoard.
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        mmd_val = self.evaluate_mmd()
+        self.writer.add_scalar("train/vi_mmd", mmd_val, epoch)
+        logger.debug(f"Epoch {epoch}, VI MMD: {mmd_val:.4f}")
+
     def save_samples(self, epoch: int):
         '''
         Save samples from the VI model at the given epoch.
@@ -802,6 +897,8 @@ class BaseSIVIRunner():
             if self.training_metric_log_freq > 0 and (
                     epoch % self.training_metric_log_freq == 0):
 
+                t_metric0 = time.perf_counter()
+
                 if self.metric_kl_enabled:
                     t_kl0 = time.perf_counter()
                     self.eval_kl_ite(epoch)
@@ -825,6 +922,24 @@ class BaseSIVIRunner():
                     t_elbo1 = time.perf_counter()
 
                     time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
+
+                if self.metric_mmd_enabled:
+                    t_mmd0 = time.perf_counter()
+                    self.eval_mmd(epoch)
+                    t_mmd1 = time.perf_counter()
+
+                    time_scalars['mmd_estimation'] = t_mmd1 - t_mmd0
+
+                if self.metric_ksd_enabled:
+                    t_ksd0 = time.perf_counter()
+                    self.eval_ksd(epoch)
+                    t_ksd1 = time.perf_counter()
+
+                    time_scalars['ksd_estimation'] = t_ksd1 - t_ksd0
+
+                t_metric1 = time.perf_counter()
+                time_metric_step = t_metric1 - t_metric0
+                time_scalars['metric_eval_tot'] = time_metric_step
 
             # Generate and save contour plots
             if epoch % self.plot_freq == 0:

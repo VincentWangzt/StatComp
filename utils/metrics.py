@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+from utils.kernels import GaussianKernel, BaseKernel
+from typing import Optional, Callable
 
 
 def compute_sliced_wasserstein(
@@ -80,3 +82,80 @@ def compute_sliced_wasserstein(
     sw_distance = torch.pow(torch.mean(distance), 1.0 / p)
 
     return sw_distance.item()
+
+
+def compute_mmd(
+    x1: torch.Tensor,
+    x2: torch.Tensor,
+    kernel: Optional[BaseKernel] = None,
+) -> float:
+    """
+    Compute the Maximum Mean Discrepancy (MMD) between two sets of samples. Defaults to using a Gaussian kernel with median heuristic bandwidth of combined samples.
+
+    Args:
+        x1 (torch.Tensor): Samples from the first distribution, shape (N, D).
+        x2 (torch.Tensor): Samples from the second distribution, shape (M, D).
+        kernel (Optional[BaseKernel]): Kernel object to use.
+
+    Returns:
+        float: The estimated MMD.
+    """
+
+    if kernel is None:
+        kernel = GaussianKernel()
+        combined_samples = torch.cat([x1, x2], dim=0)
+        h = kernel.fit_h(combined_samples)
+        kernel._h = h
+
+    # Compute pairwise kernels
+    xx = kernel.pair_eval(x1, x1).mean()
+    yy = kernel.pair_eval(x2, x2).mean()
+    xy = kernel.pair_eval(x1, x2).mean()
+
+    mmd = xx + yy - 2 * xy
+
+    return mmd.item()
+
+
+def compute_ksd(
+    x: torch.Tensor,
+    scores: torch.Tensor,
+    kernel: Optional[BaseKernel] = None,
+) -> float:
+    """
+    Compute the Kernelized Stein Discrepancy (KSD) for a set of samples given a score function. Defaults to using a Gaussian kernel with median heuristic bandwidth.
+    Args:
+        x (torch.Tensor): Samples from the distribution, shape (N, D).
+        scores: Scores (gradient of log density) at given samples, shape (N, D).
+        kernel (Optional[BaseKernel]): Kernel object to use.
+    Returns:
+        float: The estimated KSD.
+    """
+    if kernel is None:
+        kernel = GaussianKernel()
+        h = kernel.fit_h(x)
+        kernel._h = h
+
+    k, grad_x, grad_y, tr_grad_xy = kernel.grad_all(x, x)
+
+    # Term 1: s(x)^T s(y) k(x,y)
+    term1 = torch.matmul(scores, scores.T) * k
+
+    # Term 2: s(x)^T \nabla_y k(x,y)
+    term2 = torch.einsum('id,ijd->ij', scores, grad_y)
+
+    # Term 3: \nabla_x k(x,y)^T s(y)
+    term3 = torch.einsum('ijd,jd->ij', grad_x, scores)
+
+    # Term 4: tr(\nabla_x \nabla_y^T k(x,y))
+    term4 = tr_grad_xy
+
+    # Sum all terms
+    u_matrix = term1 + term2 + term3 + term4
+
+    # set diagonal to zero to use unbiased estimator
+    u_matrix.fill_diagonal_(0.0)
+
+    n = x.shape[0]
+    ksd = u_matrix.sum() / (n * (n - 1))
+    return ksd.item()

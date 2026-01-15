@@ -1,6 +1,8 @@
 import torch
 from omegaconf import DictConfig
 from runner.base_reverse_runner import BaseReverseConditionalRunner
+from utils.metrics import compute_ksd
+from utils.kernels import GaussianKernel
 
 
 class RSIVIRunner(BaseReverseConditionalRunner):
@@ -11,6 +13,41 @@ class RSIVIRunner(BaseReverseConditionalRunner):
         name: str = "RSIVI",
     ):
         super().__init__(config=config, name=name)
+
+    def calculate_rev_KSD(self) -> tuple[float, float]:
+        '''
+        Calculate the Kernelized Stein Discrepancy (KSD) using the reverse denoising model.
+
+        Returns:
+            (ksd, h) (float, float): Estimated KSD value and kernel bandwidth.
+        '''
+        with torch.no_grad():
+            _, z_samples = self.vi_model.sampling(num=self.n_ksd_samples)
+            self.reverse_ksd_kernel = GaussianKernel()
+            h = self.reverse_ksd_kernel.fit_h(z_samples)
+
+            z_aux, epsilon_aux = self.reverse_model.sample(
+                z_samples,
+                num_samples=self.training_reverse_sample_num,
+            )
+            score = self.vi_model.score(z_aux, epsilon_aux)
+            score = score.mean(dim=1)
+            score = score.clone().detach()
+            if self.normalize_reverse_score:
+                score = score - score.mean(dim=0, keepdim=True)
+
+        ksd = compute_ksd(
+            z_samples,
+            scores=score,
+            kernel=self.reverse_ksd_kernel,
+        )
+        return ksd, h
+
+    def eval_ksd(self, epoch: int):
+        super().eval_ksd(epoch)
+        rev_ksd, rev_h = self.calculate_rev_KSD()
+        self.writer.add_scalar("train/rev_model_ksd", rev_ksd, epoch)
+        self.writer.add_scalar("train/rev_model_ksd_h", rev_h, epoch)
 
     def calc_log_q_phi_z(
         self,

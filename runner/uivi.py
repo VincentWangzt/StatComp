@@ -2,6 +2,8 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 from runner.base_runner import BaseSIVIRunner
 from utils.logging import get_logger
+from utils.metrics import compute_ksd
+from utils.kernels import GaussianKernel
 
 logger = get_logger()
 
@@ -157,6 +159,46 @@ class UIVIRunner(BaseSIVIRunner):
         eps_out = torch.stack(samples, dim=0).transpose(0, 1)
         acc_rate = torch.stack(accepts, dim=0).mean().item()
         return z_aux.detach(), eps_out.detach(), acc_rate
+
+    def calculate_rev_KSD(self) -> tuple[float, float]:
+        '''
+        Calculate the Kernelized Stein Discrepancy (KSD) using the reverse denoising model.
+
+        Returns:
+            ksd (float): The estimated KSD.
+            h (float): The bandwidth used in the kernel.
+        '''
+        with torch.no_grad():
+            epsilon_samples, z_samples = self.vi_model.sampling(
+                num=self.n_ksd_samples)
+            self.reverse_ksd_kernel = GaussianKernel()
+            h = self.reverse_ksd_kernel.fit_h(z_samples)
+
+        z_aux, epsilon_aux, acc_rate = self.sample_epsilon_hmc(
+            z_samples,
+            eps_init=epsilon_samples,
+            num_samples=self.training_reverse_sample_num,
+            burn_in_steps=self.hmc_burn_in_steps,
+            step_size=self.hmc_step_size,
+            leapfrog_steps=self.hmc_leapfrog_steps,
+        )
+        score = self.vi_model.score(z_aux, epsilon_aux)
+        score = score.mean(dim=1)
+        score = score.clone().detach()
+
+        rev_ksd = compute_ksd(
+            z_samples,
+            scores=score,
+            kernel=self.reverse_ksd_kernel,
+        )
+
+        return rev_ksd, h
+
+    def eval_ksd(self, epoch: int):
+        super().eval_ksd(epoch)
+        rev_ksd, rev_h = self.calculate_rev_KSD()
+        self.writer.add_scalar("train/rev_model_ksd", rev_ksd, epoch)
+        self.writer.add_scalar("train/rev_model_ksd_h", rev_h, epoch)
 
     def calc_log_q_phi_z(
         self,
