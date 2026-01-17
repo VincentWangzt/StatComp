@@ -8,7 +8,7 @@ use_cuda: true
 
 runner_type: AISIVI
 target_type: multimodal
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 
 train:

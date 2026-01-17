@@ -362,7 +362,195 @@ class ConditionalGaussianUniform(ConditionalGaussian):
         return log_prob
 
 
+class ConditionalGaussianGlobalUniform(BaseVIModel):
+    """
+    Conditional Gaussian `q_phi(z|epsilon)` parameterized by an MLP.
+
+    Required config parameters:
+        - epsilon_dim: Dimension of epsilon.
+        - z_dim: Dimension of latent z.
+        - device: Device for computation.
+        - hidden_dim: Hidden size of the MLP.
+        - num_layers: Number of hidden layers.
+
+    Args:
+        config (DictConfig): Configuration object.
+    """
+
+    def __init__(
+        self,
+        config: DictConfig,
+    ):
+        super().__init__(config, name="ConditionalGaussianGlobalUniform")
+        self.hidden_dim: int = config.hidden_dim
+        self.num_layers: int = config.num_layers
+        self.out_dim = self.z_dim
+        self.var_min = 1e-4
+        # The network outputs both mean and variance, with variance being global
+        layers = []
+        input_dim = self.epsilon_dim
+        for _ in range(self.num_layers):
+            layers.append(nn.Linear(input_dim, self.hidden_dim))
+            layers.append(nn.SiLU())
+            input_dim = self.hidden_dim
+        layers.append(nn.Linear(self.hidden_dim, self.out_dim))
+        self.net = nn.Sequential(*layers)
+        self.var_raw = nn.Parameter(torch.ones((self.z_dim, )))
+
+    def reparameterize(
+        self,
+        mu: torch.Tensor,
+        var_raw: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Reparameterization trick for `q_phi(z|epsilon)`.
+
+        Args:
+            mu (torch.Tensor): Mean.
+            var_raw (torch.Tensor): Raw variance. Will be reparameterized by softplus.
+        Returns:
+            (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std` where
+            `z = mu + std * u` and `u ~ N(0, I)`.
+        """
+        var = torch.nn.functional.softplus(self.var_raw)
+        var = var.clamp(min=self.var_min)
+        std = torch.sqrt(var)
+        u = torch.randn_like(mu)
+        return mu + std * u, u / std
+
+    def getmu(self, epsilon: torch.Tensor) -> torch.Tensor:
+        """Return `mu(epsilon)` from the network output split."""
+        return self.net(epsilon)
+
+    def getstd(self, epsilon: torch.Tensor) -> torch.Tensor:
+        """Return `std(epsilon)` by clamping variance and taking square root."""
+        var = torch.nn.functional.softplus(self.var_raw)
+        var = var.clamp(min=self.var_min)
+        std = torch.sqrt(var)
+        return std
+
+    def forward(
+        self,
+        epsilon: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass producing `z ~ q_phi(z|epsilon)` and its negative score term.
+
+        Args:
+            epsilon (torch.Tensor): Input noise `epsilon`.
+        Returns:
+            (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std`.
+        """
+        mu = self.net(epsilon)
+        z, neg_score_implicit = self.reparameterize(mu, self.var_raw)
+        return z, neg_score_implicit
+
+    def sampling(
+        self,
+        num: int = 1000,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Sample pairs `(epsilon, z)` from the conditional Gaussian. No gradients computed.
+
+        Args:
+            num (int): Number of samples.
+        Returns:
+            (epsilon, z) (torch.Tensor, torch.Tensor): `epsilon` and `z` samples.
+        """
+        with torch.no_grad():
+            epsilon = self.sample_epsilon(num=num)
+            Z, _ = self.forward(epsilon)
+        return epsilon.clone().detach(), Z.clone().detach()
+
+    def score(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute the score term `-(z - mu) / var` used in objectives.
+
+        Args:
+            z (torch.Tensor): Latent sample with shape `[..., D_z]`.
+            epsilon (torch.Tensor): Conditioning input with shape `[..., D_epsilon]`.
+        Returns:
+            score (torch.Tensor): Score `-(z - mu(epsilon)) / var(epsilon)`.
+        """
+        mu = self.net(epsilon)
+        var = torch.nn.functional.softplus(self.var_raw)
+        var = var.clamp(min=self.var_min)
+        score = -(z - mu) / (var)
+        return score
+
+    def logp(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log probability `log q_phi(z|epsilon)` for given `z` and `epsilon`.
+        Supports broadcasting over leading dimensions.
+        Args:
+            z (torch.Tensor): shape [..., Dz]
+            epsilon (torch.Tensor): shape [..., De]
+        Returns:
+            log_prob (torch.Tensor): shape [...]
+        """
+        mu = self.net(epsilon)
+        var = torch.nn.functional.softplus(self.var_raw)
+        var = var.clamp(min=self.var_min)
+        # Gaussian log-likelihood per sample
+        const = -0.5 * z.shape[-1] * math.log(2 * math.pi)
+        ll = const - 0.5 * (var.log().sum(dim=-1) +
+                            ((z - mu)**2 / var).sum(dim=-1))
+        return ll
+
+    def sample_epsilon(
+        self,
+        num: int = 1000,
+    ) -> torch.Tensor:
+        """
+        Sample `num` epsilon from uniform [0,1].
+
+        Args:
+            num (int): Number of samples.
+        Returns:
+            epsilon (torch.Tensor): Samples of shape `[num, D_epsilon]`.
+        """
+        return torch.rand([num, self.epsilon_dim], ).to(self.device)
+
+    def log_q_epsilon(
+        self,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log q(epsilon) under uniform [0,1] prior.
+
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+        Returns:
+            log_q (torch.Tensor): shape [...]
+        """
+        # 1. Check if ALL elements in the last dimension are within [0, 1]
+        # This results in a boolean tensor of shape [...]
+        in_bounds = (epsilon >= 0) & (epsilon <= 1)
+        all_in_bounds = in_bounds.all(dim=-1)
+
+        # 2. Initialize log_prob with zeros (log(1) = 0)
+        log_prob = torch.zeros_like(
+            all_in_bounds,
+            device=self.device,
+            dtype=epsilon.dtype,
+        )
+
+        # 3. Set out-of-bounds entries to -inf
+        log_prob[~all_in_bounds] = float('-inf')
+
+        return log_prob
+
+
 VIModel: dict[str, type[BaseVIModel]] = {
     "ConditionalGaussian": ConditionalGaussian,
     "ConditionalGaussianUniform": ConditionalGaussianUniform,
+    "ConditionalGaussianGlobalUniform": ConditionalGaussianGlobalUniform,
 }

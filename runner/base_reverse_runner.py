@@ -88,6 +88,8 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.rev_batch_size = self.rev_train_cfg['batch_size']
         self.rev_epochs = self.rev_train_cfg['epochs']
         self.rev_update_freq = self.rev_train_cfg['update_freq']
+        self.share_scheduler = self.rev_train_cfg.setdefault(
+            'share_scheduler', False)
 
         # Instantiating reverse model optimizer
         if 'use_optimizer' not in self.config.reverse_model:
@@ -106,6 +108,18 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 self.reverse_model.parameters(),
                 lr=self.reverse_lr,
             )
+
+            self.training_reverse_scheduler = None
+            if self.share_scheduler:
+                logger.info(
+                    "Sharing VI model scheduler config for reverse model training."
+                )
+                self.training_reverse_scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.training_reverse_optimizer,
+                    step_size=(self.vi_scheduler_cfg['step_size'] *
+                               self.rev_epochs) // self.rev_update_freq,
+                    gamma=self.vi_scheduler_cfg['gamma'],
+                )
 
     def _get_reverse_model(self) -> BaseReverseConditionalModel:
         '''
@@ -281,6 +295,8 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                     logger.warning(
                         f"NaN or Inf detected in reverse model loss at epoch {self.curr_epoch}. Skipping update."
                     )
+                if self.curr_epoch > 1 and self.training_reverse_scheduler is not None:
+                    self.training_reverse_scheduler.step()
                 if log_func is not None:
                     log_func(loss.item(), 1, epoch)
         else:

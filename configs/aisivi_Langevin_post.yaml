@@ -8,7 +8,7 @@ use_cuda: true
 
 runner_type: AISIVI
 target_type: Langevin_post
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 reverse_model_config_path: configs/reverse_models/ConditionalRealNVP-CondDiff.yaml
 
