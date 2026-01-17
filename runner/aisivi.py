@@ -28,12 +28,12 @@ class AISIVIRunner(BaseReverseConditionalRunner):
             _, z_samples = self.vi_model.sampling(num=self.n_ksd_samples)
             self.reverse_ksd_kernel = GaussianKernel()
             h = self.reverse_ksd_kernel.fit_h(z_samples)
-            z_aux, epsilon_aux = self.reverse_model.sample(
+            z_aux, epsilon_aux, log_q_psi_epsilon_given_z = self.reverse_model.sample(
                 z_samples,
                 num_samples=self.training_reverse_sample_num,
             )
             importance_sampling_weights = self.vi_model.log_q_epsilon(
-                epsilon_aux) - self.reverse_model.log_prob(epsilon_aux, z_aux)
+                epsilon_aux) - log_q_psi_epsilon_given_z
             importance_sampling_weights = importance_sampling_weights.detach()
         z_aux.requires_grad_(True)
         log_q_phi_z_aux = self.vi_model.logp(
@@ -91,16 +91,12 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         '''
         with torch.no_grad():
             self.reverse_model.eval()
-            z_aux, epsilon_aux = self.reverse_model.sample(
+            z_aux, epsilon_aux, log_q_psi_epsilon_given_z = self.reverse_model.sample(
                 z,
                 num_samples=self.training_reverse_sample_num,
             )
 
             log_q_epsilon = self.vi_model.log_q_epsilon(epsilon_aux)
-            log_q_psi_epsilon_given_z = self.reverse_model.log_prob(
-                epsilon_aux,
-                z_aux,
-            )
 
             if torch.isnan(log_q_epsilon).any():
                 logger.debug(

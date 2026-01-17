@@ -26,7 +26,7 @@ class RSIVIRunner(BaseReverseConditionalRunner):
             self.reverse_ksd_kernel = GaussianKernel()
             h = self.reverse_ksd_kernel.fit_h(z_samples)
 
-            z_aux, epsilon_aux = self.reverse_model.sample(
+            z_aux, epsilon_aux, _ = self.reverse_model.sample(
                 z_samples,
                 num_samples=self.training_reverse_sample_num,
             )
@@ -69,7 +69,7 @@ class RSIVIRunner(BaseReverseConditionalRunner):
         '''
         with torch.no_grad():
             self.reverse_model.eval()
-            z_aux, epsilon_aux = self.reverse_model.sample(
+            z_aux, epsilon_aux, _ = self.reverse_model.sample(
                 z,
                 num_samples=self.training_reverse_sample_num,
             )

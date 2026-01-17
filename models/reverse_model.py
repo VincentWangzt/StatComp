@@ -57,7 +57,7 @@ class BaseReverseConditionalModel(nn.Module):
         self,
         z: torch.Tensor,
         num_samples: int = 100,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample `epsilon ~ q_psi(epsilon|z)`. No gradients computed, returns the detached tensors.
 
@@ -65,8 +65,10 @@ class BaseReverseConditionalModel(nn.Module):
             z (torch.Tensor): Conditioning batch `[B, D_z]`.
             num_samples (int): Number of samples per `z`.
         Returns:
-            (z_aux, epsilon_aux) (torch.Tensor, torch.Tensor): Tiled conditioning `z_aux` and samples `epsilon_aux` with
-            shapes `[B, num_samples, D_z]` and `[B, num_samples, D_epsilon]`.
+            (z_aux, epsilon_aux, log_prob) (torch.Tensor, torch.Tensor, torch.Tensor): 
+                - tiled conditioning `z_aux` of shape `[B, num_samples, D_z]`,
+                - samples `epsilon_aux` of shape `[B, num_samples, D_epsilon]`,
+                - log probabilities `log_prob` of shape `[B, num_samples]`.
         """
         raise NotImplementedError
 
@@ -309,7 +311,7 @@ class ConditionalMixtureOfGaussianReverse(BaseReverseConditionalModel):
         self,
         z: torch.Tensor,
         num_samples: int = 100,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample epsilon' ~ q_psi(epsilon|z) using the conditional GMM.
 
@@ -317,7 +319,7 @@ class ConditionalMixtureOfGaussianReverse(BaseReverseConditionalModel):
             z (torch.Tensor): [B, Dz]
             num_samples (int): samples per z
         Returns:
-            (z_aux, epsilon_aux): shapes [B, S, Dz], [B, S, De]
+            (z_aux, epsilon_aux, log_prob): shapes [B, S, Dz], [B, S, De], [B, S]
         """
         assert z.dim() == 2 and z.shape[1] == self.z_dim
         B = z.shape[0]
@@ -411,7 +413,36 @@ class ConditionalMixtureOfGaussianReverse(BaseReverseConditionalModel):
         epsilon_aux = epsilon_flat.view(B, S, De)
         z_aux = z.unsqueeze(1).expand(B, S, Dz)
 
-        return z_aux.clone().detach(), epsilon_aux.clone().detach()
+        # Calculate log_prob
+        # Log probability of epsilon relative to all components, weighted by component probabilities
+
+        # log_w [B, K] -> [B, 1, K]
+        log_probs_w = torch.log(probs.clamp_min(self.jitter)).unsqueeze(1)
+
+        # Prepare means and covariances for all components
+        # means_all: [B, K, De] -> [B, 1, K, De]
+        means_all_expanded = means_all.unsqueeze(1)
+
+        # cond_cov: [K, De, De]. Add jitter.
+        cond_cov_safe = self.cond_cov + self.jitter * torch.eye(
+            De, device=self.device).unsqueeze(0)
+
+        # Construct Multivariate Normal for all components
+        # Batch shape: [B, 1, K] due to broadcasting of means_all_expanded and cond_cov_safe
+        mvn_cond_all = dist.MultivariateNormal(means_all_expanded,
+                                               cond_cov_safe)
+
+        # Evaluate epsilon_aux against all components
+        # epsilon_aux: [B, S, De] -> [B, S, 1, De]
+        # Resulting log_probs_components: [B, S, K]
+        log_probs_components = mvn_cond_all.log_prob(epsilon_aux.unsqueeze(2))
+
+        # Compute log_sum_exp over K components
+        # log p(e|z) = log sum_k p(e|z,k) * w_k(z)
+        log_prob = torch.logsumexp(log_probs_components + log_probs_w, dim=2)
+
+        return z_aux.clone().detach(), epsilon_aux.clone().detach(
+        ), log_prob.clone().detach()
 
     def log_prob(
         self,
@@ -555,7 +586,7 @@ class ConditionalRealNVP(BaseReverseConditionalModel):
         self,
         z: torch.Tensor,
         num_samples: int = 100,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample `epsilon ~ q_psi(epsilon|z)` using the inverse of the flow. No gradients computed. 
 
@@ -563,18 +594,22 @@ class ConditionalRealNVP(BaseReverseConditionalModel):
             z (torch.Tensor): Conditioning batch `[B, D_z]`.
             num_samples (int): Number of samples per `z`.
         Returns:
-            (z_aux, epsilon_aux) (torch.Tensor, torch.Tensor): Tiled conditioning `z_aux` and samples `epsilon_aux` with
-            shapes `[B, num_samples, D_z]` and `[B, num_samples, D_epsilon]`.
+            (z_aux, epsilon_aux, log_prob) (torch.Tensor, torch.Tensor, torch.Tensor): 
+                - tiled conditioning `z_aux` of shape `[B, num_samples, D_z]`,
+                - samples `epsilon_aux` of shape `[B, num_samples, D_epsilon]`,
+                - log probabilities `log_prob` of shape `[B, num_samples]`.
         """
         # Sample from base distribution
         with torch.no_grad():
             z_aux = z.clone().detach().unsqueeze(1).repeat(1, num_samples, 1)
             z_aux = z_aux.reshape(-1, self.z_dim).to(self.device)
             for i in range(3):
-                eps_aux, _ = self.net.sample(
+                # Using sample with log prob from the net
+                eps_aux, log_prob = self.net.sample(
                     num_samples * z.size(0),
                     context=z_aux,
                 )
+
                 if torch.isfinite(eps_aux).all():
                     eps_aux: torch.Tensor = eps_aux.reshape(
                         -1,
@@ -586,7 +621,11 @@ class ConditionalRealNVP(BaseReverseConditionalModel):
                         num_samples,
                         self.z_dim,
                     ).clone().detach()
-                    return z_aux, eps_aux
+                    log_prob = log_prob.reshape(
+                        -1,
+                        num_samples,
+                    ).clone().detach()
+                    return z_aux, eps_aux, log_prob
                 else:
                     logger.warning(
                         f"Non-finite samples detected in RealNVP sampling attempt {i+1}. Retrying..."
@@ -705,7 +744,7 @@ class ConditionalGaussianReverse(BaseReverseConditionalModel):
         self,
         z: torch.Tensor,
         num_samples: int = 100,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample epsilon' ~ q_psi(epsilon|z) using conditional Gaussian.
 
@@ -713,7 +752,7 @@ class ConditionalGaussianReverse(BaseReverseConditionalModel):
             z (torch.Tensor): [B, Dz]
             num_samples (int): samples per z
         Returns:
-            (z_aux, epsilon_aux): shapes [B, S, Dz], [B, S, De]
+            (z_aux, epsilon_aux, log_prob): shapes [B, S, Dz], [B, S, De], [B, S]
         """
         assert z.dim() == 2 and z.shape[1] == self.z_dim
         B = z.shape[0]
@@ -727,7 +766,13 @@ class ConditionalGaussianReverse(BaseReverseConditionalModel):
         L = torch.linalg.cholesky(cond_cov)
         noise = torch.randn(B, S, self.epsilon_dim, device=self.device)
         eps = mean + torch.matmul(noise, L.transpose(0, 1))
-        return z_aux.clone().detach(), eps.clone().detach()
+
+        # Calculate log_prob
+        mvn = dist.MultivariateNormal(mean, cond_cov)
+        log_prob = mvn.log_prob(eps)
+
+        return z_aux.clone().detach(), eps.clone().detach(), log_prob.clone(
+        ).detach()
 
     def log_prob(
         self,

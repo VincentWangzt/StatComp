@@ -20,7 +20,7 @@ train:
     lr: 1.0e-3
     scheduler:
       type: StepLR
-      step_size: 2000
+      step_size: 1000
       gamma: 0.7
   reverse:
     lr: 1.0e-3

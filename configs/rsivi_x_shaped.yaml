@@ -13,7 +13,7 @@ reverse_model_type: ConditionalRealNVP
 
 train:
   epochs: 10000
-  batch_size: 256
+  batch_size: 128
   reverse_sample_num: 256
   vi:
     lr: 1.0e-3
@@ -23,7 +23,7 @@ train:
       gamma: 0.7
   reverse:
     lr: 1.0e-2
-    batch_size: 8192
+    batch_size: 1024
     epochs: 1
     update_freq: 1
   annealing:
@@ -55,9 +55,12 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+  ksd:
+    enabled: true
+    num_samples: 2000
 
 resume:
-  enabled: true
+  enabled: false
   ckpt_dir: results/RSIVI/x_shaped/20260111_160557/checkpoints/epoch_2000
   load_optimizer: true
   no_override_epoch: false

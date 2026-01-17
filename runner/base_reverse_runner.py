@@ -69,8 +69,6 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.warmup_enabled = self.warmup_cfg['enabled']
         self.warmup_batch_size = self.warmup_cfg['batch_size']
         self.warmup_epochs = self.warmup_cfg['epochs']
-        self.warmup_kl_log_freq = self.warmup_cfg.setdefault('kl_log_freq', 0)
-        self.warmup_loss_log_freq = self.warmup_cfg['loss_log_freq']
 
         # Load warmup accumulators
         self.warmup_sample_loss = 0.0
@@ -171,7 +169,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         # Sample epsilon from reverse model given true z
         _, rev_true_z = self.vi_model.sampling(num=self.n_ite_samples)
         with torch.no_grad():
-            generated_z, generated_eps = self.reverse_model.sample(
+            generated_z, generated_eps, _ = self.reverse_model.sample(
                 rev_true_z, num_samples=1)
             generated_z = generated_z.reshape(-1, self.z_dim)
             generated_eps = generated_eps.reshape(-1, self.epsilon_dim)
@@ -203,7 +201,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         # Sample epsilon from reverse model given true z
         _, rev_true_z = self.vi_model.sampling(num=self.n_w2_samples)
         with torch.no_grad():
-            generated_z, generated_eps = self.reverse_model.sample(
+            generated_z, generated_eps, _ = self.reverse_model.sample(
                 rev_true_z, num_samples=1)
             generated_z = generated_z.reshape(-1, self.z_dim)
             generated_eps = generated_eps.reshape(-1, self.epsilon_dim)
@@ -259,7 +257,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         Returns:
             None
         '''
-        iterator = range(epochs)
+        iterator = range(1, epochs + 1)
         if progress_bar:
             iterator = tqdm(iterator, desc="Reverse Model Training")
         # Two modes:
@@ -306,23 +304,27 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
-        if epoch % self.warmup_kl_log_freq == 0:
-            kl_div = self.calculate_rev_KL()
-            self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
-            logger.debug(f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
+        if epoch % self.training_metric_log_freq == 0:
 
-            w2_dist = self.calculate_rev_W2()
-            self.writer.add_scalar("warmup/w2_dist", w2_dist, epoch)
-            logger.debug(f"Warmup Epoch {epoch}, W2 Dist: {w2_dist:.4f}")
+            if self.metric_kl_enabled:
+                kl_div = self.calculate_rev_KL()
+                self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
+                logger.debug(
+                    f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
 
-        if epoch % self.warmup_loss_log_freq == 0:
-            avg_loss = self.warmup_sample_loss / self.warmup_loss_log_freq
+            if self.metric_w2_enabled:
+                w2_dist = self.calculate_rev_W2()
+                self.writer.add_scalar("warmup/w2_dist", w2_dist, epoch)
+                logger.debug(f"Warmup Epoch {epoch}, W2 Dist: {w2_dist:.4f}")
+
+        if epoch % self.training_loss_log_freq == 0:
+            avg_loss = self.warmup_sample_loss / self.training_loss_log_freq
             current_time = time.perf_counter()
-            avg_step_time = (current_time -
-                             self.warmup_last_time) / self.warmup_loss_log_freq
+            avg_step_time = (current_time - self.warmup_last_time
+                             ) / self.training_loss_log_freq
             self.warmup_last_time = current_time
             self.warmup_sample_loss = 0.0
-            avg_steps = self.warmup_steps / self.warmup_loss_log_freq
+            avg_steps = self.warmup_steps / self.training_loss_log_freq
             logger.debug(
                 f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s, Avg Steps: {avg_steps:.4f}"
             )

@@ -16,7 +16,7 @@ train:
   batch_size: 128
   reverse_sample_num: 256
   vi:
-    lr: 1.0e-4
+    lr: 1.0e-3
     scheduler:
       type: StepLR
       step_size: 1000
@@ -55,9 +55,12 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+  ksd:
+    enabled: true
+    num_samples: 2000
 
 resume:
-  enabled: true
+  enabled: false
   ckpt_dir: results/RSIVI/banana/20260111_172923/checkpoints/epoch_4000
   load_optimizer: true
   no_override_epoch: false

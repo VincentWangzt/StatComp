@@ -12,8 +12,8 @@ vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
 
 train:
-  epochs: 2000
-  batch_size: 1024
+  epochs: 10000
+  batch_size: 128
   normalize_reverse_score: false
   vi:
     lr: 1.0e-3
@@ -27,9 +27,9 @@ train:
     epochs: 10
     update_freq: 1
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
-    steps: 1000
+    steps: 5000
   log:
     metric_log_freq: 10
     loss_log_freq: 100
@@ -58,3 +58,6 @@ metric:
     batch_size: 512
     num_batches: 10
     num_z_samples: 5000
+  ksd:
+    enabled: true
+    num_samples: 2000

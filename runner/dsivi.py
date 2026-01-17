@@ -151,14 +151,14 @@ class DSIVIRunner(BaseReverseConditionalRunner):
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
 
-        if epoch % self.warmup_loss_log_freq == 0:
-            avg_loss = self.warmup_sample_loss / self.warmup_loss_log_freq
+        if epoch % self.training_loss_log_freq == 0:
+            avg_loss = self.warmup_sample_loss / self.training_loss_log_freq
             current_time = time.perf_counter()
-            avg_step_time = (current_time -
-                             self.warmup_last_time) / self.warmup_loss_log_freq
+            avg_step_time = (current_time - self.warmup_last_time
+                             ) / self.training_loss_log_freq
             self.warmup_last_time = current_time
             self.warmup_sample_loss = 0.0
-            avg_steps = self.warmup_steps / self.warmup_loss_log_freq
+            avg_steps = self.warmup_steps / self.training_loss_log_freq
             logger.debug(
                 f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s, Avg Steps: {avg_steps:.4f}"
             )

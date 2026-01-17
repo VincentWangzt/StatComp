@@ -146,8 +146,8 @@ class ConditionalGaussian(BaseVIModel):
         self.hidden_dim: int = config.hidden_dim
         self.num_layers: int = config.num_layers
         self.out_dim = self.z_dim * 2
-        self.log_var_min = -10
-        # The network outputs both mean and log-variance
+        self.var_min = 1e-4
+        # The network outputs both mean and variance
         layers = []
         input_dim = self.epsilon_dim
         for _ in range(self.num_layers):
@@ -160,19 +160,21 @@ class ConditionalGaussian(BaseVIModel):
     def reparameterize(
         self,
         mu: torch.Tensor,
-        log_var: torch.Tensor,
+        var_raw: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Reparameterization trick for `q_phi(z|epsilon)`.
 
         Args:
             mu (torch.Tensor): Mean.
-            log_var (torch.Tensor): Log-variance.
+            var_raw (torch.Tensor): Raw variance. Will be reparameterized by softplus.
         Returns:
             (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std` where
             `z = mu + std * u` and `u ~ N(0, I)`.
         """
-        std = torch.exp(log_var / 2)
+        var = torch.nn.functional.softplus(var_raw)
+        var = var.clamp(min=self.var_min)
+        std = torch.sqrt(var)
         u = torch.randn_like(mu)
         return mu + std * u, u / std
 
@@ -181,10 +183,11 @@ class ConditionalGaussian(BaseVIModel):
         return self.net(epsilon).chunk(2, dim=-1)[0]
 
     def getstd(self, epsilon: torch.Tensor) -> torch.Tensor:
-        """Return `std(epsilon)` by clamping log-var and exponentiating."""
-        log_var = self.net(epsilon).chunk(
-            2, dim=-1)[1].clamp(min=self.log_var_min)
-        std = torch.exp(log_var / 2)
+        """Return `std(epsilon)` by clamping variance and taking square root."""
+        var_raw = self.net(epsilon).chunk(2, dim=-1)[1]
+        var = torch.nn.functional.softplus(var_raw)
+        var = var.clamp(min=self.var_min)
+        std = torch.sqrt(var)
         return std
 
     def forward(
@@ -199,9 +202,8 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std`.
         """
-        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
-        log_var = log_var.clamp(min=self.log_var_min)
-        z, neg_score_implicit = self.reparameterize(mu, log_var)
+        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        z, neg_score_implicit = self.reparameterize(mu, var_raw)
         return z, neg_score_implicit
 
     def sample_epsilon(
@@ -249,9 +251,9 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             score (torch.Tensor): Score `-(z - mu(epsilon)) / var(epsilon)`.
         """
-        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
-        log_var = log_var.clamp(min=self.log_var_min)
-        var = torch.exp(log_var)
+        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        var = torch.nn.functional.softplus(var_raw)
+        var = var.clamp(min=self.var_min)
         score = -(z - mu) / (var)
         return score
 
@@ -269,12 +271,12 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             log_prob (torch.Tensor): shape [...]
         """
-        mu, log_var = self.net(epsilon).chunk(2, dim=-1)
-        log_var = log_var.clamp(min=self.log_var_min)
-        var = torch.exp(log_var)
+        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        var = torch.nn.functional.softplus(var_raw)
+        var = var.clamp(min=self.var_min)
         # Gaussian log-likelihood per sample
         const = -0.5 * z.shape[-1] * math.log(2 * math.pi)
-        ll = const - 0.5 * (log_var.sum(dim=-1) +
+        ll = const - 0.5 * (var.log().sum(dim=-1) +
                             ((z - mu)**2 / var).sum(dim=-1))
         return ll
 

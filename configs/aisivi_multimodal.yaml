@@ -14,7 +14,7 @@ reverse_model_type: ConditionalRealNVP
 train:
   epochs: 10000
   batch_size: 128
-  reverse_sample_num: 512
+  reverse_sample_num: 256
   vi:
     lr: 1.0e-3
     scheduler:
@@ -55,3 +55,6 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+  ksd:
+    enabled: true
+    num_samples: 2000

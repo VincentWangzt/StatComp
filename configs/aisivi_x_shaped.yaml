@@ -55,3 +55,6 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+  ksd:
+    enabled: true
+    num_samples: 2000
