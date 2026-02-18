@@ -30,33 +30,37 @@ Additional command-line arguments can be added via `key=value` pairs. For exampl
 python src.py --config configs/sivi_banana.yaml train.epochs=20000
 ```
 
-## Viewing TensorBoard Logs
+## Viewing TensorBoard Logs | 查看 TensorBoard 日志
 During training, metrics and visualizations are automatically logged to TensorBoard. To view these logs:
 
-1. Launch TensorBoard by running:
+在训练过程中，指标和可视化结果会自动记录到 TensorBoard。查看这些日志：
+
+1. Launch TensorBoard by running | 启动 TensorBoard：
    ```bash
    tensorboard --logdir tb_logs/
    ```
 
-2. Open your web browser and navigate to:
+2. Open your web browser and navigate to | 在浏览器中打开：
    ```
    http://localhost:6006
    ```
 
-3. You can view various training metrics including:
-   - Training loss
-   - ELBO (Evidence Lower Bound)
-   - KL divergence
-   - Wasserstein-2 distance
-   - Learning rate schedules
-   - Training time statistics
+3. You can view various training metrics including | 您可以查看各种训练指标，包括：
+   - Training loss | 训练损失
+   - ELBO (Evidence Lower Bound) | ELBO（证据下界）
+   - KL divergence | KL 散度
+   - Wasserstein-2 distance | Wasserstein-2 距离
+   - Learning rate schedules | 学习率调度
+   - Training time statistics | 训练时间统计
 
-**Note**: If you're running experiments on a remote server, you may need to set up SSH port forwarding to view TensorBoard locally:
+**Note | 注意**: If you're running experiments on a remote server, you may need to set up SSH port forwarding to view TensorBoard locally | 如果在远程服务器上运行实验，需要设置 SSH 端口转发以在本地查看 TensorBoard：
 ```bash
 ssh -L 6006:localhost:6006 user@remote-server
 ```
 
 Then run `tensorboard --logdir tb_logs/` on the remote server and access it via `http://localhost:6006` on your local machine.
+
+然后在远程服务器上运行 `tensorboard --logdir tb_logs/`，并通过本地机器的 `http://localhost:6006` 访问。
 
 ## HMC baselines
 To run HMC baselines, use the `mcmc_baselines.py` script.
