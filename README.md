@@ -30,6 +30,34 @@ Additional command-line arguments can be added via `key=value` pairs. For exampl
 python src.py --config configs/sivi_banana.yaml train.epochs=20000
 ```
 
+## Viewing TensorBoard Logs
+During training, metrics and visualizations are automatically logged to TensorBoard. To view these logs:
+
+1. Launch TensorBoard by running:
+   ```bash
+   tensorboard --logdir tb_logs/
+   ```
+
+2. Open your web browser and navigate to:
+   ```
+   http://localhost:6006
+   ```
+
+3. You can view various training metrics including:
+   - Training loss
+   - ELBO (Evidence Lower Bound)
+   - KL divergence
+   - Wasserstein-2 distance
+   - Learning rate schedules
+   - Training time statistics
+
+**Note**: If you're running experiments on a remote server, you may need to set up SSH port forwarding to view TensorBoard locally:
+```bash
+ssh -L 6006:localhost:6006 user@remote-server
+```
+
+Then run `tensorboard --logdir tb_logs/` on the remote server and access it via `http://localhost:6006` on your local machine.
+
 ## HMC baselines
 To run HMC baselines, use the `mcmc_baselines.py` script.
 ```bash
