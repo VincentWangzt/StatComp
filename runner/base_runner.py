@@ -79,8 +79,20 @@ class BaseSIVIRunner():
         self.resume: bool = self.resume_config['enabled']
 
         # target
-        self.target_model = target_distribution[self.target_type](
-            device=self.device)
+        self.target_model = self._build_target_model()
+
+        # Override z_dim/epsilon_dim in target config if the target model
+        # reports a different dimensionality (data-dependent targets).
+        model_z_dim = getattr(self.target_model, 'z_dim', None)
+        if model_z_dim is not None:
+            cfg_z_dim = self.config.target.get('z_dim', None)
+            if cfg_z_dim is not None and cfg_z_dim != model_z_dim:
+                logger.info(
+                    f"Overriding target z_dim from config ({cfg_z_dim}) "
+                    f"with model z_dim ({model_z_dim})"
+                )
+            self.config.target.z_dim = model_z_dim
+            self.config.target.epsilon_dim = model_z_dim
 
         # baseline sample
         self.baseline_samples = self._load_baseline_samples()
@@ -88,11 +100,17 @@ class BaseSIVIRunner():
         # kl ite samples
         self.metric_kl_enabled = self.config['metric']['kl_ite'].setdefault(
             'enabled', True)
+        if self.metric_kl_enabled and self.baseline_samples is None:
+            logger.warning("No baseline samples available; disabling KL metric.")
+            self.metric_kl_enabled = False
         self.n_ite_samples = self.config['metric']['kl_ite']['num_samples']
 
         # w2 samples
         self.metric_w2_enabled = self.config['metric']['w2'].setdefault(
             'enabled', True)
+        if self.metric_w2_enabled and self.baseline_samples is None:
+            logger.warning("No baseline samples available; disabling W2 metric.")
+            self.metric_w2_enabled = False
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
 
@@ -100,6 +118,9 @@ class BaseSIVIRunner():
         self.config.metric.setdefault('ksd', {})
         self.metric_ksd_enabled = self.config['metric']['ksd'].setdefault(
             'enabled', False)
+        if self.metric_ksd_enabled and self.baseline_samples is None:
+            logger.warning("No baseline samples available; disabling KSD metric.")
+            self.metric_ksd_enabled = False
         self.n_ksd_samples = self.config['metric']['ksd'].setdefault(
             'num_samples', 1000)
 
@@ -107,6 +128,9 @@ class BaseSIVIRunner():
         self.config.metric.setdefault('mmd', {})
         self.metric_mmd_enabled = self.config['metric']['mmd'].setdefault(
             'enabled', False)
+        if self.metric_mmd_enabled and self.baseline_samples is None:
+            logger.warning("No baseline samples available; disabling MMD metric.")
+            self.metric_mmd_enabled = False
         self.n_mmd_samples = self.config['metric']['mmd'].setdefault(
             'num_samples', 1000)
         self._init_mmd_baseline_samples()
@@ -228,6 +252,30 @@ class BaseSIVIRunner():
         self.plot_save_path = os.path.join(self.save_path, "plots")
         os.makedirs(self.plot_save_path, exist_ok=True)
 
+    # Data-dependent target types that require the DataBoundTarget wrapper
+    _DATA_DEPENDENT_TARGETS = frozenset({"LRwaveform", "Bnn_boston"})
+
+    def _build_target_model(self):
+        """Instantiate the target model.
+
+        For standard targets, delegates to the ``target_distribution`` registry.
+        For data-dependent targets (``LRwaveform``, ``Bnn_boston``), uses the
+        :func:`~models.data_bound_target.build_data_bound_target` factory which
+        loads data and wraps the inner model.
+        """
+        if self.target_type in self._DATA_DEPENDENT_TARGETS:
+            from models.data_bound_target import build_data_bound_target
+
+            target_cfg = OmegaConf.to_container(
+                self.config.get('target', {}), resolve=True
+            )
+            return build_data_bound_target(
+                target_type=self.target_type,
+                target_cfg=target_cfg,
+                device=self.device,
+            )
+        return target_distribution[self.target_type](device=self.device)
+
     def log_config(self):
         '''
         Log the full configuration to TensorBoard and save as YAML file.
@@ -246,13 +294,13 @@ class BaseSIVIRunner():
             f.write(config_str)
         logger.info(f"Saved full configuration to {config_save_path}.")
 
-    def _load_baseline_samples(self) -> np.ndarray:
+    def _load_baseline_samples(self) -> np.ndarray | None:
         """
         Load baseline MCMC samples from a configured path (`self.config.target.baseline_path`) for the current target. If not available, use a default path `baselines/hmc/{target_dist}.pt`.
 
         Returns:
-            samples (np.ndarray): Loaded baseline samples on cpu.
-        
+            samples (np.ndarray | None): Loaded baseline samples on cpu, or None if unavailable.
+
         """
         baseline_path = self.config.target.get('baseline_path', None)
 
@@ -270,9 +318,11 @@ class BaseSIVIRunner():
             )
             return samples.cpu().numpy()
         except Exception as e:
-            logger.error(
-                f"Failed to load baseline samples from {baseline_path}: {e}")
-            raise e
+            logger.warning(
+                f"Failed to load baseline samples from {baseline_path}: {e}. "
+                f"KL and W2 metrics will be disabled."
+            )
+            return None
 
     def evaluate_vi_to_baseline_kl(self) -> float:
         """

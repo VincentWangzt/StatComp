@@ -19,7 +19,6 @@ import scipy.stats as st
 import torch
 import torch.nn.functional as F
 
-from utils.batch_jacobian import compute_jacobian
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -67,6 +66,7 @@ DEFAULT_BBOX: dict[str, list[float]] = {
     "multimodal": [-5, 5, -5, 5],
     "banana": [-3.5, 3.5, -6, 1],
     "x_shaped": [-5, 5, -5, 5],
+    "student_uc": [-5, 5, -5, 5],
 }
 
 # Banana_shape covariance determinant (det of [[1, -0.9], [-0.9, 1]])
@@ -557,26 +557,44 @@ class StudentTFullDim(Toy_2D):
         ).squeeze(-1)  # (B, D)
         return X
 
+    def sample(self, N: int) -> torch.Tensor:
+        """Draw exact samples (alias for :meth:`sample_gt_impl`)."""
+        return self.sample_gt_impl(N)
+
     def score(self, X: torch.Tensor) -> torch.Tensor:
-        r"""Compute :math:`\nabla_X \log p(X)` via automatic differentiation.
+        r"""Compute :math:`\nabla_X \log p(X)` analytically.
+
+        For independent univariate Student-*t* marginals in the transformed
+        space ``Z = A_inv @ X``, the per-component score in Z-space is::
+
+            dlogp/dZ_i = -(df+1)/df * Z_i / (1 + Z_i^2/df)
+
+        Chain rule back to X-space gives::
+
+            score_X = A_inv^T @ dlogp/dZ
 
         Parameters
         ----------
         X : torch.Tensor
-            Input points, shape ``(batch, dim)``.  Must have
-            ``requires_grad=True``.
+            Input points, shape ``(batch, dim)``.
 
         Returns
         -------
         torch.Tensor
             Score vectors, shape ``(batch, dim)``.
         """
-        log_p = self.logp(X)
-        grad_log_p = compute_jacobian(
-            log_p.unsqueeze(-1), X, create_graph=True, retain_graph=True
-        )
-        grad_log_p = grad_log_p.squeeze(-2)
-        return grad_log_p
+        B = X.shape[0]
+        # Z = A_inv @ X, shape (B, D)
+        Z = torch.bmm(
+            self.A_inv.unsqueeze(0).expand(B, -1, -1), X.unsqueeze(-1)
+        ).squeeze(-1)
+        # Per-component score in Z-space
+        dlogp_dZ = -(self.df + 1.0) / self.df * Z / (1.0 + Z ** 2 / self.df)
+        # Chain rule: score_X = A_inv^T @ dlogp_dZ  (A_inv is symmetric for this construction)
+        score_X = torch.bmm(
+            self.A_inv.T.unsqueeze(0).expand(B, -1, -1), dlogp_dZ.unsqueeze(-1)
+        ).squeeze(-1)
+        return score_X
 
 
 # ---------------------------------------------------------------------------
