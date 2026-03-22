@@ -802,12 +802,13 @@ class BaseSIVIRunner():
 
             # Compute loss
             loss = -torch.mean(log_prob_target - log_q_phi_z)
-            grad_norm = torch.nn.utils.get_total_norm(
-                self.vi_model.parameters(), )
+            grad_norm = None
 
             if torch.isfinite(loss):
                 self.optimizer_vi.zero_grad()
                 loss.backward()
+                grad_norm = torch.nn.utils.get_total_norm(
+                    self.vi_model.parameters(), )
                 self.optimizer_vi.step()
                 self.scheduler_vi.step()
             else:
@@ -827,11 +828,12 @@ class BaseSIVIRunner():
 
             # TensorBoard scalars
             self.writer.add_scalar("train/loss", loss.item(), epoch)
-            self.writer.add_scalar(
-                "norm/grad_train_step",
-                grad_norm.item(),
-                epoch,
-            )
+            if grad_norm is not None:
+                self.writer.add_scalar(
+                    "norm/grad_train_step",
+                    grad_norm.item(),
+                    epoch,
+                )
             z_norm = torch.norm(z, dim=1)
             self.writer.add_scalar(
                 "norm/z_norm_avg",
