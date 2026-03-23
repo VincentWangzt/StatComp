@@ -64,9 +64,12 @@ class BaseSIVIRunner():
         )  # type: ignore
 
         # save path
+        self.config.setdefault('output', {})
+        results_dir = self.config.output.get('results_dir', 'results')
+        tb_dir = self.config.output.get('tb_dir', 'tb_logs')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.save_path = os.path.join("results", self.name, self.target_type,
-                                      timestamp)
+        self.save_path = os.path.join(results_dir, self.name,
+                                      self.target_type, timestamp)
         os.makedirs(self.save_path, exist_ok=True)
 
         # attach file logger under save path
@@ -194,7 +197,8 @@ class BaseSIVIRunner():
         self.reverse_train = False
 
         # TensorBoard writer
-        self.tb_path = self.save_path.replace("results", "tb_logs")
+        self.tb_path = os.path.join(tb_dir, self.name, self.target_type,
+                                    timestamp)
         os.makedirs(self.tb_path, exist_ok=True)
 
         self.writer = SummaryWriter(log_dir=self.tb_path)
