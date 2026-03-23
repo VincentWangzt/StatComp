@@ -132,6 +132,15 @@ class BaseSIVIRunner():
             'num_samples', 1000)
         self._init_mmd_baseline_samples()
 
+        # fisher divergence config
+        self.config.metric.setdefault('fisher', {})
+        self.metric_fisher_enabled = self.config['metric']['fisher'].setdefault(
+            'enabled', False)
+        self.n_fisher_samples = self.config['metric']['fisher'].setdefault(
+            'num_samples', 1000)
+        self.n_fisher_is_samples = self.config['metric']['fisher'].setdefault(
+            'num_is_samples', 512)
+
         # elbo samples
         self.metric_elbo_enabled = self.config['metric']['elbo'].setdefault(
             'enabled', True)
@@ -647,6 +656,71 @@ class BaseSIVIRunner():
             f"Epoch {epoch}, BNN RMSE: {rmse:.4f}, Test LLK: {test_llk:.4f}, NLL: {-test_llk:.4f}"
         )
 
+    def evaluate_fisher_divergence(self) -> float:
+        """
+        Estimate the Fisher divergence between q_phi(z) and the target p(z):
+
+            FD(p || q) = E_{z ~ q_phi} [ || score_p(z) - score_q(z) ||^2 ]
+
+        where:
+            score_p(z) = nabla_z log p(z)  -- from target_model.score()
+            score_q(z) = nabla_z log q_phi(z)
+                       ~ sum_k softmax(log q(z|eps_k)) * nabla_z log q(z|eps_k)
+                       = E_{eps ~ p(eps)} [ nabla_z log q(z|eps) ]  (IS estimate)
+
+        The IS estimate of score_q uses the same logsumexp-softmax weighting as
+        the ELBO estimator. vi_model.score(z, eps) = -(z - mu(eps)) / var(eps)
+        gives nabla_z log q(z|eps) analytically.
+
+        Returns:
+            fisher_div (float): Estimated Fisher divergence.
+        """
+        with torch.no_grad():
+            # 1. Sample z ~ q_phi
+            _, z_samples = self.vi_model.sampling(num=self.n_fisher_samples)
+            # z_samples: [N, Dz]
+
+            # 2. Sample epsilon' ~ p(epsilon) for IS
+            eps = self.vi_model.sample_epsilon(num=self.n_fisher_is_samples)
+            # eps: [K, De]
+
+            # Expand for joint computation: z [N,1,Dz], eps [1,K,De]
+            z_exp = z_samples.unsqueeze(1).expand(-1, self.n_fisher_is_samples, -1)
+            eps_exp = eps.unsqueeze(0).expand(self.n_fisher_samples, -1, -1)
+
+            # 3. log q(z|eps_k): [N, K]
+            log_q_z_given_eps = self.vi_model.logp(z_exp, eps_exp)
+
+            # 4. Softmax weights over K: [N, K]
+            log_w = log_q_z_given_eps - torch.logsumexp(log_q_z_given_eps, dim=1, keepdim=True)
+            w = torch.exp(log_w)  # [N, K]
+
+            # 5. nabla_z log q(z|eps_k): [N, K, Dz]
+            score_q_given_eps = self.vi_model.score(z_exp, eps_exp)
+
+            # 6. Weighted sum -> score_q(z): [N, Dz]
+            score_q = (w.unsqueeze(-1) * score_q_given_eps).sum(dim=1)
+
+            # 7. Ground truth score: [N, Dz]
+            score_p = self.target_model.score(z_samples)
+
+            # 8. Fisher divergence: E[ || score_p - score_q ||^2 ]
+            fisher_div = torch.mean(
+                torch.sum((score_p - score_q) ** 2, dim=-1)
+            )
+
+        return fisher_div.item()
+
+    def eval_fisher(self, epoch: int):
+        '''
+        Evaluate Fisher divergence and log to TensorBoard.
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        fisher_val = self.evaluate_fisher_divergence()
+        self.writer.add_scalar("metric/vi_model/fisher_div", fisher_val, epoch)
+        logger.debug(f"Epoch {epoch}, Fisher Divergence: {fisher_val:.4f}")
+
     def save_samples(self, epoch: int):
         '''
         Save samples from the VI model at the given epoch.
@@ -1034,6 +1108,13 @@ class BaseSIVIRunner():
                     t_bnn1 = time.perf_counter()
 
                     time_scalars['bnn_estimation'] = t_bnn1 - t_bnn0
+
+                if self.metric_fisher_enabled:
+                    t_fisher0 = time.perf_counter()
+                    self.eval_fisher(epoch)
+                    t_fisher1 = time.perf_counter()
+
+                    time_scalars['fisher_estimation'] = t_fisher1 - t_fisher0
 
                 t_metric1 = time.perf_counter()
                 time_metric_step = t_metric1 - t_metric0

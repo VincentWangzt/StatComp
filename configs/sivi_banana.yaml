@@ -49,3 +49,7 @@ metric:
     batch_size: 512
     num_batches: 1
     num_z_samples: 500
+  fisher:
+    enabled: true
+    num_samples: 1000
+    num_is_samples: 512
