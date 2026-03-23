@@ -114,13 +114,10 @@ class BaseSIVIRunner():
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
 
-        # ksd config
+        # ksd config (KSD uses target_model.score(), not baseline samples)
         self.config.metric.setdefault('ksd', {})
         self.metric_ksd_enabled = self.config['metric']['ksd'].setdefault(
             'enabled', False)
-        if self.metric_ksd_enabled and self.baseline_samples is None:
-            logger.warning("No baseline samples available; disabling KSD metric.")
-            self.metric_ksd_enabled = False
         self.n_ksd_samples = self.config['metric']['ksd'].setdefault(
             'num_samples', 1000)
 
