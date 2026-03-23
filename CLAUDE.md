@@ -103,6 +103,9 @@ This generates pre-processed `.pt` files under `data/waveform/` and `data/boston
 - **Host**: `ssh -p 44817 root@region-41.seetacloud.com`
 - **Code path**: `~/ruivi/` (same repo, `vince-dev` branch)
 - **Conda env**: `ruivi` (Python 3.14.2, PyTorch 2.9.0+cu126)
-- **GPU**: NVIDIA GeForce RTX 3080 (10 GB)
-- **Workflow**: push locally → pull on remote; use `tmux` for long runs
+- **GPUs**: 2× NVIDIA GeForce RTX 3080 (10 GB each)
+  - Use `cuda_visible_devices="0"` and `cuda_visible_devices="1"` to assign GPUs
+  - Two experiments can run in parallel on separate GPUs
+- **Workflow**: push locally → pull on remote; use `tmux` for long runs (sessions `gpu0`, `gpu1`)
 - **Sync logs to local**: `rsync -avz --exclude='*.pt' --exclude='*.pth' --exclude='checkpoint*' -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/results/ results/`
+- **Sync TensorBoard to local**: `rsync -avz -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/tb_logs/ tb_logs/`
