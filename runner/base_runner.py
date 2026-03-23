@@ -397,7 +397,7 @@ class BaseSIVIRunner():
             epoch (int): Current epoch number.
         '''
         kl_div = self.evaluate_vi_to_baseline_kl()
-        self.writer.add_scalar("train/vi_kl_to_baseline", kl_div, epoch)
+        self.writer.add_scalar("metric/vi_model/kl_ite", kl_div, epoch)
         logger.debug(f"Epoch {epoch}, VI KL to baseline: {kl_div:.4f}")
 
     def eval_w2(self, epoch: int):
@@ -407,7 +407,7 @@ class BaseSIVIRunner():
             epoch (int): Current epoch number.
         '''
         w2_dist = self.evaluate_vi_to_baseline_w2()
-        self.writer.add_scalar("train/vi_w2_to_baseline", w2_dist, epoch)
+        self.writer.add_scalar("metric/vi_model/w2", w2_dist, epoch)
         logger.debug(f"Epoch {epoch}, VI W2 to baseline: {w2_dist:.4f}")
 
     def evaluate_elbo(self) -> tuple[float, float, float, float]:
@@ -532,11 +532,11 @@ class BaseSIVIRunner():
         '''
         elbo_val, elbo_std_total, elbo_std_q, elbo_ci_half = self.evaluate_elbo(
         )
-        self.writer.add_scalar("train/vi_elbo", elbo_val, epoch)
-        self.writer.add_scalar("train/vi_elbo_std_total", elbo_std_total,
+        self.writer.add_scalar("metric/vi_model/elbo", elbo_val, epoch)
+        self.writer.add_scalar("metric/vi_model/elbo_std_total", elbo_std_total,
                                epoch)
-        self.writer.add_scalar("train/vi_elbo_std_q", elbo_std_q, epoch)
-        self.writer.add_scalar("train/vi_elbo_ci_half", elbo_ci_half, epoch)
+        self.writer.add_scalar("metric/vi_model/elbo_std_q", elbo_std_q, epoch)
+        self.writer.add_scalar("metric/vi_model/elbo_ci_half", elbo_ci_half, epoch)
 
         logger.debug(
             f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}, CI Half: {elbo_ci_half:.4f}"
@@ -567,7 +567,7 @@ class BaseSIVIRunner():
             epoch (int): Current epoch number.
         '''
         ksd_val = self.evaluate_ksd()
-        self.writer.add_scalar("train/vi_ksd", ksd_val, epoch)
+        self.writer.add_scalar("metric/vi_model/ksd", ksd_val, epoch)
         logger.debug(f"Epoch {epoch}, VI KSD: {ksd_val:.4f}")
 
     def _init_mmd_baseline_samples(self):
@@ -619,7 +619,7 @@ class BaseSIVIRunner():
             epoch (int): Current epoch number.
         '''
         mmd_val = self.evaluate_mmd()
-        self.writer.add_scalar("train/vi_mmd", mmd_val, epoch)
+        self.writer.add_scalar("metric/vi_model/mmd", mmd_val, epoch)
         logger.debug(f"Epoch {epoch}, VI MMD: {mmd_val:.4f}")
 
     def evaluate_bnn_metrics(self) -> tuple[float, float]:
@@ -916,32 +916,32 @@ class BaseSIVIRunner():
             time_scalars['backward'] = time_backward_step
 
             # TensorBoard scalars
-            self.writer.add_scalar("train/loss", loss.item(), epoch)
+            self.writer.add_scalar("train/vi_model/loss", loss.item(), epoch)
             if grad_norm is not None:
                 self.writer.add_scalar(
-                    "norm/grad_train_step",
+                    "diagnostic/vi_model/grad_norm",
                     grad_norm.item(),
                     epoch,
                 )
             z_norm = torch.norm(z, dim=1)
             self.writer.add_scalar(
-                "norm/z_norm_avg",
+                "diagnostic/vi_model/z_norm_avg",
                 z_norm.mean().item(),
                 epoch,
             )
             self.writer.add_scalar(
-                "norm/z_norm_std",
+                "diagnostic/vi_model/z_norm_std",
                 z_norm.std().item(),
                 epoch,
             )
             epsilon_norm = torch.norm(epsilon, dim=1)
             self.writer.add_scalar(
-                "norm/epsilon_norm_avg",
+                "diagnostic/vi_model/epsilon_norm_avg",
                 epsilon_norm.mean().item(),
                 epoch,
             )
             self.writer.add_scalar(
-                "norm/epsilon_norm_std",
+                "diagnostic/vi_model/epsilon_norm_std",
                 epsilon_norm.std().item(),
                 epoch,
             )

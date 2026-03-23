@@ -197,8 +197,8 @@ class UIVIRunner(BaseSIVIRunner):
     def eval_ksd(self, epoch: int):
         super().eval_ksd(epoch)
         rev_ksd, rev_h = self.calculate_rev_KSD()
-        self.writer.add_scalar("train/rev_model_ksd", rev_ksd, epoch)
-        self.writer.add_scalar("train/rev_model_ksd_h", rev_h, epoch)
+        self.writer.add_scalar("metric/reverse_model/ksd", rev_ksd, epoch)
+        self.writer.add_scalar("metric/reverse_model/ksd_h", rev_h, epoch)
 
     def calc_log_q_phi_z(
         self,
@@ -228,7 +228,7 @@ class UIVIRunner(BaseSIVIRunner):
             leapfrog_steps=self.hmc_leapfrog_steps,
         )
         self.writer.add_scalar(
-            "train/hmc_accept_rate",
+            "train/reverse_model/hmc_accept_rate",
             acc_rate,
             self.curr_epoch,
         )
@@ -245,7 +245,7 @@ class UIVIRunner(BaseSIVIRunner):
                     dim=-1,
                 )).item()
             self.writer.add_scalar(
-                "norm/avg_epsilon_distance",
+                "diagnostic/reverse_model/avg_epsilon_distance",
                 avg_eps_distance,
                 self.curr_epoch,
             )

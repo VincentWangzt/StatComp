@@ -73,7 +73,7 @@ class SIVIRunner(BaseSIVIRunner):
                 dim=-1,
             )).item()
         self.writer.add_scalar(
-            "norm/avg_epsilon_distance",
+            "diagnostic/reverse_model/avg_epsilon_distance",
             avg_eps_distance,
             self.curr_epoch,
         )

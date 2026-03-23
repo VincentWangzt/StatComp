@@ -161,8 +161,8 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             logger.debug(
                 f"Epoch {epoch_outer}, Inner epoch {epoch_inner}, Reverse Model Loss: {avg_loss:.4f}, Avg Steps: {avg_steps:.4f}"
             )
-        self.writer.add_scalar("train/reverse_model_loss", loss, epoch)
-        self.writer.add_scalar("train/reverse_model_steps", steps, epoch)
+        self.writer.add_scalar("train/reverse_model/loss", loss, epoch)
+        self.writer.add_scalar("train/reverse_model/steps", steps, epoch)
 
     def calculate_rev_KL(self) -> float:
         '''
@@ -235,7 +235,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         """
         super().eval_kl_ite(epoch)
         rev_kl_div = self.calculate_rev_KL()
-        self.writer.add_scalar("train/rev_model_kl_ite", rev_kl_div, epoch)
+        self.writer.add_scalar("metric/reverse_model/kl_ite", rev_kl_div, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model KL ITE: {rev_kl_div:.4f}")
 
     def eval_w2(self, epoch: int):
@@ -246,7 +246,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         """
         super().eval_w2(epoch)
         rev_w2 = self.calculate_rev_W2()
-        self.writer.add_scalar("train/rev_model_w2", rev_w2, epoch)
+        self.writer.add_scalar("metric/reverse_model/w2", rev_w2, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model W2: {rev_w2:.4f}")
 
     def _train_reverse_model(
