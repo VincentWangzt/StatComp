@@ -92,9 +92,17 @@ This generates pre-processed `.pt` files under `data/waveform/` and `data/boston
 | `LRwaveform` | Data-dep | 22 | `configs/targets/LRwaveform.yaml` | None (ELBO only) |
 | `Bnn_boston` | Data-dep | 751 | `configs/targets/Bnn_boston.yaml` | None (ELBO only) |
 
-## Current Debug Environment
+## Environments
 
+### Local (CPU-only, for development/testing)
 - **Python**: 3.14.2 (venv managed by uv 0.10.12, in `.venv/`)
-- **PyTorch**: 2.9.0+cpu (CUDA not available in this environment)
-- **OS**: Linux 5.4.241-1-tlinux4-0017.16 x86_64
-- **GPU**: None detected (CPU-only)
+- **PyTorch**: 2.9.0+cpu
+- **OS**: Linux x86_64
+
+### Remote GPU Server (for training)
+- **Host**: `ssh -p 44817 root@region-41.seetacloud.com`
+- **Code path**: `~/ruivi/` (same repo, `vince-dev` branch)
+- **Conda env**: `ruivi` (Python 3.14.2, PyTorch 2.9.0+cu126)
+- **GPU**: NVIDIA GeForce RTX 3080 (10 GB)
+- **Workflow**: push locally → pull on remote; use `tmux` for long runs
+- **Sync logs to local**: `rsync -avz --exclude='*.pt' --exclude='*.pth' --exclude='checkpoint*' -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/results/ results/`
