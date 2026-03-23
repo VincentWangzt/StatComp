@@ -34,6 +34,9 @@ class AISIVIRunner(BaseReverseConditionalRunner):
             )
             importance_sampling_weights = self.vi_model.log_q_epsilon(
                 epsilon_aux) - log_q_psi_epsilon_given_z
+            # Clip log-importance weights to prevent exploding gradients from
+            # a poorly calibrated reverse model.
+            importance_sampling_weights = importance_sampling_weights.clamp(max=10.0)
             importance_sampling_weights = importance_sampling_weights.detach()
         z_aux.requires_grad_(True)
         log_q_phi_z_aux = self.vi_model.logp(
@@ -109,12 +112,18 @@ class AISIVIRunner(BaseReverseConditionalRunner):
 
             importance_sampling_weights = log_q_epsilon - log_q_psi_epsilon_given_z
 
+            # Clip log-importance weights to prevent exploding gradients from
+            # a poorly calibrated reverse model.
+            importance_sampling_weights = importance_sampling_weights.clamp(max=10.0)
+
             importance_sampling_weights = importance_sampling_weights.detach()
 
-        if torch.isnan(importance_sampling_weights).any():
-            logger.debug(
-                f"{torch.isnan(importance_sampling_weights).sum()} NaN detected in importance sampling weights."
+        nan_mask = torch.isnan(importance_sampling_weights)
+        if nan_mask.any():
+            logger.warning(
+                f"{nan_mask.sum()} NaN detected in importance sampling weights at epoch {self.curr_epoch}. Skipping score computation."
             )
+            return torch.full((z.shape[0],), float('nan'), device=z.device, dtype=z.dtype)
 
         z_aux.requires_grad_(True)
 
