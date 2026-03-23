@@ -44,13 +44,16 @@ if __name__ == "__main__":
 
     seed = main_cfg.get('seed', 42)
 
-    use_cuda = main_cfg.use_cuda and torch.cuda.is_available()
-    if use_cuda:
-        device = 'cuda'
+    # Set CUDA_VISIBLE_DEVICES before any torch.cuda calls
+    if main_cfg.get('use_cuda', False):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(main_cfg.get(
             'cuda_visible_devices',
             '0',
         ))
+
+    use_cuda = main_cfg.use_cuda and torch.cuda.is_available()
+    if use_cuda:
+        device = 'cuda'
         torch.cuda.manual_seed_all(seed)
     else:
         device = 'cpu'
