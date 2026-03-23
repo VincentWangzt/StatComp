@@ -201,4 +201,5 @@ class DSIVIRunner(BaseReverseConditionalRunner):
                 self.curr_epoch,
             )
 
-        return torch.sum(score * z, dim=-1)
+        log_q_phi_z = torch.sum(score * z, dim=-1)
+        return log_q_phi_z, score

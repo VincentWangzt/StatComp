@@ -184,4 +184,5 @@ class AISIVIRunner(BaseReverseConditionalRunner):
                 self.curr_epoch,
             )
 
-        return torch.sum(score * z, dim=-1)  # shape (batch_size,)
+        log_q_phi_z = torch.sum(score * z, dim=-1)  # shape (batch_size,)
+        return log_q_phi_z, score

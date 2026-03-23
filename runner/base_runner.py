@@ -955,7 +955,12 @@ class BaseSIVIRunner():
             t_ns0 = time.perf_counter()
 
             # Give an estimate to log q_phi(z), specifically its gradient
-            log_q_phi_z = self.calc_log_q_phi_z(z, epsilon)
+            result = self.calc_log_q_phi_z(z, epsilon)
+            if isinstance(result, tuple):
+                log_q_phi_z, score_q = result
+            else:
+                log_q_phi_z = result
+                score_q = None
 
             t_ns1 = time.perf_counter()
             time_neg_score_step = t_ns1 - t_ns0
@@ -1019,6 +1024,18 @@ class BaseSIVIRunner():
                 epsilon_norm.std().item(),
                 epoch,
             )
+
+            if score_q is not None:
+                with torch.no_grad():
+                    score_conditional = self.vi_model.score(
+                        z.detach(), epsilon.detach())
+                    score_gap = torch.mean(
+                        torch.sum((score_q - score_conditional) ** 2, dim=-1))
+                    self.writer.add_scalar(
+                        "diagnostic/vi_model/marginal_conditional_score_l2_gap",
+                        score_gap.item(),
+                        epoch,
+                    )
 
             self.training_sample_loss += loss.item()
             if epoch % self.training_loss_log_freq == 0:
