@@ -48,3 +48,5 @@ metric:
     batch_size: 128
     num_batches: 5
     num_z_samples: 200
+  bnn:
+    num_samples: 500

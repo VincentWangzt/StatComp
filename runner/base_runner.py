@@ -139,6 +139,23 @@ class BaseSIVIRunner():
         self.n_elbo_batches = self.config['metric']['elbo']['num_batches']
         self.n_elbo_batch_size = self.config['metric']['elbo']['batch_size']
 
+        # bnn metrics config (RMSE + test log-likelihood; BNN targets only)
+        # Auto-detect: enable if target is a DataBoundTarget wrapping Bnn,
+        # unless explicitly configured via metric.bnn.enabled in the runner config.
+        self.config.metric.setdefault('bnn', {})
+        from models.data_bound_target import DataBoundTarget
+        from models.target_models import Bnn
+        _is_bnn_target = (isinstance(self.target_model, DataBoundTarget) and
+                          isinstance(self.target_model.inner, Bnn))
+        self.metric_bnn_enabled = self.config['metric']['bnn'].setdefault(
+            'enabled', _is_bnn_target)
+        if self.metric_bnn_enabled and not _is_bnn_target:
+            logger.warning(
+                "BNN metrics enabled but target is not a BNN; disabling.")
+            self.metric_bnn_enabled = False
+        self.n_bnn_samples = self.config['metric']['bnn'].setdefault(
+            'num_samples', 500)
+
         # vi model config
         self.vi_model_type: str = self.config.vi_model_type
         logger.info(f"VI model type: {self.vi_model_type}")
@@ -605,6 +622,31 @@ class BaseSIVIRunner():
         self.writer.add_scalar("train/vi_mmd", mmd_val, epoch)
         logger.debug(f"Epoch {epoch}, VI MMD: {mmd_val:.4f}")
 
+    def evaluate_bnn_metrics(self) -> tuple[float, float]:
+        """Sample from VI and compute BNN test RMSE and test log-likelihood.
+
+        Returns:
+            (rmse, test_llk): RMSE of ensemble mean predictions, and Monte Carlo
+            marginalised test log-likelihood. NLL = -test_llk.
+        """
+        with torch.no_grad():
+            _, z = self.vi_model.sampling(num=self.n_bnn_samples)
+        return self.target_model.rmse_llk(z)
+
+    def eval_bnn(self, epoch: int):
+        """Evaluate BNN RMSE / test log-likelihood and log to TensorBoard.
+
+        Args:
+            epoch (int): Current epoch number.
+        """
+        rmse, test_llk = self.evaluate_bnn_metrics()
+        self.writer.add_scalar("metric/vi_model/rmse", rmse, epoch)
+        self.writer.add_scalar("metric/vi_model/test_llk", test_llk, epoch)
+        self.writer.add_scalar("metric/vi_model/nll", -test_llk, epoch)
+        logger.debug(
+            f"Epoch {epoch}, BNN RMSE: {rmse:.4f}, Test LLK: {test_llk:.4f}, NLL: {-test_llk:.4f}"
+        )
+
     def save_samples(self, epoch: int):
         '''
         Save samples from the VI model at the given epoch.
@@ -985,6 +1027,13 @@ class BaseSIVIRunner():
                     t_ksd1 = time.perf_counter()
 
                     time_scalars['ksd_estimation'] = t_ksd1 - t_ksd0
+
+                if self.metric_bnn_enabled:
+                    t_bnn0 = time.perf_counter()
+                    self.eval_bnn(epoch)
+                    t_bnn1 = time.perf_counter()
+
+                    time_scalars['bnn_estimation'] = t_bnn1 - t_bnn0
 
                 t_metric1 = time.perf_counter()
                 time_metric_step = t_metric1 - t_metric0
