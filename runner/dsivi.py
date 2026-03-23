@@ -151,6 +151,19 @@ class DSIVIRunner(BaseReverseConditionalRunner):
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
 
+        if epoch % self.training_metric_log_freq == 0:
+            if self.metric_ksd_enabled:
+                rev_ksd, _ = self.calculate_rev_KSD()
+                self.writer.add_scalar("warmup/rev_model_ksd", rev_ksd, epoch)
+                logger.debug(
+                    f"Warmup Epoch {epoch}, Rev KSD: {rev_ksd:.4f}")
+
+            if self.metric_fisher_enabled:
+                fisher_val = self.evaluate_fisher_divergence()
+                self.writer.add_scalar("warmup/fisher_div", fisher_val, epoch)
+                logger.debug(
+                    f"Warmup Epoch {epoch}, Fisher Div: {fisher_val:.4f}")
+
         if epoch % self.training_loss_log_freq == 0:
             avg_loss = self.warmup_sample_loss / self.training_loss_log_freq
             current_time = time.perf_counter()
