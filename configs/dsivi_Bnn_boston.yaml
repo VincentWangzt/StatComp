@@ -5,11 +5,13 @@ use_cuda: true
 runner_type: DSIVI
 target_type: Bnn_boston
 vi_model_type: ConditionalGaussian
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-exp.yaml
 reverse_model_type: MLPDenoiseModel
+reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-Bnn-exp.yaml
 
 train:
-  epochs: 2000
-  batch_size: 128
+  epochs: 10000
+  batch_size: 4096
   normalize_reverse_score: false
   vi:
     lr: 1.0e-3
@@ -18,21 +20,21 @@ train:
       step_size: 2000
       gamma: 0.7
   reverse:
-    lr: 1.0e-3
-    batch_size: 4096
+    lr: 2.0e-3
+    batch_size: 8192
     epochs: 10
     update_freq: 1
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
     steps: 1000
   log:
-    metric_log_freq: 100
+    metric_log_freq: 10
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
   checkpoint:
-    enabled: true
+    enabled: false
     freq: 1000
   sample:
     freq: 500
@@ -51,8 +53,11 @@ metric:
     num_projections: 1000
   elbo:
     enabled: true
-    batch_size: 128
-    num_batches: 5
-    num_z_samples: 200
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 1000
+  ksd:
+    enabled: true
+    num_samples: 500
   bnn:
     num_samples: 500
