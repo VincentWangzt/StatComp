@@ -165,8 +165,13 @@ class KSIVIRunner(BaseSIVIRunner):
         if torch.isfinite(loss):
             self.optimizer_vi.zero_grad()
             loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.vi_model.parameters(), max_norm=self.grad_clip)
             self.optimizer_vi.step()
             self.scheduler_vi.step()
+            if self.ema_enabled:
+                self.ema.update_params(self.vi_model.parameters())
         else:
             logger.warning(
                 f"NaN or Inf detected in KSIVI loss at epoch {epoch}. "

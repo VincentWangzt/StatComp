@@ -290,6 +290,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 loss = -torch.mean(log_prob)
                 if torch.isfinite(loss):
                     loss.backward()
+                    if self.grad_clip is not None:
+                        torch.nn.utils.clip_grad_norm_(
+                            self.reverse_model.parameters(),
+                            max_norm=self.grad_clip)
                     optimizer.step()
                 else:
                     logger.warning(

@@ -228,6 +228,23 @@ class BaseSIVIRunner():
         self.plot_save_path = os.path.join(self.save_path, "plots")
         os.makedirs(self.plot_save_path, exist_ok=True)
 
+        # Gradient clipping (None = disabled)
+        self.grad_clip = self.training_cfg.get('grad_clip', None)
+        if self.grad_clip is not None:
+            logger.info(f"Gradient clipping enabled with max_norm={self.grad_clip}")
+
+        # EMA (Exponential Moving Average) for stable evaluation
+        ema_cfg = self.training_cfg.get('ema', {})
+        self.ema_enabled = ema_cfg.get('enabled', False)
+        if self.ema_enabled:
+            from utils.ema import EMA
+            self.ema_beta = ema_cfg.get('beta', 0.999)
+            self.ema = EMA(
+                beta=self.ema_beta,
+                model_params=self.vi_model.parameters(),
+            )
+            logger.info(f"EMA enabled with beta={self.ema_beta}")
+
     def log_config(self):
         '''
         Log the full configuration to TensorBoard and save as YAML file.
@@ -784,8 +801,13 @@ class BaseSIVIRunner():
         if torch.isfinite(loss):
             self.optimizer_vi.zero_grad()
             loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.vi_model.parameters(), max_norm=self.grad_clip)
             self.optimizer_vi.step()
             self.scheduler_vi.step()
+            if self.ema_enabled:
+                self.ema.update_params(self.vi_model.parameters())
         else:
             logger.warning(
                 f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
@@ -911,7 +933,20 @@ class BaseSIVIRunner():
                 time_scalars['reverse_train'] = time_reverse_step
 
             # Generate and save samples
-            if epoch % self.training_sample_freq == 0:
+            needs_sample = (epoch % self.training_sample_freq == 0)
+            needs_metrics = (self.training_metric_log_freq > 0
+                             and epoch % self.training_metric_log_freq == 0)
+            needs_plot = (epoch % self.plot_freq == 0)
+
+            # EMA: swap to shadow params for evaluation/sampling/plotting
+            _ema_swapped = False
+            if self.ema_enabled and (needs_sample or needs_metrics
+                                     or needs_plot):
+                self.ema.store(self.vi_model.parameters())
+                self.ema.apply_shadow(self.vi_model.parameters())
+                _ema_swapped = True
+
+            if needs_sample:
                 time_sample0 = time.perf_counter()
                 self.save_samples(epoch)
                 time_sample1 = time.perf_counter()
@@ -927,8 +962,7 @@ class BaseSIVIRunner():
                 time_scalars['checkpoint'] = time_ckpt_step
 
             # Log metrics
-            if self.training_metric_log_freq > 0 and (
-                    epoch % self.training_metric_log_freq == 0):
+            if needs_metrics:
 
                 t_metric0 = time.perf_counter()
 
@@ -975,7 +1009,7 @@ class BaseSIVIRunner():
                 time_scalars['metric_eval_tot'] = time_metric_step
 
             # Generate and save contour plots
-            if epoch % self.plot_freq == 0:
+            if needs_plot:
                 t_plot0 = time.perf_counter()
                 _, z_plot = self.vi_model.sampling(num=self.plot_num)
 
@@ -1004,6 +1038,11 @@ class BaseSIVIRunner():
                 t_plot1 = time.perf_counter()
                 time_plot_step = t_plot1 - t_plot0
                 time_scalars['plot'] = time_plot_step
+
+            # EMA: restore training params
+            if _ema_swapped:
+                self.ema.restore(self.vi_model.parameters())
+
             epoch_end_time = time.perf_counter()
             epoch_time = epoch_end_time - epoch_start_time
             time_scalars['epoch'] = epoch_time
