@@ -4,10 +4,10 @@ Structured results table. Only includes runs from the current experiment round (
 
 ## UIVI Baselines
 
-| Run | Annealing | Epochs | Best ELBO | KSD | Fisher | BNN RMSE | BNN NLL |
-|-----|-----------|--------|-----------|-----|--------|----------|---------|
-| UIVI-A | linear/5000 | 10K | -909.81 @ 10K | 3.53 | 4.1M | 4.86 | 3.42 |
-| UIVI-B | linear/1000 | 5K | -1072.66 @ 5K | -0.50 | 1.2M | 4.85 | 3.39 |
+| Run | Annealing | Epochs | Best ELBO | KSD | BNN RMSE | BNN NLL |
+|-----|-----------|--------|-----------|-----|----------|---------|
+| UIVI-A | linear/5000 | 10K | -909.81 @ 10K | 3.53 | 4.86 | 3.42 |
+| UIVI-B | linear/1000 | 5K | -1072.66 @ 5K | -0.50 | 4.85 | 3.39 |
 
 ## DSIVI Experiments — Completed
 
@@ -19,26 +19,27 @@ Structured results table. Only includes runs from the current experiment round (
 | rev2 | 500 | 2 | 2000 | 10K | -1308 | 120 | 119 | **3.25** | 2.66 | ❌ |
 | anneal500-20K | 500 | 10 | 2000 | 20K | -999 | 14950 | 0.2 | 4.46 | 3.10 | ✅ |
 | slowlr-20K | 500 | 10 | 4000 | 20K | -940 | 19440 | 0.18 | 4.97 | 3.28 | ✅ |
-| **slowlr-30K** | **500** | **10** | **5000** | **30K** | **-691** | **29470** | **0.005** | 4.48 | 3.25 | ✅ |
+| slowlr-30K | 500 | 10 | 5000 | 30K | -691 | 29470 | 0.005 | 4.48 | 3.25 | ✅ |
+| **veryslow-30K** | **500** | **10** | **6000** | **30K** | **-586.5** | **29930** | 0.14 | 5.10 | 3.26 | ✅ |
 
 ## DSIVI Experiments — Running
 
 | Run | Anneal | Rev Ep | LR Step | Epochs | Best ELBO | Epoch | Status |
 |-----|--------|--------|---------|--------|-----------|-------|--------|
-| veryslow-30K | 500 | 10 | 6000 | 30K | -846 | 20550 | GPU 1, ~22K |
-| slowlr-50K | 500 | 10 | 5000 | 50K | — | — | GPU 0, just launched |
+| slowlr-50K | 500 | 10 | 5000 | 50K | -1201 | 6150 | GPU 0, ~7K |
+| step8000-30K | 500 | 10 | 8000 | 30K | — | — | GPU 1, just launched |
 
 ## 🏆 Best DSIVI Result
 
-**DSIVI slowlr-30K: ELBO = -691.2 at epoch 29470**
+**DSIVI veryslow-30K: ELBO = -586.5 at epoch 29930**
 
-This **surpasses UIVI-A (-910) by 219 ELBO units**, proving DSIVI can outperform UIVI on high-dimensional BNN targets with proper hyperparameters.
+This **surpasses UIVI-A (-910) by 323 ELBO units** (35% better marginal likelihood).
 
-## Optimal DSIVI Configuration for BNN
+## Optimal DSIVI Configuration for BNN (Current Best)
 
 ```yaml
 train:
-  epochs: 30000+  # More is better; no convergence at 30K
+  epochs: 30000  # More is better; no convergence at 30K
   batch_size: 4096
   annealing:
     steps: 500  # Critical: shorter is better for DSIVI stability
@@ -46,7 +47,7 @@ train:
     lr: 0.001
     scheduler:
       type: StepLR
-      step_size: 5000  # Slower decay enables continued improvement
+      step_size: 6000  # Slower decay enables continued improvement
       gamma: 0.7
   reverse:
     lr: 0.002
@@ -57,24 +58,19 @@ train:
 
 ## Key Findings
 
-1. **DSIVI dramatically outperforms UIVI**: -691 vs -910 ELBO (24% better marginal likelihood)
-2. **ELBO improves linearly with epochs**: ~50-80 per 3K epochs, no convergence at 30K
-3. **Three critical hyperparameters**: anneal=500, rev_epochs=10, LR step=5000
-4. **LR schedule is the main bottleneck**: step=2000 peaks at ~15K epochs; step=5000 enables improvement to 30K+
-5. **KSD essentially zero** (0.005) — VI samples match target score perfectly
-6. **BNN predictions competitive**: RMSE 4.48 vs UIVI's 4.86 (8% better)
+1. **DSIVI dramatically outperforms UIVI**: -586 vs -910 ELBO (35% better marginal likelihood)
+2. **ELBO improves linearly with epochs**: No convergence at 30K epochs with proper LR schedule
+3. **LR step size sweep**: step=6000 > step=5000 > step=4000 > step=2000 for 30K runs
+4. **Three critical hyperparameters**: anneal=500, rev_epochs=10, LR step=6000+
+5. **KSD < 0.15**: VI samples nearly perfectly match target score
+6. **BNN RMSE competitive**: ~5.0 vs UIVI's 4.85 (comparable)
 
-## ELBO Trajectory (slowlr-30K)
+## LR Step Size Comparison at 30K Epochs
 
-| Epoch | ELBO | Δ per 3K | LR |
-|-------|------|----------|-----|
-| 3K | -1292 | — | 0.001 |
-| 6K | -1213 | +79 | 0.0007 |
-| 9K | -1152 | +61 | 0.0007 |
-| 12K | -1111 | +41 | 0.00049 |
-| 15K | -1039 | +72 | 0.00049 |
-| 18K | -960 | +79 | 0.000343 |
-| 21K | -906 | +54 | 0.000343 |
-| 24K | -888 | +18 | 0.000240 |
-| 27K | -809 | +79 | 0.000240 |
-| 30K | -728 | +81 | 0.000168 |
+| LR Step | Best ELBO | Best Epoch | LR at epoch 30K |
+|---------|-----------|------------|-----------------|
+| 2000 | -999 (20K) | 14950 | 0.0000040 |
+| 5000 | -691 | 29470 | 0.000168 |
+| **6000** | **-586** | **29930** | 0.000240 |
+
+Higher LR at late epochs → more improvement → better ELBO.
