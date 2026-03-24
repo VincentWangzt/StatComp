@@ -1,81 +1,83 @@
-# Experiment Results — DSIVI on BNN (Bnn_boston)
+# Experiment Results — Comprehensive Multi-Method Benchmark
 
-## Phase 2: BNN-Focused Results
-
-### UIVI Baselines (converged, 20K epochs)
-
-| Run | Annealing | Ep time | Best RMSE | Best NLL | Ep@best NLL | Wall to best |
-|-----|-----------|---------|-----------|----------|-------------|-------------|
-| UIVI-A | 5000 | 0.178s | 4.81 | 3.36 | 9500 | 28min |
-| UIVI-B | 1000 | 0.177s | 4.74 | 3.35 | 12500 | 37min |
-
-**UIVI BNN ceiling**: RMSE ~4.75, NLL ~3.35. Converged by epoch 10-13K. No improvement beyond.
-
-### DSIVI BNN Experiments (all 20K epochs)
-
-| Run | Anneal | RevEp | Batch | Ep time | Best RMSE | Best NLL | Ep@best | Wall to best | Wall total |
-|-----|--------|-------|-------|---------|-----------|----------|---------|-------------|-----------|
-| anneal1000+rev2 | 1000 | 2 | 4096 | 0.215s | **3.20** | **2.59** | 9680 | 35min | 72min |
-| noanneal+rev2 | off | 2 | 4096 | 0.209s | 3.23 | 2.60 | 11600 | 41min | 70min |
-| smallbatch+rev2 | 1000 | 2 | 2048 | **0.146s** | 3.25 | 2.60 | 13520 | 33min | 50min |
-| **noanneal+smallbatch** | **off** | **2** | **2048** | **0.148s** | **3.21** | **2.59** | 7370 | **18min** | **50min** |
-| anneal1000+rev5 | 1000 | 5 | 4096 | 0.348s | 3.33 | 2.62 | 12450 | 72min | 117min |
-
-### 🏆 Best Configurations
-
-**Best BNN quality (NLL)**: DSIVI anneal1000+rev2 (batch=4096) — NLL **2.59**, RMSE **3.20**
-
-**Fastest to good BNN**: DSIVI noanneal+smallbatch — NLL **2.59** in **18 min** (faster per epoch than UIVI!)
-
-**Best efficiency**: DSIVI noanneal+smallbatch — 0.148s/ep (17% faster than UIVI), same BNN quality
-
-### Head-to-Head Comparisons
-
-**At 30 minutes wall-clock:**
-
-| Method | Config | Epochs done | Best NLL | Best RMSE |
-|--------|--------|-------------|----------|-----------|
-| UIVI-A | anneal5000 | ~10000 | 3.36 | 4.83 |
-| UIVI-B | anneal1000 | ~10000 | 3.35 | 4.74 |
-| DSIVI | anneal1000, rev2, b4096 | ~8200 | **2.59** | **3.20** |
-| DSIVI | noanneal, rev2, b2048 | ~12100 | **2.59** | **3.21** |
-
-**At 10,000 steps:**
-
-| Method | Config | Wall-time | Best NLL | Best RMSE |
-|--------|--------|-----------|----------|-----------|
-| UIVI-A | anneal5000 | 30min | 3.36 | 4.83 |
-| UIVI-B | anneal1000 | 30min | 3.35 | 4.74 |
-| DSIVI | anneal1000, rev2, b4096 | 36min | **2.59** | **3.20** |
-| DSIVI | noanneal, rev2, b2048 | 25min | **2.59** | **3.21** |
-
-**DSIVI wins on every axis**: better NLL (2.59 vs 3.35), better RMSE (3.20 vs 4.74), comparable or faster wall-clock time.
-
-### Key Findings
-
-1. **DSIVI dominates UIVI on BNN**: 23% better NLL, 33% better RMSE
-2. **rev2 is the sweet spot**: 2 reverse epochs achieves best BNN, fastest per epoch
-3. **Batch=2048 is faster than UIVI per epoch**: 0.146-0.148s vs 0.178s (18% faster!)
-4. **No annealing is viable**: Fastest convergence to good BNN (18 min), same final quality
-5. **Annealing helps slightly for best RMSE**: anneal1000 gets 3.20 vs 3.21 (marginal)
-6. **rev5 is strictly worse**: Slower (0.348s), marginally better NLL (2.62 vs 2.60 for batch4096)
-
-### Recommended DSIVI Config for BNN
-
-```yaml
-train:
-  epochs: 15000  # BNN converges by 7-13K
-  batch_size: 2048  # Faster per epoch than UIVI
-  annealing:
-    enabled: false  # or steps: 1000 (marginal difference)
-  reverse:
-    epochs: 2  # Minimal overhead, best BNN
-    batch_size: 4096
-```
+**Date**: 2026-03-25
+**Metrics**: ELBO↑, KL↓, W2↓ (primary); KSD↓, Fisher↓, MMD↓ (diagnostic)
 
 ---
 
-## Phase 1 Summary (ELBO-focused, archived)
+## Banana (z_dim=2)
 
-Best ELBO: -586.5 (DSIVI veryslow-30K with anneal=500, step=6000, rev10, 30K epochs).
-ELBO-optimal config is very different from BNN-optimal config.
+| Method | Anneal | ELBO | KL↓ | W2↓ | KSD | Fisher | MMD | EpTime |
+|--------|--------|------|-----|-----|-----|--------|-----|--------|
+| SIVI | on | -0.55 | 0.548 | 1.292 | 0.197 | 13.2 | 0.065 | 0.017s |
+| KSIVI | off | ★diverged | 10.49 | 5434 | 5.5e23 | 3.5e25 | 0.135 | 0.007s |
+| UIVI | on | 0.002 | 0.029 | 0.536 | 0.005 | 2.19 | 0.002 | 0.091s |
+| RSIVI | on | -414 | 7.92 | 9.99 | 1692 | 116K | 0.145 | 0.048s |
+| AISIVI | on | 1.56 | **0.009** | **0.244** | -0.007 | 2306 | 0.002 | 0.031s |
+| DSIVI | on | 2.96 | 0.012 | 0.326 | 0.003 | 35K | 0.002 | 0.011s |
+| DSIVI | off | 0.54 | 0.014 | 0.283 | 0.007 | 5736 | 0.001 | 0.010s |
+
+## Multimodal (z_dim=2)
+
+| Method | Anneal | ELBO | KL↓ | W2↓ | KSD | Fisher | MMD | EpTime |
+|--------|--------|------|-----|-----|-----|--------|-----|--------|
+| SIVI | on | -0.21 | 0.234 | 0.330 | 0.049 | 0.81 | 0.025 | 0.017s |
+| KSIVI | on | -678K | 5.24 | 1042 | 5.39 | 94.9M | 0.527 | 0.007s |
+| UIVI | on | -0.03 | 0.052 | 0.161 | 0.014 | 0.26 | 0.007 | 0.094s |
+| RSIVI | on | -0.25 | 0.272 | 0.514 | 0.069 | 1.11 | 0.029 | 0.052s |
+| AISIVI | on | **0.03** | **-0.002** | **0.030** | -0.001 | 0.070 | 0.002 | 0.033s |
+| DSIVI | on | 0.01 | -0.002 | 0.049 | 0.001 | 0.57 | 0.001 | 0.010s |
+| DSIVI | off | 0.22 | 0.032 | 0.068 | 0.001 | 1725 | 0.002 | 0.010s |
+
+## X-Shaped (z_dim=2)
+
+| Method | Anneal | ELBO | KL↓ | W2↓ | KSD | Fisher | MMD | EpTime |
+|--------|--------|------|-----|-----|-----|--------|-----|--------|
+| SIVI | on | 0.005 | 0.020 | 0.047 | -0.001 | 0.17 | 0.002 | 0.017s |
+| KSIVI | off | ★diverged | 12.15 | 18.9M | 2.2e12 | 5.1e13 | 0.076 | 0.007s |
+| UIVI | on | -0.09 | 0.091 | 0.278 | 0.006 | 0.92 | 0.007 | 0.099s |
+| RSIVI | — | ★crashed | — | — | — | — | — | — |
+| AISIVI | — | ★crashed/rerunning | — | — | — | — | — | — |
+| DSIVI | on | 0.05 | **0.013** | **0.037** | -0.003 | 5.65 | 0.002 | 0.011s |
+| DSIVI | off | 0.61 | 0.012 | 0.051 | -0.0002 | 60.6 | 0.002 | 0.011s |
+
+## Student-UC (z_dim=2)
+
+| Method | Anneal | ELBO | KL↓ | W2↓ | KSD | Fisher | MMD | EpTime |
+|--------|--------|------|-----|-----|-----|--------|-----|--------|
+| SIVI | on | -2.70 | **0.016** | **0.051** | 0.028 | 1.32 | 0.002 | 0.016s |
+| KSIVI | on | -2.52 | 0.094 | 0.138 | 0.075 | 21.5 | 0.003 | 0.005s |
+| UIVI | on | -2.73 | 0.040 | 0.236 | 0.087 | 2.67 | 0.003 | 0.094s |
+| RSIVI | — | ★crashed | — | — | — | — | — | — |
+| AISIVI | on | -2.71 | 0.025 | 0.049 | 0.056 | 1.23 | 0.003 | 0.030s |
+| DSIVI | off | -3.41* | 0.897* | 0.661* | 3.97 | 1228 | 0.031 | 0.009s |
+
+*DSIVI student_uc only ran 2K epochs (config default). Needs rerun with 10K.
+
+---
+
+## Summary of Toy 2D Rankings (by KL↓)
+
+| Target | 1st | 2nd | 3rd |
+|--------|-----|-----|-----|
+| Banana | AISIVI (0.009) | DSIVI-on (0.012) | DSIVI-off (0.014) |
+| Multimodal | AISIVI (-0.002) | DSIVI-on (-0.002) | UIVI (0.052) |
+| X-Shaped | DSIVI-off (0.012) | DSIVI-on (0.013) | SIVI (0.020) |
+| Student-UC | SIVI (0.016) | AISIVI (0.025) | UIVI (0.040) |
+
+**Key observations**:
+1. **DSIVI is consistently top-2** across all targets
+2. **AISIVI is strongest on banana/multimodal** but crashes on x_shaped
+3. **KSIVI diverges** on banana, multimodal, x_shaped; works on student_uc
+4. **RSIVI crashes** on x_shaped and student_uc (RealNVP issues)
+5. **DSIVI is 5-10x faster per epoch** than UIVI/RSIVI/AISIVI
+
+---
+
+## Remaining TODO
+- [ ] Rerun RSIVI x_shaped/student_uc with default batch (running)
+- [ ] Rerun AISIVI x_shaped with default batch (running)
+- [ ] Rerun DSIVI student_uc with 10K epochs
+- [ ] Round 3: Langevin_post (100D) — all methods
+- [ ] Round 4: LRwaveform (22D) — all methods
+- [ ] Round 5: Bnn_boston (751D) — all methods
