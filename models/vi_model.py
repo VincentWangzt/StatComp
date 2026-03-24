@@ -549,8 +549,63 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
         return log_prob
 
 
+class ConditionalGaussianGlobal(ConditionalGaussianGlobalUniform):
+    """
+    Conditional Gaussian `q_phi(z|epsilon)` with global learnable variance
+    and standard Normal prior on epsilon.
+
+    This corresponds to KSIVI's SIMINet architecture: an MLP maps epsilon to
+    mu(epsilon), with a shared (global) learnable variance parameter, and
+    epsilon is sampled from N(0, I).
+
+    Inherits all architecture and methods from ConditionalGaussianGlobalUniform,
+    only overriding the prior distribution on epsilon.
+
+    Required config parameters (same as parent):
+        - epsilon_dim: Dimension of epsilon.
+        - z_dim: Dimension of latent z.
+        - device: Device for computation.
+        - hidden_dim: Hidden size of the MLP.
+        - num_layers: Number of hidden layers.
+    """
+
+    def __init__(self, config: DictConfig):
+        super().__init__(config)
+        self.name = "ConditionalGaussianGlobal"
+
+    def sample_epsilon(
+        self,
+        num: int = 1000,
+    ) -> torch.Tensor:
+        """
+        Sample `num` epsilon from standard Normal N(0, I).
+
+        Args:
+            num (int): Number of samples.
+        Returns:
+            epsilon (torch.Tensor): Samples of shape `[num, D_epsilon]`.
+        """
+        return torch.randn([num, self.epsilon_dim]).to(self.device)
+
+    def log_q_epsilon(
+        self,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute log q(epsilon) under standard Normal N(0, I) prior.
+
+        Args:
+            epsilon (torch.Tensor): shape [..., De]
+        Returns:
+            log_q (torch.Tensor): shape [...]
+        """
+        const = -0.5 * epsilon.shape[-1] * math.log(2 * math.pi)
+        return const - 0.5 * (epsilon**2).sum(dim=-1)
+
+
 VIModel: dict[str, type[BaseVIModel]] = {
     "ConditionalGaussian": ConditionalGaussian,
     "ConditionalGaussianUniform": ConditionalGaussianUniform,
     "ConditionalGaussianGlobalUniform": ConditionalGaussianGlobalUniform,
+    "ConditionalGaussianGlobal": ConditionalGaussianGlobal,
 }

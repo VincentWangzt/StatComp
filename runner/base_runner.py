@@ -722,6 +722,93 @@ class BaseSIVIRunner():
         raise NotImplementedError(
             "calc_log_q_phi_z must be implemented in subclasses.")
 
+    def _compute_loss_and_step(self, epoch: int) -> dict:
+        """
+        Compute the training loss, perform the optimizer step, and return diagnostics.
+
+        This default implementation computes the ELBO-based loss used by standard SIVI
+        and its reverse-model variants. Subclasses (e.g., KSIVIRunner) may override this
+        to implement alternative objectives such as KSD².
+
+        Args:
+            epoch (int): Current training epoch.
+
+        Returns:
+            dict with keys:
+                - 'loss' (torch.Tensor): Scalar loss value.
+                - 'grad_norm' (float): Gradient norm before step.
+                - 'z' (torch.Tensor): Sampled z for diagnostic logging.
+                - 'epsilon' (torch.Tensor): Sampled epsilon for diagnostic logging.
+                - 'time_vi_sample' (float): Time for sampling + forward pass.
+                - 'time_neg_score' (float): Time for log q estimation.
+                - 'time_backward' (float): Time for backward pass + optimizer step.
+        """
+        # Sample epsilon
+        t_vi0 = time.perf_counter()
+        epsilon = self.vi_model.sample_epsilon(
+            num=self.training_batch_size)
+
+        # Sample z from variational distribution
+        z, neg_score_implicit = self.vi_model.forward(epsilon)
+
+        # Compute log prob under target distribution using score-gradient trick
+        log_prob_target: torch.Tensor = self.target_model.score(
+            z.clone().detach()) * z
+        log_prob_target = log_prob_target.sum(dim=-1)
+
+        # Apply annealing if enabled
+        anneal_factor = annealing(
+            t=epoch,
+            warm_up_interval=self.anneal_steps,
+            anneal=self.use_annealing,
+            scheme=self.anneal_scheme,
+        )
+        log_prob_target = log_prob_target * anneal_factor
+
+        t_vi1 = time.perf_counter()
+
+        t_ns0 = time.perf_counter()
+
+        # Estimate log q_phi(z)
+        log_q_phi_z = self.calc_log_q_phi_z(z, epsilon)
+
+        t_ns1 = time.perf_counter()
+
+        t_bw0 = time.perf_counter()
+
+        # Compute ELBO loss
+        loss = -torch.mean(log_prob_target - log_q_phi_z)
+        grad_norm = torch.nn.utils.get_total_norm(
+            self.vi_model.parameters(), )
+
+        if torch.isfinite(loss):
+            self.optimizer_vi.zero_grad()
+            loss.backward()
+            self.optimizer_vi.step()
+            self.scheduler_vi.step()
+        else:
+            logger.warning(
+                f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
+            )
+            logger.debug(
+                f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
+            )
+            logger.debug(
+                f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
+            )
+
+        t_bw1 = time.perf_counter()
+
+        return {
+            'loss': loss,
+            'grad_norm': grad_norm,
+            'z': z,
+            'epsilon': epsilon,
+            'time_vi_sample': t_vi1 - t_vi0,
+            'time_neg_score': t_ns1 - t_ns0,
+            'time_backward': t_bw1 - t_bw0,
+        }
+
     def learn(self):
         '''
         Run the full training procedure for UIVI.
@@ -761,69 +848,15 @@ class BaseSIVIRunner():
             self.curr_epoch = epoch
             time_scalars.clear()
 
-            # Sample epsilon
-            t_vi0 = time.perf_counter()
-            epsilon = self.vi_model.sample_epsilon(
-                num=self.training_batch_size)
-
-            # Sample z from variational distribution
-            z, neg_score_implicit = self.vi_model.forward(epsilon)
-
-            # Compute log prob under target distribution
-            # log_prob_target = self.target_model.logp(z)
-            log_prob_target: torch.Tensor = self.target_model.score(
-                z.clone().detach()) * z
-            log_prob_target = log_prob_target.sum(dim=-1)
-            # log_prob_target: shape (batch_size,)
-
-            # Apply annealing if enabled
-            anneal_factor = annealing(
-                t=epoch,
-                warm_up_interval=self.anneal_steps,
-                anneal=self.use_annealing,
-                scheme=self.anneal_scheme,
-            )
-            log_prob_target = log_prob_target * anneal_factor
-
-            t_vi1 = time.perf_counter()
-            time_vi_sample_step = t_vi1 - t_vi0
-            time_scalars['vi_sample'] = time_vi_sample_step
-
-            t_ns0 = time.perf_counter()
-
-            # Give an estimate to log q_phi(z), specifically its gradient
-            log_q_phi_z = self.calc_log_q_phi_z(z, epsilon)
-
-            t_ns1 = time.perf_counter()
-            time_neg_score_step = t_ns1 - t_ns0
-            time_scalars['neg_score'] = time_neg_score_step
-
-            t_bw0 = time.perf_counter()
-
-            # Compute loss
-            loss = -torch.mean(log_prob_target - log_q_phi_z)
-            grad_norm = torch.nn.utils.get_total_norm(
-                self.vi_model.parameters(), )
-
-            if torch.isfinite(loss):
-                self.optimizer_vi.zero_grad()
-                loss.backward()
-                self.optimizer_vi.step()
-                self.scheduler_vi.step()
-            else:
-                logger.warning(
-                    f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
-                )
-                logger.debug(
-                    f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
-                )
-                logger.debug(
-                    f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
-                )
-
-            t_bw1 = time.perf_counter()
-            time_backward_step = t_bw1 - t_bw0
-            time_scalars['backward'] = time_backward_step
+            # Compute loss and perform optimizer step
+            diagnostics = self._compute_loss_and_step(epoch)
+            loss = diagnostics['loss']
+            z = diagnostics['z']
+            epsilon = diagnostics['epsilon']
+            grad_norm = diagnostics['grad_norm']
+            time_scalars['vi_sample'] = diagnostics['time_vi_sample']
+            time_scalars['neg_score'] = diagnostics['time_neg_score']
+            time_scalars['backward'] = diagnostics['time_backward']
 
             # TensorBoard scalars
             self.writer.add_scalar("train/loss", loss.item(), epoch)

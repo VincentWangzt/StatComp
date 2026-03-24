@@ -3,6 +3,7 @@ from runner.uivi import UIVIRunner
 from runner.rsivi import RSIVIRunner
 from runner.aisivi import AISIVIRunner
 from runner.dsivi import DSIVIRunner
+from runner.ksivi import KSIVIRunner
 from runner.base_runner import BaseSIVIRunner
 
 Runners: dict[str, type[BaseSIVIRunner]] = {
@@ -11,4 +12,5 @@ Runners: dict[str, type[BaseSIVIRunner]] = {
     "RSIVI": RSIVIRunner,
     "AISIVI": AISIVIRunner,
     "DSIVI": DSIVIRunner,
+    "KSIVI": KSIVIRunner,
 }

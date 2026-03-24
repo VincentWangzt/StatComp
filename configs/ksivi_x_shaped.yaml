@@ -1,0 +1,58 @@
+# KSIVI on X-shaped distribution
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: KSIVI
+target_type: x_shaped
+vi_model_type: ConditionalGaussianGlobal
+
+train:
+  epochs: 50000
+  batch_size: 500
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.9
+  annealing:
+    enabled: false
+    scheme: linear
+    steps: 5000
+  ksivi:
+    statistic: v
+    kernel: gaussian
+    detach_kernel: true
+    log_p_reg: 0.0
+  log:
+    metric_log_freq: 500
+    loss_log_freq: 100
+    reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 5000
+  sample:
+    freq: 500
+    num: 100000
+  plot:
+    freq: 500
+    num: 1000
+
+metric:
+  kl_ite:
+    num_samples: 10000
+  w2:
+    num_samples: 10000
+    num_projections: 1000
+  elbo:
+    enabled: true
+    batch_size: 512
+    num_batches: 1
+    num_z_samples: 500
+  ksd:
+    enabled: true
+    num_samples: 1000
+  mmd:
+    enabled: true
+    num_samples: 1000
