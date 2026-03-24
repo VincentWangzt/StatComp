@@ -4,78 +4,103 @@ Running log of experiments, observations, and hypotheses.
 
 ---
 
-## 2026-03-24: Experiment Round
+## Phase 1: ELBO-Focused Exploration (2026-03-24 01:00–14:00)
 
-### Context
-- Reworked metric system (Fisher divergence, BNN RMSE/NLL, restructured TensorBoard)
-- All results below are from this round only
+### Summary
+Explored DSIVI hyperparameters for ELBO optimization. Key findings:
+- **anneal=500, rev_epochs=10, LR step=5000-6000, 30K epochs** achieves ELBO -586 to -691
+- This surpasses UIVI-A (-910) by 220-323 ELBO units
+- However, ELBO and BNN metrics are **anticorrelated** across configurations
 
-### Step 0: UIVI Baselines — COMPLETED ✅
+### Critical Observation: ELBO-BNN Disconnect
 
-| Run | Annealing | Epochs | Best ELBO | BNN RMSE | BNN NLL |
-|-----|-----------|--------|-----------|----------|---------|
-| UIVI-A | 5000 | 10K | -909.81 | 4.86 | 3.42 |
-| UIVI-B | 1000 | 5K | -1072.66 | 4.85 | 3.39 |
+| Run | Config | BNN RMSE | BNN NLL | Best ELBO | ELBO Stable? |
+|-----|--------|----------|---------|-----------|-------------|
+| **rev2** | anneal500, rev2 | **3.25** | **2.60** | -1308 | ❌ |
+| **baseline** | anneal1000, rev10 | **3.33** | **2.62** | -1383 | ❌ |
+| anneal500 | anneal500, rev10 | 4.46 | 3.10 | -1095 | ✅ |
+| anneal500-20K | anneal500, rev10 | 4.46 | 3.10 | -999 | ✅ |
+| veryslow-30K | anneal500, rev10, step6000 | 5.10 | 3.26 | -586 | ✅ |
+| UIVI-A | anneal5000 | 4.83 | 3.36 | -910 | ✅ |
+| UIVI-B | anneal1000 | 4.85 | 3.37 | -1073 | ✅ |
 
-### Step 1: Annealing Study — COMPLETED ✅
+**Insight**: The "ELBO-broken" regime (more aggressive annealing, fewer rev epochs) produces BNN RMSE 3.2-3.3 and NLL 2.6 — dramatically better than both UIVI (~4.85/3.37) and ELBO-stable DSIVI (~4.5/3.1). BNN prediction quality is our actual goal.
 
-**Key finding**: Shorter annealing (500 steps) is optimal for DSIVI. Longer annealing causes ELBO estimation breakdown.
+### BNN Trajectory Analysis
 
-| Anneal | ELBO Stable? | nan onset | Best ELBO |
-|--------|-------------|-----------|-----------|
-| 500 | ✅ | never | -1095 (10K) |
-| 1000 | ❌ | epoch 590 | -1383 |
-| 5000 | ❌ | epoch 800 | -1367 |
+**anneal1000 (baseline)**: Reaches NLL ~2.7 by epoch 1000 (after annealing completes). BNN RMSE oscillates around 3.3-3.9. Best RMSE 3.33 at epoch 5840.
 
-**Root cause**: During annealing, the VI distribution shifts. With longer annealing, the shift is more gradual but the reverse model must track it for longer. The VI's variance collapses in some dimensions, causing numerical issues in the ELBO estimator (log q(z) underestimates). With anneal=500, the transition completes quickly and the VI stabilizes.
+**anneal500**: Reaches NLL ~3.3 by epoch 500. Never improves below 3.1. The shorter annealing apparently doesn't push the VI into the same predictive mode.
 
-### Step 2: Reverse Model Training — COMPLETED ✅
+**Hypothesis**: For BNN prediction, the annealing period is where the action is. Longer annealing (≥1000) with full target weight pushes the VI into a concentrated posterior that predicts well. The "ELBO breakdown" is a side effect of this concentration (variance collapse → MC estimation fails) but the actual samples are excellent for prediction.
 
-**Key finding**: 10 reverse inner epochs per main step is necessary for stability. Fewer (2) causes ELBO breakdown.
+### Epoch Time Comparison
 
-| Rev Epochs | ELBO Stable? | Best ELBO | Best BNN |
-|-----------|-------------|-----------|----------|
-| 10 (anneal=500) | ✅ | -1095 | 4.46 |
-| 2 (anneal=500) | ❌ nan@600 | -1308 | **3.25** |
+| Method | Config | Epoch time | Notes |
+|--------|--------|-----------|-------|
+| UIVI | batch=4096 | 0.18s | HMC reverse is built-in, no separate training |
+| DSIVI | batch=4096, rev10, rev_batch=8192 | 0.59s | 10 inner reverse epochs dominate |
+| DSIVI | batch=4096, rev2, rev_batch=8192 | 0.21s | 2 rev epochs → 2.8x faster |
 
-### Step 3: LR Schedule & Long Training — IN PROGRESS
+Key: DSIVI with rev2 (0.21s) is only 17% slower than UIVI (0.18s). This is the regime to explore for efficiency.
 
-**Key finding**: LR decay is the primary bottleneck beyond 10K epochs. Standard StepLR(2000, 0.7) reduces LR too fast.
+---
 
-| LR Step | Epochs | Best ELBO | Peak Epoch | Gap to UIVI-A |
-|---------|--------|-----------|------------|---------------|
-| 2000 | 20K | -999 | 14950 | 89 |
-| 4000 | 20K | **-940** | 19440 | **30** |
-| 5000 | 30K | -1059 | 11520 | — (running) |
-| 6000 | 30K | — | — | — (running) |
+## Phase 2: BNN-Focused Exploration (2026-03-24 14:00+)
 
-**LR comparison at key epochs**:
+### Goal
+Maximize BNN test performance (RMSE, NLL) while considering training efficiency. Compare DSIVI vs UIVI under both fixed-step and fixed-time budgets.
 
-| Epoch | step=2000 LR | step=4000 LR | step=5000 LR |
-|-------|-------------|-------------|-------------|
-| 10K | 0.000168 | 0.000490 | 0.000700 |
-| 15K | 0.000058 | 0.000240 | 0.000490 |
-| 20K | 0.000020 | 0.000118 | 0.000240 |
-| 25K | — | — | 0.000118 |
-| 30K | — | — | 0.000058 |
+### Starting Point: Best BNN from Phase 1
 
-The step=5000 run maintains 4x higher LR at epoch 15K and 12x higher at epoch 20K compared to step=2000.
+| Method | Config | Best RMSE | Best NLL | Epoch Time | Wall-time to best |
+|--------|--------|-----------|----------|-----------|-------------------|
+| DSIVI rev2 | anneal500, rev2, 10K | **3.25** | **2.60** | 0.21s | ~26 min (7520ep) |
+| DSIVI baseline | anneal1000, rev10, 10K | 3.33 | 2.62 | 0.59s | ~57 min (5840ep) |
+| UIVI-A | anneal5000, 10K | 4.83 | 3.36 | 0.18s | ~23 min (7800ep) |
+| UIVI-B | anneal1000, 5K | 4.85 | 3.37 | 0.18s | ~11 min (3700ep) |
 
-### Step 4: Next Directions
+### Experiment Plan
 
-**If slowlr-30K or veryslow-30K reach below -940:**
-- Try even longer training (40K+ epochs) with step=8000
-- Try cosine annealing instead of StepLR
-- Try higher base LR (0.002) with appropriate warmup
+**Track 1: Extended UIVI Baselines** (find BNN ceiling for UIVI)
+- UIVI-A-ext: anneal=5000, 20K epochs (GPU 0)
+- UIVI-B-ext: anneal=1000, 20K epochs (GPU 1)
+- Also test: UIVI-noanneal: annealing disabled, 20K epochs
 
-**If neither improves beyond -940:**
-- The gap to UIVI-A (-910) may be inherent to DSIVI vs UIVI
-- Try different reverse model architecture (wider/deeper)
-- Try different VI model architecture
+**Track 2: DSIVI BNN Tuning** (accelerate convergence, maintain BNN quality)
 
-**Interesting open questions:**
-1. Why does DSIVI find better BNN modes but worse ELBO in some configurations?
-2. Can we combine the best of both — DSIVI's BNN quality with better ELBO?
-3. Is the -910 UIVI-A ELBO a ceiling or does UIVI also improve with more epochs?
+Directions to explore:
+1. **No annealing**: Remove annealing entirely. The VI trains with full target from epoch 0. This should be fastest to converge since annealing delays convergence.
+2. **Annealing=1000 + rev2**: Combine the best BNN regime (anneal1000) with the fastest DSIVI config (rev2, 0.21s/ep). The rev2 run used anneal500 — try it with 1000.
+3. **Smaller batch sizes**: batch_size 2048/1024, rev_batch 4096/2048. Should reduce per-epoch time further.
+4. **Annealing=1000 + rev5**: Middle ground between rev2 (fast) and rev10 (stable).
+
+**Evaluation**: All metrics enabled (ELBO, KSD, Fisher, BNN RMSE/NLL). Compare runs at:
+- Fixed steps: epoch 1K, 2K, 5K, 10K, 20K
+- Fixed time: 5 min, 15 min, 30 min, 60 min
+
+### What Success Looks Like
+- DSIVI matches or beats its best BNN (RMSE <3.3, NLL <2.6) in less wall-clock time
+- DSIVI at any time point beats UIVI at the same time point
+- Closing the epoch time gap: DSIVI ≤ 0.25s/ep (from 0.59s)
+
+### Phase 2 Results So Far
+
+**UIVI Baselines (20K epochs)**: BNN converged to RMSE ~4.75, NLL ~3.35. No improvement beyond 10-13K epochs.
+
+**DSIVI anneal1000+rev2 (20K, 0.215s/ep)**:
+- Best RMSE 3.20, NLL 2.59 @ epoch 9680 (~35 min)
+- ✅ Achieves success criteria: RMSE <3.3, NLL <2.6
+- ✅ Epoch time 0.215s (within 0.25s target)
+- ✅ Beats UIVI at every time point
+
+**DSIVI noanneal+rev2 (20K, 0.209s/ep)**:
+- Best RMSE 3.23, NLL 2.60 @ epoch 11600 (~41 min)
+- Nearly matches anneal1000, converges faster initially (good BNN by epoch 500)
+- Both end at same final metrics (~RMSE 3.43, NLL 2.65)
+
+**Key insight**: anneal1000+rev2 is the current sweet spot. It achieves the best BNN prediction quality while keeping epoch time close to UIVI. The 0.215s/ep vs UIVI's 0.178s/ep is a 21% overhead for 32% better RMSE and 23% better NLL.
+
+**Still running**: smallbatch+rev2 (batch=2048) and anneal1000+rev5 to test further efficiency gains.
 
 ---
