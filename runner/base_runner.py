@@ -279,6 +279,23 @@ class BaseSIVIRunner():
         self.plot_save_path = os.path.join(self.save_path, "plots")
         os.makedirs(self.plot_save_path, exist_ok=True)
 
+        # Gradient clipping (None = disabled)
+        self.grad_clip = self.training_cfg.get('grad_clip', None)
+        if self.grad_clip is not None:
+            logger.info(f"Gradient clipping enabled with max_norm={self.grad_clip}")
+
+        # EMA (Exponential Moving Average) for stable evaluation
+        ema_cfg = self.training_cfg.get('ema', {})
+        self.ema_enabled = ema_cfg.get('enabled', False)
+        if self.ema_enabled:
+            from utils.ema import EMA
+            self.ema_beta = ema_cfg.get('beta', 0.999)
+            self.ema = EMA(
+                beta=self.ema_beta,
+                model_params=self.vi_model.parameters(),
+            )
+            logger.info(f"EMA enabled with beta={self.ema_beta}")
+
     # Data-dependent target types that require the DataBoundTarget wrapper
     _DATA_DEPENDENT_TARGETS = frozenset({"LRwaveform", "Bnn_boston"})
 
@@ -302,23 +319,6 @@ class BaseSIVIRunner():
                 device=self.device,
             )
         return target_distribution[self.target_type](device=self.device)
-
-        # Gradient clipping (None = disabled)
-        self.grad_clip = self.training_cfg.get('grad_clip', None)
-        if self.grad_clip is not None:
-            logger.info(f"Gradient clipping enabled with max_norm={self.grad_clip}")
-
-        # EMA (Exponential Moving Average) for stable evaluation
-        ema_cfg = self.training_cfg.get('ema', {})
-        self.ema_enabled = ema_cfg.get('enabled', False)
-        if self.ema_enabled:
-            from utils.ema import EMA
-            self.ema_beta = ema_cfg.get('beta', 0.999)
-            self.ema = EMA(
-                beta=self.ema_beta,
-                model_params=self.vi_model.parameters(),
-            )
-            logger.info(f"EMA enabled with beta={self.ema_beta}")
 
     def log_config(self):
         '''
