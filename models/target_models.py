@@ -1063,6 +1063,7 @@ class Langevin_post(Toy_2D):
         self.T = T
         self.dt: float = T / num_interval
         self.dim: int = num_interval
+        self.z_dim: int = num_interval  # Override Toy_2D's z_dim=2
         self.device = device
         self.u_step: int = int(num_interval / num_obs)
         self.num_obs = num_obs
