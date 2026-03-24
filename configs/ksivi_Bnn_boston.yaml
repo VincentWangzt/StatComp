@@ -1,0 +1,59 @@
+# KSIVI on Bayesian Neural Network (Boston Housing, 751-dimensional)
+# Original: kernel=gaussian, epochs=200*100=20k, batch=100, lr=0.001,
+#           gradient_clip=True, ema=0.999, reg_logp=True
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: KSIVI
+target_type: Bnn_boston
+vi_model_type: ConditionalGaussianGlobal
+
+train:
+  epochs: 20000
+  batch_size: 100
+  grad_clip: 1.0
+  ema:
+    enabled: true
+    beta: 0.999
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 3000
+      gamma: 0.9
+  annealing:
+    enabled: false
+    scheme: linear
+    steps: 5000
+  ksivi:
+    statistic: v
+    kernel: gaussian
+    detach_kernel: false
+    log_p_reg: 1.0
+  log:
+    metric_log_freq: 1000
+    loss_log_freq: 100
+    reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 5000
+  sample:
+    freq: 1000
+    num: 100
+  plot:
+    freq: 5000
+    num: 100
+
+metric:
+  kl_ite:
+    enabled: false
+  w2:
+    enabled: false
+  elbo:
+    enabled: false
+  ksd:
+    enabled: true
+    num_samples: 100
+  mmd:
+    enabled: false

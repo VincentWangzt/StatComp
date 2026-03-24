@@ -303,6 +303,23 @@ class BaseSIVIRunner():
             )
         return target_distribution[self.target_type](device=self.device)
 
+        # Gradient clipping (None = disabled)
+        self.grad_clip = self.training_cfg.get('grad_clip', None)
+        if self.grad_clip is not None:
+            logger.info(f"Gradient clipping enabled with max_norm={self.grad_clip}")
+
+        # EMA (Exponential Moving Average) for stable evaluation
+        ema_cfg = self.training_cfg.get('ema', {})
+        self.ema_enabled = ema_cfg.get('enabled', False)
+        if self.ema_enabled:
+            from utils.ema import EMA
+            self.ema_beta = ema_cfg.get('beta', 0.999)
+            self.ema = EMA(
+                beta=self.ema_beta,
+                model_params=self.vi_model.parameters(),
+            )
+            logger.info(f"EMA enabled with beta={self.ema_beta}")
+
     def log_config(self):
         '''
         Log the full configuration to TensorBoard and save as YAML file.
@@ -889,6 +906,104 @@ class BaseSIVIRunner():
         raise NotImplementedError(
             "calc_log_q_phi_z must be implemented in subclasses.")
 
+    def _compute_loss_and_step(self, epoch: int) -> dict:
+        """
+        Compute the training loss, perform the optimizer step, and return diagnostics.
+
+        This default implementation computes the ELBO-based loss used by standard SIVI
+        and its reverse-model variants. Subclasses (e.g., KSIVIRunner) may override this
+        to implement alternative objectives such as KSD².
+
+        Args:
+            epoch (int): Current training epoch.
+
+        Returns:
+            dict with keys:
+                - 'loss' (torch.Tensor): Scalar loss value.
+                - 'grad_norm' (float): Gradient norm before step.
+                - 'z' (torch.Tensor): Sampled z for diagnostic logging.
+                - 'epsilon' (torch.Tensor): Sampled epsilon for diagnostic logging.
+                - 'time_vi_sample' (float): Time for sampling + forward pass.
+                - 'time_neg_score' (float): Time for log q estimation.
+                - 'time_backward' (float): Time for backward pass + optimizer step.
+        """
+        # Sample epsilon
+        t_vi0 = time.perf_counter()
+        epsilon = self.vi_model.sample_epsilon(
+            num=self.training_batch_size)
+
+        # Sample z from variational distribution
+        z, neg_score_implicit = self.vi_model.forward(epsilon)
+
+        # Compute log prob under target distribution using score-gradient trick
+        log_prob_target: torch.Tensor = self.target_model.score(
+            z.clone().detach()) * z
+        log_prob_target = log_prob_target.sum(dim=-1)
+
+        # Apply annealing if enabled
+        anneal_factor = annealing(
+            t=epoch,
+            warm_up_interval=self.anneal_steps,
+            anneal=self.use_annealing,
+            scheme=self.anneal_scheme,
+        )
+        log_prob_target = log_prob_target * anneal_factor
+
+        t_vi1 = time.perf_counter()
+
+        t_ns0 = time.perf_counter()
+
+        # Estimate log q_phi(z)
+        result = self.calc_log_q_phi_z(z, epsilon)
+        if isinstance(result, tuple):
+            log_q_phi_z, score_q = result
+        else:
+            log_q_phi_z = result
+            score_q = None
+
+        t_ns1 = time.perf_counter()
+
+        t_bw0 = time.perf_counter()
+
+        # Compute ELBO loss
+        loss = -torch.mean(log_prob_target - log_q_phi_z)
+        grad_norm = torch.nn.utils.get_total_norm(
+            self.vi_model.parameters(), )
+
+        if torch.isfinite(loss):
+            self.optimizer_vi.zero_grad()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.vi_model.parameters(), max_norm=self.grad_clip)
+            self.optimizer_vi.step()
+            self.scheduler_vi.step()
+            if self.ema_enabled:
+                self.ema.update_params(self.vi_model.parameters())
+        else:
+            logger.warning(
+                f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
+            )
+            logger.debug(
+                f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
+            )
+            logger.debug(
+                f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
+            )
+
+        t_bw1 = time.perf_counter()
+
+        return {
+            'loss': loss,
+            'grad_norm': grad_norm,
+            'z': z,
+            'epsilon': epsilon,
+            'score_q': score_q,
+            'time_vi_sample': t_vi1 - t_vi0,
+            'time_neg_score': t_ns1 - t_ns0,
+            'time_backward': t_bw1 - t_bw0,
+        }
+
     def learn(self):
         '''
         Run the full training procedure for UIVI.
@@ -928,75 +1043,16 @@ class BaseSIVIRunner():
             self.curr_epoch = epoch
             time_scalars.clear()
 
-            # Sample epsilon
-            t_vi0 = time.perf_counter()
-            epsilon = self.vi_model.sample_epsilon(
-                num=self.training_batch_size)
-
-            # Sample z from variational distribution
-            z, neg_score_implicit = self.vi_model.forward(epsilon)
-
-            # Compute log prob under target distribution
-            # log_prob_target = self.target_model.logp(z)
-            log_prob_target: torch.Tensor = self.target_model.score(
-                z.clone().detach()) * z
-            log_prob_target = log_prob_target.sum(dim=-1)
-            # log_prob_target: shape (batch_size,)
-
-            # Apply annealing if enabled
-            anneal_factor = annealing(
-                t=epoch,
-                warm_up_interval=self.anneal_steps,
-                anneal=self.use_annealing,
-                scheme=self.anneal_scheme,
-            )
-            log_prob_target = log_prob_target * anneal_factor
-
-            t_vi1 = time.perf_counter()
-            time_vi_sample_step = t_vi1 - t_vi0
-            time_scalars['vi_sample'] = time_vi_sample_step
-
-            t_ns0 = time.perf_counter()
-
-            # Give an estimate to log q_phi(z), specifically its gradient
-            result = self.calc_log_q_phi_z(z, epsilon)
-            if isinstance(result, tuple):
-                log_q_phi_z, score_q = result
-            else:
-                log_q_phi_z = result
-                score_q = None
-
-            t_ns1 = time.perf_counter()
-            time_neg_score_step = t_ns1 - t_ns0
-            time_scalars['neg_score'] = time_neg_score_step
-
-            t_bw0 = time.perf_counter()
-
-            # Compute loss
-            loss = -torch.mean(log_prob_target - log_q_phi_z)
-            grad_norm = None
-
-            if torch.isfinite(loss):
-                self.optimizer_vi.zero_grad()
-                loss.backward()
-                grad_norm = torch.nn.utils.get_total_norm(
-                    self.vi_model.parameters(), )
-                self.optimizer_vi.step()
-                self.scheduler_vi.step()
-            else:
-                logger.warning(
-                    f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
-                )
-                logger.debug(
-                    f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
-                )
-                logger.debug(
-                    f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
-                )
-
-            t_bw1 = time.perf_counter()
-            time_backward_step = t_bw1 - t_bw0
-            time_scalars['backward'] = time_backward_step
+            # Compute loss and perform optimizer step
+            diagnostics = self._compute_loss_and_step(epoch)
+            loss = diagnostics['loss']
+            z = diagnostics['z']
+            epsilon = diagnostics['epsilon']
+            grad_norm = diagnostics['grad_norm']
+            score_q = diagnostics.get('score_q', None)
+            time_scalars['vi_sample'] = diagnostics['time_vi_sample']
+            time_scalars['neg_score'] = diagnostics['time_neg_score']
+            time_scalars['backward'] = diagnostics['time_backward']
 
             # TensorBoard scalars
             self.writer.add_scalar("train/vi_model/loss", loss.item(), epoch)
@@ -1064,7 +1120,20 @@ class BaseSIVIRunner():
                 time_scalars['reverse_train'] = time_reverse_step
 
             # Generate and save samples
-            if epoch % self.training_sample_freq == 0:
+            needs_sample = (epoch % self.training_sample_freq == 0)
+            needs_metrics = (self.training_metric_log_freq > 0
+                             and epoch % self.training_metric_log_freq == 0)
+            needs_plot = (epoch % self.plot_freq == 0)
+
+            # EMA: swap to shadow params for evaluation/sampling/plotting
+            _ema_swapped = False
+            if self.ema_enabled and (needs_sample or needs_metrics
+                                     or needs_plot):
+                self.ema.store(self.vi_model.parameters())
+                self.ema.apply_shadow(self.vi_model.parameters())
+                _ema_swapped = True
+
+            if needs_sample:
                 time_sample0 = time.perf_counter()
                 self.save_samples(epoch)
                 time_sample1 = time.perf_counter()
@@ -1080,8 +1149,7 @@ class BaseSIVIRunner():
                 time_scalars['checkpoint'] = time_ckpt_step
 
             # Log metrics
-            if self.training_metric_log_freq > 0 and (
-                    epoch % self.training_metric_log_freq == 0):
+            if needs_metrics:
 
                 t_metric0 = time.perf_counter()
 
@@ -1142,7 +1210,7 @@ class BaseSIVIRunner():
                 time_scalars['metric_eval_tot'] = time_metric_step
 
             # Generate and save contour plots
-            if epoch % self.plot_freq == 0:
+            if needs_plot:
                 t_plot0 = time.perf_counter()
                 _, z_plot = self.vi_model.sampling(num=self.plot_num)
 
@@ -1171,6 +1239,11 @@ class BaseSIVIRunner():
                 t_plot1 = time.perf_counter()
                 time_plot_step = t_plot1 - t_plot0
                 time_scalars['plot'] = time_plot_step
+
+            # EMA: restore training params
+            if _ema_swapped:
+                self.ema.restore(self.vi_model.parameters())
+
             epoch_end_time = time.perf_counter()
             epoch_time = epoch_end_time - epoch_start_time
             time_scalars['epoch'] = epoch_time

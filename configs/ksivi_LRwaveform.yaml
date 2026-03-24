@@ -1,0 +1,54 @@
+# KSIVI on Bayesian Logistic Regression (Waveform dataset, 22-dimensional)
+# Original: kernel=gaussian, epochs=200*100=20k, batch=100, lr=0.001, no annealing
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: KSIVI
+target_type: LRwaveform
+vi_model_type: ConditionalGaussianGlobal
+
+train:
+  epochs: 20000
+  batch_size: 100
+  vi:
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 3000
+      gamma: 0.9
+  annealing:
+    enabled: false
+    scheme: linear
+    steps: 5000
+  ksivi:
+    statistic: v
+    kernel: gaussian
+    detach_kernel: false
+    log_p_reg: 0.0
+  log:
+    metric_log_freq: 1000
+    loss_log_freq: 100
+    reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 5000
+  sample:
+    freq: 1000
+    num: 1000
+  plot:
+    freq: 5000
+    num: 1000
+
+metric:
+  kl_ite:
+    enabled: false
+  w2:
+    enabled: false
+  elbo:
+    enabled: false
+  ksd:
+    enabled: true
+    num_samples: 1000
+  mmd:
+    enabled: false
