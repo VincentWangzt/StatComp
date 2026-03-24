@@ -103,4 +103,24 @@ Directions to explore:
 
 **Still running**: smallbatch+rev2 (batch=2048) and anneal1000+rev5 to test further efficiency gains.
 
+### Phase 2 Complete Results
+
+All DSIVI BNN experiments done. Summary of findings:
+
+**1. rev2 (2 reverse epochs) is optimal for BNN.** Best quality AND fastest. rev5 is strictly worse: slower (0.348s vs 0.21s) and marginally worse BNN (NLL 2.62 vs 2.59).
+
+**2. batch=2048 makes DSIVI faster than UIVI.** At 0.146s/ep vs UIVI's 0.178s, DSIVI is 18% faster per epoch with negligible BNN quality loss (NLL 2.60 vs 2.59).
+
+**3. No annealing converges fastest.** Best NLL 2.59 at epoch 7370 (18 min wall-clock). With annealing=1000, best NLL is the same but at epoch 9680 (35 min).
+
+**4. Annealing=1000 gives marginally better RMSE.** 3.20 vs 3.21 — essentially tied.
+
+**5. The efficiency frontier:** DSIVI noanneal+smallbatch achieves NLL 2.59 in 18 min — UIVI needs 28 min to converge to NLL 3.35, which is 0.76 worse. DSIVI wins on both axes.
+
+### Interpretation
+
+The DSIVI advantage over UIVI on BNN prediction is large and robust across configurations. The mechanism: DSIVI's denoising reverse model provides a smooth gradient signal that pushes the VI into a concentrated posterior over BNN weights. UIVI's HMC reverse model is exact but noisy (5 HMC samples), and may not explore the posterior as effectively in 751 dimensions.
+
+The ELBO-BNN anticorrelation from Phase 1 is explained by the same mechanism: a concentrated posterior predicts well (low RMSE/NLL) but has poor entropy estimation (ELBO breakdown). The "broken" ELBO regime is actually the desirable regime for BNN prediction.
+
 ---

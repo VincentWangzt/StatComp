@@ -1,67 +1,81 @@
 # Experiment Results — DSIVI on BNN (Bnn_boston)
 
-## Phase 2: BNN-Focused (current)
+## Phase 2: BNN-Focused Results
 
-### UIVI Baselines (converged)
+### UIVI Baselines (converged, 20K epochs)
 
-| Run | Annealing | Epochs | Best RMSE | Best NLL | Epoch@best | Wall-time | Ep time |
-|-----|-----------|--------|-----------|----------|------------|-----------|---------|
-| UIVI-A-ext | 5000 | 20K | 4.81 | 3.36 | ~9500 | ~28min | 0.178s |
-| UIVI-B-ext | 1000 | 20K | 4.74 | 3.35 | ~12500 | ~37min | 0.177s |
+| Run | Annealing | Ep time | Best RMSE | Best NLL | Ep@best NLL | Wall to best |
+|-----|-----------|---------|-----------|----------|-------------|-------------|
+| UIVI-A | 5000 | 0.178s | 4.81 | 3.36 | 9500 | 28min |
+| UIVI-B | 1000 | 0.177s | 4.74 | 3.35 | 12500 | 37min |
 
-**UIVI BNN ceiling**: RMSE ~4.75, NLL ~3.35. Converged by epoch 10-13K. Extra epochs do not help.
+**UIVI BNN ceiling**: RMSE ~4.75, NLL ~3.35. Converged by epoch 10-13K. No improvement beyond.
 
-### DSIVI BNN-Focused Experiments
+### DSIVI BNN Experiments (all 20K epochs)
 
-| Run | Annealing | Rev Ep | Batch | Epochs | Best RMSE | Best NLL | Ep@best | Wall-best | Ep time |
-|-----|-----------|--------|-------|--------|-----------|----------|---------|-----------|---------|
-| anneal1000+rev2 | 1000 | 2 | 4096 | 20K | **3.20** | **2.59** | 9680 | ~35min | 0.215s |
-| noanneal+rev2 | off | 2 | 4096 | 20K | 3.23 | 2.60 | 11600 | ~41min | 0.209s |
+| Run | Anneal | RevEp | Batch | Ep time | Best RMSE | Best NLL | Ep@best | Wall to best | Wall total |
+|-----|--------|-------|-------|---------|-----------|----------|---------|-------------|-----------|
+| anneal1000+rev2 | 1000 | 2 | 4096 | 0.215s | **3.20** | **2.59** | 9680 | 35min | 72min |
+| noanneal+rev2 | off | 2 | 4096 | 0.209s | 3.23 | 2.60 | 11600 | 41min | 70min |
+| smallbatch+rev2 | 1000 | 2 | 2048 | **0.146s** | 3.25 | 2.60 | 13520 | 33min | 50min |
+| **noanneal+smallbatch** | **off** | **2** | **2048** | **0.148s** | **3.21** | **2.59** | 7370 | **18min** | **50min** |
+| anneal1000+rev5 | 1000 | 5 | 4096 | 0.348s | 3.33 | 2.62 | 12450 | 72min | 117min |
 
-### DSIVI BNN-Focused — Running
+### 🏆 Best Configurations
 
-| Run | Annealing | Rev Ep | Batch | Epochs | Status |
-|-----|-----------|--------|-------|--------|--------|
-| smallbatch+rev2 | 1000 | 2 | 2048 | 20K | GPU 0 |
-| anneal1000+rev5 | 1000 | 5 | 4096 | 20K | GPU 1 |
+**Best BNN quality (NLL)**: DSIVI anneal1000+rev2 (batch=4096) — NLL **2.59**, RMSE **3.20**
 
-### Head-to-Head: Fixed Time Budget
+**Fastest to good BNN**: DSIVI noanneal+smallbatch — NLL **2.59** in **18 min** (faster per epoch than UIVI!)
 
-**At 30 minutes of wall-clock time:**
+**Best efficiency**: DSIVI noanneal+smallbatch — 0.148s/ep (17% faster than UIVI), same BNN quality
 
-| Method | Epochs reached | Best RMSE so far | Best NLL so far |
-|--------|----------------|------------------|-----------------|
-| UIVI-A (anneal5000) | ~10000 | 4.83 | 3.36 |
-| UIVI-B (anneal1000) | ~10000 | 4.74 | 3.35 |
-| DSIVI anneal1000+rev2 | ~8200 | **3.20** | **2.59** |
-| DSIVI noanneal+rev2 | ~8600 | 3.28 | 2.61 |
+### Head-to-Head Comparisons
 
-**DSIVI beats UIVI by 1.5 RMSE points and 0.76 NLL at the same wall-clock time.**
+**At 30 minutes wall-clock:**
 
-### Head-to-Head: Fixed Step Count
+| Method | Config | Epochs done | Best NLL | Best RMSE |
+|--------|--------|-------------|----------|-----------|
+| UIVI-A | anneal5000 | ~10000 | 3.36 | 4.83 |
+| UIVI-B | anneal1000 | ~10000 | 3.35 | 4.74 |
+| DSIVI | anneal1000, rev2, b4096 | ~8200 | **2.59** | **3.20** |
+| DSIVI | noanneal, rev2, b2048 | ~12100 | **2.59** | **3.21** |
 
-**At 10,000 epochs:**
+**At 10,000 steps:**
 
-| Method | Wall-time | Best RMSE | Best NLL |
-|--------|-----------|-----------|----------|
-| UIVI-A (anneal5000) | 30min | 4.83 | 3.36 |
-| UIVI-B (anneal1000) | 30min | 4.74 | 3.35 |
-| DSIVI anneal1000+rev2 | 36min | **3.20** | **2.59** |
-| DSIVI noanneal+rev2 | 35min | 3.30 | 2.62 |
+| Method | Config | Wall-time | Best NLL | Best RMSE |
+|--------|--------|-----------|----------|-----------|
+| UIVI-A | anneal5000 | 30min | 3.36 | 4.83 |
+| UIVI-B | anneal1000 | 30min | 3.35 | 4.74 |
+| DSIVI | anneal1000, rev2, b4096 | 36min | **2.59** | **3.20** |
+| DSIVI | noanneal, rev2, b2048 | 25min | **2.59** | **3.21** |
 
-**DSIVI still wins at the same step count despite being slightly slower per step.**
+**DSIVI wins on every axis**: better NLL (2.59 vs 3.35), better RMSE (3.20 vs 4.74), comparable or faster wall-clock time.
 
-### Key Findings (Phase 2)
+### Key Findings
 
-1. **DSIVI dominates UIVI on BNN prediction**: RMSE 3.20 vs 4.74 (32% better), NLL 2.59 vs 3.35 (23% better)
-2. **rev2 (2 reverse inner epochs) is optimal for BNN**: Closes the epoch-time gap to UIVI (0.21s vs 0.18s), and BNN metrics match or beat rev10
-3. **Annealing helps slightly**: anneal1000+rev2 gets best RMSE 3.20 (faster) vs no-annealing 3.23 (slower to converge)
-4. **BNN converges by epoch 8-12K** for DSIVI, similar to UIVI, but at a much better level
-5. **No-annealing is viable**: Similar final metrics, faster early convergence (good BNN by epoch 500)
+1. **DSIVI dominates UIVI on BNN**: 23% better NLL, 33% better RMSE
+2. **rev2 is the sweet spot**: 2 reverse epochs achieves best BNN, fastest per epoch
+3. **Batch=2048 is faster than UIVI per epoch**: 0.146-0.148s vs 0.178s (18% faster!)
+4. **No annealing is viable**: Fastest convergence to good BNN (18 min), same final quality
+5. **Annealing helps slightly for best RMSE**: anneal1000 gets 3.20 vs 3.21 (marginal)
+6. **rev5 is strictly worse**: Slower (0.348s), marginally better NLL (2.62 vs 2.60 for batch4096)
+
+### Recommended DSIVI Config for BNN
+
+```yaml
+train:
+  epochs: 15000  # BNN converges by 7-13K
+  batch_size: 2048  # Faster per epoch than UIVI
+  annealing:
+    enabled: false  # or steps: 1000 (marginal difference)
+  reverse:
+    epochs: 2  # Minimal overhead, best BNN
+    batch_size: 4096
+```
 
 ---
 
-## Phase 1 Summary (ELBO-focused, completed)
+## Phase 1 Summary (ELBO-focused, archived)
 
-Best ELBO: -586.5 (DSIVI veryslow-30K with step=6000)
-See experiment_observations.md for full Phase 1 details.
+Best ELBO: -586.5 (DSIVI veryslow-30K with anneal=500, step=6000, rev10, 30K epochs).
+ELBO-optimal config is very different from BNN-optimal config.
