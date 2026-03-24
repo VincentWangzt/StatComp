@@ -1,11 +1,11 @@
-# KSIVI on Multimodal distribution
-# Original: kernel=IMQ, epochs=500*100=50k, batch=500, lr=0.001, annealing=True
+# KSIVI on Student-t distribution
+# Original: kernel=riesz, epochs=500*100=50k, batch=500, lr=0.001, annealing=True
 seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
 runner_type: KSIVI
-target_type: multimodal
+target_type: student_uc
 vi_model_type: ConditionalGaussianGlobal
 
 train:
@@ -23,7 +23,7 @@ train:
     steps: 25000
   ksivi:
     statistic: v
-    kernel: imq
+    kernel: riesz
     detach_kernel: false
     log_p_reg: 0.0
   log:
@@ -35,10 +35,10 @@ train:
     freq: 5000
   sample:
     freq: 500
-    num: 100000
+    num: 5000
   plot:
     freq: 500
-    num: 1000
+    num: 5000
 
 metric:
   kl_ite:
