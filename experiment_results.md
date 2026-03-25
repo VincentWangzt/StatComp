@@ -17,6 +17,8 @@
 | AISIVI | on | **1.56** | **0.009** | **0.244** | -0.007 | **0.002** | 0.031s | 10K |
 | DSIVI | on | 2.96 | 0.012 | 0.326 | 0.003 | 0.002 | **0.011s** | 10K |
 | DSIVI | off | 0.54 | 0.014 | 0.283 | 0.007 | **0.001** | **0.010s** | 10K |
+| DSIVI | on,20K | 4.62 | 0.024 | 0.237 | — | — | 0.012s | 20K |
+| KSIVI | anneal | -0.04 | 0.061 | 0.754 | 0.006 | 0.004 | 0.007s | 50K |
 
 ## Multimodal (z_dim=2)
 
@@ -29,6 +31,8 @@
 | AISIVI | on | **0.03** | -0.002 | **0.030** | -0.001 | **0.002** | 0.033s | 10K |
 | DSIVI | on | 0.01 | -0.002 | 0.049 | 0.001 | 0.001 | **0.010s** | 10K |
 | DSIVI | off | 0.22 | 0.032 | 0.068 | 0.001 | 0.002 | **0.010s** | 10K |
+| DSIVI | on,20K | 0.01 | 0.002 | 0.048 | — | — | 0.012s | 20K |
+| KSIVI | anneal | 0.0004 | ~0 | 0.039 | 0.001 | 0.001 | 0.007s | 50K |
 
 ## X-Shaped (z_dim=2)
 
@@ -41,6 +45,8 @@
 | AISIVI | — | ★crash | — | — | — | — | — | — |
 | DSIVI | on | 0.05 | 0.013 | **0.037** | -0.003 | **0.002** | **0.011s** | 10K |
 | DSIVI | off | **0.61** | 0.012 | 0.051 | -0.0002 | **0.002** | **0.011s** | 10K |
+| DSIVI | on,20K | 0.04 | **-0.001** | 0.055 | 0.001 | — | 0.011s | 20K |
+| KSIVI | anneal | -0.006 | 0.003 | 0.102 | 0.006 | 0.002 | 0.007s | 50K |
 
 ## Student-UC (z_dim=2)
 
@@ -89,6 +95,7 @@
 | UIVI | on | — | **-915** | 5.26 | 3.43 | 0.115s | 10K |
 | DSIVI | off | rev2 | -4331 | **3.53** | **2.68** | 0.124s | 10K |
 | DSIVI | on | rev2 | -4432 | 3.60 | 2.69 | 0.115s | 10K |
+| DSIVI | off,20K | rev2 | -4453 | **3.34** | **2.63** | 0.114s | 20K |
 | DSIVI | off | rev5 | -4315 | 3.62 | 2.70 | 0.279s | 10K |
 | DSIVI | on | rev5 | -4424 | 3.76 | 2.74 | 0.278s | 10K |
 
@@ -127,18 +134,44 @@
 
 ## Key Findings (Updated)
 
-1. **KSIVI now works** after bug fix! Top performer on multimodal (KL 0.009) and x_shaped (KL 0.001). Still diverges on Langevin_post.
+1. **KSIVI now works** after bug fix! Top performer on multimodal (KL 0.009) and x_shaped (KL 0.001). Annealing helps on banana (KL 0.074→0.061) but breaks student_uc. Still diverges on Langevin_post.
 2. **DSIVI consistently top-2-3** across all targets and metrics.
-3. **DSIVI LRwaveform improved** from ELBO -56.4 (2K epochs) to -24.3 (10K epochs) — now matches UIVI.
-4. **DSIVI rev2 vs rev5 on Bnn_boston**: rev2 is better (RMSE 3.53 vs 3.76) AND faster (0.12s vs 0.28s). Less reverse training = better BNN prediction.
-5. **DSIVI rev2 vs rev5 on Langevin_post**: Similar W2 (0.008 vs 0.008), but rev2 is 2x faster.
-6. **DSIVI rev2 dominates rev5**: Faster AND equal or better quality across all targets. rev5 on Bnn_boston: RMSE 3.62 vs rev2 3.53; 2.3x slower.
-7. **KSIVI works on toy 2D after fix** but struggles on high-dim targets (Langevin diverges, Bnn_boston RMSE 142, LRwaveform broken ELBO).
+3. **DSIVI 20K improves Bnn_boston**: NLL 2.68→**2.63**, RMSE 3.53→**3.34** with 20K epochs.
+4. **DSIVI 20K mixed on toy 2D**: Helps x_shaped (KL 0.013→-0.001) but not banana (overfit: 0.012→0.024). Toy 2D targets converge by 10K.
+5. **DSIVI rev2 dominates rev5**: Faster AND equal or better quality. rev5 on Bnn_boston: RMSE 3.62 vs rev2 3.53; 2.3x slower.
+6. **KSIVI with annealing**: Helps banana (KL -17%), hurts student_uc (diverges). Target-dependent.
+7. **KSIVI struggles on high-dim**: Langevin diverges, Bnn_boston RMSE 142, LRwaveform broken ELBO.
+
+## DSIVI 10K vs 20K Comparison (rev2)
+
+| Target | Metric | 10K | 20K | Δ |
+|--------|--------|-----|-----|---|
+| banana | KL↓ | **0.012** | 0.024 | worse (overfit) |
+| multimodal | KL↓ | -0.002 | 0.002 | ~same |
+| x_shaped | KL↓ | 0.013 | **-0.001** | ✅ better |
+| student_uc | KL↓ | **0.009** | 0.016 | slightly worse |
+| Langevin | W2↓ | 0.008 | 0.008 | same |
+| LRwaveform | ELBO↑ | **-24.3** | -24.5 | ~same |
+| Bnn_boston | NLL↓ | 2.68 | **2.63** | ✅ better |
+| Bnn_boston | RMSE↓ | 3.53 | **3.34** | ✅ better |
+
+**Conclusion**: 20K helps on Bnn_boston (high-dim, slow convergence) and x_shaped. Toy 2D targets converge by 10K — extra epochs don't help and may overfit.
+
+## KSIVI Annealing Comparison
+
+| Target | KL (no anneal) | KL (anneal) | Better? |
+|--------|---------------|-------------|---------|
+| banana | 0.074 | **0.061** | ✅ anneal |
+| multimodal | 0.009 | ~0 | ✅ anneal (marginal) |
+| x_shaped | **0.001** | 0.003 | ❌ no anneal |
+| student_uc | **0.032** | 5.61 ★diverged | ❌ anneal breaks it |
+| Langevin | ★div | ★div | both bad |
 
 ## Crashes/Failures
 
 | Method | Targets that crash/diverge |
 |--------|---------------------------|
 | KSIVI | Langevin_post (diverges), LRwaveform (broken ELBO), Bnn_boston (poor — RMSE 142) |
+| KSIVI+anneal | student_uc (diverges with annealing) |
 | RSIVI | banana (collapse), x_shaped, student_uc, LRwaveform (RealNVP) |
 | AISIVI | x_shaped, LRwaveform (RealNVP) |
