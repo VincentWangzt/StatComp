@@ -98,6 +98,7 @@ This generates pre-processed `.pt` files under `data/waveform/` and `data/boston
 - **Python**: 3.14.2 (venv managed by uv 0.10.12, in `.venv/`)
 - **PyTorch**: 2.9.0+cpu
 - **OS**: Linux x86_64
+- **IMPORTANT**: Always run via `.venv/bin/python` (or activate with `source .venv/bin/activate`). System Python does not have project dependencies installed.
 
 ### Remote GPU Server (for training)
 - **Host**: `ssh -p 44817 root@region-41.seetacloud.com`
