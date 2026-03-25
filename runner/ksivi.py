@@ -112,9 +112,9 @@ class KSIVIRunner(BaseSIVIRunner):
             z2, neg_score2 = z1, neg_score1
             eps2 = eps1
 
-        # Target scores
-        target_score1 = self.target_model.score(z1.clone().detach())
-        target_score2 = self.target_model.score(z2.clone().detach())
+        # Target scores — gradient must flow through z back to VI model
+        target_score1 = self.target_model.score(z1)
+        target_score2 = self.target_model.score(z2)
 
         # Apply annealing to target scores
         anneal_factor = annealing(
