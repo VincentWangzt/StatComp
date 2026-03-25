@@ -72,3 +72,41 @@ def load_boston(
         train["mean_y"],
         train["std_y"],
     )
+
+
+def load_bnn_regression(
+    name: str,
+    data_dir: str | Path | None = None,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Load a pre-processed UCI BNN regression dataset.
+
+    Parameters
+    ----------
+    name : str
+        Dataset name, e.g. ``"concrete"``, ``"power"``, ``"protein"``,
+        ``"winered"``, ``"yacht"``.  Expects ``data/<name>/train.pt`` and
+        ``data/<name>/test.pt`` prepared by ``prepare_data.py``.
+    data_dir : str or Path, optional
+        Override the directory.  Defaults to ``<project_root>/data/<name>/``.
+    device : torch.device
+        Target device for returned tensors.
+
+    Returns
+    -------
+    tuple
+        ``(X_train, y_train, X_test, y_test, mean_y_train, std_y_train)``
+        on *device*.  ``y_train`` is standardised; ``y_test`` is in original
+        scale.
+    """
+    d = Path(data_dir) if data_dir else _DATA_DIR / name
+    train = torch.load(os.path.join(d, "train.pt"), map_location=device, weights_only=True)
+    test = torch.load(os.path.join(d, "test.pt"), map_location=device, weights_only=True)
+    return (
+        train["X"],
+        train["y"],
+        test["X"],
+        test["y"],
+        train["mean_y"],
+        train["std_y"],
+    )

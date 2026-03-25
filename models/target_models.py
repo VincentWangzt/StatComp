@@ -1276,5 +1276,10 @@ target_distribution: dict[str, type] = {
     "student_uc": StudentTFullDim,
     "LRwaveform": LRwaveform,
     "Bnn_boston": Bnn,
+    "Bnn_concrete": Bnn,
+    "Bnn_power": Bnn,
+    "Bnn_protein": Bnn,
+    "Bnn_winered": Bnn,
+    "Bnn_yacht": Bnn,
     "Langevin_post": Langevin_post,
 }

@@ -22,6 +22,19 @@ import torch
 from models.target_models import Bnn, LRwaveform
 
 
+# ---------------------------------------------------------------------------
+# Registry of new BNN regression target types
+# ---------------------------------------------------------------------------
+
+_BNN_REGRESSION_TARGETS: frozenset[str] = frozenset({
+    "Bnn_concrete",
+    "Bnn_power",
+    "Bnn_protein",
+    "Bnn_winered",
+    "Bnn_yacht",
+})
+
+
 class DataBoundTarget:
     """Wrap a data-dependent target to present the standard ``logp(X)``/``score(X)`` interface.
 
@@ -148,7 +161,8 @@ def build_data_bound_target(
     Parameters
     ----------
     target_type : str
-        One of ``"LRwaveform"`` or ``"Bnn_boston"``.
+        One of ``"LRwaveform"``, ``"Bnn_boston"``, ``"Bnn_concrete"``,
+        ``"Bnn_power"``, ``"Bnn_protein"``, ``"Bnn_winered"``, ``"Bnn_yacht"``.
     target_cfg : dict or None
         Target config section (may contain ``data.batch_size``, ``data.path``, etc.).
     device : torch.device
@@ -159,7 +173,7 @@ def build_data_bound_target(
     DataBoundTarget
         Ready-to-use target with standard ``logp(X)``/``score(X)`` interface.
     """
-    from utils.datasets import load_boston, load_waveform
+    from utils.datasets import load_boston, load_bnn_regression, load_waveform
 
     target_cfg = target_cfg or {}
     data_cfg = target_cfg.get("data", {}) or {}
@@ -180,6 +194,34 @@ def build_data_bound_target(
 
     elif target_type == "Bnn_boston":
         X_train, y_train, X_test, y_test, mean_y, std_y = load_boston(
+            device=device,
+        )
+        d = X_train.shape[1]
+        n_hidden = int(data_cfg.get("n_hidden", 50))
+        loglambda = float(data_cfg.get("loglambda", -1.003869799168037))
+        loggamma = float(data_cfg.get("loggamma", -2.555990767319021))
+        inner = Bnn(
+            device=device,
+            d=d,
+            n_hidden=n_hidden,
+            loglambda=loglambda,
+            loggamma=loggamma,
+        )
+        z_dim = inner.dim_wb  # (d+1)*n_hidden + (n_hidden+1)
+        return DataBoundTarget(
+            inner=inner,
+            dataset=X_train,
+            labels=y_train,
+            batch_size=data_batch_size,
+            z_dim=z_dim,
+            device=device,
+            test_data=(X_test, y_test, mean_y, std_y),
+        )
+
+    elif target_type in _BNN_REGRESSION_TARGETS:
+        name = target_type[4:].lower()  # "Bnn_concrete" → "concrete"
+        X_train, y_train, X_test, y_test, mean_y, std_y = load_bnn_regression(
+            name=name,
             device=device,
         )
         d = X_train.shape[1]

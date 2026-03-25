@@ -6,6 +6,11 @@ Prepares ``.pt`` files under ``data/`` for data-dependent targets:
   Generated synthetically following the original UCI specification.
 - **Boston Housing**: 13 features regression (loaded from bundled text file
   or the KSIVI ``datasets/`` directory).
+- **Concrete**: UCI Concrete Compressive Strength (8 features, N=1030).
+- **Power**: UCI Combined Cycle Power Plant (4 features, N=9568).
+- **Protein**: UCI Physicochemical Properties of Protein (9 features, N=45730).
+- **Winered**: UCI Wine Quality – Red (11 features, N=1599).
+- **Yacht**: UCI Yacht Hydrodynamics (6 features, N=308).
 
 Usage::
 
@@ -17,6 +22,8 @@ Output files::
     data/waveform/test.pt    – dict(X=..., y=...)
     data/boston/train.pt      – dict(X=..., y=..., mean_y=..., std_y=...)
     data/boston/test.pt       – dict(X=..., y=...)
+    data/<name>/train.pt      – dict(X=..., y=..., mean_y=..., std_y=...)  [new]
+    data/<name>/test.pt       – dict(X=..., y=...)                          [new]
 """
 
 from __future__ import annotations
@@ -182,10 +189,140 @@ def prepare_boston(out_dir: str = "data/boston", seed: int = 42) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Generic UCI regression datasets
+# ---------------------------------------------------------------------------
+
+def _prepare_regression_csv(
+    src: str,
+    out_dir: str,
+    delimiter: str,
+    feature_cols: list[int],
+    target_col: int,
+    seed: int = 42,
+    name: str = "",
+) -> None:
+    """Load a UCI regression CSV, split 90/10, standardise X and y, save .pt files."""
+    os.makedirs(out_dir, exist_ok=True)
+
+    data = np.loadtxt(src, delimiter=delimiter)
+    X = data[:, feature_cols]
+    y = data[:, target_col]
+
+    rng = np.random.RandomState(seed)
+    idx = rng.permutation(len(X))
+    n_train = int(0.9 * len(X))
+    X_train, X_test = X[idx[:n_train]], X[idx[n_train:]]
+    y_train, y_test = y[idx[:n_train]], y[idx[n_train:]]
+
+    # Standardise X using training stats
+    mu_x = X_train.mean(axis=0)
+    std_x = X_train.std(axis=0) + 1e-8
+    X_train = (X_train - mu_x) / std_x
+    X_test = (X_test - mu_x) / std_x
+
+    # Standardise y using training stats
+    mean_y = float(y_train.mean())
+    std_y = float(y_train.std()) + 1e-8
+    y_train_norm = (y_train - mean_y) / std_y
+    # y_test stays in original scale for evaluation
+
+    torch.save(
+        {
+            "X": torch.tensor(X_train, dtype=torch.float32),
+            "y": torch.tensor(y_train_norm, dtype=torch.float32).unsqueeze(-1),
+            "mean_y": torch.tensor(mean_y, dtype=torch.float32),
+            "std_y": torch.tensor(std_y, dtype=torch.float32),
+        },
+        os.path.join(out_dir, "train.pt"),
+    )
+    torch.save(
+        {
+            "X": torch.tensor(X_test, dtype=torch.float32),
+            "y": torch.tensor(y_test, dtype=torch.float32).unsqueeze(-1),
+        },
+        os.path.join(out_dir, "test.pt"),
+    )
+    label = name or out_dir
+    print(f"{label} saved to {out_dir}/  "
+          f"(train: {X_train.shape}, test: {X_test.shape}, "
+          f"mean_y={mean_y:.4f}, std_y={std_y:.4f})")
+
+
+def prepare_concrete(out_dir: str = "data/concrete", seed: int = 42) -> None:
+    """UCI Concrete Compressive Strength: 8 features, target col 8, N=1030."""
+    _prepare_regression_csv(
+        src="data/Concrete_Data.csv",
+        out_dir=out_dir,
+        delimiter=",",
+        feature_cols=list(range(8)),
+        target_col=8,
+        seed=seed,
+        name="Concrete",
+    )
+
+
+def prepare_power(out_dir: str = "data/power", seed: int = 42) -> None:
+    """UCI Combined Cycle Power Plant: 4 features, target col 4, N=9568."""
+    _prepare_regression_csv(
+        src="data/power.csv",
+        out_dir=out_dir,
+        delimiter=",",
+        feature_cols=list(range(4)),
+        target_col=4,
+        seed=seed,
+        name="Power",
+    )
+
+
+def prepare_protein(out_dir: str = "data/protein", seed: int = 42) -> None:
+    """UCI Protein Physicochemical: 9 features, target col 9, N=45730."""
+    _prepare_regression_csv(
+        src="data/protein.csv",
+        out_dir=out_dir,
+        delimiter=",",
+        feature_cols=list(range(9)),
+        target_col=9,
+        seed=seed,
+        name="Protein",
+    )
+
+
+def prepare_winered(out_dir: str = "data/winered", seed: int = 42) -> None:
+    """UCI Wine Quality Red: 11 features, target col 11, N=1599, semicolon-delimited."""
+    _prepare_regression_csv(
+        src="data/winered.csv",
+        out_dir=out_dir,
+        delimiter=";",
+        feature_cols=list(range(11)),
+        target_col=11,
+        seed=seed,
+        name="Winered",
+    )
+
+
+def prepare_yacht(out_dir: str = "data/yacht", seed: int = 42) -> None:
+    """UCI Yacht Hydrodynamics: 6 features, target col 6, N=308, whitespace-delimited."""
+    _prepare_regression_csv(
+        src="data/yacht.csv",
+        out_dir=out_dir,
+        delimiter=None,  # np.loadtxt default: whitespace
+        feature_cols=list(range(6)),
+        target_col=6,
+        seed=seed,
+        name="Yacht",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     prepare_waveform()
     prepare_boston()
+    prepare_concrete()
+    prepare_power()
+    prepare_protein()
+    prepare_winered()
+    prepare_yacht()
     print("Data preparation complete.")

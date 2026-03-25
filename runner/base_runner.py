@@ -297,7 +297,15 @@ class BaseSIVIRunner():
             logger.info(f"EMA enabled with beta={self.ema_beta}")
 
     # Data-dependent target types that require the DataBoundTarget wrapper
-    _DATA_DEPENDENT_TARGETS = frozenset({"LRwaveform", "Bnn_boston"})
+    _DATA_DEPENDENT_TARGETS = frozenset({
+        "LRwaveform",
+        "Bnn_boston",
+        "Bnn_concrete",
+        "Bnn_power",
+        "Bnn_protein",
+        "Bnn_winered",
+        "Bnn_yacht",
+    })
 
     def _build_target_model(self):
         """Instantiate the target model.
