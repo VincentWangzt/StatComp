@@ -85,12 +85,12 @@
 | Method | Anneal | Rev | ELBO | RMSE↓ | NLL↓ | EpTime | Epochs |
 |--------|--------|-----|------|-------|------|--------|--------|
 | SIVI | on | — | -1201 | 5.63 | 3.41 | 0.032s | 20K |
-| KSIVI | — | — | pending | — | — | — | — |
+| KSIVI | off | — | ★broken | 142.4 | 3.84 | 0.011s | 20K |
 | UIVI | on | — | **-915** | 5.26 | 3.43 | 0.115s | 10K |
-| DSIVI | on | rev2 | -4432 | 3.60 | 2.69 | 0.115s | 10K |
 | DSIVI | off | rev2 | -4331 | **3.53** | **2.68** | 0.124s | 10K |
+| DSIVI | on | rev2 | -4432 | 3.60 | 2.69 | 0.115s | 10K |
+| DSIVI | off | rev5 | -4315 | 3.62 | 2.70 | 0.279s | 10K |
 | DSIVI | on | rev5 | -4424 | 3.76 | 2.74 | 0.278s | 10K |
-| DSIVI | off | rev5 | — | — | — | — | running |
 
 ---
 
@@ -132,12 +132,13 @@
 3. **DSIVI LRwaveform improved** from ELBO -56.4 (2K epochs) to -24.3 (10K epochs) — now matches UIVI.
 4. **DSIVI rev2 vs rev5 on Bnn_boston**: rev2 is better (RMSE 3.53 vs 3.76) AND faster (0.12s vs 0.28s). Less reverse training = better BNN prediction.
 5. **DSIVI rev2 vs rev5 on Langevin_post**: Similar W2 (0.008 vs 0.008), but rev2 is 2x faster.
-6. **For speed-quality tradeoff**: rev2 dominates rev5 — faster AND equal or better quality.
+6. **DSIVI rev2 dominates rev5**: Faster AND equal or better quality across all targets. rev5 on Bnn_boston: RMSE 3.62 vs rev2 3.53; 2.3x slower.
+7. **KSIVI works on toy 2D after fix** but struggles on high-dim targets (Langevin diverges, Bnn_boston RMSE 142, LRwaveform broken ELBO).
 
 ## Crashes/Failures
 
 | Method | Targets that crash/diverge |
 |--------|---------------------------|
-| KSIVI | Langevin_post (diverges), LRwaveform/Bnn_boston (pending) |
+| KSIVI | Langevin_post (diverges), LRwaveform (broken ELBO), Bnn_boston (poor — RMSE 142) |
 | RSIVI | banana (collapse), x_shaped, student_uc, LRwaveform (RealNVP) |
 | AISIVI | x_shaped, LRwaveform (RealNVP) |
