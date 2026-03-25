@@ -1,126 +1,61 @@
-# Experiment Observations — DSIVI on BNN (Bnn_boston)
-
-Running log of experiments, observations, and hypotheses.
+# Experiment Observations — Comprehensive Benchmark
 
 ---
 
-## Phase 1: ELBO-Focused Exploration (2026-03-24 01:00–14:00)
+## Phase 3: Multi-Method Benchmark (2026-03-25)
 
-### Summary
-Explored DSIVI hyperparameters for ELBO optimization. Key findings:
-- **anneal=500, rev_epochs=10, LR step=5000-6000, 30K epochs** achieves ELBO -586 to -691
-- This surpasses UIVI-A (-910) by 220-323 ELBO units
-- However, ELBO and BNN metrics are **anticorrelated** across configurations
+### What was run
+- 6 methods × 7 targets = 42 intended runs
+- 34 completed successfully, 8 crashed (KSIVI divergence, RealNVP failures, OOM, config)
 
-### Critical Observation: ELBO-BNN Disconnect
+### Method Reliability
 
-| Run | Config | BNN RMSE | BNN NLL | Best ELBO | ELBO Stable? |
-|-----|--------|----------|---------|-----------|-------------|
-| **rev2** | anneal500, rev2 | **3.25** | **2.60** | -1308 | ❌ |
-| **baseline** | anneal1000, rev10 | **3.33** | **2.62** | -1383 | ❌ |
-| anneal500 | anneal500, rev10 | 4.46 | 3.10 | -1095 | ✅ |
-| anneal500-20K | anneal500, rev10 | 4.46 | 3.10 | -999 | ✅ |
-| veryslow-30K | anneal500, rev10, step6000 | 5.10 | 3.26 | -586 | ✅ |
-| UIVI-A | anneal5000 | 4.83 | 3.36 | -910 | ✅ |
-| UIVI-B | anneal1000 | 4.85 | 3.37 | -1073 | ✅ |
+| Method | Success rate | Failure modes |
+|--------|------------|---------------|
+| SIVI | 6/7 (86%) | OOM on Bnn_boston with default config; fixed with smaller reverse_sample_num |
+| KSIVI | 1/7 (14%) | Numerical divergence on most targets; config issues on data-dependent |
+| UIVI | 7/7 (100%) | No failures |
+| RSIVI | 3/7 (43%) | RealNVP crashes on x_shaped, student_uc, LRwaveform |
+| AISIVI | 4/7 (57%) | RealNVP crashes on x_shaped, LRwaveform |
+| DSIVI | 7/7 (100%) | No failures (with rev2 config) |
 
-**Insight**: The "ELBO-broken" regime (more aggressive annealing, fewer rev epochs) produces BNN RMSE 3.2-3.3 and NLL 2.6 — dramatically better than both UIVI (~4.85/3.37) and ELBO-stable DSIVI (~4.5/3.1). BNN prediction quality is our actual goal.
+**UIVI and DSIVI are the only methods that work on all 7 targets.**
 
-### BNN Trajectory Analysis
+### DSIVI Performance Summary
 
-**anneal1000 (baseline)**: Reaches NLL ~2.7 by epoch 1000 (after annealing completes). BNN RMSE oscillates around 3.3-3.9. Best RMSE 3.33 at epoch 5840.
+**Toy 2D (by KL):** Top-1 or top-2 on all 4 targets. Competitive with AISIVI where AISIVI doesn't crash.
 
-**anneal500**: Reaches NLL ~3.3 by epoch 500. Never improves below 3.1. The shorter annealing apparently doesn't push the VI into the same predictive mode.
+**Langevin_post (100D):** KL 7.0 (anneal on), close to UIVI (5.4). Both DSIVI variants beat SIVI (17.5) and RSIVI (22.5).
 
-**Hypothesis**: For BNN prediction, the annealing period is where the action is. Longer annealing (≥1000) with full target weight pushes the VI into a concentrated posterior that predicts well. The "ELBO breakdown" is a side effect of this concentration (variance collapse → MC estimation fails) but the actual samples are excellent for prediction.
+**LRwaveform (22D):** ELBO -56.4, worse than UIVI (-24.2). The rev2 configuration with only 2K epochs may be undertrained. Needs more epochs.
 
-### Epoch Time Comparison
+**Bnn_boston (751D):** Dominates on BNN prediction (RMSE 3.53 vs UIVI 5.26). ELBO is unreliable (broken as seen in Phase 1).
 
-| Method | Config | Epoch time | Notes |
-|--------|--------|-----------|-------|
-| UIVI | batch=4096 | 0.18s | HMC reverse is built-in, no separate training |
-| DSIVI | batch=4096, rev10, rev_batch=8192 | 0.59s | 10 inner reverse epochs dominate |
-| DSIVI | batch=4096, rev2, rev_batch=8192 | 0.21s | 2 rev epochs → 2.8x faster |
+### DSIVI Speed Advantage
 
-Key: DSIVI with rev2 (0.21s) is only 17% slower than UIVI (0.18s). This is the regime to explore for efficiency.
+| Target dim | DSIVI ep time | UIVI ep time | Speedup |
+|-----------|---------------|--------------|---------|
+| 2D | 0.010s | 0.092s | **9.2x** |
+| 100D | 0.021s | 0.090s | **4.3x** |
+| 22D | 0.011s | 0.097s | **8.8x** |
+| 751D | 0.115s | 0.115s | 1.0x |
 
----
+DSIVI with rev2 is 4-9x faster than UIVI on low-to-mid dimensional targets. On Bnn_boston (751D), the speed is similar because the VI model forward pass dominates.
 
-## Phase 2: BNN-Focused Exploration (2026-03-24 14:00+)
+### KSIVI Analysis
 
-### Goal
-Maximize BNN test performance (RMSE, NLL) while considering training efficiency. Compare DSIVI vs UIVI under both fixed-step and fixed-time budgets.
+KSIVI diverges on banana, multimodal, x_shaped, Langevin_post. The ELBO/KSD/Fisher values become astronomical (10^15 to 10^25). Only student_uc converges (KL 0.094).
 
-### Starting Point: Best BNN from Phase 1
+**Hypothesis:** The Gaussian kernel KSD estimator has variance issues when the target score has large norms. The student_uc target has bounded scores, which is why it works. The other targets may have score magnitudes that destabilize the kernel computation. The `detach_kernel=false` setting may also contribute by allowing gradient through the kernel bandwidth, leading to degenerate bandwidth selection.
 
-| Method | Config | Best RMSE | Best NLL | Epoch Time | Wall-time to best |
-|--------|--------|-----------|----------|-----------|-------------------|
-| DSIVI rev2 | anneal500, rev2, 10K | **3.25** | **2.60** | 0.21s | ~26 min (7520ep) |
-| DSIVI baseline | anneal1000, rev10, 10K | 3.33 | 2.62 | 0.59s | ~57 min (5840ep) |
-| UIVI-A | anneal5000, 10K | 4.83 | 3.36 | 0.18s | ~23 min (7800ep) |
-| UIVI-B | anneal1000, 5K | 4.85 | 3.37 | 0.18s | ~11 min (3700ep) |
+### RSIVI/AISIVI RealNVP Issues
 
-### Experiment Plan
+The ConditionalRealNVP reverse model produces NaN/Inf samples on x_shaped, student_uc, and LRwaveform. This happens both with default and larger batch sizes. The RealNVP architecture may need better conditioning or regularization for these target geometries.
 
-**Track 1: Extended UIVI Baselines** (find BNN ceiling for UIVI)
-- UIVI-A-ext: anneal=5000, 20K epochs (GPU 0)
-- UIVI-B-ext: anneal=1000, 20K epochs (GPU 1)
-- Also test: UIVI-noanneal: annealing disabled, 20K epochs
-
-**Track 2: DSIVI BNN Tuning** (accelerate convergence, maintain BNN quality)
-
-Directions to explore:
-1. **No annealing**: Remove annealing entirely. The VI trains with full target from epoch 0. This should be fastest to converge since annealing delays convergence.
-2. **Annealing=1000 + rev2**: Combine the best BNN regime (anneal1000) with the fastest DSIVI config (rev2, 0.21s/ep). The rev2 run used anneal500 — try it with 1000.
-3. **Smaller batch sizes**: batch_size 2048/1024, rev_batch 4096/2048. Should reduce per-epoch time further.
-4. **Annealing=1000 + rev5**: Middle ground between rev2 (fast) and rev10 (stable).
-
-**Evaluation**: All metrics enabled (ELBO, KSD, Fisher, BNN RMSE/NLL). Compare runs at:
-- Fixed steps: epoch 1K, 2K, 5K, 10K, 20K
-- Fixed time: 5 min, 15 min, 30 min, 60 min
-
-### What Success Looks Like
-- DSIVI matches or beats its best BNN (RMSE <3.3, NLL <2.6) in less wall-clock time
-- DSIVI at any time point beats UIVI at the same time point
-- Closing the epoch time gap: DSIVI ≤ 0.25s/ep (from 0.59s)
-
-### Phase 2 Results So Far
-
-**UIVI Baselines (20K epochs)**: BNN converged to RMSE ~4.75, NLL ~3.35. No improvement beyond 10-13K epochs.
-
-**DSIVI anneal1000+rev2 (20K, 0.215s/ep)**:
-- Best RMSE 3.20, NLL 2.59 @ epoch 9680 (~35 min)
-- ✅ Achieves success criteria: RMSE <3.3, NLL <2.6
-- ✅ Epoch time 0.215s (within 0.25s target)
-- ✅ Beats UIVI at every time point
-
-**DSIVI noanneal+rev2 (20K, 0.209s/ep)**:
-- Best RMSE 3.23, NLL 2.60 @ epoch 11600 (~41 min)
-- Nearly matches anneal1000, converges faster initially (good BNN by epoch 500)
-- Both end at same final metrics (~RMSE 3.43, NLL 2.65)
-
-**Key insight**: anneal1000+rev2 is the current sweet spot. It achieves the best BNN prediction quality while keeping epoch time close to UIVI. The 0.215s/ep vs UIVI's 0.178s/ep is a 21% overhead for 32% better RMSE and 23% better NLL.
-
-**Still running**: smallbatch+rev2 (batch=2048) and anneal1000+rev5 to test further efficiency gains.
-
-### Phase 2 Complete Results
-
-All DSIVI BNN experiments done. Summary of findings:
-
-**1. rev2 (2 reverse epochs) is optimal for BNN.** Best quality AND fastest. rev5 is strictly worse: slower (0.348s vs 0.21s) and marginally worse BNN (NLL 2.62 vs 2.59).
-
-**2. batch=2048 makes DSIVI faster than UIVI.** At 0.146s/ep vs UIVI's 0.178s, DSIVI is 18% faster per epoch with negligible BNN quality loss (NLL 2.60 vs 2.59).
-
-**3. No annealing converges fastest.** Best NLL 2.59 at epoch 7370 (18 min wall-clock). With annealing=1000, best NLL is the same but at epoch 9680 (35 min).
-
-**4. Annealing=1000 gives marginally better RMSE.** 3.20 vs 3.21 — essentially tied.
-
-**5. The efficiency frontier:** DSIVI noanneal+smallbatch achieves NLL 2.59 in 18 min — UIVI needs 28 min to converge to NLL 3.35, which is 0.76 worse. DSIVI wins on both axes.
-
-### Interpretation
-
-The DSIVI advantage over UIVI on BNN prediction is large and robust across configurations. The mechanism: DSIVI's denoising reverse model provides a smooth gradient signal that pushes the VI into a concentrated posterior over BNN weights. UIVI's HMC reverse model is exact but noisy (5 HMC samples), and may not explore the posterior as effectively in 751 dimensions.
-
-The ELBO-BNN anticorrelation from Phase 1 is explained by the same mechanism: a concentrated posterior predicts well (low RMSE/NLL) but has poor entropy estimation (ELBO breakdown). The "broken" ELBO regime is actually the desirable regime for BNN prediction.
+### Missing/TODO
+- [ ] DSIVI student_uc with annealing on (only noanneal was run with 10K)
+- [ ] DSIVI LRwaveform needs more epochs (only 2K due to config default)
+- [ ] KSIVI Bnn_boston/LRwaveform config fix
+- [ ] RSIVI/AISIVI Bnn_boston (not attempted — RealNVP likely to crash)
 
 ---
