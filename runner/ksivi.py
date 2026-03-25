@@ -158,10 +158,10 @@ class KSIVIRunner(BaseSIVIRunner):
         # KSD² loss
         loss = (score_product * K).mean()
 
-        # Optional log-p regularization
-        if self.log_p_reg > 0:
+        # Optional log-p regularization (only during annealing warmup)
+        if self.log_p_reg > 0 and anneal_factor < 1.0:
             log_p = self.target_model.logp(z1)
-            loss = loss - self.log_p_reg * log_p.mean()
+            loss = loss - self.log_p_reg * log_p.mean() * anneal_factor
 
         t_ns1 = time.perf_counter()
 
