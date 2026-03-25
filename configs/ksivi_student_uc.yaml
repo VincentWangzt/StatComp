@@ -26,6 +26,7 @@ train:
     kernel: riesz
     detach_kernel: false
     log_p_reg: 0.0
+    affine_invariant: true
   log:
     metric_log_freq: 500
     loss_log_freq: 100

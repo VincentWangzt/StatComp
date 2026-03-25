@@ -61,6 +61,7 @@ class KSIVIRunner(BaseSIVIRunner):
 
         self.detach_kernel: bool = ksivi_cfg.get('detach_kernel', True)
         self.log_p_reg: float = ksivi_cfg.get('log_p_reg', 0.0)
+        self.affine_invariant: bool = ksivi_cfg.get('affine_invariant', False)
 
         # KSIVI has no reverse model
         self.reverse_train = False
@@ -68,7 +69,8 @@ class KSIVIRunner(BaseSIVIRunner):
         logger.info(
             f"KSIVIRunner initialized: statistic={self.statistic_type}, "
             f"kernel={kernel_type}, detach_kernel={self.detach_kernel}, "
-            f"log_p_reg={self.log_p_reg}"
+            f"log_p_reg={self.log_p_reg}, "
+            f"affine_invariant={self.affine_invariant}"
         )
 
     def calc_log_q_phi_z(
@@ -141,7 +143,14 @@ class KSIVIRunner(BaseSIVIRunner):
             K = self.kernel.pair_eval(z1, z2, fit_h=True)
 
         # Score product matrix: [N, N]
-        score_product = f1 @ f2.T
+        if self.affine_invariant:
+            with torch.no_grad():
+                cov = torch.cov(z1.T)
+                inv_cov = torch.inverse(
+                    cov + 1e-8 * torch.eye(z1.shape[-1], device=z1.device))
+            score_product = (f1 @ inv_cov) @ f2.T
+        else:
+            score_product = f1 @ f2.T
 
         if self.statistic_type == 'u':
             score_product = score_product.fill_diagonal_(0)
