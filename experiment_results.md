@@ -169,7 +169,7 @@
 | Method | Success rate | Failure modes |
 |--------|-------------|---------------|
 | SIVI | 7/7 | No failures (reduced `reverse_sample_num` needed on Bnn_boston) |
-| KSIVI | 4/7 | Diverges on Langevin; broken ELBO on LRwaveform; poor on Bnn_boston (RMSE 142) |
+| KSIVI | 4/7 original + 0/5 new BNN | Diverges on Langevin; broken ELBO on LRwaveform; diverges on all 5 new BNN targets (KSD → ±billions) |
 | UIVI | 7/7 | No failures |
 | RSIVI | 3/7 | RealNVP crashes on x_shaped, student_uc, LRwaveform |
 | AISIVI | 4/7 | RealNVP crashes on x_shaped, LRwaveform |
@@ -235,7 +235,7 @@
 
 *Verdict: 25K is clearly worse on banana and x_shaped (KL 2–30× higher). Multimodal and student_uc are acceptable at 25K. Recommend keeping 50K for toy 2D.*
 
-**Note**: KSIVI Langevin_post 50K, LRwaveform 10K, and Bnn_boston 10K reruns crashed in initial run due to missing config sub-keys — re-running.
+**Note**: KSIVI Langevin_post 50K, LRwaveform 10K, and Bnn_boston 10K reruns crashed in initial run due to missing config sub-keys — re-running (results pending).
 
 ---
 
@@ -248,76 +248,86 @@
 
 ## Bnn_yacht (z_dim=401)
 
-| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
-|--------|--------|--------|-------|------|---------|
-| SIVI | on | 20K | 1.866 | 2.706 | 0.020s |
-| UIVI | on | 10K | 2.469 | 2.701 | 0.095s |
-| DSIVI | on | 10K | **0.794** | **1.073** | 0.119s |
-| DSIVI | off | 10K | 1.975 | 2.342 | 0.120s |
-| DSIVI | off | 20K | 1.807 | 2.480 | 0.115s |
-| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | KSD | Ep time |
+|--------|--------|--------|-------|------|-----|---------|
+| SIVI | on | 20K | 1.866 | 2.706 | — | 0.020s |
+| UIVI | on | 10K | 2.469 | 2.701 | — | 0.095s |
+| DSIVI | on | 10K | **0.794** | **1.073** | — | 0.119s |
+| DSIVI | off | 10K | 1.975 | 2.342 | — | 0.120s |
+| DSIVI | off | 20K | 1.807 | 2.480 | — | 0.115s |
+| KSIVI | off | 10K | ★ div | — | 8572 | 0.009s |
+| KSIVI | off | 20K | ★ div | — | 116K | 0.009s |
+| KSIVI | off | 30K | ★ div | — | -18M | 0.009s |
 
-*Best: DSIVI-on-10K dominates (RMSE 0.794, NLL 1.073) — dramatic win for annealing on small dataset. SIVI better than UIVI here.*
+*Best: DSIVI-on-10K dominates (RMSE 0.794, NLL 1.073) — dramatic win for annealing on small dataset. KSIVI diverges (KSD explodes).*
 
 ---
 
 ## Bnn_power (z_dim=301)
 
-| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
-|--------|--------|--------|-------|------|---------|
-| SIVI | on | 20K | 4.334 | 3.069 | 0.016s |
-| UIVI | on | 10K | 4.366 | 3.061 | 0.095s |
-| DSIVI | on | 10K | **4.146** | **2.842** | 0.094s |
-| DSIVI | off | 10K | 4.310 | 2.915 | 0.093s |
-| DSIVI | off | 20K | 4.308 | 2.948 | 0.093s |
-| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | KSD | Ep time |
+|--------|--------|--------|-------|------|-----|---------|
+| SIVI | on | 20K | 4.334 | 3.069 | — | 0.016s |
+| UIVI | on | 10K | 4.366 | 3.061 | — | 0.095s |
+| DSIVI | on | 10K | **4.146** | **2.842** | — | 0.094s |
+| DSIVI | off | 10K | 4.310 | 2.915 | — | 0.093s |
+| DSIVI | off | 20K | 4.308 | 2.948 | — | 0.093s |
+| KSIVI | off | 10K | ★ div | — | 1075 | 0.009s |
+| KSIVI | off | 20K | ★ div | — | -612 | 0.009s |
+| KSIVI | off | 30K | ★ div | — | -1573 | 0.009s |
 
-*Best: DSIVI-on-10K (RMSE 4.15, NLL 2.84). Anneal-on beats off on power. 20K offers no benefit over 10K.*
+*Best: DSIVI-on-10K (RMSE 4.15, NLL 2.84). KSIVI diverges. Anneal-on beats off on power. 20K offers no benefit over 10K.*
 
 ---
 
 ## Bnn_concrete (z_dim=501)
 
-| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
-|--------|--------|--------|-------|------|---------|
-| SIVI | on | 20K | 12.305 | 4.140 | 0.023s |
-| UIVI | on | 10K | 10.210 | 4.088 | 0.094s |
-| DSIVI | on | 10K | **6.132** | **3.237** | 0.140s |
-| DSIVI | off | 10K | 10.344 | 4.008 | 0.137s |
-| DSIVI | off | 20K | 10.505 | 3.998 | 0.140s |
-| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | KSD | Ep time |
+|--------|--------|--------|-------|------|-----|---------|
+| SIVI | on | 20K | 12.305 | 4.140 | — | 0.023s |
+| UIVI | on | 10K | 10.210 | 4.088 | — | 0.094s |
+| DSIVI | on | 10K | **6.132** | **3.237** | — | 0.140s |
+| DSIVI | off | 10K | 10.344 | 4.008 | — | 0.137s |
+| DSIVI | off | 20K | 10.505 | 3.998 | — | 0.140s |
+| KSIVI | off | 10K | ★ div | — | 32149 | 0.009s |
+| KSIVI | off | 20K | ★ div | — | 16131 | 0.009s |
+| KSIVI | off | 30K | ★ div | — | 331 | 0.009s |
 
-*Best: DSIVI-on-10K by large margin (RMSE 6.13 vs UIVI 10.21, NLL 3.24 vs 4.09). Annealing critical here. Longer training without annealing doesn't help.*
+*Best: DSIVI-on-10K by large margin (RMSE 6.13 vs UIVI 10.21, NLL 3.24 vs 4.09). Annealing critical here. KSIVI diverges on all epoch counts (KSD still 331 at 30K — slowly improving but not useful).*
 
 ---
 
 ## Bnn_protein (z_dim=551)
 
-| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
-|--------|--------|--------|-------|------|---------|
-| SIVI | on | 20K | 5.097 | 3.047 | 0.025s |
-| UIVI | on | 10K | 5.111 | 3.050 | 0.093s |
-| DSIVI | on | 10K | 4.676 | 2.963 | 0.163s |
-| DSIVI | off | 10K | 4.707 | 2.968 | 0.165s |
-| DSIVI | off | 20K | **4.566** | **2.941** | 0.159s |
-| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | KSD | Ep time |
+|--------|--------|--------|-------|------|-----|---------|
+| SIVI | on | 20K | 5.097 | 3.047 | — | 0.025s |
+| UIVI | on | 10K | 5.111 | 3.050 | — | 0.093s |
+| DSIVI | on | 10K | 4.676 | 2.963 | — | 0.163s |
+| DSIVI | off | 10K | 4.707 | 2.968 | — | 0.165s |
+| DSIVI | off | 20K | **4.566** | **2.941** | — | 0.159s |
+| KSIVI | off | 10K | ★ div | — | 104K | 0.009s |
+| KSIVI | off | 20K | ★ div | — | -143M | 0.010s |
+| KSIVI | off | 30K | ★ div | — | -116G | 0.009s |
 
-*Best: DSIVI-off-20K (RMSE 4.57, NLL 2.94). Unlike yacht/concrete, annealing hurts slightly; 20K better than 10K. SIVI ≈ UIVI.*
+*Best: DSIVI-off-20K (RMSE 4.57, NLL 2.94). KSIVI catastrophically diverges — KSD hits -116 billion at 30K. Annealing slightly hurts on large dataset; 20K better than 10K.*
 
 ---
 
 ## Bnn_winered (z_dim=651)
 
-| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
-|--------|--------|--------|-------|------|---------|
-| SIVI | on | 20K | 0.577 | 0.868 | 0.029s |
-| UIVI | on | 10K | **0.568** | **0.853** | 0.091s |
-| DSIVI | on | 10K | 0.595 | 0.895 | 0.175s |
-| DSIVI | off | 10K | 0.587 | 0.876 | 0.179s |
-| DSIVI | off | 20K | 0.582 | 0.875 | 0.171s |
-| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | KSD | Ep time |
+|--------|--------|--------|-------|------|-----|---------|
+| SIVI | on | 20K | 0.577 | 0.868 | — | 0.029s |
+| UIVI | on | 10K | **0.568** | **0.853** | — | 0.091s |
+| DSIVI | on | 10K | 0.595 | 0.895 | — | 0.175s |
+| DSIVI | off | 10K | 0.587 | 0.876 | — | 0.179s |
+| DSIVI | off | 20K | 0.582 | 0.875 | — | 0.171s |
+| KSIVI | off | 10K | ★ div | — | -246K | 0.009s |
+| KSIVI | off | 20K | ★ div | — | -2.1G | 0.010s |
+| KSIVI | off | 30K | ★ div | — | 597K | 0.009s |
 
-*Best: UIVI (RMSE 0.568, NLL 0.853). DSIVI competitive but slightly behind; all methods within 5% RMSE. Likely near-optimal for this dataset.*
+*Best: UIVI (RMSE 0.568, NLL 0.853). DSIVI competitive but slightly behind; all methods within 5% RMSE. KSIVI diverges. Likely near-optimal for this dataset.*
 
 ---
 
