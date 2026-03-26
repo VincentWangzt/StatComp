@@ -104,9 +104,11 @@ A clear pattern emerges across the 5 new targets:
 
 **Important observation**: Unlike Bnn_boston where DSIVI matched UIVI speed, on these new targets DSIVI is actually *slower* per epoch. The new BNN targets have fewer training samples (protein aside), so the VI forward pass is cheaper but DSIVI still pays the reverse model cost. The 9× speedup observed on toy 2D does not carry over to BNN targets beyond boston.
 
-### Missing/TODO
-- [ ] KSIVI on new BNN targets 10K/20K/30K (running now — config fix applied)
-- [ ] KSIVI Langevin_post 50K, LRwaveform 10K, Bnn_boston 10K reruns (running now)
-- [ ] DSIVI on new BNN targets with 20K for winered/power (currently only DSIVI-off-20K run)
+### Missing/TODO — ALL COMPLETE ✅
+- [x] KSIVI on new BNN targets 10K/20K/30K — diverges on all 5 (KSD explodes to ±millions/billions)
+- [x] KSIVI Langevin_post 50K — diverges (KSD=3531), halving epochs makes no difference
+- [x] KSIVI LRwaveform 10K — broken (KSD=1283), worse than 20K
+- [x] KSIVI Bnn_boston 10K — broken ELBO, RMSE=12.16 (better than 20K's 142.4 but still far behind DSIVI)
+- [ ] DSIVI on new BNN targets with 20K anneal-on for winered/power (optional, low priority)
 
 ---

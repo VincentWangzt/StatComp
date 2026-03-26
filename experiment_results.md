@@ -86,6 +86,7 @@
 | SIVI | on | — | 20K | -176 | 0.035 | 0.503 | 0.023 | 0.047s |
 | KSIVI | off | — | 100K | ★ diverged | 75.3M | ★div | 0.004 | 0.011s |
 | KSIVI | on | — | 100K | ★ diverged | 262.5 | ★div | 0.004 | 0.009s |
+| KSIVI | off | — | **50K** | ★ diverged | — | 3531 | — | 0.009s |
 | UIVI | on | — | 10K | **-77.4** | **0.007** | **0.014** | **0.002** | 0.090s |
 | RSIVI | on | — | 10K | -180 | 0.033 | 0.707 | 0.021 | 0.615s |
 | AISIVI | on | — | 10K | 63.3 | 0.074 | 1.011 | 0.004 | 0.620s |
@@ -105,6 +106,7 @@
 |--------|--------|-----|--------|-------|------|---------|
 | SIVI | on | — | 20K | -33.5 | 1.78 | 0.022s |
 | KSIVI | off | — | 20K | ★ broken (+51K) | 673 | 0.008s |
+| KSIVI | off | — | **10K** | ★ broken | 1283 | 0.006s |
 | UIVI | on | — | 10K | **-24.2** | **0.031** | 0.097s |
 | RSIVI | — | — | — | ★ RealNVP crash | | |
 | AISIVI | — | — | — | ★ RealNVP crash | | |
@@ -122,6 +124,7 @@
 |--------|--------|-----|--------|------|-------|------|---------|
 | SIVI | on | — | 20K | -1201 | 5.63 | 3.41 | 0.032s |
 | KSIVI | off | — | 20K | ★ broken | 142.4 | 3.84 | 0.011s |
+| KSIVI | off | — | **10K** | ★ broken | 12.16 | 3.74 | 0.010s |
 | UIVI | on | — | 10K | **-915** | 5.26 | 3.43 | 0.115s |
 | DSIVI | on | rev2 | 10K | — | 3.60 | 2.69 | 0.115s |
 | DSIVI | off | rev2 | 10K | — | 3.53 | 2.68 | 0.124s |
@@ -235,7 +238,7 @@
 
 *Verdict: 25K is clearly worse on banana and x_shaped (KL 2–30× higher). Multimodal and student_uc are acceptable at 25K. Recommend keeping 50K for toy 2D.*
 
-**Note**: KSIVI Langevin_post 50K, LRwaveform 10K, and Bnn_boston 10K reruns crashed in initial run due to missing config sub-keys — re-running (results pending).
+**Note**: KSIVI Langevin_post 50K, LRwaveform 10K, and Bnn_boston 10K reruns completed — all diverge/fail (KSD 3531, 1283; RMSE 12.16 respectively). Confirms KSIVI cannot handle high-dimensional targets.
 
 ---
 
