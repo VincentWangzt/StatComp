@@ -53,9 +53,60 @@ KSIVI diverges on banana, multimodal, x_shaped, Langevin_post. The ELBO/KSD/Fish
 The ConditionalRealNVP reverse model produces NaN/Inf samples on x_shaped, student_uc, and LRwaveform. This happens both with default and larger batch sizes. The RealNVP architecture may need better conditioning or regularization for these target geometries.
 
 ### Missing/TODO
-- [ ] DSIVI student_uc with annealing on (only noanneal was run with 10K)
-- [ ] DSIVI LRwaveform needs more epochs (only 2K due to config default)
-- [ ] KSIVI Bnn_boston/LRwaveform config fix
+- [x] DSIVI LRwaveform needs more epochs → done (10K: ELBO -24.3)
+- [x] KSIVI Bnn_boston/LRwaveform config fix → done (missing metric sub-keys fixed)
+- [ ] KSIVI Langevin_post 50K, LRwaveform 10K, Bnn_boston 10K reruns (crashed initially, re-running now)
 - [ ] RSIVI/AISIVI Bnn_boston (not attempted — RealNVP likely to crash)
+
+---
+
+## Phase 4: KSIVI Half-Epoch Reruns + New BNN Targets (2026-03-26)
+
+### What was run
+- KSIVI half-epoch reruns: 7 original targets with halved epochs (25K toy/LR/BNN, 50K Langevin)
+- New BNN targets (concrete, power, protein, winered, yacht): SIVI/UIVI/DSIVI × anneal on/off × 10K/20K
+- KSIVI on new BNN targets: 10K/20K/30K (pending re-run after config fix)
+
+### Infrastructure changes
+- Added 5 new UCI BNN regression datasets to pipeline
+- Fixed KSIVI configs for high-dim targets (missing `num_samples`/`num_z_samples` metric sub-keys caused silent crashes)
+
+### KSIVI 25K vs 50K: half-epoch is NOT sufficient for toy 2D
+
+| Target | KL (50K) | KL (25K) | Δ |
+|--------|----------|----------|---|
+| banana | **0.061** | 0.148 | 2.4× worse |
+| multimodal | **~0** | 0.015 | acceptable |
+| x_shaped | **0.001** | 0.031 | 31× worse |
+| student_uc | 0.032 | **0.015** | better at 25K |
+
+25K is clearly insufficient for banana and x_shaped. Recommendation: keep 50K for toy 2D.
+
+### New BNN Targets: DSIVI annealing pattern
+
+A clear pattern emerges across the 5 new targets:
+
+**Annealing ON wins on**: yacht (N=308), power (N=9568), concrete (N=1030) — smaller/medium datasets.
+**Annealing OFF wins on**: protein (N=45730) — large dataset, more stable gradient signal.
+**UIVI wins on**: winered (N=1599) — all methods within 5%, DSIVI doesn't dominate.
+
+**Hypothesis**: On small datasets, the posterior is well-concentrated and annealing helps DSIVI learn the reverse model before the target becomes too sharp. On large datasets (protein), stochastic gradients provide sufficient noise that annealing is not needed.
+
+### DSIVI speed on new BNN targets
+
+| Target (z_dim) | DSIVI ep | UIVI ep | Speedup |
+|----------------|----------|---------|---------|
+| yacht (401) | 0.119s | 0.095s | 0.8× (UIVI faster!) |
+| concrete (501) | 0.140s | 0.094s | 0.7× |
+| power (301) | 0.094s | 0.095s | ~1× |
+| protein (551) | 0.163s | 0.093s | 0.6× |
+| winered (651) | 0.175s | 0.091s | 0.5× |
+
+**Important observation**: Unlike Bnn_boston where DSIVI matched UIVI speed, on these new targets DSIVI is actually *slower* per epoch. The new BNN targets have fewer training samples (protein aside), so the VI forward pass is cheaper but DSIVI still pays the reverse model cost. The 9× speedup observed on toy 2D does not carry over to BNN targets beyond boston.
+
+### Missing/TODO
+- [ ] KSIVI on new BNN targets 10K/20K/30K (running now — config fix applied)
+- [ ] KSIVI Langevin_post 50K, LRwaveform 10K, Bnn_boston 10K reruns (running now)
+- [ ] DSIVI on new BNN targets with 20K for winered/power (currently only DSIVI-off-20K run)
 
 ---

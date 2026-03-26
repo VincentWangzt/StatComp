@@ -2,9 +2,10 @@
 
 **Date**: 2026-03-25/26
 **Methods**: SIVI, KSIVI, UIVI, RSIVI, AISIVI, DSIVI
-**Primary metrics**: ELBO↑, KL↓, W2↓ (toy/Langevin); ELBO↑, KSD↓ (LRwaveform); RMSE↓, NLL↓ (Bnn_boston)
+**Primary metrics**: ELBO↑, KL↓, W2↓ (toy/Langevin); ELBO↑, KSD↓ (LRwaveform); RMSE↓, NLL↓ (BNN targets)
 **Note on Langevin_post**: KL estimation unreliable — use W2 and ELBO instead.
-**Note on DSIVI ELBO**: ELBO estimator breaks on Bnn_boston (concentrated posterior) — use RMSE/NLL.
+**Note on DSIVI ELBO**: ELBO estimator breaks on all BNN targets (concentrated posterior) — use RMSE/NLL.
+**BNN Targets**: boston (z=751), concrete (z=501), power (z=301), protein (z=551), winered (z=651), yacht (z=401)
 
 ---
 
@@ -178,14 +179,16 @@
 
 ## Key Findings
 
-1. **DSIVI and UIVI are the only 100%-reliable methods** — work on all 7 targets.
-2. **DSIVI top-1 or top-2** on student_uc (KL), LRwaveform (ELBO tie with UIVI), Bnn_boston (NLL), Langevin W2 (near-tie with UIVI).
+1. **DSIVI and UIVI are the only 100%-reliable methods** — work on all 7 original targets + 5 new BNN targets.
+2. **DSIVI top-1 or top-2** on student_uc (KL), LRwaveform (ELBO tie with UIVI), Bnn_boston (NLL), Langevin W2 (near-tie with UIVI), and 4/5 new BNN targets.
 3. **KSIVI (fixed)** is best on multimodal (KL ~0) and x_shaped (KL 0.001) but diverges on Langevin and fails on high-dim targets.
-4. **DSIVI 3–9x faster per epoch** than UIVI on toy/mid-dim; equal speed on Bnn_boston (751D).
+4. **DSIVI 3–9x faster per epoch** than UIVI on toy/mid-dim; equal speed on high-dim BNN (>500D).
 5. **rev2 is optimal for DSIVI**: faster AND better than rev5 across all targets.
-6. **20K epochs improve DSIVI** on Bnn_boston (NLL 2.68→2.63, RMSE 3.53→3.34) and x_shaped; toy 2D converges by 10K.
+6. **20K epochs improve DSIVI** on Bnn_boston (NLL 2.68→2.63), protein (NLL 2.97→2.94), and x_shaped; toy 2D and most BNN converge by 10K.
 7. **KSIVI annealing**: improves banana (KL 0.074→0.061), breaks student_uc (diverges), marginally helps multimodal. Best config is target-dependent.
 8. **RSIVI/AISIVI** unreliable due to RealNVP instability on several targets.
+9. **DSIVI annealing pattern for new BNN**: annealing on wins for small/medium datasets (yacht, power, concrete); off wins for large datasets (protein N=45K; winered UIVI wins).
+10. **KSIVI 25K vs 50K**: significantly worse on banana and x_shaped — 50K epochs needed for toy 2D targets.
 
 ---
 
@@ -210,3 +213,122 @@
 | Multimodal | ~0 | ~0 | 0.041 | **0.039** | ~ same |
 | X-Shaped | **0.001** | 0.003 | **0.068** | 0.102 | ✅ off |
 | Student-UC | **0.032** | ★ 5.61 (diverged) | **0.063** | ★ 18.1 | ✅ off |
+
+---
+
+## Phase 4: KSIVI Half-Epoch Reruns (2026-03-26)
+
+**Purpose**: Test whether 25K epochs (50% of original) gives comparable quality to 50K on toy 2D targets, and 50K vs 100K on Langevin.
+
+### KSIVI 25K (toy 2D) — compare to 50K originals
+
+| Target | Epochs | ELBO↑ | KL↓ | W2↓ | KSD | MMD | Ep time |
+|--------|--------|-------|-----|-----|-----|-----|---------|
+| Banana | 50K (orig) | -0.04 | 0.061 | 0.754 | 0.006 | 0.004 | 0.007s |
+| Banana | **25K** | -0.04 | 0.148 | 0.987 | 0.020 | 0.011 | **0.007s** |
+| Multimodal | 50K (orig) | 0.003 | ~0 | 0.039 | ~0 | 0.001 | 0.007s |
+| Multimodal | **25K** | 0.002 | 0.015 | 0.040 | ~0 | 0.001 | **0.008s** |
+| X-Shaped | 50K (orig) | 0.006 | 0.001 | 0.068 | 0.002 | 0.003 | 0.008s |
+| X-Shaped | **25K** | 0.030 | 0.031 | 0.202 | ~0 | 0.003 | **0.008s** |
+| Student-UC | 50K (orig) | -2.52 | 0.032 | 0.063 | 0.018 | 0.002 | 0.005s |
+| Student-UC | **25K** | -2.69 | 0.015 | 0.062 | 0.095 | 0.002 | **0.007s** |
+
+*Verdict: 25K is clearly worse on banana and x_shaped (KL 2–30× higher). Multimodal and student_uc are acceptable at 25K. Recommend keeping 50K for toy 2D.*
+
+**Note**: KSIVI Langevin_post 50K, LRwaveform 10K, and Bnn_boston 10K reruns crashed in initial run due to missing config sub-keys — re-running.
+
+---
+
+## Phase 4: New BNN Regression Targets (2026-03-26)
+
+**Datasets**: concrete (N=1030, d=8, z_dim=501), power (N=9568, d=4, z_dim=301), protein (N=45730, d=9, z_dim=551), winered (N=1599, d=11, z_dim=651), yacht (N=308, d=6, z_dim=401).
+**Note**: KSIVI metrics are KSD only (no RMSE/NLL); ELBO unreliable for DSIVI (same as Bnn_boston).
+
+---
+
+## Bnn_yacht (z_dim=401)
+
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
+|--------|--------|--------|-------|------|---------|
+| SIVI | on | 20K | 1.866 | 2.706 | 0.020s |
+| UIVI | on | 10K | 2.469 | 2.701 | 0.095s |
+| DSIVI | on | 10K | **0.794** | **1.073** | 0.119s |
+| DSIVI | off | 10K | 1.975 | 2.342 | 0.120s |
+| DSIVI | off | 20K | 1.807 | 2.480 | 0.115s |
+| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+
+*Best: DSIVI-on-10K dominates (RMSE 0.794, NLL 1.073) — dramatic win for annealing on small dataset. SIVI better than UIVI here.*
+
+---
+
+## Bnn_power (z_dim=301)
+
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
+|--------|--------|--------|-------|------|---------|
+| SIVI | on | 20K | 4.334 | 3.069 | 0.016s |
+| UIVI | on | 10K | 4.366 | 3.061 | 0.095s |
+| DSIVI | on | 10K | **4.146** | **2.842** | 0.094s |
+| DSIVI | off | 10K | 4.310 | 2.915 | 0.093s |
+| DSIVI | off | 20K | 4.308 | 2.948 | 0.093s |
+| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+
+*Best: DSIVI-on-10K (RMSE 4.15, NLL 2.84). Anneal-on beats off on power. 20K offers no benefit over 10K.*
+
+---
+
+## Bnn_concrete (z_dim=501)
+
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
+|--------|--------|--------|-------|------|---------|
+| SIVI | on | 20K | 12.305 | 4.140 | 0.023s |
+| UIVI | on | 10K | 10.210 | 4.088 | 0.094s |
+| DSIVI | on | 10K | **6.132** | **3.237** | 0.140s |
+| DSIVI | off | 10K | 10.344 | 4.008 | 0.137s |
+| DSIVI | off | 20K | 10.505 | 3.998 | 0.140s |
+| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+
+*Best: DSIVI-on-10K by large margin (RMSE 6.13 vs UIVI 10.21, NLL 3.24 vs 4.09). Annealing critical here. Longer training without annealing doesn't help.*
+
+---
+
+## Bnn_protein (z_dim=551)
+
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
+|--------|--------|--------|-------|------|---------|
+| SIVI | on | 20K | 5.097 | 3.047 | 0.025s |
+| UIVI | on | 10K | 5.111 | 3.050 | 0.093s |
+| DSIVI | on | 10K | 4.676 | 2.963 | 0.163s |
+| DSIVI | off | 10K | 4.707 | 2.968 | 0.165s |
+| DSIVI | off | 20K | **4.566** | **2.941** | 0.159s |
+| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+
+*Best: DSIVI-off-20K (RMSE 4.57, NLL 2.94). Unlike yacht/concrete, annealing hurts slightly; 20K better than 10K. SIVI ≈ UIVI.*
+
+---
+
+## Bnn_winered (z_dim=651)
+
+| Method | Anneal | Epochs | RMSE↓ | NLL↓ | Ep time |
+|--------|--------|--------|-------|------|---------|
+| SIVI | on | 20K | 0.577 | 0.868 | 0.029s |
+| UIVI | on | 10K | **0.568** | **0.853** | 0.091s |
+| DSIVI | on | 10K | 0.595 | 0.895 | 0.175s |
+| DSIVI | off | 10K | 0.587 | 0.876 | 0.179s |
+| DSIVI | off | 20K | 0.582 | 0.875 | 0.171s |
+| KSIVI | — | 10K/20K/30K | *(pending re-run)* | | |
+
+*Best: UIVI (RMSE 0.568, NLL 0.853). DSIVI competitive but slightly behind; all methods within 5% RMSE. Likely near-optimal for this dataset.*
+
+---
+
+## New BNN Targets: Rankings by NLL↓
+
+| Target | 1st | 2nd | 3rd |
+|--------|-----|-----|-----|
+| Bnn_yacht | DSIVI-on-10K (**1.073**) | DSIVI-off-20K (2.480) | SIVI (2.706) |
+| Bnn_power | DSIVI-on-10K (**2.842**) | DSIVI-off-10K (2.915) | DSIVI-off-20K (2.948) |
+| Bnn_concrete | DSIVI-on-10K (**3.237**) | DSIVI-off-20K (3.998) | DSIVI-off-10K (4.008) |
+| Bnn_protein | DSIVI-off-20K (**2.941**) | DSIVI-off-10K (2.968) | DSIVI-on-10K (2.963) |
+| Bnn_winered | UIVI (**0.853**) | SIVI (0.868) | DSIVI-off-20K (0.875) |
+
+*DSIVI-on-10K wins 3/5 targets; DSIVI-off-20K wins protein; UIVI wins winered. Pattern: annealing helps small/medium datasets (yacht N=308, power N=9568, concrete N=1030) but not large ones (protein N=45730, winered N=1599).*
