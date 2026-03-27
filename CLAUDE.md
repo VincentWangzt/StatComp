@@ -104,9 +104,25 @@ This generates pre-processed `.pt` files under `data/waveform/` and `data/boston
 - **Host**: `ssh -p 44817 root@region-41.seetacloud.com`
 - **Code path**: `~/ruivi/` (same repo, `vince-dev` branch)
 - **Conda env**: `ruivi` (Python 3.14.2, PyTorch 2.9.0+cu126)
-- **GPUs**: 2× NVIDIA GeForce RTX 3080 (10 GB each)
-  - Use `cuda_visible_devices="0"` and `cuda_visible_devices="1"` to assign GPUs
-  - Two experiments can run in parallel on separate GPUs
-- **Workflow**: push locally → pull on remote; use `tmux` for long runs (sessions `gpu0`, `gpu1`)
+- **GPUs**: 1× NVIDIA GeForce RTX 3080 (10 GB) - **UPDATED 2026-03-27**
+  - Use `cuda_visible_devices="0"` for single GPU
+  - Run experiments sequentially (no parallel GPU capability)
+- **Workflow**: push locally → pull on remote; use `tmux` for long runs (session `gpu0`)
+
+### Evaluation Frequency Patterns
+
+**Standard methods (SIVI, UIVI, RSIVI, AISIVI, DSIVI):**
+- `metric_log_freq: 10-100` (metrics every 10-100 epochs)
+- `loss_log_freq: 100` (loss every 100 epochs)
+- `sample_freq: 500` (sampling every 500 epochs)
+- `checkpoint_freq: 1000` (save every 1000 epochs)
+
+**KSIVI (kernel-based):**
+- `metric_log_freq: 500-1000` (less frequent due to KSD computation cost)
+- `sample_freq: 500-1000` (sampling less frequent)
+- `checkpoint_freq: 5000-10000` (longer intervals)
+- **High-dim targets**: KSD only (KL/W2 disabled), `num_samples: 100-1000`
+
+**BNN targets**: Higher `metric_log_freq` (100 vs 10 for toy targets) due to data dependence
 - **Sync logs to local**: `rsync -avz --exclude='*.pt' --exclude='*.pth' --exclude='checkpoint*' -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/results/ results/`
 - **Sync TensorBoard to local**: `rsync -avz -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/tb_logs/ tb_logs/`
