@@ -29,7 +29,7 @@ train:
     scheme: linear
     steps: 1000
   log:
-    metric_log_freq: 10
+    metric_log_freq: 100
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
