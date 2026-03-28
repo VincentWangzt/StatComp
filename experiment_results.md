@@ -1,6 +1,6 @@
 # Experiment Results — Comprehensive Multi-Method Benchmark
 
-**Date**: 2026-03-25/26
+**Date**: 2026-03-25/26/28
 **Methods**: SIVI, KSIVI, UIVI, RSIVI, AISIVI, DSIVI
 **Primary metrics**: ELBO↑, KL↓, W2↓ (toy/Langevin); ELBO↑, KSD↓ (LRwaveform); RMSE↓, NLL↓ (BNN targets)
 **Note on Langevin_post**: KL estimation unreliable — use W2 and ELBO instead.
@@ -128,11 +128,13 @@
 | UIVI | on | — | 10K | **-915** | 5.26 | 3.43 | 0.115s |
 | DSIVI | on | rev2 | 10K | — | 3.60 | 2.69 | 0.055s |
 | DSIVI | off | rev2 | 10K | — | 3.53 | 2.68 | 0.064s |
-| DSIVI | off | rev2 | **20K** | — | **3.34** | **2.63** | 0.054s |
+| DSIVI-uniform | on | rev10@256/1024 | 10K | n/a | 3.51 | 2.67 | 0.093s |
+| DSIVI | off | rev2 | **20K** | n/a | **3.34** | **2.63** | 0.054s |
 | DSIVI | on | rev5 | 10K | — | 3.76 | 2.74 | 0.218s |
 | DSIVI | off | rev5 | 10K | — | 3.62 | 2.70 | 0.219s |
 
 *Best BNN: DSIVI-off-rev2-20K (RMSE 3.34, NLL 2.63) — 33% better RMSE than UIVI.*
+*Uniform rerun (2026-03-28): bs=256 and rbs=1024 was unexpectedly strong on Boston - second-best NLL overall (2.67), much better than the earlier bs=256/rbs=8192 sweep, and close to the 20K best run despite halving the training budget.*
 
 ---
 
@@ -163,7 +165,7 @@
 
 | 1st | 2nd | 3rd |
 |-----|-----|-----|
-| DSIVI-off-rev2-20K (**2.63**) | DSIVI-off-rev2-10K (2.68) | DSIVI-on-rev2-10K (2.69) |
+| DSIVI-off-rev2-20K (**2.63**) | DSIVI-uniform-10K (2.67) | DSIVI-off-rev2-10K (2.68) |
 
 ---
 
@@ -255,14 +257,16 @@
 |--------|--------|--------|-------|------|-----|---------|
 | SIVI | on | 20K | 1.866 | 2.706 | — | 0.020s |
 | UIVI | on | 10K | 2.469 | 2.701 | — | 0.095s |
-| DSIVI | on | 10K | **0.794** | **1.073** | — | 0.059s |
+| DSIVI | on | 10K | 0.794 | **1.073** | n/a | 0.059s |
+| DSIVI-uniform | on | 10K | **0.752** | 1.086 | n/a | 0.063s |
 | DSIVI | off | 10K | 1.975 | 2.342 | — | 0.060s |
 | DSIVI | off | 20K | 1.807 | 2.480 | — | 0.055s |
 | KSIVI | off | 10K | ★ div | — | 8572 | 0.009s |
 | KSIVI | off | 20K | ★ div | — | 116K | 0.009s |
 | KSIVI | off | 30K | ★ div | — | -18M | 0.009s |
 
-*Best: DSIVI-on-10K dominates (RMSE 0.794, NLL 1.073) — dramatic win for annealing on small dataset. KSIVI diverges (KSD explodes).*
+*Best NLL: DSIVI-on-10K (1.073). Best RMSE: DSIVI-uniform-10K (0.752). Annealed DSIVI still dominates yacht overall, and KSIVI diverges (KSD explodes).*
+*Uniform rerun (2026-03-28): the bs=256, rbs=1024 setting improved RMSE while only slightly worsening NLL, so this aggressive setting clearly holds up on yacht when paired with annealing.*
 
 ---
 
@@ -449,7 +453,25 @@
 - **Speedup potential**: 20–40% faster training with optimized rbs
 - **Performance**: Often IMPROVES with smaller rbs (better reverse model training)
 
-**Overall recommendation**: Use bs=256 and rbs=1024 as default for new BNN targets — provides best balance of performance and efficiency.
+### Uniform DSIVI Rerun (2026-03-28; anneal on, bs=256, rbs=1024, 10K)
+
+| Target | Run dir | RMSE | NLL | Avg ep | Outcome |
+|--------|---------|------|-----|--------|---------|
+| Bnn_boston | 20260328_105609 | 3.507 | 2.670 | 0.093s | Strong surprise: 2nd-best Boston NLL overall |
+| Bnn_yacht | 20260328_111441 | 0.752 | 1.086 | 0.063s | Holds up well: best RMSE, near-best NLL |
+| Bnn_power | 20260328_112649 | 4.333 | 2.981 | 0.057s | Usable but worse than prior DSIVI best |
+| Bnn_concrete | 20260328_113806 | 9.255 | 3.920 | 0.073s | Counterexample: much worse than expected |
+| Bnn_protein | 20260328_115310 | 5.015 | 3.029 | 0.075s | Stable but clearly behind the best 20K run |
+| Bnn_winered | 20260328_120906 | 0.644 | 0.984 | 0.081s | Acceptable, but still behind UIVI and best DSIVI |
+
+**What changed after the joint rerun**:
+- **Combination effects matter**: the earlier one-factor sweeps were directionally useful, but `bs=256` and `rbs=1024` do not combine uniformly across targets.
+- **Boston is the surprise winner**: this joint setting rescues the poor `bs=256, rbs=8192` result and lands near the 20K optimum.
+- **Concrete is the failure case**: each marginal sweep looked favorable, but the combined setting collapses to RMSE 9.255 / NLL 3.920.
+- **Recommendation update**: do not use `bs=256, rbs=1024` as a blanket default; keep target-specific choices, and treat the uniform setting as a good low-cost probe rather than a universal recipe.
+- **ELBO remains unreliable**: on all DSIVI BNN targets, RMSE/NLL are still the trustworthy metrics for comparison.
+
+**Updated recommendation**: keep the per-target minimum-viable ranges above. For a single exploratory rerun, `bs=256, rbs=1024` is reasonable, but it should not replace the target-specific defaults because it fails badly on concrete and leaves performance on power/protein/winered on the table.
 
 ---
 
@@ -460,6 +482,7 @@
 | SIVI | on | 20K | 4.334 | 3.069 | — | 0.016s |
 | UIVI | on | 10K | 4.366 | 3.061 | — | 0.095s |
 | DSIVI | on | 10K | **4.146** | **2.842** | — | 0.034s |
+| DSIVI-uniform | on | 10K | 4.333 | 2.981 | n/a | 0.057s |
 | DSIVI | off | 10K | 4.310 | 2.915 | — | 0.033s |
 | DSIVI | off | 20K | 4.308 | 2.948 | — | 0.033s |
 | KSIVI | off | 10K | ★ div | — | 1075 | 0.009s |
@@ -467,6 +490,7 @@
 | KSIVI | off | 30K | ★ div | — | -1573 | 0.009s |
 
 *Best: DSIVI-on-10K (RMSE 4.15, NLL 2.84). KSIVI diverges. Anneal-on beats off on power. 20K offers no benefit over 10K.*
+*Uniform rerun (2026-03-28): power stayed stable enough to be usable, but the joint bs=256 / rbs=1024 setting is still clearly worse than the existing DSIVI-on-10K baseline on both RMSE and NLL.*
 
 ---
 
@@ -477,6 +501,7 @@
 | SIVI | on | 20K | 12.305 | 4.140 | — | 0.023s |
 | UIVI | on | 10K | 10.210 | 4.088 | — | 0.094s |
 | DSIVI | on | 10K | **6.132** | **3.237** | — | 0.080s |
+| DSIVI-uniform | on | 10K | 9.255 | 3.920 | n/a | 0.073s |
 | DSIVI | off | 10K | 10.344 | 4.008 | — | 0.077s |
 | DSIVI | off | 20K | 10.505 | 3.998 | — | 0.080s |
 | KSIVI | off | 10K | ★ div | — | 32149 | 0.009s |
@@ -484,6 +509,7 @@
 | KSIVI | off | 30K | ★ div | — | 331 | 0.009s |
 
 *Best: DSIVI-on-10K by large margin (RMSE 6.13 vs UIVI 10.21, NLL 3.24 vs 4.09). Annealing critical here. KSIVI diverges on all epoch counts (KSD still 331 at 30K — slowly improving but not useful).*
+*Uniform rerun (2026-03-28): concrete is the strongest warning sign against a blanket uniform default - the combined bs=256 / rbs=1024 setting is far worse than the target-tuned DSIVI-on baseline, despite both marginal sweeps looking favorable in isolation.*
 
 ---
 
@@ -494,6 +520,7 @@
 | SIVI | on | 20K | 5.097 | 3.047 | — | 0.025s |
 | UIVI | on | 10K | 5.111 | 3.050 | — | 0.093s |
 | DSIVI | on | 10K | 4.676 | 2.963 | — | 0.103s |
+| DSIVI-uniform | on | 10K | 5.015 | 3.029 | n/a | 0.075s |
 | DSIVI | off | 10K | 4.707 | 2.968 | — | 0.105s |
 | DSIVI | off | 20K | **4.566** | **2.941** | — | 0.099s |
 | KSIVI | off | 10K | ★ div | — | 104K | 0.009s |
@@ -501,6 +528,7 @@
 | KSIVI | off | 30K | ★ div | — | -116G | 0.009s |
 
 *Best: DSIVI-off-20K (RMSE 4.57, NLL 2.94). KSIVI catastrophically diverges — KSD hits -116 billion at 30K. Annealing slightly hurts on large dataset; 20K better than 10K.*
+*Uniform rerun (2026-03-28): protein remains stable under the aggressive setting, but the result regresses toward SIVI/UIVI territory and does not threaten the existing 20K DSIVI runs.*
 
 ---
 
@@ -511,6 +539,7 @@
 | SIVI | on | 20K | 0.577 | 0.868 | — | 0.029s |
 | UIVI | on | 10K | **0.568** | **0.853** | — | 0.091s |
 | DSIVI | on | 10K | 0.595 | 0.895 | — | 0.115s |
+| DSIVI-uniform | on | 10K | 0.644 | 0.984 | n/a | 0.081s |
 | DSIVI | off | 10K | 0.587 | 0.876 | — | 0.119s |
 | DSIVI | off | 20K | 0.582 | 0.875 | — | 0.111s |
 | KSIVI | off | 10K | ★ div | — | -246K | 0.009s |
@@ -518,6 +547,7 @@
 | KSIVI | off | 30K | ★ div | — | 597K | 0.009s |
 
 *Best: UIVI (RMSE 0.568, NLL 0.853). DSIVI competitive but slightly behind; all methods within 5% RMSE. KSIVI diverges. Likely near-optimal for this dataset.*
+*Uniform rerun (2026-03-28): winered tolerates the setting, but the gap to the best DSIVI/UIVI entries widens enough that this does not change the recommendation for this target.*
 
 ---
 
@@ -525,10 +555,10 @@
 
 | Target | 1st | 2nd | 3rd |
 |--------|-----|-----|-----|
-| Bnn_yacht | DSIVI-on-10K (**1.073**) | DSIVI-off-20K (2.480) | SIVI (2.706) |
+| Bnn_yacht | DSIVI-on-10K (**1.073**) | DSIVI-uniform-10K (1.086) | DSIVI-off-20K (2.480) |
 | Bnn_power | DSIVI-on-10K (**2.842**) | DSIVI-off-10K (2.915) | DSIVI-off-20K (2.948) |
-| Bnn_concrete | DSIVI-on-10K (**3.237**) | DSIVI-off-20K (3.998) | DSIVI-off-10K (4.008) |
+| Bnn_concrete | DSIVI-on-10K (**3.237**) | DSIVI-uniform-10K (3.920) | DSIVI-off-20K (3.998) |
 | Bnn_protein | DSIVI-off-20K (**2.941**) | DSIVI-off-10K (2.968) | DSIVI-on-10K (2.963) |
 | Bnn_winered | UIVI (**0.853**) | SIVI (0.868) | DSIVI-off-20K (0.875) |
 
-*DSIVI-on-10K wins 3/5 targets; DSIVI-off-20K wins protein; UIVI wins winered. Pattern: annealing helps small/medium datasets (yacht N=308, power N=9568, concrete N=1030) but not large ones (protein N=45730, winered N=1599).*
+*After the uniform rerun, DSIVI-on-10K still wins 3/5 targets, but the new bs=256 / rbs=1024 setting slots in as the runner-up on yacht and concrete only. The broader pattern still holds: annealing helps on yacht/power/concrete, while protein and winered prefer the earlier target-specific settings.*
