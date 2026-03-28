@@ -65,6 +65,11 @@ Rules for this document:
   - removing the Boston warm-start materially regresses Boston
   - removing the banana low-dimensional latent/variance overrides restores the original poor banana regime
   - removing the paired-minibatch fix causes a smaller but still measurable LR regression
+- Verified `.pt` migration for all BNN targets:
+  - `prepare_data.py` now bakes the official BNN split semantics into the saved `train.pt` / `test.pt` files by using `train_test_split(random_state=42)`, carving out a dev split before normalization, and storing `X_dev` / `y_dev` in `train.pt`
+  - the runtime loader now consumes embedded dev data from the prepared `.pt` files instead of requiring the Boston `official_raw` path
+  - Boston remains in the repaired regime after the migration: RMSE `2.9138`, NLL `2.5329` at `1000` steps through the prepared-data path
+  - the other BNN targets also run end-to-end on the migrated `.pt` files with finite metrics, so the migration is valid at the runtime level
 
 ## Active Hypotheses
 

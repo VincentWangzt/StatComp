@@ -36,6 +36,9 @@ Current repair stages:
   - step `1000` RMSE `2.94`, NLL `2.56`
   - step `5000` RMSE `2.61`, NLL `2.47`
   - the last three checkpoints flatten, so this path now looks near-converged
+- Bnn prepared-data migration validation:
+  - after moving the official BNN split semantics into regenerated `.pt` files, `Bnn_boston` still reaches RMSE `2.9138`, NLL `2.5329` at `1000` steps
+  - `Bnn_concrete`, `Bnn_power`, `Bnn_protein`, `Bnn_winered`, and `Bnn_yacht` all complete fresh `1000`-step KSIVI validation runs on the regenerated `.pt` files with finite metrics
 
 ## Structurally Non-Viable Runs
 
@@ -50,3 +53,4 @@ Current repair stages:
 - Earlier Boston repaired runs in this document remain useful as trend evidence, but they predate the exact official split fix and should not be used as the final parity comparison.
 - `multimodal` improves steadily with more budget and looks more like a long-horizon convergence case than a structural bug.
 - Fresh ablations support keeping the repaired patch set: every tested removal caused a measurable regression, and most removals caused a severe regression.
+- The prepared-data BNN path is now consistent across Boston and the added UCI BNN targets; no runtime raw-text special case is needed for normal KSIVI validation.
