@@ -45,8 +45,8 @@ Current repair stages:
 
 ## Final Notes
 
-- `LRwaveform` is repaired enough to avoid immediate divergence on the official dataset split, but longer-run stability is not yet locked.
 - `LRwaveform` now has strong fresh evidence of convergence after the bandwidth-gradient fix.
 - `Bnn_boston` is now in a strong repaired regime and is close to the official short baseline by `1000` steps, then improves slightly beyond it by `5000` steps.
 - Earlier Boston repaired runs in this document remain useful as trend evidence, but they predate the exact official split fix and should not be used as the final parity comparison.
 - `multimodal` improves steadily with more budget and looks more like a long-horizon convergence case than a structural bug.
+- Fresh ablations support keeping the repaired patch set: every tested removal caused a measurable regression, and most removals caused a severe regression.

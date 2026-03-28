@@ -58,6 +58,13 @@ Rules for this document:
   - `x_shaped` is healthy by `2000` steps
   - `multimodal` improves steadily when extended from `2000` to `10000` steps
   - `student_uc` remains the main unresolved toy target because KL/W2 improve while KSD worsens over the same budget
+- Verified ablation outcomes on committed removal branches:
+  - removing the kernel-bandwidth-gradient fix severely regresses LRwaveform
+  - removing the official waveform split severely regresses LRwaveform
+  - removing the official Boston preprocessing path severely regresses Boston
+  - removing the Boston warm-start materially regresses Boston
+  - removing the banana low-dimensional latent/variance overrides restores the original poor banana regime
+  - removing the paired-minibatch fix causes a smaller but still measurable LR regression
 
 ## Active Hypotheses
 
