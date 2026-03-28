@@ -20,10 +20,10 @@ Output files::
 
     data/waveform/train.pt   – dict(X=..., y=...)
     data/waveform/test.pt    – dict(X=..., y=...)
-    data/boston/train.pt      – dict(X=..., y=..., mean_y=..., std_y=...)
+    data/boston/train.pt      – dict(X=..., y=..., mean_y=..., std_y=..., X_dev=..., y_dev=...)
     data/boston/test.pt       – dict(X=..., y=...)
-    data/<name>/train.pt      – dict(X=..., y=..., mean_y=..., std_y=...)  [new]
-    data/<name>/test.pt       – dict(X=..., y=...)                          [new]
+    data/<name>/train.pt      – dict(X=..., y=..., mean_y=..., std_y=..., X_dev=..., y_dev=...)
+    data/<name>/test.pt       – dict(X=..., y=...)
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from sklearn.model_selection import train_test_split
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +140,7 @@ def _find_boston_file() -> str:
 
 
 def prepare_boston(out_dir: str = "data/boston", seed: int = 42) -> None:
-    """Load Boston Housing, split, standardise, and save."""
+    """Load Boston Housing, split with official semantics, and save."""
     os.makedirs(out_dir, exist_ok=True)
 
     src = _find_boston_file()
@@ -147,105 +148,107 @@ def prepare_boston(out_dir: str = "data/boston", seed: int = 42) -> None:
     # Last column is the target
     X = data[:, :-1]
     y = data[:, -1]
-
-    # Train/test split (90/10, matching KSIVI)
-    rng = np.random.RandomState(seed)
-    idx = rng.permutation(len(X))
-    n_train = int(0.9 * len(X))
-    X_train, X_test = X[idx[:n_train]], X[idx[n_train:]]
-    y_train, y_test = y[idx[:n_train]], y[idx[n_train:]]
-
-    # Standardise X using training stats
-    mu_x = X_train.mean(axis=0)
-    std_x = X_train.std(axis=0) + 1e-8
-    X_train = (X_train - mu_x) / std_x
-    X_test = (X_test - mu_x) / std_x
-
-    # Standardise y using training stats
-    mean_y = float(y_train.mean())
-    std_y = float(y_train.std()) + 1e-8
-    y_train_norm = (y_train - mean_y) / std_y
-    # y_test stays in original scale for evaluation
-
-    torch.save(
-        {
-            "X": torch.tensor(X_train, dtype=torch.float32),
-            "y": torch.tensor(y_train_norm, dtype=torch.float32).unsqueeze(-1),
-            "mean_y": torch.tensor(mean_y, dtype=torch.float32),
-            "std_y": torch.tensor(std_y, dtype=torch.float32),
-        },
-        os.path.join(out_dir, "train.pt"),
+    _prepare_bnn_regression_arrays(
+        X=X,
+        y=y,
+        out_dir=out_dir,
+        seed=seed,
+        name="Boston",
     )
-    torch.save(
-        {
-            "X": torch.tensor(X_test, dtype=torch.float32),
-            "y": torch.tensor(y_test, dtype=torch.float32).unsqueeze(-1),
-        },
-        os.path.join(out_dir, "test.pt"),
-    )
-    print(f"Boston saved to {out_dir}/  "
-          f"(train: {X_train.shape}, test: {X_test.shape}, "
-          f"mean_y={mean_y:.4f}, std_y={std_y:.4f})")
 
 
 # ---------------------------------------------------------------------------
 # Generic UCI regression datasets
 # ---------------------------------------------------------------------------
 
-def _prepare_regression_csv(
-    src: str,
+def _prepare_bnn_regression_arrays(
+    X: np.ndarray,
+    y: np.ndarray,
     out_dir: str,
-    delimiter: str,
-    feature_cols: list[int],
-    target_col: int,
     seed: int = 42,
     name: str = "",
+    dev_fraction: float = 0.1,
+    dev_max_size: int = 500,
 ) -> None:
-    """Load a UCI regression CSV, split 90/10, standardise X and y, save .pt files."""
+    """Split and standardise a BNN regression dataset using official semantics."""
     os.makedirs(out_dir, exist_ok=True)
 
-    data = np.loadtxt(src, delimiter=delimiter)
-    X = data[:, feature_cols]
-    y = data[:, target_col]
+    X_train_all, X_test, y_train_all, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.1,
+        random_state=seed,
+    )
 
-    rng = np.random.RandomState(seed)
-    idx = rng.permutation(len(X))
-    n_train = int(0.9 * len(X))
-    X_train, X_test = X[idx[:n_train]], X[idx[n_train:]]
-    y_train, y_test = y[idx[:n_train]], y[idx[n_train:]]
+    y_train_all = y_train_all[:, None]
+    y_test = y_test[:, None]
 
-    # Standardise X using training stats
+    dev_size = min(int(np.round(dev_fraction * X_train_all.shape[0])), dev_max_size)
+    if dev_size <= 0 or dev_size >= X_train_all.shape[0]:
+        raise ValueError(f"Invalid dev_size={dev_size} for dataset {name or out_dir}")
+
+    X_dev = X_train_all[-dev_size:]
+    y_dev = y_train_all[-dev_size:]
+    X_train = X_train_all[:-dev_size]
+    y_train = y_train_all[:-dev_size]
+
     mu_x = X_train.mean(axis=0)
     std_x = X_train.std(axis=0) + 1e-8
-    X_train = (X_train - mu_x) / std_x
-    X_test = (X_test - mu_x) / std_x
+    X_train_std = (X_train - mu_x) / std_x
+    X_test_std = (X_test - mu_x) / std_x
+    X_dev_std = (X_dev - mu_x) / std_x
 
-    # Standardise y using training stats
     mean_y = float(y_train.mean())
     std_y = float(y_train.std()) + 1e-8
     y_train_norm = (y_train - mean_y) / std_y
-    # y_test stays in original scale for evaluation
 
     torch.save(
         {
-            "X": torch.tensor(X_train, dtype=torch.float32),
-            "y": torch.tensor(y_train_norm, dtype=torch.float32).unsqueeze(-1),
+            "X": torch.tensor(X_train_std, dtype=torch.float32),
+            "y": torch.tensor(y_train_norm, dtype=torch.float32),
             "mean_y": torch.tensor(mean_y, dtype=torch.float32),
             "std_y": torch.tensor(std_y, dtype=torch.float32),
+            "X_dev": torch.tensor(X_dev_std, dtype=torch.float32),
+            "y_dev": torch.tensor(y_dev, dtype=torch.float32),
         },
         os.path.join(out_dir, "train.pt"),
     )
     torch.save(
         {
-            "X": torch.tensor(X_test, dtype=torch.float32),
-            "y": torch.tensor(y_test, dtype=torch.float32).unsqueeze(-1),
+            "X": torch.tensor(X_test_std, dtype=torch.float32),
+            "y": torch.tensor(y_test, dtype=torch.float32),
         },
         os.path.join(out_dir, "test.pt"),
     )
+
     label = name or out_dir
-    print(f"{label} saved to {out_dir}/  "
-          f"(train: {X_train.shape}, test: {X_test.shape}, "
-          f"mean_y={mean_y:.4f}, std_y={std_y:.4f})")
+    print(
+        f"{label} saved to {out_dir}/  "
+        f"(train: {X_train_std.shape}, dev: {X_dev_std.shape}, test: {X_test_std.shape}, "
+        f"mean_y={mean_y:.4f}, std_y={std_y:.4f})"
+    )
+
+
+def _prepare_regression_csv(
+    src: str,
+    out_dir: str,
+    delimiter: str | None,
+    feature_cols: list[int],
+    target_col: int,
+    seed: int = 42,
+    name: str = "",
+) -> None:
+    """Load a UCI regression CSV, split with official semantics, and save .pt files."""
+    data = np.loadtxt(src, delimiter=delimiter)
+    X = data[:, feature_cols]
+    y = data[:, target_col]
+    _prepare_bnn_regression_arrays(
+        X=X,
+        y=y,
+        out_dir=out_dir,
+        seed=seed,
+        name=name,
+    )
 
 
 def prepare_concrete(out_dir: str = "data/concrete", seed: int = 42) -> None:
