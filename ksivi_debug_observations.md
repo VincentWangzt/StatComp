@@ -40,6 +40,10 @@ Rules for this document:
   - after installing `scikit-learn`, the official short Boston baseline ran locally and reported RMSE `2.6416` and test log-likelihood `-2.5108` at epoch `10/10`
   - the first current-repo `official_raw` Boston loader was still wrong because it standardized before removing the dev split
   - after moving dev splitting ahead of standardization, `verify_boston_official_split_v2.txt` shows exact equality for train, dev, test, and target-scaling statistics between the current repo and the official script
+- Verified kernel-bandwidth gradient drift:
+  - the official KSIVI kernels keep the median-heuristic bandwidth as a tensor when `detach=False`
+  - the current repo kernel classes were converting the fitted bandwidth to a Python float inside `pair_eval`, which silently detached the bandwidth even when `train.ksivi.detach_kernel=false`
+  - this does not explain the earlier Boston preprocessing mismatch, but it is a real code-level drift that can matter for KSIVI training dynamics on unstable targets such as LRwaveform
 
 ## Active Hypotheses
 
@@ -68,4 +72,5 @@ Rules for this document:
 
 - Commit `fbac592`: aligned KSIVI VI path with official latent-width and variance controls, added official-like optimizer knobs, fixed gradient-norm logging, and fixed paired-batch handling for data-dependent KSIVI target scores.
 - Commit `b61fb9d`: added LR official-data loading support and Boston KSIVI warm-start support.
-- Pending commit: adjust the current repo Boston `official_raw` path so dev splitting happens before normalization, matching the official script exactly.
+- Commit `d0d8925`: adjusted the current repo Boston `official_raw` path so dev splitting happens before normalization, matching the official script exactly.
+- Pending commit: let KSIVI kernel bandwidth remain differentiable when `detach_kernel=false`, matching the official kernel path more closely.

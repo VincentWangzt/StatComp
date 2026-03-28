@@ -37,6 +37,7 @@ class BaseKernel:
         samples_x: torch.Tensor,
         samples_y: Optional[torch.Tensor] = None,
         fit_h: bool = False,
+        detach_h: bool = True,
     ) -> torch.Tensor:
         """
         Calculate the pairwise kernel matrix.
@@ -95,17 +96,28 @@ class GaussianKernel(BaseKernel):
         samples_x: torch.Tensor,
         samples_y: Optional[torch.Tensor] = None,
         fit_h: bool = False,
+        detach_h: bool = True,
     ) -> torch.Tensor:
 
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self.h < 0:
-            self.fit_h(samples_x)
-
         pairwise_dists = ((samples_x[:, None, :] -
                            samples_y[None, :, :])**2).sum(-1)
-        kxy = torch.exp(-pairwise_dists / self.h**2 / 2)
+        if fit_h or self.h < 0:
+            h = torch.median(
+                pairwise_dists.detach() if detach_h else pairwise_dists
+            )
+            h = torch.sqrt(0.5 * h / np.log(samples_x.shape[0] + 1))
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = torch.exp(-pairwise_dists / h**2 / 2)
         return kxy
 
     def grad_all(
@@ -157,17 +169,28 @@ class IMQKernel(BaseKernel):
         samples_x: torch.Tensor,
         samples_y: Optional[torch.Tensor] = None,
         fit_h: bool = False,
+        detach_h: bool = True,
     ) -> torch.Tensor:
 
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self.h < 0:
-            self.fit_h(samples_x)
-
         pairwise_dists = ((samples_x[:, None, :] -
                            samples_y[None, :, :])**2).sum(-1)
-        kxy = (1 + pairwise_dists / self.h)**(-0.5)
+        if fit_h or self.h < 0:
+            h = torch.median(
+                pairwise_dists.detach() if detach_h else pairwise_dists
+            )
+            h = h / np.log(samples_x.shape[0] + 1)
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = (1 + pairwise_dists / h)**(-0.5)
         return kxy
 
     def grad_all(
@@ -220,17 +243,28 @@ class LaplaceKernel(BaseKernel):
         samples_x: torch.Tensor,
         samples_y: Optional[torch.Tensor] = None,
         fit_h: bool = False,
+        detach_h: bool = True,
     ) -> torch.Tensor:
 
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self.h < 0:
-            self.fit_h(samples_x)
-
         pairwise_dists = torch.abs(samples_x[:, None, :] -
                                    samples_y[None, :, :]).sum(-1)
-        kxy = torch.exp(-pairwise_dists / self.h)
+        if fit_h or self.h < 0:
+            h = torch.median(
+                pairwise_dists.detach() if detach_h else pairwise_dists
+            )
+            h = h / np.log(samples_x.shape[0] + 1)
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = torch.exp(-pairwise_dists / h)
         return kxy
 
     def grad_all(
@@ -281,19 +315,31 @@ class RieszKernel(BaseKernel):
         samples_x: torch.Tensor,
         samples_y: Optional[torch.Tensor] = None,
         fit_h: bool = False,
+        detach_h: bool = True,
     ) -> torch.Tensor:
 
         if samples_y is None:
             samples_y = samples_x
 
-        if fit_h or self.h < 0:
-            self.fit_h(samples_x)
-
         norm_x = samples_x.norm(1, dim=-1)
         norm_y = samples_y.norm(1, dim=-1)
         diff_norm = (samples_x[:, None, :] - samples_y[None, :, :]).norm(
             1, dim=-1)
-        kxy = (norm_x[:, None] + norm_y[None, :] - diff_norm) / self.h
+        pairwise_dists = norm_x[:, None] + norm_y[None, :] - diff_norm
+        if fit_h or self.h < 0:
+            h = torch.median(
+                pairwise_dists.detach() if detach_h else pairwise_dists
+            )
+            h = h / np.log(samples_x.shape[0] + 1)
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = pairwise_dists / h
         return kxy
 
     def grad_all(

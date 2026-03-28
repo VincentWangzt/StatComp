@@ -205,9 +205,19 @@ class KSIVIRunner(BaseSIVIRunner):
         t_ns0 = time.perf_counter()
 
         if self.detach_kernel:
-            K = self.kernel.pair_eval(z1.detach(), z2.detach(), fit_h=True)
+            K = self.kernel.pair_eval(
+                z1.detach(),
+                z2.detach(),
+                fit_h=True,
+                detach_h=True,
+            )
         else:
-            K = self.kernel.pair_eval(z1, z2, fit_h=True)
+            K = self.kernel.pair_eval(
+                z1,
+                z2,
+                fit_h=True,
+                detach_h=False,
+            )
 
         # Score product matrix: [N, N]
         if self.affine_invariant:
