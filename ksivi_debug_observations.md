@@ -44,6 +44,20 @@ Rules for this document:
   - the official KSIVI kernels keep the median-heuristic bandwidth as a tensor when `detach=False`
   - the current repo kernel classes were converting the fitted bandwidth to a Python float inside `pair_eval`, which silently detached the bandwidth even when `train.ksivi.detach_kernel=false`
   - this does not explain the earlier Boston preprocessing mismatch, but it is a real code-level drift that can matter for KSIVI training dynamics on unstable targets such as LRwaveform
+- Verified effect of restoring kernel-bandwidth gradients:
+  - LRwaveform changed from unstable long-run behavior to stable monotone improvement once the bandwidth remained differentiable
+  - before the patch, the repaired `5000`-step LR run drifted back upward and ended with KSD around `2.96`
+  - after the patch, the `5000`-step LR rerun reached KSD `0.3910`, and the `20000`-step rerun continued down to KSD `0.0653`
+  - this is strong evidence that the bandwidth-gradient drift was one of the main remaining LR bugs
+- Verified repaired Boston regime after exact preprocessing and kernel fixes:
+  - current Boston on the official split now reaches RMSE `2.94`, NLL `2.56` at `1000` steps
+  - by `5000` steps it reaches RMSE `2.61`, NLL `2.47`
+  - the last three checkpoints move only slightly, so Boston now looks close to converged on the repaired path
+- Verified toy-target reruns on the repaired stack:
+  - `banana` remains healthy after the kernel fix
+  - `x_shaped` is healthy by `2000` steps
+  - `multimodal` improves steadily when extended from `2000` to `10000` steps
+  - `student_uc` remains the main unresolved toy target because KL/W2 improve while KSD worsens over the same budget
 
 ## Active Hypotheses
 
@@ -54,14 +68,11 @@ Rules for this document:
   - missing or incomplete target-specific warm-start paths
   - mismatched data-batching, stochastic-scaling, or data-source semantics
   - possible objective/regularization scheduling drift
-- Remaining LR instability after step `1000` may come from:
-  - optimizer settings that are still not well matched to the official LR training path
-  - kernel-width dynamics as sample norms increase
-  - or an LR-specific sensitivity to long-run variance growth in the current VI implementation
-- Boston may still benefit from:
-  - fresh reruns now that the official split path is exact
-  - longer training budgets before additional code changes
-  - or target-specific optimizer tuning after more long-run evidence is collected
+- Remaining `student_uc` mismatch may come from:
+  - a remaining drift in the Riesz-kernel path or its diagnostics
+  - a warmup / log-p-regularization scheduling difference relative to the specialized official student runner
+  - or simply the need for a much larger budget closer to the official `50k`-step regime
+- `multimodal` likely needs the intended long budget rather than another repair, because every tracked metric improved materially from `2000` to `10000` steps
 
 ## Rejected Hypotheses
 
@@ -73,4 +84,4 @@ Rules for this document:
 - Commit `fbac592`: aligned KSIVI VI path with official latent-width and variance controls, added official-like optimizer knobs, fixed gradient-norm logging, and fixed paired-batch handling for data-dependent KSIVI target scores.
 - Commit `b61fb9d`: added LR official-data loading support and Boston KSIVI warm-start support.
 - Commit `d0d8925`: adjusted the current repo Boston `official_raw` path so dev splitting happens before normalization, matching the official script exactly.
-- Pending commit: let KSIVI kernel bandwidth remain differentiable when `detach_kernel=false`, matching the official kernel path more closely.
+- Commit `5a9e723`: restored differentiable kernel-bandwidth fitting when `detach_kernel=false`, matching the official kernel path more closely.
