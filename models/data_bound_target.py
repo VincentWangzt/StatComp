@@ -68,6 +68,7 @@ class DataBoundTarget:
         z_dim: int = 2,
         device: torch.device = torch.device("cpu"),
         test_data: tuple[torch.Tensor, ...] | None = None,
+        dev_data: tuple[torch.Tensor, ...] | None = None,
     ) -> None:
         self.inner = inner
         self.dataset = dataset.to(device)
@@ -76,6 +77,7 @@ class DataBoundTarget:
         self.device = device
         self.name = inner.name
         self.test_data = test_data
+        self.dev_data = dev_data
         self.batch_mode = batch_mode
         self._batch_cursor = 0
 
@@ -214,16 +216,36 @@ def build_data_bound_target(
     DataBoundTarget
         Ready-to-use target with standard ``logp(X)``/``score(X)`` interface.
     """
-    from utils.datasets import load_boston, load_bnn_regression, load_waveform
+    from utils.datasets import (
+        load_boston,
+        load_bnn_regression,
+        load_waveform,
+        load_waveform_mat,
+    )
 
     target_cfg = target_cfg or {}
     data_cfg = target_cfg.get("data", {}) or {}
     data_batch_size = data_cfg.get("batch_size", None)
     batch_mode = data_cfg.get("batch_mode", "random")
     scale_sto_override = data_cfg.get("scale_sto_override", None)
+    dev_fraction = float(data_cfg.get("dev_fraction", 0.0))
+    dev_max_size = int(data_cfg.get("dev_max_size", 500))
 
     if target_type == "LRwaveform":
-        X_train, y_train, X_test, y_test = load_waveform(device=device)
+        data_source = data_cfg.get("source", "prepared")
+        if data_source == "official_mat":
+            mat_path = data_cfg.get("mat_path", None)
+            if mat_path is None:
+                raise ValueError(
+                    "LRwaveform target.data.mat_path is required when "
+                    "target.data.source='official_mat'"
+                )
+            X_train, y_train, X_test, y_test = load_waveform_mat(
+                mat_path=mat_path,
+                device=device,
+            )
+        else:
+            X_train, y_train, X_test, y_test = load_waveform(device=device)
         inner = LRwaveform(device=device)
         z_dim = X_train.shape[1]  # features + bias column
         return DataBoundTarget(
@@ -241,6 +263,16 @@ def build_data_bound_target(
         X_train, y_train, X_test, y_test, mean_y, std_y = load_boston(
             device=device,
         )
+        dev_data = None
+        if dev_fraction > 0 and X_train.shape[0] > 1:
+            dev_size = min(
+                max(1, int(round(dev_fraction * X_train.shape[0]))),
+                dev_max_size,
+                X_train.shape[0] - 1,
+            )
+            X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
+            X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+            dev_data = (X_dev, y_dev, mean_y, std_y)
         d = X_train.shape[1]
         n_hidden = int(data_cfg.get("n_hidden", 50))
         loglambda = float(data_cfg.get("loglambda", -1.003869799168037))
@@ -263,6 +295,7 @@ def build_data_bound_target(
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),
+            dev_data=dev_data,
         )
 
     elif target_type in _BNN_REGRESSION_TARGETS:
@@ -271,6 +304,16 @@ def build_data_bound_target(
             name=name,
             device=device,
         )
+        dev_data = None
+        if dev_fraction > 0 and X_train.shape[0] > 1:
+            dev_size = min(
+                max(1, int(round(dev_fraction * X_train.shape[0]))),
+                dev_max_size,
+                X_train.shape[0] - 1,
+            )
+            X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
+            X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+            dev_data = (X_dev, y_dev, mean_y, std_y)
         d = X_train.shape[1]
         n_hidden = int(data_cfg.get("n_hidden", 50))
         loglambda = float(data_cfg.get("loglambda", -1.003869799168037))
@@ -293,6 +336,7 @@ def build_data_bound_target(
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),
+            dev_data=dev_data,
         )
 
     else:

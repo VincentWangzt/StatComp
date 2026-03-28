@@ -5,6 +5,7 @@ from runner.base_runner import BaseSIVIRunner
 from utils.kernels import Kernels
 from utils.annealing import annealing
 from utils.logging import get_logger
+from models.data_bound_target import DataBoundTarget
 
 logger = get_logger()
 
@@ -66,6 +67,13 @@ class KSIVIRunner(BaseSIVIRunner):
         self.affine_invariant: bool = ksivi_cfg.get('affine_invariant', False)
         assert self.log_p_reg_mode in ('warmup_only', 'always'), \
             "log_p_reg_mode must be one of ('warmup_only', 'always')"
+        self.pretrain_cfg = self.training_cfg.get('pretrain', {})
+        self.pretrain_enabled: bool = self.pretrain_cfg.get('enabled', False)
+        self.pretrain_steps: int = int(self.pretrain_cfg.get('steps', 0))
+        self.pretrain_lr: float = float(
+            self.pretrain_cfg.get('lr', self.vi_lr))
+        self.pretrain_batch_size: int = int(
+            self.pretrain_cfg.get('batch_size', self.training_batch_size))
 
         # KSIVI has no reverse model
         self.reverse_train = False
@@ -92,6 +100,51 @@ class KSIVIRunner(BaseSIVIRunner):
     def train_reverse_model(self, epoch_outer: int):
         """No-op: KSIVI has no reverse model."""
         pass
+
+    def pretrain_vi(self):
+        if (not self.pretrain_enabled or self.pretrain_steps <= 0 or
+                not isinstance(self.target_model, DataBoundTarget) or
+                self.target_model.dev_data is None or
+                not hasattr(self.target_model.inner, 'predict_y')):
+            return
+
+        X_dev, y_dev, mean_y, std_y = self.target_model.dev_data
+        optimizer = torch.optim.Adam(
+            self.vi_model.parameters(),
+            lr=self.pretrain_lr,
+            betas=self.vi_opt_betas,
+        )
+        log_freq = max(1, self.pretrain_steps // 10)
+        logger.info(
+            "Starting KSIVI VI pretraining on dev split: "
+            f"steps={self.pretrain_steps}, lr={self.pretrain_lr}"
+        )
+        self.vi_model.train()
+        for step in range(1, self.pretrain_steps + 1):
+            epsilon = self.vi_model.sample_epsilon(num=self.pretrain_batch_size)
+            z, _ = self.vi_model.forward(epsilon)
+            pred_y = self.target_model.inner.predict_y(
+                z, X_dev, mean_y, std_y)
+            loss = ((pred_y.mean(0) - y_dev)**2).mean()
+            optimizer.zero_grad()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.vi_model.parameters(), max_norm=self.grad_clip)
+            optimizer.step()
+            if step % log_freq == 0 or step == self.pretrain_steps:
+                self.writer.add_scalar("pretrain/vi_model/loss", loss.item(), step)
+                logger.info(
+                    f"KSIVI pretrain step {step}/{self.pretrain_steps}: "
+                    f"loss={loss.item():.6f}"
+                )
+
+        if self.ema_enabled:
+            from utils.ema import EMA
+            self.ema = EMA(
+                beta=self.ema_beta,
+                model_params=self.vi_model.parameters(),
+            )
 
     def _compute_loss_and_step(self, epoch: int) -> dict:
         """

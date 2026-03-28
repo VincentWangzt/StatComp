@@ -910,6 +910,10 @@ class BaseSIVIRunner():
         raise NotImplementedError(
             "train_reverse_model must be implemented in subclasses.")
 
+    def pretrain_vi(self):
+        """Optional VI pretraining hook used by specific runners."""
+        return
+
     def calc_log_q_phi_z(
         self,
         z: torch.Tensor,
@@ -1049,6 +1053,8 @@ class BaseSIVIRunner():
         # If resuming, optionally load optimizer & scheduler states
         if self.resume:
             self.load_checkpoints()
+        else:
+            self.pretrain_vi()
 
         # Main training loop
         self.vi_model.train()

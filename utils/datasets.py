@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import torch
+import scipy.io
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -38,6 +39,20 @@ def load_waveform(
     train = torch.load(os.path.join(d, "train.pt"), map_location=device, weights_only=True)
     test = torch.load(os.path.join(d, "test.pt"), map_location=device, weights_only=True)
     return train["X"], train["y"], test["X"], test["y"]
+
+
+def load_waveform_mat(
+    mat_path: str | Path,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Load the original waveform `.mat` split used by the official KSIVI repo."""
+    data = scipy.io.loadmat(mat_path)
+    return (
+        torch.from_numpy(data["X_train"]).to(device).float(),
+        torch.from_numpy(data["y_train"]).to(device).reshape(-1).float(),
+        torch.from_numpy(data["X_test"]).to(device).float(),
+        torch.from_numpy(data["y_test"]).to(device).reshape(-1).float(),
+    )
 
 
 def load_boston(

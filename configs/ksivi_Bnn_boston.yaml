@@ -22,11 +22,18 @@ target:
   data:
     batch_size: 100
     batch_mode: cyclic
+    dev_fraction: 0.1
+    dev_max_size: 500
 
 train:
   epochs: 20000
   batch_size: 100
   grad_clip: 1.0
+  pretrain:
+    enabled: true
+    steps: 100
+    lr: 1.0e-2
+    batch_size: 100
   ema:
     enabled: true
     beta: 0.999
