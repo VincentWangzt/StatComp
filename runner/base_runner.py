@@ -218,14 +218,28 @@ class BaseSIVIRunner():
         self.vi_opt_cfg = self.training_cfg['vi']
         self.vi_lr = self.vi_opt_cfg['lr']
         self.vi_scheduler_cfg = self.vi_opt_cfg['scheduler']
+        self.vi_opt_betas = tuple(self.vi_opt_cfg.get('betas', (0.9, 0.999)))
+        self.vi_var_lr = self.vi_opt_cfg.get('var_lr', None)
         assert self.vi_scheduler_cfg['type'] == 'StepLR', \
             "Only StepLR scheduler is supported for VI optimizer."
 
         # Create VI optimizer and scheduler
-        self.optimizer_vi = torch.optim.Adam(
-            self.vi_model.parameters(),
-            lr=self.vi_lr,
-        )
+        if self.vi_var_lr is not None and hasattr(self.vi_model, 'var_raw'):
+            other_params = [
+                p for n, p in self.vi_model.named_parameters() if n != 'var_raw']
+            self.optimizer_vi = torch.optim.Adam(
+                [
+                    {'params': other_params, 'lr': self.vi_lr},
+                    {'params': [self.vi_model.var_raw], 'lr': self.vi_var_lr},
+                ],
+                betas=self.vi_opt_betas,
+            )
+        else:
+            self.optimizer_vi = torch.optim.Adam(
+                self.vi_model.parameters(),
+                lr=self.vi_lr,
+                betas=self.vi_opt_betas,
+            )
         self.scheduler_vi = torch.optim.lr_scheduler.StepLR(
             self.optimizer_vi,
             step_size=self.vi_scheduler_cfg['step_size'],
@@ -975,15 +989,17 @@ class BaseSIVIRunner():
 
         # Compute ELBO loss
         loss = -torch.mean(log_prob_target - log_q_phi_z)
-        grad_norm = torch.nn.utils.get_total_norm(
-            self.vi_model.parameters(), )
+        grad_norm = None
 
         if torch.isfinite(loss):
             self.optimizer_vi.zero_grad()
             loss.backward()
             if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
+                grad_norm = torch.nn.utils.clip_grad_norm_(
                     self.vi_model.parameters(), max_norm=self.grad_clip)
+            else:
+                grad_norm = torch.nn.utils.get_total_norm(
+                    self.vi_model.parameters())
             self.optimizer_vi.step()
             self.scheduler_vi.step()
             if self.ema_enabled:

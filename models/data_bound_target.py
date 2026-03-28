@@ -63,6 +63,8 @@ class DataBoundTarget:
         dataset: torch.Tensor,
         labels: torch.Tensor,
         batch_size: int | None = None,
+        batch_mode: str = "random",
+        scale_sto_override: float | None = None,
         z_dim: int = 2,
         device: torch.device = torch.device("cpu"),
         test_data: tuple[torch.Tensor, ...] | None = None,
@@ -74,31 +76,70 @@ class DataBoundTarget:
         self.device = device
         self.name = inner.name
         self.test_data = test_data
+        self.batch_mode = batch_mode
+        self._batch_cursor = 0
+
+        if self.batch_mode not in ("random", "cyclic", "full"):
+            raise ValueError(
+                "batch_mode must be one of ('random', 'cyclic', 'full')"
+            )
 
         N = self.dataset.shape[0]
-        if batch_size is None or batch_size >= N:
+        if batch_size is None or batch_size >= N or self.batch_mode == "full":
             self.batch_size: int | None = None
-            self.scale_sto: float = 1.0
+            self.scale_sto: float = (
+                1.0 if scale_sto_override is None else float(scale_sto_override)
+            )
         else:
             self.batch_size = batch_size
-            self.scale_sto = float(N) / float(batch_size)
+            self.scale_sto = (
+                float(N) / float(batch_size)
+                if scale_sto_override is None else float(scale_sto_override)
+            )
 
-    def _get_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def sample_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Return full data or a random minibatch."""
         if self.batch_size is None:
             return self.dataset, self.labels
-        idx = torch.randint(0, self.dataset.shape[0], (self.batch_size,))
+        if self.batch_mode == "cyclic":
+            start = self._batch_cursor
+            stop = start + self.batch_size
+            idx = torch.arange(start, stop, device=self.device) % self.dataset.shape[0]
+            self._batch_cursor = stop % self.dataset.shape[0]
+        else:
+            idx = torch.randint(
+                0,
+                self.dataset.shape[0],
+                (self.batch_size,),
+                device=self.device,
+            )
         return self.dataset[idx], self.labels[idx]
+
+    def score_on_batch(
+        self,
+        X: torch.Tensor,
+        data: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.inner.score(X, data, labels, self.scale_sto)
+
+    def logp_on_batch(
+        self,
+        X: torch.Tensor,
+        data: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.inner.logp(X, data, labels, self.scale_sto)
 
     def logp(self, X: torch.Tensor) -> torch.Tensor:
         """Compute log-density with bound dataset."""
-        data, labels = self._get_batch()
-        return self.inner.logp(X, data, labels, self.scale_sto)
+        data, labels = self.sample_batch()
+        return self.logp_on_batch(X, data, labels)
 
     def score(self, X: torch.Tensor) -> torch.Tensor:
         """Compute score with bound dataset."""
-        data, labels = self._get_batch()
-        return self.inner.score(X, data, labels, self.scale_sto)
+        data, labels = self.sample_batch()
+        return self.score_on_batch(X, data, labels)
 
     # ------------------------------------------------------------------
     # Visualization (runner falls through contour_plot → trace_plot)
@@ -178,6 +219,8 @@ def build_data_bound_target(
     target_cfg = target_cfg or {}
     data_cfg = target_cfg.get("data", {}) or {}
     data_batch_size = data_cfg.get("batch_size", None)
+    batch_mode = data_cfg.get("batch_mode", "random")
+    scale_sto_override = data_cfg.get("scale_sto_override", None)
 
     if target_type == "LRwaveform":
         X_train, y_train, X_test, y_test = load_waveform(device=device)
@@ -188,6 +231,8 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
         )
@@ -213,6 +258,8 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),
@@ -241,6 +288,8 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),

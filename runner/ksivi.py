@@ -61,7 +61,11 @@ class KSIVIRunner(BaseSIVIRunner):
 
         self.detach_kernel: bool = ksivi_cfg.get('detach_kernel', True)
         self.log_p_reg: float = ksivi_cfg.get('log_p_reg', 0.0)
+        self.log_p_reg_mode: str = ksivi_cfg.get(
+            'log_p_reg_mode', 'warmup_only')
         self.affine_invariant: bool = ksivi_cfg.get('affine_invariant', False)
+        assert self.log_p_reg_mode in ('warmup_only', 'always'), \
+            "log_p_reg_mode must be one of ('warmup_only', 'always')"
 
         # KSIVI has no reverse model
         self.reverse_train = False
@@ -70,6 +74,7 @@ class KSIVIRunner(BaseSIVIRunner):
             f"KSIVIRunner initialized: statistic={self.statistic_type}, "
             f"kernel={kernel_type}, detach_kernel={self.detach_kernel}, "
             f"log_p_reg={self.log_p_reg}, "
+            f"log_p_reg_mode={self.log_p_reg_mode}, "
             f"affine_invariant={self.affine_invariant}"
         )
 
@@ -114,9 +119,18 @@ class KSIVIRunner(BaseSIVIRunner):
             z2, neg_score2 = z1, neg_score1
             eps2 = eps1
 
-        # Target scores — gradient must flow through z back to VI model
-        target_score1 = self.target_model.score(z1)
-        target_score2 = self.target_model.score(z2)
+        # Target scores — for stochastic data-dependent targets, both batches
+        # must use the same data minibatch within a KSIVI step.
+        if hasattr(self.target_model, 'sample_batch') and hasattr(
+                self.target_model, 'score_on_batch'):
+            batch_data, batch_labels = self.target_model.sample_batch()
+            target_score1 = self.target_model.score_on_batch(
+                z1, batch_data, batch_labels)
+            target_score2 = self.target_model.score_on_batch(
+                z2, batch_data, batch_labels)
+        else:
+            target_score1 = self.target_model.score(z1)
+            target_score2 = self.target_model.score(z2)
 
         # Apply annealing to target scores
         anneal_factor = annealing(
@@ -158,25 +172,37 @@ class KSIVIRunner(BaseSIVIRunner):
         # KSD² loss
         loss = (score_product * K).mean()
 
-        # Optional log-p regularization (only during annealing warmup)
-        if self.log_p_reg > 0 and anneal_factor < 1.0:
-            log_p = self.target_model.logp(z1)
-            loss = loss - self.log_p_reg * log_p.mean() * anneal_factor
+        # Optional log-p regularization (default: warmup-only).
+        apply_log_p_reg = (
+            self.log_p_reg > 0 and (
+                self.log_p_reg_mode == 'always' or anneal_factor < 1.0
+            )
+        )
+        if apply_log_p_reg:
+            if hasattr(self.target_model, 'logp_on_batch') and 'batch_data' in locals():
+                log_p = self.target_model.logp_on_batch(
+                    z1, batch_data, batch_labels)
+            else:
+                log_p = self.target_model.logp(z1)
+            reg_scale = anneal_factor if self.log_p_reg_mode == 'warmup_only' else 1.0
+            loss = loss - self.log_p_reg * log_p.mean() * reg_scale
 
         t_ns1 = time.perf_counter()
 
         # Optimizer step
         t_bw0 = time.perf_counter()
 
-        grad_norm = torch.nn.utils.get_total_norm(
-            self.vi_model.parameters())
+        grad_norm = None
 
         if torch.isfinite(loss):
             self.optimizer_vi.zero_grad()
             loss.backward()
             if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
+                grad_norm = torch.nn.utils.clip_grad_norm_(
                     self.vi_model.parameters(), max_norm=self.grad_clip)
+            else:
+                grad_norm = torch.nn.utils.get_total_norm(
+                    self.vi_model.parameters())
             self.optimizer_vi.step()
             self.scheduler_vi.step()
             if self.ema_enabled:

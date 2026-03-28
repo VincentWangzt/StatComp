@@ -9,6 +9,20 @@ runner_type: KSIVI
 target_type: Bnn_boston
 vi_model_type: ConditionalGaussianGlobal
 
+vi_model:
+  epsilon_dim: 3
+  hidden_dim: 10
+  num_layers: 2
+  activation: relu
+  variance_parameterization: logvar
+  global_log_var_init: -8.0
+  global_log_var_min: -20
+
+target:
+  data:
+    batch_size: 100
+    batch_mode: cyclic
+
 train:
   epochs: 20000
   batch_size: 100
@@ -18,6 +32,8 @@ train:
     beta: 0.999
   vi:
     lr: 1.0e-3
+    var_lr: 1.0e-3
+    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
       step_size: 3000
@@ -31,6 +47,7 @@ train:
     kernel: gaussian
     detach_kernel: false
     log_p_reg: 1.0
+    log_p_reg_mode: always
   log:
     metric_log_freq: 1000
     loss_log_freq: 100
