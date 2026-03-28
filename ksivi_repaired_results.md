@@ -4,9 +4,23 @@ This document records the repaired KSIVI results after code changes are verified
 
 ## Final Patch Set
 
+Current repair stages:
+
+- `fbac592` `Align KSIVI VI path and paired target batching`
+- `b61fb9d` `Match KSIVI LR data source and add BNN warm start`
+
 ## Converged Runs
+
+- Banana short repaired baseline:
+  - step `2000` loss `0.0362`
+  - KSD `0.0360`
+  - qualitatively back in the official short-run regime
 
 ## Structurally Non-Viable Runs
 
+None confirmed yet in the repaired path.
+
 ## Final Notes
 
+- `LRwaveform` is repaired enough to avoid immediate divergence on the official dataset split, but longer-run stability is not yet locked.
+- `Bnn_boston` is not yet at final convergence, but the repaired path now shows a strong monotonic improvement trend through `5000` steps.
