@@ -27,6 +27,10 @@ train:
     batch_size: 8192
     epochs: 10
     update_freq: 1
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.1
   annealing:
     enabled: true
     scheme: linear

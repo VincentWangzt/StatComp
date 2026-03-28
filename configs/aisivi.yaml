@@ -12,9 +12,9 @@ vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 
 train:
-  epochs: 3000
+  epochs: 10000
   batch_size: 128
-  reverse_sample_num: 256
+  reverse_sample_num: 2048
   vi:
     lr: 5.0e-4
     scheduler:
@@ -26,6 +26,10 @@ train:
     batch_size: 8192
     epochs: 1
     update_freq: 1
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.1
   annealing:
     enabled: false
     scheme: linear

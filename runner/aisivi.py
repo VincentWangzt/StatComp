@@ -121,17 +121,31 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         # shape (batch_size, training_reverse_sample_num)
         log_q_phi_z_aux = self.vi_model.logp(
             z_aux, epsilon_aux) + importance_sampling_weights
+        
+        
+        # We prevent gradient expoloding BEFORE aggregation. 
+
+        finite_aux_mask = torch.isfinite(log_q_phi_z_aux)
+        if not finite_aux_mask.all():
+            finite_ratio_aux = finite_aux_mask.float().mean().item()
+            invalid_rows = (~finite_aux_mask.any(dim=1)).sum().item()
+            #logger.warning(f"[AISIVI NonFiniteDiag][epoch={self.curr_epoch}] log_q_phi_z_aux finite_ratio={finite_ratio_aux:.6f}, all_invalid_rows={int(invalid_rows)}")
+
+        safe_log_q_phi_z_aux = torch.where(
+            finite_aux_mask,
+            log_q_phi_z_aux,
+            torch.full_like(log_q_phi_z_aux, -1e30),
+        )
+        valid_counts = finite_aux_mask.sum(dim=1).clamp_min(1).to(
+            dtype=z.dtype,
+            device=z.device,
+        )
 
         # shape (batch_size,)
         log_q_phi_z = torch.logsumexp(
-            log_q_phi_z_aux,
+            safe_log_q_phi_z_aux,
             dim=1,
-        ) - torch.log(
-            torch.tensor(
-                self.training_reverse_sample_num,
-                device=z.device,
-                dtype=z.dtype,
-            ))
+        ) - torch.log(valid_counts)
 
         # shape (batch_size, training_reverse_sample_num, z_dim)
         score = torch.autograd.grad(
@@ -143,6 +157,8 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         # shape (batch_size, z_dim)
         score = score.sum(dim=1)
         score = score.clone().detach()
+
+        self.log_proxy_score_l2_to_target(score, z)
 
         if self.normalize_reverse_score:
             score = score - score.mean(dim=0, keepdim=True)

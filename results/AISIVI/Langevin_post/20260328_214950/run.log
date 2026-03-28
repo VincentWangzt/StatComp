@@ -1,0 +1,633 @@
+2026-03-28 21:49:50 | INFO | sivi:base_runner.py:074| __init__ | Artifacts will be saved to: results/AISIVI/Langevin_post/20260328_214950
+2026-03-28 21:49:51 | WARNING | sivi:base_runner.py:261| _load_baseline_samples | baseline_path not found, using default: baselines/hmc/Langevin_post.pt
+2026-03-28 21:49:51 | INFO | sivi:base_runner.py:268| _load_baseline_samples | Loaded baseline samples from baselines/hmc/Langevin_post.pt, shape: torch.Size([1000, 100])
+2026-03-28 21:49:51 | INFO | sivi:base_runner.py:123| __init__ | VI model type: ConditionalGaussian
+2026-03-28 21:49:51 | WARNING | sivi:base_runner.py:127| __init__ | 'vi_model_config_path' not found in main_config; using default: configs/vi_models/ConditionalGaussian.yaml
+2026-03-28 21:49:51 | INFO | sivi:base_runner.py:132| __init__ | Using VI model config path: configs/vi_models/ConditionalGaussian.yaml
+2026-03-28 21:49:51 | INFO | sivi:base_reverse_runner.py:036| __init__ | Reverse model type: ConditionalRealNVP
+2026-03-28 21:49:51 | INFO | sivi:base_reverse_runner.py:045| __init__ | Using reverse model config path: configs/reverse_models/ConditionalRealNVP-CondDiff.yaml
+2026-03-28 21:49:52 | INFO | sivi:base_reverse_runner.py:123| __init__ | Using reverse scheduler StepLR(step_size=2000, gamma=0.1).
+2026-03-28 21:49:52 | INFO | sivi:base_runner.py:247| log_config | Saved full configuration to results/AISIVI/Langevin_post/20260328_214950/full_config.yaml.
+2026-03-28 21:49:52 | INFO | sivi:base_reverse_runner.py:407| warmup | Starting reverse model warmup...
+2026-03-28 21:49:56 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 100, W2 Dist: 0.0253
+2026-03-28 21:49:56 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 100, Average Reverse Model Loss: 141.9858, Avg Step Time: 0.0439s, Avg Steps: 1.0000
+2026-03-28 21:50:01 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 200, W2 Dist: 0.0262
+2026-03-28 21:50:01 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 200, Average Reverse Model Loss: 141.8829, Avg Step Time: 0.0453s, Avg Steps: 2.0000
+2026-03-28 21:50:05 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 300, W2 Dist: 0.0259
+2026-03-28 21:50:05 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 300, Average Reverse Model Loss: 141.8455, Avg Step Time: 0.0473s, Avg Steps: 3.0000
+2026-03-28 21:50:10 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 400, W2 Dist: 0.0251
+2026-03-28 21:50:10 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 400, Average Reverse Model Loss: 141.8135, Avg Step Time: 0.0475s, Avg Steps: 4.0000
+2026-03-28 21:50:14 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 500, W2 Dist: 0.0260
+2026-03-28 21:50:14 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 500, Average Reverse Model Loss: 141.7801, Avg Step Time: 0.0376s, Avg Steps: 5.0000
+2026-03-28 21:50:18 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 600, W2 Dist: 0.0259
+2026-03-28 21:50:18 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 600, Average Reverse Model Loss: 141.7807, Avg Step Time: 0.0410s, Avg Steps: 6.0000
+2026-03-28 21:50:24 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 700, W2 Dist: 0.0254
+2026-03-28 21:50:24 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 700, Average Reverse Model Loss: 141.7632, Avg Step Time: 0.0551s, Avg Steps: 7.0000
+2026-03-28 21:50:28 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 800, W2 Dist: 0.0258
+2026-03-28 21:50:28 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 800, Average Reverse Model Loss: 141.7590, Avg Step Time: 0.0492s, Avg Steps: 8.0000
+2026-03-28 21:50:34 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 900, W2 Dist: 0.0253
+2026-03-28 21:50:34 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 900, Average Reverse Model Loss: 141.7606, Avg Step Time: 0.0533s, Avg Steps: 9.0000
+2026-03-28 21:50:39 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1000, W2 Dist: 0.0258
+2026-03-28 21:50:39 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1000, Average Reverse Model Loss: 141.7605, Avg Step Time: 0.0472s, Avg Steps: 10.0000
+2026-03-28 21:50:44 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1100, W2 Dist: 0.0254
+2026-03-28 21:50:44 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1100, Average Reverse Model Loss: 141.7612, Avg Step Time: 0.0553s, Avg Steps: 11.0000
+2026-03-28 21:50:50 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1200, W2 Dist: 0.0259
+2026-03-28 21:50:50 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1200, Average Reverse Model Loss: 141.7505, Avg Step Time: 0.0547s, Avg Steps: 12.0000
+2026-03-28 21:50:55 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1300, W2 Dist: 0.0259
+2026-03-28 21:50:55 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1300, Average Reverse Model Loss: 141.7779, Avg Step Time: 0.0541s, Avg Steps: 13.0000
+2026-03-28 21:51:00 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1400, W2 Dist: 0.0254
+2026-03-28 21:51:00 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1400, Average Reverse Model Loss: 141.7637, Avg Step Time: 0.0538s, Avg Steps: 14.0000
+2026-03-28 21:51:06 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1500, W2 Dist: 0.0253
+2026-03-28 21:51:06 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1500, Average Reverse Model Loss: 141.7746, Avg Step Time: 0.0526s, Avg Steps: 15.0000
+2026-03-28 21:51:11 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1600, W2 Dist: 0.0260
+2026-03-28 21:51:11 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1600, Average Reverse Model Loss: 141.7670, Avg Step Time: 0.0517s, Avg Steps: 16.0000
+2026-03-28 21:51:16 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1700, W2 Dist: 0.0253
+2026-03-28 21:51:16 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1700, Average Reverse Model Loss: 141.7698, Avg Step Time: 0.0547s, Avg Steps: 17.0000
+2026-03-28 21:51:22 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1800, W2 Dist: 0.0249
+2026-03-28 21:51:22 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1800, Average Reverse Model Loss: 141.7602, Avg Step Time: 0.0549s, Avg Steps: 18.0000
+2026-03-28 21:51:26 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 1900, W2 Dist: 0.0256
+2026-03-28 21:51:26 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 1900, Average Reverse Model Loss: 141.7541, Avg Step Time: 0.0469s, Avg Steps: 19.0000
+2026-03-28 21:51:30 | DEBUG | sivi:base_reverse_runner.py:382| _warmup_log_func | Warmup Epoch 2000, W2 Dist: 0.0249
+2026-03-28 21:51:30 | DEBUG | sivi:base_reverse_runner.py:392| _warmup_log_func | Warmup Epoch 2000, Average Reverse Model Loss: 141.7646, Avg Step Time: 0.0405s, Avg Steps: 20.0000
+2026-03-28 21:51:30 | INFO | sivi:base_reverse_runner.py:434| warmup | Warmup completed for 2000 epochs. Total time: 98.662s, Avg epoch time: 0.049331s
+2026-03-28 21:51:44 | DEBUG | sivi:base_runner.py:874| learn | Epoch 100: Avg Loss: 1323.0186, Avg Epoch Time: 0.1387s
+2026-03-28 21:51:44 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 100, VI W2 to baseline: 1.0363
+2026-03-28 21:51:44 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 100, Reverse Model W2: 0.0291
+2026-03-28 21:51:45 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 100, ELBO: -5868.7686, Std Total: 1020.3310, Std Q: 0.0000, CI Half: 28.2821
+2026-03-28 21:51:45 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 100, VI KSD: 196.6939
+2026-03-28 21:52:00 | DEBUG | sivi:base_runner.py:874| learn | Epoch 200: Avg Loss: 521.4008, Avg Epoch Time: 0.1583s
+2026-03-28 21:52:00 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 200, VI W2 to baseline: 0.2355
+2026-03-28 21:52:00 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 200, Reverse Model W2: 0.0539
+2026-03-28 21:52:00 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 200, ELBO: -797.2897, Std Total: 272.7885, Std Q: 0.4073, CI Half: 7.5613
+2026-03-28 21:52:00 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 200, VI KSD: 48.3590
+2026-03-28 21:52:15 | DEBUG | sivi:base_runner.py:874| learn | Epoch 300: Avg Loss: 59.9389, Avg Epoch Time: 0.1514s
+2026-03-28 21:52:15 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 300, VI W2 to baseline: 0.1598
+2026-03-28 21:52:15 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 300, Reverse Model W2: 0.0748
+2026-03-28 21:52:16 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 300, ELBO: -456.3955, Std Total: 143.6149, Std Q: nan, CI Half: 3.9808
+2026-03-28 21:52:16 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 300, VI KSD: 25.9478
+2026-03-28 21:52:30 | DEBUG | sivi:base_runner.py:874| learn | Epoch 400: Avg Loss: 16.6594, Avg Epoch Time: 0.1495s
+2026-03-28 21:52:30 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 400, VI W2 to baseline: 0.1469
+2026-03-28 21:52:30 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 400, Reverse Model W2: 0.0590
+2026-03-28 21:52:31 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 400, ELBO: -382.9631, Std Total: 119.3818, Std Q: nan, CI Half: 3.3091
+2026-03-28 21:52:31 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 400, VI KSD: 18.4207
+2026-03-28 21:52:45 | DEBUG | sivi:base_runner.py:874| learn | Epoch 500: Avg Loss: 8.7877, Avg Epoch Time: 0.1507s
+2026-03-28 21:52:45 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 500, Inner epoch 1, Reverse Model Loss: 138.0616, Avg Steps: 1.0000
+2026-03-28 21:52:45 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 500.
+2026-03-28 21:52:45 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 500, VI W2 to baseline: 0.1494
+2026-03-28 21:52:45 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 500, Reverse Model W2: 0.0791
+2026-03-28 21:52:46 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 500, ELBO: -347.3272, Std Total: 106.2366, Std Q: nan, CI Half: 2.9447
+2026-03-28 21:52:46 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 500, VI KSD: 15.7944
+2026-03-28 21:52:48 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 500.
+2026-03-28 21:53:01 | DEBUG | sivi:base_runner.py:874| learn | Epoch 600: Avg Loss: 5.9969, Avg Epoch Time: 0.1600s
+2026-03-28 21:53:01 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 600, VI W2 to baseline: 0.1501
+2026-03-28 21:53:01 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 600, Reverse Model W2: 0.0674
+2026-03-28 21:53:02 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 600, ELBO: -318.7582, Std Total: 96.5718, Std Q: nan, CI Half: 2.6768
+2026-03-28 21:53:02 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 600, VI KSD: 12.8782
+2026-03-28 21:53:16 | DEBUG | sivi:base_runner.py:874| learn | Epoch 700: Avg Loss: 3.3671, Avg Epoch Time: 0.1505s
+2026-03-28 21:53:16 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 700, VI W2 to baseline: 0.1579
+2026-03-28 21:53:16 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 700, Reverse Model W2: 0.0635
+2026-03-28 21:53:17 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 700, ELBO: -294.7574, Std Total: 85.2866, Std Q: nan, CI Half: 2.3640
+2026-03-28 21:53:17 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 700, VI KSD: 11.0999
+2026-03-28 21:53:32 | DEBUG | sivi:base_runner.py:874| learn | Epoch 800: Avg Loss: 2.0847, Avg Epoch Time: 0.1536s
+2026-03-28 21:53:32 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 800, VI W2 to baseline: 0.1618
+2026-03-28 21:53:32 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 800, Reverse Model W2: 0.0809
+2026-03-28 21:53:32 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 800, ELBO: -273.0919, Std Total: 77.4316, Std Q: nan, CI Half: 2.1463
+2026-03-28 21:53:32 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 800, VI KSD: 9.9774
+2026-03-28 21:53:47 | DEBUG | sivi:base_runner.py:874| learn | Epoch 900: Avg Loss: 2.3338, Avg Epoch Time: 0.1500s
+2026-03-28 21:53:47 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 900, VI W2 to baseline: 0.1801
+2026-03-28 21:53:47 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 900, Reverse Model W2: 0.0751
+2026-03-28 21:53:47 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 900, ELBO: -254.8402, Std Total: 74.1753, Std Q: nan, CI Half: 2.0560
+2026-03-28 21:53:47 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 900, VI KSD: 8.8843
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1000: Avg Loss: 6.9897, Avg Epoch Time: 0.1492s
+2026-03-28 21:54:02 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 1000, Inner epoch 1, Reverse Model Loss: 128.7538, Avg Steps: 1.0000
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 1000.
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 1000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_1000.
+2026-03-28 21:54:02 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 1000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_1000.
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1000, VI W2 to baseline: 0.1418
+2026-03-28 21:54:02 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1000, Reverse Model W2: 0.0551
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1000, ELBO: -234.9131, Std Total: 92.0306, Std Q: nan, CI Half: 2.5510
+2026-03-28 21:54:02 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1000, VI KSD: 7.4241
+2026-03-28 21:54:04 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 1000.
+2026-03-28 21:54:18 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1100: Avg Loss: 0.3938, Avg Epoch Time: 0.1599s
+2026-03-28 21:54:18 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1100, VI W2 to baseline: 0.1720
+2026-03-28 21:54:18 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1100, Reverse Model W2: 0.0599
+2026-03-28 21:54:18 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1100, ELBO: -218.6377, Std Total: 75.6622, Std Q: nan, CI Half: 2.0972
+2026-03-28 21:54:18 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1100, VI KSD: 6.0273
+2026-03-28 21:54:33 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1200: Avg Loss: 5.8367, Avg Epoch Time: 0.1509s
+2026-03-28 21:54:33 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1200, VI W2 to baseline: 0.1641
+2026-03-28 21:54:33 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1200, Reverse Model W2: 0.0595
+2026-03-28 21:54:33 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1200, ELBO: -204.9052, Std Total: 83.1289, Std Q: nan, CI Half: 2.3042
+2026-03-28 21:54:33 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1200, VI KSD: 5.6326
+2026-03-28 21:54:48 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1300: Avg Loss: 1.0738, Avg Epoch Time: 0.1534s
+2026-03-28 21:54:48 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1300, VI W2 to baseline: 0.2017
+2026-03-28 21:54:48 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1300, Reverse Model W2: 0.0882
+2026-03-28 21:54:48 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1300, ELBO: -198.8139, Std Total: 77.1293, Std Q: nan, CI Half: 2.1379
+2026-03-28 21:54:48 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1300, VI KSD: 6.4071
+2026-03-28 21:55:03 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1400: Avg Loss: 7.2095, Avg Epoch Time: 0.1516s
+2026-03-28 21:55:03 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1400, VI W2 to baseline: 0.1965
+2026-03-28 21:55:03 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1400, Reverse Model W2: 0.0842
+2026-03-28 21:55:04 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1400, ELBO: -179.0613, Std Total: 86.2172, Std Q: nan, CI Half: 2.3898
+2026-03-28 21:55:04 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1400, VI KSD: 5.0527
+2026-03-28 21:55:18 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1500: Avg Loss: 6.3629, Avg Epoch Time: 0.1489s
+2026-03-28 21:55:18 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 1500, Inner epoch 1, Reverse Model Loss: 121.1538, Avg Steps: 1.0000
+2026-03-28 21:55:18 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 1500.
+2026-03-28 21:55:18 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1500, VI W2 to baseline: 0.1742
+2026-03-28 21:55:18 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1500, Reverse Model W2: 0.0725
+2026-03-28 21:55:18 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1500, ELBO: -169.3714, Std Total: 89.9335, Std Q: nan, CI Half: 2.4928
+2026-03-28 21:55:18 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1500, VI KSD: 4.8425
+2026-03-28 21:55:21 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 1500.
+2026-03-28 21:55:34 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1600: Avg Loss: 5.9546, Avg Epoch Time: 0.1601s
+2026-03-28 21:55:34 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1600, VI W2 to baseline: 0.1830
+2026-03-28 21:55:34 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1600, Reverse Model W2: 0.0769
+2026-03-28 21:55:34 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1600, ELBO: -159.1310, Std Total: 95.9782, Std Q: nan, CI Half: 2.6604
+2026-03-28 21:55:34 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1600, VI KSD: 4.9391
+2026-03-28 21:55:49 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1700: Avg Loss: 8.3204, Avg Epoch Time: 0.1481s
+2026-03-28 21:55:49 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1700, VI W2 to baseline: 0.1720
+2026-03-28 21:55:49 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1700, Reverse Model W2: 0.0701
+2026-03-28 21:55:49 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1700, ELBO: -146.9147, Std Total: 100.3788, Std Q: nan, CI Half: 2.7824
+2026-03-28 21:55:49 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1700, VI KSD: 3.9855
+2026-03-28 21:56:04 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1800: Avg Loss: 2.6113, Avg Epoch Time: 0.1507s
+2026-03-28 21:56:04 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1800, VI W2 to baseline: 0.2012
+2026-03-28 21:56:04 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1800, Reverse Model W2: 0.0777
+2026-03-28 21:56:04 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1800, ELBO: -142.7581, Std Total: 96.5379, Std Q: nan, CI Half: 2.6759
+2026-03-28 21:56:04 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1800, VI KSD: 4.8451
+2026-03-28 21:56:19 | DEBUG | sivi:base_runner.py:874| learn | Epoch 1900: Avg Loss: 9.3767, Avg Epoch Time: 0.1535s
+2026-03-28 21:56:19 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 1900, VI W2 to baseline: 0.1751
+2026-03-28 21:56:19 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 1900, Reverse Model W2: 0.0618
+2026-03-28 21:56:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 1900, ELBO: -127.7925, Std Total: 116.0610, Std Q: nan, CI Half: 3.2170
+2026-03-28 21:56:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 1900, VI KSD: 4.7469
+2026-03-28 21:56:34 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2000: Avg Loss: 7.4069, Avg Epoch Time: 0.1482s
+2026-03-28 21:56:34 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 2000, Inner epoch 1, Reverse Model Loss: 116.5927, Avg Steps: 1.0000
+2026-03-28 21:56:34 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 2000.
+2026-03-28 21:56:34 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 2000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_2000.
+2026-03-28 21:56:34 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 2000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_2000.
+2026-03-28 21:56:34 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2000, VI W2 to baseline: 0.1826
+2026-03-28 21:56:34 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2000, Reverse Model W2: 0.0649
+2026-03-28 21:56:34 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2000, ELBO: -120.0069, Std Total: 119.2067, Std Q: nan, CI Half: 3.3042
+2026-03-28 21:56:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2000, VI KSD: 4.3986
+2026-03-28 21:56:37 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 2000.
+2026-03-28 21:56:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2100: Avg Loss: 14.5501, Avg Epoch Time: 0.1554s
+2026-03-28 21:56:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2100, VI W2 to baseline: 0.1658
+2026-03-28 21:56:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2100, Reverse Model W2: 0.0268
+2026-03-28 21:56:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2100, ELBO: -113.3356, Std Total: 114.3518, Std Q: nan, CI Half: 3.1697
+2026-03-28 21:56:50 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2100, VI KSD: 3.6066
+2026-03-28 21:57:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2200: Avg Loss: 14.7973, Avg Epoch Time: 0.1515s
+2026-03-28 21:57:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2200, VI W2 to baseline: 0.1386
+2026-03-28 21:57:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2200, Reverse Model W2: 0.0265
+2026-03-28 21:57:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2200, ELBO: -102.2460, Std Total: 120.4349, Std Q: nan, CI Half: 3.3383
+2026-03-28 21:57:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2200, VI KSD: 2.6396
+2026-03-28 21:57:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2300: Avg Loss: 5.7162, Avg Epoch Time: 0.1480s
+2026-03-28 21:57:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2300, VI W2 to baseline: 0.1644
+2026-03-28 21:57:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2300, Reverse Model W2: 0.0270
+2026-03-28 21:57:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2300, ELBO: -96.0650, Std Total: 128.3053, Std Q: nan, CI Half: 3.5564
+2026-03-28 21:57:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2300, VI KSD: 3.4453
+2026-03-28 21:57:34 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2400: Avg Loss: 11.3821, Avg Epoch Time: 0.1472s
+2026-03-28 21:57:34 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2400, VI W2 to baseline: 0.1509
+2026-03-28 21:57:34 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2400, Reverse Model W2: 0.0293
+2026-03-28 21:57:35 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2400, ELBO: -92.8692, Std Total: 125.6257, Std Q: nan, CI Half: 3.4822
+2026-03-28 21:57:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2400, VI KSD: 2.6710
+2026-03-28 21:57:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2500: Avg Loss: 6.6106, Avg Epoch Time: 0.1542s
+2026-03-28 21:57:50 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 2500, Inner epoch 1, Reverse Model Loss: 112.2181, Avg Steps: 1.0000
+2026-03-28 21:57:50 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 2500.
+2026-03-28 21:57:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2500, VI W2 to baseline: 0.1661
+2026-03-28 21:57:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2500, Reverse Model W2: 0.0261
+2026-03-28 21:57:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2500, ELBO: -88.6959, Std Total: 124.0057, Std Q: nan, CI Half: 3.4373
+2026-03-28 21:57:50 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2500, VI KSD: 2.8937
+2026-03-28 21:57:52 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 2500.
+2026-03-28 21:58:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2600: Avg Loss: 11.8440, Avg Epoch Time: 0.1554s
+2026-03-28 21:58:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2600, VI W2 to baseline: 0.1581
+2026-03-28 21:58:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2600, Reverse Model W2: 0.0284
+2026-03-28 21:58:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2600, ELBO: -77.5079, Std Total: 140.6311, Std Q: nan, CI Half: 3.8981
+2026-03-28 21:58:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2600, VI KSD: 2.5447
+2026-03-28 21:58:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2700: Avg Loss: 10.0767, Avg Epoch Time: 0.1463s
+2026-03-28 21:58:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2700, VI W2 to baseline: 0.1459
+2026-03-28 21:58:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2700, Reverse Model W2: 0.0307
+2026-03-28 21:58:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2700, ELBO: -76.9939, Std Total: 139.3928, Std Q: nan, CI Half: 3.8638
+2026-03-28 21:58:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2700, VI KSD: 2.6744
+2026-03-28 21:58:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2800: Avg Loss: 11.4365, Avg Epoch Time: 0.1546s
+2026-03-28 21:58:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2800, VI W2 to baseline: 0.1416
+2026-03-28 21:58:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2800, Reverse Model W2: 0.0284
+2026-03-28 21:58:36 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2800, ELBO: -73.2268, Std Total: 141.4928, Std Q: nan, CI Half: 3.9220
+2026-03-28 21:58:36 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2800, VI KSD: 2.5175
+2026-03-28 21:58:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 2900: Avg Loss: 10.1392, Avg Epoch Time: 0.1478s
+2026-03-28 21:58:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 2900, VI W2 to baseline: 0.1513
+2026-03-28 21:58:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 2900, Reverse Model W2: 0.0281
+2026-03-28 21:58:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 2900, ELBO: -68.9724, Std Total: 144.7529, Std Q: nan, CI Half: 4.0123
+2026-03-28 21:58:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 2900, VI KSD: 2.6330
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3000: Avg Loss: 11.8291, Avg Epoch Time: 0.1490s
+2026-03-28 21:59:05 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 3000, Inner epoch 1, Reverse Model Loss: 110.7661, Avg Steps: 1.0000
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 3000.
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 3000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_3000.
+2026-03-28 21:59:05 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 3000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_3000.
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3000, VI W2 to baseline: 0.1362
+2026-03-28 21:59:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3000, Reverse Model W2: 0.0280
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3000, ELBO: -66.7647, Std Total: 137.1653, Std Q: nan, CI Half: 3.8020
+2026-03-28 21:59:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3000, VI KSD: 2.2132
+2026-03-28 21:59:08 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 3000.
+2026-03-28 21:59:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3100: Avg Loss: 9.3662, Avg Epoch Time: 0.1521s
+2026-03-28 21:59:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3100, VI W2 to baseline: 0.1486
+2026-03-28 21:59:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3100, Reverse Model W2: 0.0288
+2026-03-28 21:59:21 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3100, ELBO: -64.3343, Std Total: 144.4502, Std Q: nan, CI Half: 4.0040
+2026-03-28 21:59:21 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3100, VI KSD: 2.0362
+2026-03-28 21:59:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3200: Avg Loss: 11.8080, Avg Epoch Time: 0.1472s
+2026-03-28 21:59:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3200, VI W2 to baseline: 0.1303
+2026-03-28 21:59:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3200, Reverse Model W2: 0.0305
+2026-03-28 21:59:35 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3200, ELBO: -58.8545, Std Total: 149.2354, Std Q: nan, CI Half: 4.1366
+2026-03-28 21:59:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3200, VI KSD: 2.0115
+2026-03-28 21:59:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3300: Avg Loss: 13.1307, Avg Epoch Time: 0.1480s
+2026-03-28 21:59:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3300, VI W2 to baseline: 0.1263
+2026-03-28 21:59:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3300, Reverse Model W2: 0.0290
+2026-03-28 21:59:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3300, ELBO: -60.5108, Std Total: 145.6559, Std Q: nan, CI Half: 4.0374
+2026-03-28 21:59:50 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3300, VI KSD: 1.9563
+2026-03-28 22:00:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3400: Avg Loss: 10.0694, Avg Epoch Time: 0.1532s
+2026-03-28 22:00:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3400, VI W2 to baseline: 0.1274
+2026-03-28 22:00:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3400, Reverse Model W2: 0.0307
+2026-03-28 22:00:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3400, ELBO: -52.0572, Std Total: 161.0902, Std Q: nan, CI Half: 4.4652
+2026-03-28 22:00:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3400, VI KSD: 1.9075
+2026-03-28 22:00:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3500: Avg Loss: 10.5522, Avg Epoch Time: 0.1475s
+2026-03-28 22:00:20 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 3500, Inner epoch 1, Reverse Model Loss: 109.6073, Avg Steps: 1.0000
+2026-03-28 22:00:20 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 3500.
+2026-03-28 22:00:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3500, VI W2 to baseline: 0.1237
+2026-03-28 22:00:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3500, Reverse Model W2: 0.0302
+2026-03-28 22:00:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3500, ELBO: -49.0734, Std Total: 154.9252, Std Q: nan, CI Half: 4.2943
+2026-03-28 22:00:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3500, VI KSD: 1.6241
+2026-03-28 22:00:22 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 3500.
+2026-03-28 22:00:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3600: Avg Loss: 10.9747, Avg Epoch Time: 0.1545s
+2026-03-28 22:00:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3600, VI W2 to baseline: 0.1255
+2026-03-28 22:00:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3600, Reverse Model W2: 0.0319
+2026-03-28 22:00:36 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3600, ELBO: -45.6748, Std Total: 153.3963, Std Q: nan, CI Half: 4.2519
+2026-03-28 22:00:36 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3600, VI KSD: 1.8104
+2026-03-28 22:00:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3700: Avg Loss: 13.9324, Avg Epoch Time: 0.1498s
+2026-03-28 22:00:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3700, VI W2 to baseline: 0.1152
+2026-03-28 22:00:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3700, Reverse Model W2: 0.0316
+2026-03-28 22:00:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3700, ELBO: -42.9415, Std Total: 163.8259, Std Q: nan, CI Half: 4.5410
+2026-03-28 22:00:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3700, VI KSD: 1.5980
+2026-03-28 22:01:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3800: Avg Loss: 10.5514, Avg Epoch Time: 0.1486s
+2026-03-28 22:01:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3800, VI W2 to baseline: 0.1167
+2026-03-28 22:01:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3800, Reverse Model W2: 0.0306
+2026-03-28 22:01:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3800, ELBO: -38.8761, Std Total: 167.1757, Std Q: nan, CI Half: 4.6339
+2026-03-28 22:01:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3800, VI KSD: 1.4534
+2026-03-28 22:01:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 3900: Avg Loss: 10.9433, Avg Epoch Time: 0.1473s
+2026-03-28 22:01:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 3900, VI W2 to baseline: 0.1224
+2026-03-28 22:01:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 3900, Reverse Model W2: 0.0289
+2026-03-28 22:01:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 3900, ELBO: -39.1166, Std Total: 158.7398, Std Q: nan, CI Half: 4.4000
+2026-03-28 22:01:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 3900, VI KSD: 1.5672
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4000: Avg Loss: 11.5707, Avg Epoch Time: 0.1462s
+2026-03-28 22:01:35 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 4000, Inner epoch 1, Reverse Model Loss: 108.5562, Avg Steps: 1.0000
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 4000.
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 4000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_4000.
+2026-03-28 22:01:35 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 4000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_4000.
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4000, VI W2 to baseline: 0.1232
+2026-03-28 22:01:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4000, Reverse Model W2: 0.0294
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4000, ELBO: -35.6554, Std Total: 164.2489, Std Q: nan, CI Half: 4.5527
+2026-03-28 22:01:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4000, VI KSD: 1.5721
+2026-03-28 22:01:37 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 4000.
+2026-03-28 22:01:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4100: Avg Loss: 9.9742, Avg Epoch Time: 0.1572s
+2026-03-28 22:01:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4100, VI W2 to baseline: 0.1200
+2026-03-28 22:01:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4100, Reverse Model W2: 0.0241
+2026-03-28 22:01:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4100, ELBO: -26.3261, Std Total: 180.3412, Std Q: nan, CI Half: 4.9988
+2026-03-28 22:01:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4100, VI KSD: 1.3374
+2026-03-28 22:02:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4200: Avg Loss: 14.7028, Avg Epoch Time: 0.1487s
+2026-03-28 22:02:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4200, VI W2 to baseline: 0.1177
+2026-03-28 22:02:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4200, Reverse Model W2: 0.0239
+2026-03-28 22:02:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4200, ELBO: -29.6529, Std Total: 164.1998, Std Q: nan, CI Half: 4.5514
+2026-03-28 22:02:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4200, VI KSD: 1.2207
+2026-03-28 22:02:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4300: Avg Loss: 11.6291, Avg Epoch Time: 0.1471s
+2026-03-28 22:02:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4300, VI W2 to baseline: 0.1109
+2026-03-28 22:02:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4300, Reverse Model W2: 0.0222
+2026-03-28 22:02:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4300, ELBO: -22.6292, Std Total: 180.1464, Std Q: nan, CI Half: 4.9934
+2026-03-28 22:02:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4300, VI KSD: 1.3068
+2026-03-28 22:02:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4400: Avg Loss: 13.7968, Avg Epoch Time: 0.1467s
+2026-03-28 22:02:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4400, VI W2 to baseline: 0.1089
+2026-03-28 22:02:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4400, Reverse Model W2: 0.0220
+2026-03-28 22:02:35 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4400, ELBO: -25.0663, Std Total: 173.8054, Std Q: nan, CI Half: 4.8176
+2026-03-28 22:02:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4400, VI KSD: 1.0831
+2026-03-28 22:02:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4500: Avg Loss: 10.0024, Avg Epoch Time: 0.1539s
+2026-03-28 22:02:50 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 4500, Inner epoch 1, Reverse Model Loss: 107.6674, Avg Steps: 1.0000
+2026-03-28 22:02:50 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 4500.
+2026-03-28 22:02:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4500, VI W2 to baseline: 0.1092
+2026-03-28 22:02:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4500, Reverse Model W2: 0.0239
+2026-03-28 22:02:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4500, ELBO: -23.6008, Std Total: 172.3262, Std Q: nan, CI Half: 4.7766
+2026-03-28 22:02:50 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4500, VI KSD: 1.0830
+2026-03-28 22:02:52 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 4500.
+2026-03-28 22:03:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4600: Avg Loss: 11.6211, Avg Epoch Time: 0.1532s
+2026-03-28 22:03:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4600, VI W2 to baseline: 0.1013
+2026-03-28 22:03:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4600, Reverse Model W2: 0.0236
+2026-03-28 22:03:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4600, ELBO: -25.2399, Std Total: 168.0160, Std Q: nan, CI Half: 4.6572
+2026-03-28 22:03:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4600, VI KSD: 1.0692
+2026-03-28 22:03:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4700: Avg Loss: 11.9631, Avg Epoch Time: 0.1468s
+2026-03-28 22:03:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4700, VI W2 to baseline: 0.1073
+2026-03-28 22:03:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4700, Reverse Model W2: 0.0267
+2026-03-28 22:03:20 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4700, ELBO: -21.5711, Std Total: 178.8813, Std Q: nan, CI Half: 4.9583
+2026-03-28 22:03:20 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4700, VI KSD: 1.0600
+2026-03-28 22:03:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4800: Avg Loss: 10.7378, Avg Epoch Time: 0.1529s
+2026-03-28 22:03:35 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4800, VI W2 to baseline: 0.1053
+2026-03-28 22:03:35 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4800, Reverse Model W2: 0.0256
+2026-03-28 22:03:35 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4800, ELBO: -19.4305, Std Total: 182.3838, Std Q: nan, CI Half: 5.0554
+2026-03-28 22:03:35 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4800, VI KSD: 1.0983
+2026-03-28 22:03:50 | DEBUG | sivi:base_runner.py:874| learn | Epoch 4900: Avg Loss: 10.7126, Avg Epoch Time: 0.1479s
+2026-03-28 22:03:50 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 4900, VI W2 to baseline: 0.1094
+2026-03-28 22:03:50 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 4900, Reverse Model W2: 0.0235
+2026-03-28 22:03:50 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 4900, ELBO: -18.7271, Std Total: 167.9885, Std Q: nan, CI Half: 4.6564
+2026-03-28 22:03:50 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 4900, VI KSD: 1.1940
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5000: Avg Loss: 14.5120, Avg Epoch Time: 0.1481s
+2026-03-28 22:04:05 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 5000, Inner epoch 1, Reverse Model Loss: 107.1287, Avg Steps: 1.0000
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 5000.
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 5000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_5000.
+2026-03-28 22:04:05 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 5000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_5000.
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5000, VI W2 to baseline: 0.0995
+2026-03-28 22:04:05 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5000, Reverse Model W2: 0.0241
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5000, ELBO: -19.6061, Std Total: 160.1100, Std Q: nan, CI Half: 4.4380
+2026-03-28 22:04:05 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5000, VI KSD: 1.0052
+2026-03-28 22:04:07 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 5000.
+2026-03-28 22:04:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5100: Avg Loss: 6.3811, Avg Epoch Time: 0.1566s
+2026-03-28 22:04:21 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5100, VI W2 to baseline: 0.1114
+2026-03-28 22:04:21 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5100, Reverse Model W2: 0.0237
+2026-03-28 22:04:21 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5100, ELBO: -13.9579, Std Total: 168.2076, Std Q: nan, CI Half: 4.6625
+2026-03-28 22:04:21 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5100, VI KSD: 1.0628
+2026-03-28 22:04:36 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5200: Avg Loss: 16.2336, Avg Epoch Time: 0.1560s
+2026-03-28 22:04:36 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5200, VI W2 to baseline: 0.1005
+2026-03-28 22:04:36 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5200, Reverse Model W2: 0.0254
+2026-03-28 22:04:36 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5200, ELBO: -18.5699, Std Total: 176.1556, Std Q: nan, CI Half: 4.8828
+2026-03-28 22:04:36 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5200, VI KSD: 1.0523
+2026-03-28 22:04:51 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5300: Avg Loss: 9.8852, Avg Epoch Time: 0.1487s
+2026-03-28 22:04:51 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5300, VI W2 to baseline: 0.0975
+2026-03-28 22:04:51 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5300, Reverse Model W2: 0.0219
+2026-03-28 22:04:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5300, ELBO: -18.8816, Std Total: 183.4002, Std Q: nan, CI Half: 5.0836
+2026-03-28 22:04:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5300, VI KSD: 0.8445
+2026-03-28 22:05:06 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5400: Avg Loss: 11.6277, Avg Epoch Time: 0.1480s
+2026-03-28 22:05:06 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5400, VI W2 to baseline: 0.0957
+2026-03-28 22:05:06 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5400, Reverse Model W2: 0.0223
+2026-03-28 22:05:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5400, ELBO: -24.7210, Std Total: 161.6005, Std Q: nan, CI Half: 4.4793
+2026-03-28 22:05:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5400, VI KSD: 0.7965
+2026-03-28 22:05:21 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5500: Avg Loss: 7.2772, Avg Epoch Time: 0.1491s
+2026-03-28 22:05:21 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 5500, Inner epoch 1, Reverse Model Loss: 107.1169, Avg Steps: 1.0000
+2026-03-28 22:05:21 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 5500.
+2026-03-28 22:05:21 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5500, VI W2 to baseline: 0.0959
+2026-03-28 22:05:21 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5500, Reverse Model W2: 0.0247
+2026-03-28 22:05:21 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5500, ELBO: -20.3563, Std Total: 170.9900, Std Q: nan, CI Half: 4.7396
+2026-03-28 22:05:21 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5500, VI KSD: 0.8142
+2026-03-28 22:05:23 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 5500.
+2026-03-28 22:05:36 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5600: Avg Loss: 9.1943, Avg Epoch Time: 0.1574s
+2026-03-28 22:05:36 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5600, VI W2 to baseline: 0.0916
+2026-03-28 22:05:36 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5600, Reverse Model W2: 0.0227
+2026-03-28 22:05:37 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5600, ELBO: -28.3956, Std Total: 155.5365, Std Q: nan, CI Half: 4.3113
+2026-03-28 22:05:37 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5600, VI KSD: 0.7380
+2026-03-28 22:05:51 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5700: Avg Loss: 9.7553, Avg Epoch Time: 0.1468s
+2026-03-28 22:05:51 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5700, VI W2 to baseline: 0.0854
+2026-03-28 22:05:51 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5700, Reverse Model W2: 0.0217
+2026-03-28 22:05:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5700, ELBO: -29.9167, Std Total: 150.0271, Std Q: nan, CI Half: 4.1585
+2026-03-28 22:05:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5700, VI KSD: 0.8799
+2026-03-28 22:06:06 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5800: Avg Loss: 8.4543, Avg Epoch Time: 0.1476s
+2026-03-28 22:06:06 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5800, VI W2 to baseline: 0.0893
+2026-03-28 22:06:06 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5800, Reverse Model W2: 0.0232
+2026-03-28 22:06:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5800, ELBO: -28.3808, Std Total: 163.9919, Std Q: nan, CI Half: 4.5456
+2026-03-28 22:06:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5800, VI KSD: 0.8236
+2026-03-28 22:06:20 | DEBUG | sivi:base_runner.py:874| learn | Epoch 5900: Avg Loss: 8.0542, Avg Epoch Time: 0.1459s
+2026-03-28 22:06:20 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 5900, VI W2 to baseline: 0.0891
+2026-03-28 22:06:20 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 5900, Reverse Model W2: 0.0236
+2026-03-28 22:06:21 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 5900, ELBO: -27.3347, Std Total: 164.9304, Std Q: nan, CI Half: 4.5716
+2026-03-28 22:06:21 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 5900, VI KSD: 0.7471
+2026-03-28 22:06:35 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6000: Avg Loss: 10.9109, Avg Epoch Time: 0.1504s
+2026-03-28 22:06:35 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 6000, Inner epoch 1, Reverse Model Loss: 107.5339, Avg Steps: 1.0000
+2026-03-28 22:06:35 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 6000.
+2026-03-28 22:06:35 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 6000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_6000.
+2026-03-28 22:06:36 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 6000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_6000.
+2026-03-28 22:06:36 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6000, VI W2 to baseline: 0.0862
+2026-03-28 22:06:36 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6000, Reverse Model W2: 0.0225
+2026-03-28 22:06:36 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6000, ELBO: -37.4185, Std Total: 132.5083, Std Q: nan, CI Half: 3.6729
+2026-03-28 22:06:36 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6000, VI KSD: 0.7603
+2026-03-28 22:06:38 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 6000.
+2026-03-28 22:06:51 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6100: Avg Loss: 3.4143, Avg Epoch Time: 0.1556s
+2026-03-28 22:06:51 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6100, VI W2 to baseline: 0.0878
+2026-03-28 22:06:51 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6100, Reverse Model W2: 0.0198
+2026-03-28 22:06:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6100, ELBO: -32.1869, Std Total: 155.9653, Std Q: nan, CI Half: 4.3231
+2026-03-28 22:06:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6100, VI KSD: 0.6746
+2026-03-28 22:07:06 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6200: Avg Loss: 6.7788, Avg Epoch Time: 0.1479s
+2026-03-28 22:07:06 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6200, VI W2 to baseline: 0.0925
+2026-03-28 22:07:06 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6200, Reverse Model W2: 0.0209
+2026-03-28 22:07:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6200, ELBO: -35.7059, Std Total: 141.6943, Std Q: nan, CI Half: 3.9276
+2026-03-28 22:07:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6200, VI KSD: 0.5989
+2026-03-28 22:07:21 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6300: Avg Loss: 8.3455, Avg Epoch Time: 0.1479s
+2026-03-28 22:07:21 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6300, VI W2 to baseline: 0.0786
+2026-03-28 22:07:21 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6300, Reverse Model W2: 0.0207
+2026-03-28 22:07:21 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6300, ELBO: -30.5579, Std Total: 153.8995, Std Q: nan, CI Half: 4.2659
+2026-03-28 22:07:21 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6300, VI KSD: 0.6059
+2026-03-28 22:07:36 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6400: Avg Loss: 5.5388, Avg Epoch Time: 0.1535s
+2026-03-28 22:07:36 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6400, VI W2 to baseline: 0.0802
+2026-03-28 22:07:36 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6400, Reverse Model W2: 0.0236
+2026-03-28 22:07:36 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6400, ELBO: -36.8008, Std Total: 147.2840, Std Q: nan, CI Half: 4.0825
+2026-03-28 22:07:36 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6400, VI KSD: 0.6689
+2026-03-28 22:07:51 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6500: Avg Loss: 10.2551, Avg Epoch Time: 0.1470s
+2026-03-28 22:07:51 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 6500, Inner epoch 1, Reverse Model Loss: 107.8294, Avg Steps: 1.0000
+2026-03-28 22:07:51 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 6500.
+2026-03-28 22:07:51 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6500, VI W2 to baseline: 0.0792
+2026-03-28 22:07:51 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6500, Reverse Model W2: 0.0206
+2026-03-28 22:07:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6500, ELBO: -36.6109, Std Total: 152.3660, Std Q: nan, CI Half: 4.2234
+2026-03-28 22:07:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6500, VI KSD: 0.5933
+2026-03-28 22:07:53 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 6500.
+2026-03-28 22:08:06 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6600: Avg Loss: 4.9822, Avg Epoch Time: 0.1548s
+2026-03-28 22:08:06 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6600, VI W2 to baseline: 0.0794
+2026-03-28 22:08:06 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6600, Reverse Model W2: 0.0225
+2026-03-28 22:08:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6600, ELBO: -43.0970, Std Total: 128.5256, Std Q: nan, CI Half: 3.5625
+2026-03-28 22:08:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6600, VI KSD: 0.5806
+2026-03-28 22:08:21 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6700: Avg Loss: 3.8219, Avg Epoch Time: 0.1527s
+2026-03-28 22:08:21 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6700, VI W2 to baseline: 0.0882
+2026-03-28 22:08:21 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6700, Reverse Model W2: 0.0221
+2026-03-28 22:08:22 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6700, ELBO: -40.3344, Std Total: 136.0207, Std Q: nan, CI Half: 3.7703
+2026-03-28 22:08:22 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6700, VI KSD: 0.6341
+2026-03-28 22:08:36 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6800: Avg Loss: 7.5878, Avg Epoch Time: 0.1488s
+2026-03-28 22:08:36 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6800, VI W2 to baseline: 0.0840
+2026-03-28 22:08:36 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6800, Reverse Model W2: 0.0213
+2026-03-28 22:08:37 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6800, ELBO: -39.7464, Std Total: 135.1665, Std Q: nan, CI Half: 3.7466
+2026-03-28 22:08:37 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6800, VI KSD: 0.5703
+2026-03-28 22:08:51 | DEBUG | sivi:base_runner.py:874| learn | Epoch 6900: Avg Loss: 7.9729, Avg Epoch Time: 0.1488s
+2026-03-28 22:08:51 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 6900, VI W2 to baseline: 0.0742
+2026-03-28 22:08:51 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 6900, Reverse Model W2: 0.0211
+2026-03-28 22:08:51 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 6900, ELBO: -42.7397, Std Total: 126.4628, Std Q: nan, CI Half: 3.5054
+2026-03-28 22:08:51 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 6900, VI KSD: 0.5941
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7000: Avg Loss: 4.1008, Avg Epoch Time: 0.1481s
+2026-03-28 22:09:06 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 7000, Inner epoch 1, Reverse Model Loss: 108.0172, Avg Steps: 1.0000
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 7000.
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 7000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_7000.
+2026-03-28 22:09:06 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 7000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_7000.
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7000, VI W2 to baseline: 0.0787
+2026-03-28 22:09:06 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7000, Reverse Model W2: 0.0207
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7000, ELBO: -40.5642, Std Total: 131.2960, Std Q: nan, CI Half: 3.6393
+2026-03-28 22:09:06 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7000, VI KSD: 0.5807
+2026-03-28 22:09:09 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 7000.
+2026-03-28 22:09:22 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7100: Avg Loss: 5.2198, Avg Epoch Time: 0.1629s
+2026-03-28 22:09:22 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7100, VI W2 to baseline: 0.0792
+2026-03-28 22:09:22 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7100, Reverse Model W2: 0.0226
+2026-03-28 22:09:23 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7100, ELBO: -43.3414, Std Total: 134.7318, Std Q: nan, CI Half: 3.7346
+2026-03-28 22:09:23 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7100, VI KSD: 0.5055
+2026-03-28 22:09:37 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7200: Avg Loss: 4.5966, Avg Epoch Time: 0.1490s
+2026-03-28 22:09:37 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7200, VI W2 to baseline: 0.0813
+2026-03-28 22:09:37 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7200, Reverse Model W2: 0.0213
+2026-03-28 22:09:37 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7200, ELBO: -41.8600, Std Total: 133.8503, Std Q: nan, CI Half: 3.7101
+2026-03-28 22:09:37 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7200, VI KSD: 0.6273
+2026-03-28 22:09:52 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7300: Avg Loss: 6.6651, Avg Epoch Time: 0.1463s
+2026-03-28 22:09:52 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7300, VI W2 to baseline: 0.0790
+2026-03-28 22:09:52 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7300, Reverse Model W2: 0.0208
+2026-03-28 22:09:52 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7300, ELBO: -40.9864, Std Total: 127.5805, Std Q: nan, CI Half: 3.5364
+2026-03-28 22:09:52 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7300, VI KSD: 0.5018
+2026-03-28 22:10:07 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7400: Avg Loss: 5.2933, Avg Epoch Time: 0.1481s
+2026-03-28 22:10:07 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7400, VI W2 to baseline: 0.0776
+2026-03-28 22:10:07 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7400, Reverse Model W2: 0.0203
+2026-03-28 22:10:07 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7400, ELBO: -40.4345, Std Total: 130.1600, Std Q: nan, CI Half: 3.6079
+2026-03-28 22:10:07 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7400, VI KSD: 0.5178
+2026-03-28 22:10:22 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7500: Avg Loss: 7.4519, Avg Epoch Time: 0.1520s
+2026-03-28 22:10:22 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 7500, Inner epoch 1, Reverse Model Loss: 108.1765, Avg Steps: 1.0000
+2026-03-28 22:10:22 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 7500.
+2026-03-28 22:10:22 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7500, VI W2 to baseline: 0.0783
+2026-03-28 22:10:22 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7500, Reverse Model W2: 0.0200
+2026-03-28 22:10:22 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7500, ELBO: -41.1505, Std Total: 134.1290, Std Q: nan, CI Half: 3.7179
+2026-03-28 22:10:22 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7500, VI KSD: 0.5007
+2026-03-28 22:10:24 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 7500.
+2026-03-28 22:10:37 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7600: Avg Loss: 9.4690, Avg Epoch Time: 0.1544s
+2026-03-28 22:10:37 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7600, VI W2 to baseline: 0.0760
+2026-03-28 22:10:37 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7600, Reverse Model W2: 0.0202
+2026-03-28 22:10:37 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7600, ELBO: -46.9698, Std Total: 120.0895, Std Q: nan, CI Half: 3.3287
+2026-03-28 22:10:38 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7600, VI KSD: 0.5080
+2026-03-28 22:10:52 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7700: Avg Loss: 3.3717, Avg Epoch Time: 0.1522s
+2026-03-28 22:10:52 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7700, VI W2 to baseline: 0.0724
+2026-03-28 22:10:52 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7700, Reverse Model W2: 0.0210
+2026-03-28 22:10:53 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7700, ELBO: -47.2545, Std Total: 121.9498, Std Q: nan, CI Half: 3.3803
+2026-03-28 22:10:53 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7700, VI KSD: 0.4429
+2026-03-28 22:11:07 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7800: Avg Loss: 3.4492, Avg Epoch Time: 0.1475s
+2026-03-28 22:11:07 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7800, VI W2 to baseline: 0.0715
+2026-03-28 22:11:07 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7800, Reverse Model W2: 0.0205
+2026-03-28 22:11:07 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7800, ELBO: -44.3290, Std Total: 127.6845, Std Q: nan, CI Half: 3.5392
+2026-03-28 22:11:08 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7800, VI KSD: 0.4486
+2026-03-28 22:11:22 | DEBUG | sivi:base_runner.py:874| learn | Epoch 7900: Avg Loss: 3.1638, Avg Epoch Time: 0.1516s
+2026-03-28 22:11:22 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 7900, VI W2 to baseline: 0.0738
+2026-03-28 22:11:22 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 7900, Reverse Model W2: 0.0209
+2026-03-28 22:11:23 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 7900, ELBO: -44.7536, Std Total: 125.4408, Std Q: nan, CI Half: 3.4770
+2026-03-28 22:11:23 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 7900, VI KSD: 0.4557
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8000: Avg Loss: 8.9499, Avg Epoch Time: 0.1517s
+2026-03-28 22:11:38 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 8000, Inner epoch 1, Reverse Model Loss: 108.3471, Avg Steps: 1.0000
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 8000.
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 8000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_8000.
+2026-03-28 22:11:38 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 8000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_8000.
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8000, VI W2 to baseline: 0.0709
+2026-03-28 22:11:38 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8000, Reverse Model W2: 0.0202
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8000, ELBO: -43.9701, Std Total: 126.8134, Std Q: nan, CI Half: 3.5151
+2026-03-28 22:11:38 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8000, VI KSD: 0.4637
+2026-03-28 22:11:40 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 8000.
+2026-03-28 22:11:53 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8100: Avg Loss: 4.1981, Avg Epoch Time: 0.1575s
+2026-03-28 22:11:53 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8100, VI W2 to baseline: 0.0766
+2026-03-28 22:11:53 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8100, Reverse Model W2: 0.0200
+2026-03-28 22:11:54 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8100, ELBO: -46.9097, Std Total: 120.2867, Std Q: nan, CI Half: 3.3342
+2026-03-28 22:11:54 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8100, VI KSD: 0.4231
+2026-03-28 22:12:09 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8200: Avg Loss: 6.5038, Avg Epoch Time: 0.1547s
+2026-03-28 22:12:09 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8200, VI W2 to baseline: 0.0717
+2026-03-28 22:12:09 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8200, Reverse Model W2: 0.0205
+2026-03-28 22:12:09 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8200, ELBO: -49.6127, Std Total: 115.7878, Std Q: nan, CI Half: 3.2095
+2026-03-28 22:12:09 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8200, VI KSD: 0.4041
+2026-03-28 22:12:24 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8300: Avg Loss: 5.7914, Avg Epoch Time: 0.1521s
+2026-03-28 22:12:24 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8300, VI W2 to baseline: 0.0698
+2026-03-28 22:12:24 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8300, Reverse Model W2: 0.0204
+2026-03-28 22:12:24 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8300, ELBO: -46.7603, Std Total: 123.1432, Std Q: nan, CI Half: 3.4134
+2026-03-28 22:12:24 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8300, VI KSD: 0.4257
+2026-03-28 22:12:39 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8400: Avg Loss: 4.0668, Avg Epoch Time: 0.1462s
+2026-03-28 22:12:39 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8400, VI W2 to baseline: 0.0685
+2026-03-28 22:12:39 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8400, Reverse Model W2: 0.0208
+2026-03-28 22:12:39 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8400, ELBO: -49.7513, Std Total: 112.0533, Std Q: nan, CI Half: 3.1060
+2026-03-28 22:12:39 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8400, VI KSD: 0.4232
+2026-03-28 22:12:54 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8500: Avg Loss: 5.0376, Avg Epoch Time: 0.1498s
+2026-03-28 22:12:54 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 8500, Inner epoch 1, Reverse Model Loss: 108.4665, Avg Steps: 1.0000
+2026-03-28 22:12:54 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 8500.
+2026-03-28 22:12:54 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8500, VI W2 to baseline: 0.0684
+2026-03-28 22:12:54 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8500, Reverse Model W2: 0.0207
+2026-03-28 22:12:54 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8500, ELBO: -50.7997, Std Total: 110.0983, Std Q: nan, CI Half: 3.0518
+2026-03-28 22:12:54 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8500, VI KSD: 0.3721
+2026-03-28 22:12:56 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 8500.
+2026-03-28 22:13:10 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8600: Avg Loss: 1.2415, Avg Epoch Time: 0.1653s
+2026-03-28 22:13:10 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8600, VI W2 to baseline: 0.0702
+2026-03-28 22:13:10 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8600, Reverse Model W2: 0.0220
+2026-03-28 22:13:10 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8600, ELBO: -51.0736, Std Total: 104.9080, Std Q: nan, CI Half: 2.9079
+2026-03-28 22:13:10 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8600, VI KSD: 0.4505
+2026-03-28 22:13:26 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8700: Avg Loss: 2.6785, Avg Epoch Time: 0.1553s
+2026-03-28 22:13:26 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8700, VI W2 to baseline: 0.0723
+2026-03-28 22:13:26 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8700, Reverse Model W2: 0.0199
+2026-03-28 22:13:26 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8700, ELBO: -49.0189, Std Total: 120.3778, Std Q: nan, CI Half: 3.3367
+2026-03-28 22:13:26 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8700, VI KSD: 0.3827
+2026-03-28 22:13:41 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8800: Avg Loss: 9.2596, Avg Epoch Time: 0.1519s
+2026-03-28 22:13:41 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8800, VI W2 to baseline: 0.0649
+2026-03-28 22:13:41 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8800, Reverse Model W2: 0.0205
+2026-03-28 22:13:41 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8800, ELBO: -47.5137, Std Total: 119.1684, Std Q: nan, CI Half: 3.3032
+2026-03-28 22:13:41 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8800, VI KSD: 0.4244
+2026-03-28 22:13:56 | DEBUG | sivi:base_runner.py:874| learn | Epoch 8900: Avg Loss: 1.2659, Avg Epoch Time: 0.1513s
+2026-03-28 22:13:56 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 8900, VI W2 to baseline: 0.0706
+2026-03-28 22:13:56 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 8900, Reverse Model W2: 0.0201
+2026-03-28 22:13:56 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 8900, ELBO: -48.3207, Std Total: 115.9836, Std Q: nan, CI Half: 3.2149
+2026-03-28 22:13:56 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 8900, VI KSD: 0.4266
+2026-03-28 22:14:11 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9000: Avg Loss: 5.2376, Avg Epoch Time: 0.1555s
+2026-03-28 22:14:11 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 9000, Inner epoch 1, Reverse Model Loss: 108.5147, Avg Steps: 1.0000
+2026-03-28 22:14:11 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 9000.
+2026-03-28 22:14:11 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 9000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_9000.
+2026-03-28 22:14:12 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 9000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_9000.
+2026-03-28 22:14:12 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9000, VI W2 to baseline: 0.0714
+2026-03-28 22:14:12 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9000, Reverse Model W2: 0.0201
+2026-03-28 22:14:12 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9000, ELBO: -51.9805, Std Total: 108.0686, Std Q: nan, CI Half: 2.9955
+2026-03-28 22:14:12 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9000, VI KSD: 0.4130
+2026-03-28 22:14:14 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 9000.
+2026-03-28 22:14:28 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9100: Avg Loss: 2.6706, Avg Epoch Time: 0.1612s
+2026-03-28 22:14:28 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9100, VI W2 to baseline: 0.0685
+2026-03-28 22:14:28 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9100, Reverse Model W2: 0.0209
+2026-03-28 22:14:28 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9100, ELBO: -51.9973, Std Total: 108.8856, Std Q: nan, CI Half: 3.0182
+2026-03-28 22:14:28 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9100, VI KSD: 0.3744
+2026-03-28 22:14:43 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9200: Avg Loss: 1.9350, Avg Epoch Time: 0.1502s
+2026-03-28 22:14:43 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9200, VI W2 to baseline: 0.0721
+2026-03-28 22:14:43 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9200, Reverse Model W2: 0.0202
+2026-03-28 22:14:43 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9200, ELBO: -50.0885, Std Total: 113.2384, Std Q: nan, CI Half: 3.1388
+2026-03-28 22:14:43 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9200, VI KSD: 0.3996
+2026-03-28 22:14:58 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9300: Avg Loss: 5.7299, Avg Epoch Time: 0.1529s
+2026-03-28 22:14:58 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9300, VI W2 to baseline: 0.0729
+2026-03-28 22:14:58 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9300, Reverse Model W2: 0.0204
+2026-03-28 22:14:58 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9300, ELBO: -45.9027, Std Total: 124.2643, Std Q: nan, CI Half: 3.4444
+2026-03-28 22:14:58 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9300, VI KSD: 0.4406
+2026-03-28 22:15:13 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9400: Avg Loss: 4.6941, Avg Epoch Time: 0.1515s
+2026-03-28 22:15:13 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9400, VI W2 to baseline: 0.0725
+2026-03-28 22:15:13 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9400, Reverse Model W2: 0.0194
+2026-03-28 22:15:13 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9400, ELBO: -49.9369, Std Total: 110.9398, Std Q: nan, CI Half: 3.0751
+2026-03-28 22:15:13 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9400, VI KSD: 0.4148
+2026-03-28 22:15:28 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9500: Avg Loss: 5.7896, Avg Epoch Time: 0.1485s
+2026-03-28 22:15:28 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 9500, Inner epoch 1, Reverse Model Loss: 108.5647, Avg Steps: 1.0000
+2026-03-28 22:15:28 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 9500.
+2026-03-28 22:15:28 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9500, VI W2 to baseline: 0.0686
+2026-03-28 22:15:28 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9500, Reverse Model W2: 0.0207
+2026-03-28 22:15:28 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9500, ELBO: -47.6544, Std Total: 119.6949, Std Q: nan, CI Half: 3.3178
+2026-03-28 22:15:28 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9500, VI KSD: 0.4046
+2026-03-28 22:15:30 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 9500.
+2026-03-28 22:15:44 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9600: Avg Loss: 5.0614, Avg Epoch Time: 0.1569s
+2026-03-28 22:15:44 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9600, VI W2 to baseline: 0.0683
+2026-03-28 22:15:44 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9600, Reverse Model W2: 0.0196
+2026-03-28 22:15:44 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9600, ELBO: -49.1768, Std Total: 120.6932, Std Q: nan, CI Half: 3.3454
+2026-03-28 22:15:44 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9600, VI KSD: 0.4240
+2026-03-28 22:15:59 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9700: Avg Loss: 4.7806, Avg Epoch Time: 0.1506s
+2026-03-28 22:15:59 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9700, VI W2 to baseline: 0.0679
+2026-03-28 22:15:59 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9700, Reverse Model W2: 0.0192
+2026-03-28 22:15:59 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9700, ELBO: -49.7199, Std Total: 118.4659, Std Q: nan, CI Half: 3.2837
+2026-03-28 22:15:59 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9700, VI KSD: 0.4010
+2026-03-28 22:16:14 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9800: Avg Loss: 4.7489, Avg Epoch Time: 0.1498s
+2026-03-28 22:16:14 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9800, VI W2 to baseline: 0.0679
+2026-03-28 22:16:14 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9800, Reverse Model W2: 0.0199
+2026-03-28 22:16:14 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9800, ELBO: -51.8542, Std Total: 118.9432, Std Q: nan, CI Half: 3.2969
+2026-03-28 22:16:14 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9800, VI KSD: 0.4090
+2026-03-28 22:16:28 | DEBUG | sivi:base_runner.py:874| learn | Epoch 9900: Avg Loss: -1.3549, Avg Epoch Time: 0.1444s
+2026-03-28 22:16:28 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 9900, VI W2 to baseline: 0.0726
+2026-03-28 22:16:28 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 9900, Reverse Model W2: 0.0199
+2026-03-28 22:16:28 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 9900, ELBO: -49.2930, Std Total: 109.5331, Std Q: nan, CI Half: 3.0361
+2026-03-28 22:16:28 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 9900, VI KSD: 0.3880
+2026-03-28 22:16:43 | DEBUG | sivi:base_runner.py:874| learn | Epoch 10000: Avg Loss: 9.5585, Avg Epoch Time: 0.1511s
+2026-03-28 22:16:43 | DEBUG | sivi:base_reverse_runner.py:183| _training_rev_log_func | Epoch 10000, Inner epoch 1, Reverse Model Loss: 108.6003, Avg Steps: 1.0000
+2026-03-28 22:16:43 | DEBUG | sivi:base_runner.py:588| save_samples | Saved 1000 samples at epoch 10000.
+2026-03-28 22:16:43 | DEBUG | sivi:base_runner.py:607| save_checkpoint | Saved VIModel checkpoints at epoch 10000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_10000.
+2026-03-28 22:16:43 | DEBUG | sivi:base_reverse_runner.py:476| save_checkpoint | Saved reverse checkpoints at epoch 10000 to results/AISIVI/Langevin_post/20260328_214950/checkpoints/epoch_10000.
+2026-03-28 22:16:43 | DEBUG | sivi:base_runner.py:347| eval_w2 | Epoch 10000, VI W2 to baseline: 0.0663
+2026-03-28 22:16:43 | DEBUG | sivi:base_reverse_runner.py:272| eval_w2 | Epoch 10000, Reverse Model W2: 0.0197
+2026-03-28 22:16:44 | DEBUG | sivi:base_runner.py:477| eval_elbo | Epoch 10000, ELBO: -50.9388, Std Total: 112.0863, Std Q: nan, CI Half: 3.1069
+2026-03-28 22:16:44 | DEBUG | sivi:base_runner.py:507| eval_ksd | Epoch 10000, VI KSD: 0.3398
+2026-03-28 22:16:46 | DEBUG | sivi:base_runner.py:978| learn | Saved trace plot at epoch 10000.
+2026-03-28 22:16:46 | INFO | sivi:base_runner.py:1003| learn | Training completed. Total time: 1515.235s, Avg epoch time: 0.151523s

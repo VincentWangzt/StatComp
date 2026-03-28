@@ -1,0 +1,96 @@
+reverse_model:
+  z_dim: 2
+  epsilon_dim: 4
+  hidden_dim: 12
+  num_layers: 8
+  logit: false
+  device: cuda
+  use_optimizer: true
+  warmup:
+    enabled: true
+    lr: 0.01
+    batch_size: 8192
+    epochs: 500
+vi_model:
+  z_dim: 2
+  epsilon_dim: 4
+  hidden_dim: 128
+  num_layers: 2
+  device: cuda
+  uniform: false
+target:
+  z_dim: 2
+  epsilon_dim: 4
+  bbox:
+  - -3.5
+  - 3.5
+  - -6
+  - 1
+seed: 42
+cuda_visible_devices: '0'
+use_cuda: true
+runner_type: AISIVI
+target_type: banana
+vi_model_type: ConditionalGaussian
+reverse_model_type: ConditionalRealNVP
+train:
+  epochs: 10000
+  batch_size: 128
+  reverse_sample_num: 2048
+  vi:
+    lr: 0.001
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.7
+  reverse:
+    lr: 0.01
+    batch_size: 1024
+    epochs: 1
+    update_freq: 1
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.1
+  annealing:
+    enabled: true
+    scheme: linear
+    steps: 5000
+  log:
+    metric_log_freq: 10
+    loss_log_freq: 100
+    reverse_log_freq: 500
+    time_avg_window: 500
+  checkpoint:
+    enabled: true
+    freq: 1000
+  sample:
+    freq: 500
+    num: 100000
+  plot:
+    freq: 500
+    num: 1000
+metric:
+  kl_ite:
+    num_samples: 10000
+    enabled: true
+  w2:
+    num_samples: 10000
+    num_projections: 1000
+    enabled: true
+  elbo:
+    batch_size: 512
+    num_batches: 1
+    num_z_samples: 500
+    enabled: true
+  ksd:
+    enabled: true
+    num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+config_path: configs/aisivi_banana.yaml
+device: cuda
+target_config_path: configs/targets/banana.yaml
+vi_model_config_path: configs/vi_models/ConditionalGaussian.yaml
+reverse_model_config_path: configs/reverse_models/ConditionalRealNVP.yaml
