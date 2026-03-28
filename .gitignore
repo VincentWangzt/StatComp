@@ -16,6 +16,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+*.tar.gz
 
 # Project artifacts
 results/
@@ -24,6 +25,7 @@ tb_logs/
 *.pth
 output.txt
 nogit**
+no_git**
 
 # Claude Code
 .claude/
