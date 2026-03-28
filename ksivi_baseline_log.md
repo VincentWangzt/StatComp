@@ -24,6 +24,8 @@ Rules for this log:
 | B007 | current | LRwaveform | repaired long run, 5000 epochs on official waveform `.mat` split | completed | `results/ksivi_debug/logs/project_lrwaveform_long.log` | Not fully stable; KSD worsened after 1000 before partially recovering |
 | B008 | current | Bnn_boston | repaired short run with VI warm start, 1000 epochs | completed | `results/ksivi_debug/logs/project_bnn_boston_repaired_v2.log` | RMSE improved to `10.52`, NLL to `5.53` |
 | B009 | current | Bnn_boston | repaired long run with VI warm start, 5000 epochs | completed | `results/ksivi_debug/logs/project_bnn_boston_long.log` | RMSE `4.20`, NLL `2.75`, KSD `17.71`; strong convergence trend |
+| B010 | official | Bnn_boston | `sivistein_bnn.py` with `configs/kernel_sivi_boston.yml` short baseline rerun | completed | `D:\PKU\Programming\StatComp\KSIVI\expkernelSIVI\debug_logs\bnn_boston_baseline_rerun\final.log` | Ran after installing `scikit-learn` into the shared local `uv` environment |
+| B011 | current | Bnn_boston | official-raw split verification probe | completed | `results/ksivi_debug/logs/verify_boston_official_split_v2.txt` | Current repo Boston loader now matches the official split, dev split, and normalization exactly |
 
 ## Baseline Observations
 
@@ -47,5 +49,6 @@ Rules for this log:
   - Current prepared data had `4000` training examples, while the official waveform `.mat` training split had `400`.
   - Switching the repaired KSIVI run to the official waveform data source removed the immediate LR explosion.
 - Fresh Bnn_boston conclusion:
-  - The repaired Boston path with warm start is no longer catastrophically broken.
-  - Boston metrics improve steadily with longer budgets, so the current evidence points to a convergence problem rather than a structural failure.
+  - The official short baseline is now available locally after installing `scikit-learn`.
+  - Current repaired Boston results collected before `B011` should not be treated as official-parity evidence because the official raw split path was still mismatched at that point.
+  - `B011` confirms the current repo can now reproduce the official Boston preprocessing path exactly, so the next Boston reruns are directly comparable.

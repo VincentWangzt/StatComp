@@ -10,6 +10,8 @@ from pathlib import Path
 
 import torch
 import scipy.io
+import numpy as np
+from sklearn.model_selection import train_test_split
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -87,6 +89,24 @@ def load_boston(
         train["mean_y"],
         train["std_y"],
     )
+
+
+def load_boston_official_split(
+    txt_path: str | Path,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Load the raw official Boston train/test split before dev splitting."""
+    data = np.loadtxt(txt_path)
+    X_input = torch.from_numpy(data[:, :-1]).to(device).float()
+    y_input = torch.from_numpy(data[:, -1]).to(device).float()
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_input,
+        y_input,
+        test_size=0.1,
+        random_state=42,
+    )
+    return X_train, y_train, X_test, y_test
 
 
 def load_bnn_regression(

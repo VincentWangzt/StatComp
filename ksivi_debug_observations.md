@@ -36,6 +36,10 @@ Rules for this document:
   - at `1000` steps, repaired Boston reached RMSE `10.52` and NLL `5.53`
   - at `5000` steps, repaired Boston improved to RMSE `4.20` and NLL `2.75`
   - Boston is trending toward convergence rather than showing structural failure
+- Verified official Boston baseline and preprocessing path:
+  - after installing `scikit-learn`, the official short Boston baseline ran locally and reported RMSE `2.6416` and test log-likelihood `-2.5108` at epoch `10/10`
+  - the first current-repo `official_raw` Boston loader was still wrong because it standardized before removing the dev split
+  - after moving dev splitting ahead of standardization, `verify_boston_official_split_v2.txt` shows exact equality for train, dev, test, and target-scaling statistics between the current repo and the official script
 
 ## Active Hypotheses
 
@@ -51,6 +55,7 @@ Rules for this document:
   - kernel-width dynamics as sample norms increase
   - or an LR-specific sensitivity to long-run variance growth in the current VI implementation
 - Boston may still benefit from:
+  - fresh reruns now that the official split path is exact
   - longer training budgets before additional code changes
   - or target-specific optimizer tuning after more long-run evidence is collected
 
@@ -63,3 +68,4 @@ Rules for this document:
 
 - Commit `fbac592`: aligned KSIVI VI path with official latent-width and variance controls, added official-like optimizer knobs, fixed gradient-norm logging, and fixed paired-batch handling for data-dependent KSIVI target scores.
 - Commit `b61fb9d`: added LR official-data loading support and Boston KSIVI warm-start support.
+- Pending commit: adjust the current repo Boston `official_raw` path so dev splitting happens before normalization, matching the official script exactly.

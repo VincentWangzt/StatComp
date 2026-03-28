@@ -8,6 +8,7 @@ Current repair stages:
 
 - `fbac592` `Align KSIVI VI path and paired target batching`
 - `b61fb9d` `Match KSIVI LR data source and add BNN warm start`
+- pending commit: exact official Boston split/dev/normalization path for `target.data.source=official_raw`
 
 ## Converged Runs
 
@@ -24,3 +25,4 @@ None confirmed yet in the repaired path.
 
 - `LRwaveform` is repaired enough to avoid immediate divergence on the official dataset split, but longer-run stability is not yet locked.
 - `Bnn_boston` is not yet at final convergence, but the repaired path now shows a strong monotonic improvement trend through `5000` steps.
+- Earlier Boston repaired runs in this document remain useful as trend evidence, but they predate the exact official split fix and should not be used as the final parity comparison.

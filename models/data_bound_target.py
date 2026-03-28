@@ -218,6 +218,7 @@ def build_data_bound_target(
     """
     from utils.datasets import (
         load_boston,
+        load_boston_official_split,
         load_bnn_regression,
         load_waveform,
         load_waveform_mat,
@@ -260,19 +261,60 @@ def build_data_bound_target(
         )
 
     elif target_type == "Bnn_boston":
-        X_train, y_train, X_test, y_test, mean_y, std_y = load_boston(
-            device=device,
-        )
-        dev_data = None
-        if dev_fraction > 0 and X_train.shape[0] > 1:
-            dev_size = min(
-                max(1, int(round(dev_fraction * X_train.shape[0]))),
-                dev_max_size,
-                X_train.shape[0] - 1,
+        data_source = data_cfg.get("source", "prepared")
+        if data_source == "official_raw":
+            txt_path = data_cfg.get("txt_path", None)
+            if txt_path is None:
+                raise ValueError(
+                    "Bnn_boston target.data.txt_path is required when "
+                    "target.data.source='official_raw'"
+                )
+            X_train, y_train, X_test, y_test = load_boston_official_split(
+                txt_path=txt_path,
+                device=device,
             )
-            X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
-            X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
-            dev_data = (X_dev, y_dev, mean_y, std_y)
+            y_train = y_train[:, None]
+            y_test = y_test[:, None]
+
+            if dev_fraction > 0 and X_train.shape[0] > 1:
+                dev_size = min(
+                    max(1, int(round(dev_fraction * X_train.shape[0]))),
+                    dev_max_size,
+                    X_train.shape[0] - 1,
+                )
+                X_dev_raw, y_dev_raw = X_train[-dev_size:], y_train[-dev_size:]
+                X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+            else:
+                X_dev_raw, y_dev_raw = None, None
+
+            X_train_mean = X_train.mean(0)
+            y_train_mean = y_train.mean(0)
+            X_train_std = X_train.std(0)
+            y_train_std = y_train.std(0)
+
+            X_train = (X_train - X_train_mean) / X_train_std
+            X_test = (X_test - X_train_mean) / X_train_std
+            y_train = (y_train - y_train_mean) / y_train_std
+
+            mean_y, std_y = y_train_mean, y_train_std
+            dev_data = None
+            if X_dev_raw is not None and y_dev_raw is not None:
+                X_dev = (X_dev_raw - X_train_mean) / X_train_std
+                dev_data = (X_dev, y_dev_raw, mean_y, std_y)
+        else:
+            X_train, y_train, X_test, y_test, mean_y, std_y = load_boston(
+                device=device,
+            )
+            dev_data = None
+            if dev_fraction > 0 and X_train.shape[0] > 1:
+                dev_size = min(
+                    max(1, int(round(dev_fraction * X_train.shape[0]))),
+                    dev_max_size,
+                    X_train.shape[0] - 1,
+                )
+                X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
+                X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+                dev_data = (X_dev, y_dev, mean_y, std_y)
         d = X_train.shape[1]
         n_hidden = int(data_cfg.get("n_hidden", 50))
         loglambda = float(data_cfg.get("loglambda", -1.003869799168037))

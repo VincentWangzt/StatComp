@@ -20,6 +20,8 @@ vi_model:
 
 target:
   data:
+    source: official_raw
+    txt_path: D:/PKU/Programming/StatComp/KSIVI/datasets/boston_housing.txt
     batch_size: 100
     batch_mode: cyclic
     dev_fraction: 0.1
