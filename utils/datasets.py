@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import torch
+import scipy.io
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -40,10 +41,32 @@ def load_waveform(
     return train["X"], train["y"], test["X"], test["y"]
 
 
+def load_waveform_mat(
+    mat_path: str | Path,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Load the original waveform `.mat` split used by the official KSIVI repo."""
+    data = scipy.io.loadmat(mat_path)
+    return (
+        torch.from_numpy(data["X_train"]).to(device).float(),
+        torch.from_numpy(data["y_train"]).to(device).reshape(-1).float(),
+        torch.from_numpy(data["X_test"]).to(device).float(),
+        torch.from_numpy(data["y_test"]).to(device).reshape(-1).float(),
+    )
+
+
 def load_boston(
     data_dir: str | Path | None = None,
     device: torch.device = torch.device("cpu"),
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    tuple[torch.Tensor, ...] | None,
+]:
     """Load pre-processed Boston Housing dataset.
 
     Parameters
@@ -71,6 +94,12 @@ def load_boston(
         test["y"],
         train["mean_y"],
         train["std_y"],
+        (
+            train["X_dev"],
+            train["y_dev"],
+            train["mean_y"],
+            train["std_y"],
+        ) if "X_dev" in train and "y_dev" in train else None,
     )
 
 
@@ -78,7 +107,15 @@ def load_bnn_regression(
     name: str,
     data_dir: str | Path | None = None,
     device: torch.device = torch.device("cpu"),
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    tuple[torch.Tensor, ...] | None,
+]:
     """Load a pre-processed UCI BNN regression dataset.
 
     Parameters
@@ -109,4 +146,10 @@ def load_bnn_regression(
         test["y"],
         train["mean_y"],
         train["std_y"],
+        (
+            train["X_dev"],
+            train["y_dev"],
+            train["mean_y"],
+            train["std_y"],
+        ) if "X_dev" in train and "y_dev" in train else None,
     )

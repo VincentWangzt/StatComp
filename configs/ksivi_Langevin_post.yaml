@@ -8,11 +8,22 @@ runner_type: KSIVI
 target_type: Langevin_post
 vi_model_type: ConditionalGaussianGlobal
 
+vi_model:
+  epsilon_dim: 100
+  hidden_dim: 128
+  num_layers: 2
+  activation: relu
+  variance_parameterization: logvar
+  global_log_var_init: -2.0
+  global_log_var_min: -12
+
 train:
   epochs: 100000
   batch_size: 128
   vi:
     lr: 2.0e-4
+    var_lr: 2.0e-4
+    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
       step_size: 10000

@@ -63,9 +63,12 @@ class DataBoundTarget:
         dataset: torch.Tensor,
         labels: torch.Tensor,
         batch_size: int | None = None,
+        batch_mode: str = "random",
+        scale_sto_override: float | None = None,
         z_dim: int = 2,
         device: torch.device = torch.device("cpu"),
         test_data: tuple[torch.Tensor, ...] | None = None,
+        dev_data: tuple[torch.Tensor, ...] | None = None,
     ) -> None:
         self.inner = inner
         self.dataset = dataset.to(device)
@@ -74,31 +77,71 @@ class DataBoundTarget:
         self.device = device
         self.name = inner.name
         self.test_data = test_data
+        self.dev_data = dev_data
+        self.batch_mode = batch_mode
+        self._batch_cursor = 0
+
+        if self.batch_mode not in ("random", "cyclic", "full"):
+            raise ValueError(
+                "batch_mode must be one of ('random', 'cyclic', 'full')"
+            )
 
         N = self.dataset.shape[0]
-        if batch_size is None or batch_size >= N:
+        if batch_size is None or batch_size >= N or self.batch_mode == "full":
             self.batch_size: int | None = None
-            self.scale_sto: float = 1.0
+            self.scale_sto: float = (
+                1.0 if scale_sto_override is None else float(scale_sto_override)
+            )
         else:
             self.batch_size = batch_size
-            self.scale_sto = float(N) / float(batch_size)
+            self.scale_sto = (
+                float(N) / float(batch_size)
+                if scale_sto_override is None else float(scale_sto_override)
+            )
 
-    def _get_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def sample_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         """Return full data or a random minibatch."""
         if self.batch_size is None:
             return self.dataset, self.labels
-        idx = torch.randint(0, self.dataset.shape[0], (self.batch_size,))
+        if self.batch_mode == "cyclic":
+            start = self._batch_cursor
+            stop = start + self.batch_size
+            idx = torch.arange(start, stop, device=self.device) % self.dataset.shape[0]
+            self._batch_cursor = stop % self.dataset.shape[0]
+        else:
+            idx = torch.randint(
+                0,
+                self.dataset.shape[0],
+                (self.batch_size,),
+                device=self.device,
+            )
         return self.dataset[idx], self.labels[idx]
+
+    def score_on_batch(
+        self,
+        X: torch.Tensor,
+        data: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.inner.score(X, data, labels, self.scale_sto)
+
+    def logp_on_batch(
+        self,
+        X: torch.Tensor,
+        data: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        return self.inner.logp(X, data, labels, self.scale_sto)
 
     def logp(self, X: torch.Tensor) -> torch.Tensor:
         """Compute log-density with bound dataset."""
-        data, labels = self._get_batch()
-        return self.inner.logp(X, data, labels, self.scale_sto)
+        data, labels = self.sample_batch()
+        return self.logp_on_batch(X, data, labels)
 
     def score(self, X: torch.Tensor) -> torch.Tensor:
         """Compute score with bound dataset."""
-        data, labels = self._get_batch()
-        return self.inner.score(X, data, labels, self.scale_sto)
+        data, labels = self.sample_batch()
+        return self.score_on_batch(X, data, labels)
 
     # ------------------------------------------------------------------
     # Visualization (runner falls through contour_plot → trace_plot)
@@ -173,14 +216,36 @@ def build_data_bound_target(
     DataBoundTarget
         Ready-to-use target with standard ``logp(X)``/``score(X)`` interface.
     """
-    from utils.datasets import load_boston, load_bnn_regression, load_waveform
+    from utils.datasets import (
+        load_boston,
+        load_bnn_regression,
+        load_waveform,
+        load_waveform_mat,
+    )
 
     target_cfg = target_cfg or {}
     data_cfg = target_cfg.get("data", {}) or {}
     data_batch_size = data_cfg.get("batch_size", None)
+    batch_mode = data_cfg.get("batch_mode", "random")
+    scale_sto_override = data_cfg.get("scale_sto_override", None)
+    dev_fraction = float(data_cfg.get("dev_fraction", 0.0))
+    dev_max_size = int(data_cfg.get("dev_max_size", 500))
 
     if target_type == "LRwaveform":
-        X_train, y_train, X_test, y_test = load_waveform(device=device)
+        data_source = data_cfg.get("source", "prepared")
+        if data_source == "official_mat":
+            mat_path = data_cfg.get("mat_path", None)
+            if mat_path is None:
+                raise ValueError(
+                    "LRwaveform target.data.mat_path is required when "
+                    "target.data.source='official_mat'"
+                )
+            X_train, y_train, X_test, y_test = load_waveform_mat(
+                mat_path=mat_path,
+                device=device,
+            )
+        else:
+            X_train, y_train, X_test, y_test = load_waveform(device=device)
         inner = LRwaveform(device=device)
         z_dim = X_train.shape[1]  # features + bias column
         return DataBoundTarget(
@@ -188,14 +253,25 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
         )
 
     elif target_type == "Bnn_boston":
-        X_train, y_train, X_test, y_test, mean_y, std_y = load_boston(
+        X_train, y_train, X_test, y_test, mean_y, std_y, dev_data = load_boston(
             device=device,
         )
+        if dev_data is None and dev_fraction > 0 and X_train.shape[0] > 1:
+            dev_size = min(
+                max(1, int(round(dev_fraction * X_train.shape[0]))),
+                dev_max_size,
+                X_train.shape[0] - 1,
+            )
+            X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
+            X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+            dev_data = (X_dev, y_dev, mean_y, std_y)
         d = X_train.shape[1]
         n_hidden = int(data_cfg.get("n_hidden", 50))
         loglambda = float(data_cfg.get("loglambda", -1.003869799168037))
@@ -213,17 +289,29 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),
+            dev_data=dev_data,
         )
 
     elif target_type in _BNN_REGRESSION_TARGETS:
         name = target_type[4:].lower()  # "Bnn_concrete" → "concrete"
-        X_train, y_train, X_test, y_test, mean_y, std_y = load_bnn_regression(
+        X_train, y_train, X_test, y_test, mean_y, std_y, dev_data = load_bnn_regression(
             name=name,
             device=device,
         )
+        if dev_data is None and dev_fraction > 0 and X_train.shape[0] > 1:
+            dev_size = min(
+                max(1, int(round(dev_fraction * X_train.shape[0]))),
+                dev_max_size,
+                X_train.shape[0] - 1,
+            )
+            X_dev, y_dev = X_train[-dev_size:], y_train[-dev_size:]
+            X_train, y_train = X_train[:-dev_size], y_train[:-dev_size]
+            dev_data = (X_dev, y_dev, mean_y, std_y)
         d = X_train.shape[1]
         n_hidden = int(data_cfg.get("n_hidden", 50))
         loglambda = float(data_cfg.get("loglambda", -1.003869799168037))
@@ -241,9 +329,12 @@ def build_data_bound_target(
             dataset=X_train,
             labels=y_train,
             batch_size=data_batch_size,
+            batch_mode=batch_mode,
+            scale_sto_override=scale_sto_override,
             z_dim=z_dim,
             device=device,
             test_data=(X_test, y_test, mean_y, std_y),
+            dev_data=dev_data,
         )
 
     else:

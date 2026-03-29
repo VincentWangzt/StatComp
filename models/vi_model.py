@@ -8,6 +8,19 @@ from omegaconf.dictconfig import DictConfig
 logger = get_logger()
 
 
+def _make_activation(name: str) -> nn.Module:
+    name = name.lower()
+    if name == "silu":
+        return nn.SiLU()
+    if name == "relu":
+        return nn.ReLU()
+    raise ValueError(f"Unsupported activation '{name}'")
+
+
+def _inverse_softplus(value: float) -> float:
+    return torch.log(torch.expm1(torch.tensor(value))).item()
+
+
 class BaseVIModel(nn.Module):
     """
     Base class for variational inference models q_phi(z|epsilon).
@@ -146,13 +159,14 @@ class ConditionalGaussian(BaseVIModel):
         self.hidden_dim: int = config.hidden_dim
         self.num_layers: int = config.num_layers
         self.out_dim = self.z_dim * 2
-        self.var_min = 1e-4
+        self.var_min = float(config.get('var_min', 1e-4))
+        self.activation = config.get('activation', 'silu')
         # The network outputs both mean and variance
         layers = []
         input_dim = self.epsilon_dim
         for _ in range(self.num_layers):
             layers.append(nn.Linear(input_dim, self.hidden_dim))
-            layers.append(nn.SiLU())
+            layers.append(_make_activation(self.activation))
             input_dim = self.hidden_dim
         layers.append(nn.Linear(self.hidden_dim, self.out_dim))
         self.net = nn.Sequential(*layers)
@@ -385,17 +399,39 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
         self.hidden_dim: int = config.hidden_dim
         self.num_layers: int = config.num_layers
         self.out_dim = self.z_dim
-        self.var_min = 1e-4
+        self.var_min = float(config.get('var_min', 1e-4))
+        self.activation = config.get('activation', 'silu')
+        self.variance_parameterization = config.get(
+            'variance_parameterization', 'softplus_var')
+        if self.variance_parameterization not in ('softplus_var', 'logvar'):
+            raise ValueError(
+                "variance_parameterization must be one of "
+                "('softplus_var', 'logvar')"
+            )
+        self.global_log_var_min = float(config.get('global_log_var_min', -20.0))
         # The network outputs both mean and variance, with variance being global
         layers = []
         input_dim = self.epsilon_dim
         for _ in range(self.num_layers):
             layers.append(nn.Linear(input_dim, self.hidden_dim))
-            layers.append(nn.SiLU())
+            layers.append(_make_activation(self.activation))
             input_dim = self.hidden_dim
         layers.append(nn.Linear(self.hidden_dim, self.out_dim))
         self.net = nn.Sequential(*layers)
-        self.var_raw = nn.Parameter(torch.ones((self.z_dim, )))
+        if self.variance_parameterization == 'softplus_var':
+            global_variance_init = config.get('global_variance_init', None)
+            init_raw = 1.0 if global_variance_init is None else _inverse_softplus(
+                float(global_variance_init))
+        else:
+            init_raw = float(config.get('global_log_var_init', 0.0))
+        self.var_raw = nn.Parameter(torch.full((self.z_dim, ), init_raw))
+
+    def _variance(self) -> torch.Tensor:
+        if self.variance_parameterization == 'softplus_var':
+            return torch.nn.functional.softplus(self.var_raw).clamp(
+                min=self.var_min)
+        log_var = self.var_raw.clamp(min=self.global_log_var_min)
+        return torch.exp(log_var)
 
     def reparameterize(
         self,
@@ -412,8 +448,7 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
             (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std` where
             `z = mu + std * u` and `u ~ N(0, I)`.
         """
-        var = torch.nn.functional.softplus(self.var_raw)
-        var = var.clamp(min=self.var_min)
+        var = self._variance()
         std = torch.sqrt(var)
         u = torch.randn_like(mu)
         return mu + std * u, u / std
@@ -424,10 +459,7 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
 
     def getstd(self, epsilon: torch.Tensor) -> torch.Tensor:
         """Return `std(epsilon)` by clamping variance and taking square root."""
-        var = torch.nn.functional.softplus(self.var_raw)
-        var = var.clamp(min=self.var_min)
-        std = torch.sqrt(var)
-        return std
+        return torch.sqrt(self._variance())
 
     def forward(
         self,
@@ -477,10 +509,7 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
             score (torch.Tensor): Score `-(z - mu(epsilon)) / var(epsilon)`.
         """
         mu = self.net(epsilon)
-        var = torch.nn.functional.softplus(self.var_raw)
-        var = var.clamp(min=self.var_min)
-        score = -(z - mu) / (var)
-        return score
+        return -(z - mu) / self._variance()
 
     def logp(
         self,
@@ -497,8 +526,7 @@ class ConditionalGaussianGlobalUniform(BaseVIModel):
             log_prob (torch.Tensor): shape [...]
         """
         mu = self.net(epsilon)
-        var = torch.nn.functional.softplus(self.var_raw)
-        var = var.clamp(min=self.var_min)
+        var = self._variance()
         # Gaussian log-likelihood per sample
         const = -0.5 * z.shape[-1] * math.log(2 * math.pi)
         ll = const - 0.5 * (var.log().sum(dim=-1) +
