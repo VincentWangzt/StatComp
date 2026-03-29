@@ -14,7 +14,7 @@ reverse_model_type: ConditionalRealNVP
 train:
   epochs: 3000
   batch_size: 128
-  reverse_sample_num: 256
+  reverse_sample_num: 1024
   vi:
     lr: 5.0e-4
     scheduler:
@@ -22,10 +22,14 @@ train:
       step_size: 1000
       gamma: 0.8
   reverse:
-    lr: 1.0e-2
+    lr: 1.0e-3
     batch_size: 8192
     epochs: 1
     update_freq: 1
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.1
   annealing:
     enabled: false
     scheme: linear

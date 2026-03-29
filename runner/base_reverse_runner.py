@@ -103,6 +103,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 "Reverse model optimizer disabled. Using `fit()` method instead."
             )
             self.training_reverse_optimizer = None
+            self.training_reverse_scheduler = None
         else:
             self.training_reverse_optimizer = torch.optim.Adam(
                 self.reverse_model.parameters(),
@@ -110,7 +111,16 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             )
 
             self.training_reverse_scheduler = None
-            if self.share_scheduler:
+            rev_sched_cfg = self.rev_train_cfg.get('scheduler', None)
+            if rev_sched_cfg is not None:
+                assert rev_sched_cfg['type'] == 'StepLR', \
+                    "Only StepLR scheduler is supported for reverse optimizer."
+                self.training_reverse_scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.training_reverse_optimizer,
+                    step_size=rev_sched_cfg['step_size'],
+                    gamma=rev_sched_cfg['gamma'],
+                )
+            elif self.share_scheduler:
                 logger.info(
                     "Sharing VI model scheduler config for reverse model training."
                 )
@@ -252,6 +262,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
     def _train_reverse_model(
         self,
         optimizer: torch.optim.Optimizer | None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None,
         epochs: int,
         batch_size: int,
         initialize: bool = False,
@@ -295,12 +306,12 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                             self.reverse_model.parameters(),
                             max_norm=self.grad_clip)
                     optimizer.step()
+                    if self.curr_epoch > 1 and scheduler is not None:
+                        scheduler.step()
                 else:
                     logger.warning(
                         f"NaN or Inf detected in reverse model loss at epoch {self.curr_epoch}. Skipping update."
                     )
-                if self.curr_epoch > 1 and self.training_reverse_scheduler is not None:
-                    self.training_reverse_scheduler.step()
                 if log_func is not None:
                     log_func(loss.item(), 1, epoch)
         else:
@@ -389,9 +400,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.warmup_last_time = time.perf_counter()
 
         self._train_reverse_model(
-            optimizer,
-            self.warmup_epochs,
-            self.warmup_batch_size,
+            optimizer=optimizer,
+            scheduler=None,
+            epochs=self.warmup_epochs,
+            batch_size=self.warmup_batch_size,
             initialize=True,
             progress_bar=True,
             log_func=self._warmup_log_func,
@@ -431,6 +443,15 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 self.training_reverse_optimizer.state_dict(),
                 rev_opt_path,
             )
+            if self.training_reverse_scheduler is not None:
+                rev_sched_path = os.path.join(
+                    epoch_ckpt_dir,
+                    "reverse_sched.pt",
+                )
+                torch.save(
+                    self.training_reverse_scheduler.state_dict(),
+                    rev_sched_path,
+                )
         logger.debug(
             f"Saved reverse checkpoints at epoch {epoch} to {epoch_ckpt_dir}.")
 
@@ -491,6 +512,28 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 logger.error(f"Failed to load reverse optimizer: {e}.")
                 raise e
 
+        if self.training_reverse_scheduler is not None:
+            try:
+                rev_sched_path = os.path.join(
+                    ckpt_dir,
+                    'reverse_sched.pt',
+                )
+                if os.path.isfile(rev_sched_path):
+                    rs_state = torch.load(
+                        rev_sched_path,
+                        map_location=self.device,
+                    )
+                    self.training_reverse_scheduler.load_state_dict(rs_state)
+                    logger.info(
+                        f"Loaded reverse scheduler from {rev_sched_path}")
+                else:
+                    logger.warning(
+                        f"Reverse scheduler checkpoint not found at {rev_sched_path}; using fresh scheduler."
+                    )
+            except Exception as e:
+                logger.error(f"Failed to load reverse scheduler: {e}.")
+                raise e
+
     def train_reverse_model(self, epoch_outer: int):
         '''
         Train the reverse model for several inner epochs using samples from the current VI.
@@ -500,9 +543,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         if epoch_outer % self.rev_update_freq != 0:
             return
         self._train_reverse_model(
-            self.training_reverse_optimizer,
-            self.rev_epochs,
-            self.rev_batch_size,
+            optimizer=self.training_reverse_optimizer,
+            scheduler=self.training_reverse_scheduler,
+            epochs=self.rev_epochs,
+            batch_size=self.rev_batch_size,
             initialize=False,
             progress_bar=False,
             log_func=lambda loss, steps, epoch: self._training_rev_log_func(

@@ -118,10 +118,10 @@ class AISIVIRunner(BaseReverseConditionalRunner):
 
             importance_sampling_weights = importance_sampling_weights.detach()
 
-        nan_mask = torch.isnan(importance_sampling_weights)
-        if nan_mask.any():
+        non_finite_mask = ~torch.isfinite(importance_sampling_weights)
+        if non_finite_mask.any():
             logger.warning(
-                f"{nan_mask.sum()} NaN detected in importance sampling weights at epoch {self.curr_epoch}. Skipping score computation."
+                f"{non_finite_mask.sum()} non-finite importance sampling weights detected at epoch {self.curr_epoch}. Skipping score computation."
             )
             return torch.full((z.shape[0],), float('nan'), device=z.device, dtype=z.dtype)
 
@@ -131,16 +131,26 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         log_q_phi_z_aux = self.vi_model.logp(
             z_aux, epsilon_aux) + importance_sampling_weights
 
+        finite_aux_mask = torch.isfinite(log_q_phi_z_aux)
+        safe_log_q_phi_z_aux = torch.where(
+            finite_aux_mask,
+            log_q_phi_z_aux,
+            torch.full_like(log_q_phi_z_aux, -1e30),
+        )
+        valid_counts = finite_aux_mask.sum(dim=1)
+        fully_invalid_rows = valid_counts == 0
+        if fully_invalid_rows.any():
+            logger.warning(
+                f"{fully_invalid_rows.sum()} samples had no finite auxiliary AISIVI terms at epoch {self.curr_epoch}. Skipping score computation."
+            )
+            return torch.full((z.shape[0],), float('nan'), device=z.device, dtype=z.dtype)
+        valid_counts = valid_counts.to(dtype=z.dtype, device=z.device)
+
         # shape (batch_size,)
         log_q_phi_z = torch.logsumexp(
-            log_q_phi_z_aux,
+            safe_log_q_phi_z_aux,
             dim=1,
-        ) - torch.log(
-            torch.tensor(
-                self.training_reverse_sample_num,
-                device=z.device,
-                dtype=z.dtype,
-            ))
+        ) - torch.log(valid_counts)
 
         # shape (batch_size, training_reverse_sample_num, z_dim)
         score = torch.autograd.grad(
@@ -152,6 +162,7 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         # shape (batch_size, z_dim)
         score = score.sum(dim=1)
         score = score.clone().detach()
+        self.log_reverse_score_l2_to_target(score, z)
 
         if self.normalize_reverse_score:
             score = score - score.mean(dim=0, keepdim=True)
