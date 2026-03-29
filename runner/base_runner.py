@@ -750,6 +750,29 @@ class BaseSIVIRunner():
         self.writer.add_scalar("metric/vi_model/fisher_div", fisher_val, epoch)
         logger.debug(f"Epoch {epoch}, Fisher Divergence: {fisher_val:.4f}")
 
+    def log_reverse_score_l2_to_target(
+        self,
+        score_eval: torch.Tensor,
+        z_eval: torch.Tensor,
+    ) -> None:
+        '''
+        Log the mean squared L2 gap between a reverse-estimated score and the
+        target score at the same latent samples.
+
+        Args:
+            score_eval (torch.Tensor): Reverse-estimated score with shape [B, Dz].
+            z_eval (torch.Tensor): Latent samples with shape [B, Dz].
+        '''
+        with torch.no_grad():
+            target_score = self.target_model.score(z_eval.detach())
+            score_l2 = torch.mean(
+                torch.sum((score_eval.detach() - target_score)**2, dim=-1))
+            self.writer.add_scalar(
+                "diagnostic/reverse_model/score_l2_to_target",
+                score_l2.item(),
+                self.curr_epoch,
+            )
+
     def save_samples(self, epoch: int):
         '''
         Save samples from the VI model at the given epoch.

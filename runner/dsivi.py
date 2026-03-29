@@ -82,6 +82,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
     def _train_reverse_model(
         self,
         optimizer: torch.optim.Optimizer | None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None,
         epochs: int,
         batch_size: int,
         initialize: bool = False,
@@ -121,6 +122,8 @@ class DSIVIRunner(BaseReverseConditionalRunner):
                 if torch.isfinite(loss):
                     loss.backward()
                     optimizer.step()
+                    if self.curr_epoch > 1 and scheduler is not None:
+                        scheduler.step()
                 else:
                     logger.warning(
                         f"NaN or Inf detected in reverse model loss at epoch {self.curr_epoch}. Skipping update."
@@ -193,6 +196,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
         """
         with torch.no_grad():
             score = self.reverse_model.score(z).clone().detach()
+            self.log_reverse_score_l2_to_target(score, z)
 
         if self.normalize_reverse_score:
             score = score - score.mean(dim=0, keepdim=True)

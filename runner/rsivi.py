@@ -78,6 +78,7 @@ class RSIVIRunner(BaseReverseConditionalRunner):
             score = self.vi_model.score(z_aux, epsilon_aux)
             score = score.mean(dim=1)
             score = score.clone().detach()
+            self.log_reverse_score_l2_to_target(score, z)
 
             if self.normalize_reverse_score:
                 score = score - score.mean(dim=0, keepdim=True)
