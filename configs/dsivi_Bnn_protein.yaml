@@ -22,7 +22,7 @@ train:
   reverse:
     lr: 2.0e-3
     batch_size: 8192
-    epochs: 10
+    epochs: 2
     update_freq: 1
   annealing:
     enabled: true
