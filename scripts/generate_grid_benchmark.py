@@ -169,12 +169,22 @@ def _assign_gpu_queues(entries: list[dict]) -> None:
 
 
 def _smoke_manifest(entries: list[dict]) -> list[dict]:
+    smoke_queue_overrides = {
+        "official_on_banana_sivi": ("gpu0", 0),
+        "official_on_bnn_yacht_uivi": ("gpu0", 0),
+        "official_on_banana_ksivi_custom": ("gpu0", 0),
+        "official_on_banana_ksivi_standard_cg": ("gpu1", 1),
+        "official_on_bnn_yacht_dsivi_bs4096_rbs2048": ("gpu1", 1),
+    }
     smoke_entries = []
     by_id = {entry["run_id"]: entry for entry in entries}
     for run_id in SMOKE_RUNS:
         base = deepcopy(by_id[run_id])
         base["phase"] = "smoke"
         base["smoke"] = True
+        queue_name, queue_gpu = smoke_queue_overrides[run_id]
+        base["queue_name"] = queue_name
+        base["queue_gpu"] = queue_gpu
         base["output_overrides"] = {
             "results_dir": SMOKE_RESULTS_DIR,
             "tb_dir": SMOKE_TB_DIR,

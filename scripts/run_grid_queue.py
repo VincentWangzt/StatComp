@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -106,6 +107,15 @@ def _run_extractor(tb_path: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _safe_relpath(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    try:
+        return to_relpath(path)
+    except Exception:
+        return str(path)
+
+
 def _tail_log(log_path: Path, num_lines: int = 20) -> list[str]:
     if not log_path.exists():
         return []
@@ -176,94 +186,126 @@ def main() -> None:
         )
 
         result_path: Path | None = None
-        with console_log.open("w", encoding="utf-8") as log_fh:
-            process = subprocess.Popen(
-                cmd,
-                cwd=REPO_ROOT,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-            assert process.stdout is not None
-            for line in process.stdout:
-                log_fh.write(line)
-                log_fh.flush()
-                marker = "Artifacts will be saved to: "
-                if marker in line:
-                    result_path = Path(line.split(marker, 1)[1].strip())
-                    current_status["result_path"] = str(result_path)
-                    current_status["tb_path"] = str(_expected_tb_path(result_path, args))
-                    write_current_status(current_path, current_status)
+        process: subprocess.Popen[str] | None = None
+        try:
+            with console_log.open("w", encoding="utf-8") as log_fh:
+                process = subprocess.Popen(
+                    cmd,
+                    cwd=REPO_ROOT,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+                assert process.stdout is not None
+                for line in process.stdout:
+                    log_fh.write(line)
+                    log_fh.flush()
+                    marker = "Artifacts will be saved to: "
+                    if marker in line:
+                        result_path = Path(line.split(marker, 1)[1].strip())
+                        current_status["result_path"] = str(result_path)
+                        current_status["tb_path"] = str(_expected_tb_path(result_path, args))
+                        write_current_status(current_path, current_status)
 
-            process.wait()
+                process.wait()
 
-        end_wall = time.time()
-        duration_sec = time.perf_counter() - start_perf
-        exit_code = process.returncode
+            end_wall = time.time()
+            duration_sec = time.perf_counter() - start_perf
+            exit_code = process.returncode
 
-        failure_reason = None
-        extractor_stdout = ""
-        extractor_stderr = ""
-        tb_path: Path | None = None
-        run_log_path: Path | None = None
+            failure_reason = None
+            extractor_stdout = ""
+            extractor_stderr = ""
+            tb_path: Path | None = None
+            run_log_path: Path | None = None
 
-        if exit_code != 0:
-            failure_reason = f"training exit code {exit_code}"
-        elif result_path is None:
-            failure_reason = "missing result path marker in console log"
-        else:
-            tb_path = _expected_tb_path(result_path, args)
-            run_log_path = result_path / "run.log"
-            if not result_path.exists():
-                failure_reason = f"result path not found: {result_path}"
-            elif not tb_path.exists():
-                failure_reason = f"tb path not found: {tb_path}"
-            elif not run_log_path.exists():
-                failure_reason = f"run log not found: {run_log_path}"
+            if exit_code != 0:
+                failure_reason = f"training exit code {exit_code}"
+            elif result_path is None:
+                failure_reason = "missing result path marker in console log"
             else:
-                extractor = _run_extractor(tb_path)
-                extractor_stdout = extractor.stdout
-                extractor_stderr = extractor.stderr
-                if extractor.returncode != 0:
-                    failure_reason = f"extractor failed with exit code {extractor.returncode}"
+                tb_path = _expected_tb_path(result_path, args)
+                run_log_path = result_path / "run.log"
+                if not result_path.exists():
+                    failure_reason = f"result path not found: {result_path}"
+                elif not tb_path.exists():
+                    failure_reason = f"tb path not found: {tb_path}"
+                elif not run_log_path.exists():
+                    failure_reason = f"run log not found: {run_log_path}"
+                else:
+                    extractor = _run_extractor(tb_path)
+                    extractor_stdout = extractor.stdout
+                    extractor_stderr = extractor.stderr
+                    if extractor.returncode != 0:
+                        failure_reason = f"extractor failed with exit code {extractor.returncode}"
 
-        status = "completed" if failure_reason is None else "failed"
-        event = {
-            "status": status,
-            "run_id": run_id,
-            "queue": args.queue,
-            "gpu": args.gpu,
-            "phase": args.phase,
-            "started_at": current_status["started_at"],
-            "finished_at": utc_now(),
-            "duration_sec": duration_sec,
-            "start_wall_time": start_wall,
-            "end_wall_time": end_wall,
-            "exit_code": exit_code,
-            "config_path": entry["config_path"],
-            "result_path": None if result_path is None else to_relpath(result_path),
-            "tb_path": None if tb_path is None else to_relpath(tb_path),
-            "console_log": to_relpath(console_log),
-            "run_log_tail": [] if run_log_path is None else _tail_log(run_log_path),
-            "extractor_stdout": extractor_stdout,
-            "extractor_stderr": extractor_stderr,
-            "failure_reason": failure_reason,
-        }
-        append_event(events_path, event)
-
-        current_status.update(
-            {
+            status = "completed" if failure_reason is None else "failed"
+            event = {
                 "status": status,
-                "finished_at": event["finished_at"],
+                "run_id": run_id,
+                "queue": args.queue,
+                "gpu": args.gpu,
+                "phase": args.phase,
+                "started_at": current_status["started_at"],
+                "finished_at": utc_now(),
                 "duration_sec": duration_sec,
+                "start_wall_time": start_wall,
+                "end_wall_time": end_wall,
                 "exit_code": exit_code,
+                "config_path": entry["config_path"],
+                "result_path": _safe_relpath(result_path),
+                "tb_path": _safe_relpath(tb_path),
+                "console_log": _safe_relpath(console_log),
+                "run_log_tail": [] if run_log_path is None else _tail_log(run_log_path),
+                "extractor_stdout": extractor_stdout,
+                "extractor_stderr": extractor_stderr,
                 "failure_reason": failure_reason,
             }
-        )
-        write_current_status(current_path, current_status)
+            append_event(events_path, event)
 
-        if failure_reason is not None:
+            current_status.update(
+                {
+                    "status": status,
+                    "finished_at": event["finished_at"],
+                    "duration_sec": duration_sec,
+                    "exit_code": exit_code,
+                    "failure_reason": failure_reason,
+                }
+            )
+            write_current_status(current_path, current_status)
+
+            if failure_reason is not None:
+                break
+        except Exception as exc:
+            error_path = runtime / f"{args.phase}_{args.queue}_worker_error.json"
+            error_payload = {
+                "run_id": run_id,
+                "queue": args.queue,
+                "gpu": args.gpu,
+                "phase": args.phase,
+                "error": repr(exc),
+                "traceback": traceback.format_exc(),
+                "console_log": _safe_relpath(console_log),
+                "result_path": _safe_relpath(result_path),
+            }
+            write_current_status(current_path, {"status": "worker_error", **current_status, **error_payload})
+            error_path.write_text(json.dumps(error_payload, indent=2), encoding="utf-8")
+            append_event(
+                events_path,
+                {
+                    "status": "worker_error",
+                    "run_id": run_id,
+                    "queue": args.queue,
+                    "gpu": args.gpu,
+                    "phase": args.phase,
+                    "started_at": current_status["started_at"],
+                    "finished_at": utc_now(),
+                    "failure_reason": repr(exc),
+                },
+            )
+            if process is not None and process.poll() is None:
+                process.kill()
             break
 
 
