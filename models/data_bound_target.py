@@ -220,7 +220,6 @@ def build_data_bound_target(
         load_boston,
         load_bnn_regression,
         load_waveform,
-        load_waveform_mat,
     )
 
     target_cfg = target_cfg or {}
@@ -232,20 +231,11 @@ def build_data_bound_target(
     dev_max_size = int(data_cfg.get("dev_max_size", 500))
 
     if target_type == "LRwaveform":
-        data_source = data_cfg.get("source", "prepared")
-        if data_source == "official_mat":
-            mat_path = data_cfg.get("mat_path", None)
-            if mat_path is None:
-                raise ValueError(
-                    "LRwaveform target.data.mat_path is required when "
-                    "target.data.source='official_mat'"
-                )
-            X_train, y_train, X_test, y_test = load_waveform_mat(
-                mat_path=mat_path,
-                device=device,
-            )
-        else:
-            X_train, y_train, X_test, y_test = load_waveform(device=device)
+        data_path = data_cfg.get("path", None)
+        X_train, y_train, X_test, y_test = load_waveform(
+            data_dir=data_path,
+            device=device,
+        )
         inner = LRwaveform(device=device)
         z_dim = X_train.shape[1]  # features + bias column
         return DataBoundTarget(
