@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 152 |
-| Running | 0 |
-| Completed | 58 |
-| Failed | 6 |
+| Pending | 149 |
+| Running | 1 |
+| Completed | 60 |
+| Failed | 7 |
 
 ## Monitoring Log
 
@@ -62,6 +62,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-30 22:55 CST | Failure recovery | Both queues were resumed past the investigated failures using the queue runner's continue control. GPU0 restarted at `official_on_x_shaped_sivi`; GPU1 restarted at `official_off_student_uc_sivi`. |
 | 2026-03-30 23:26 CST | Failure recovery | GPU1 encountered another AISIVI student-target failure on `official_off_student_uc_aisivi`, was investigated, and then resumed past that run. Campaign state after recovery: 48 completed, 4 failed, 2 running. |
 | 2026-03-31 00:01 CST | Failure investigation | Both queues paused again. GPU0 failed on `official_off_x_shaped_rsivi` with another `ConditionalRealNVP` non-finite sampling crash at epoch 246. GPU1 failed on `official_on_langevin_post_aisivi` during reverse warmup when `calculate_rev_KSD()` triggered a CUDA OOM. Campaign state at investigation time: 58 completed, 6 failed, 0 worker errors. |
+| 2026-03-31 00:26 CST | Immediate failure check | GPU0 failed again on `official_on_student_uc_rsivi` with the same `ConditionalRealNVP` non-finite sampling crash, while GPU1 remained healthy on `official_on_langevin_post_dsivi_default`. Campaign state at investigation time: 60 completed, 7 failed, 1 running, 0 worker errors. |
 
 ## Failure Log
 
@@ -73,6 +74,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-30 23:26 CST | `official_off_student_uc_aisivi` | 1 | Training crashed at epoch 1584 after repeated non-finite importance-sampling weights, skipped VI updates, and then non-finite `ConditionalRealNVP` samples on all three retries. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failed run using the same continue control. |
 | 2026-03-31 00:00 CST | `official_off_x_shaped_rsivi` | 0 | Training crashed at epoch 246 after `ConditionalRealNVP` sampling returned non-finite values on three consecutive retries during RSIVI reverse sampling. Runtime error ended with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 will resume past this investigated failed run using the same continue control. |
 | 2026-03-31 00:00 CST | `official_on_langevin_post_aisivi` | 1 | Reverse warmup crashed at epoch 99 when `calculate_rev_KSD()` attempted a large reverse-model sample and triggered `torch.OutOfMemoryError`, requesting another 3.91 GiB on a 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control so the remaining official queue can proceed while preserving the failure record. |
+| 2026-03-31 00:26 CST | `official_on_student_uc_rsivi` | 0 | Training crashed at epoch 351 after repeated warnings that `ConditionalRealNVP` sampling had produced non-finite values, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 will resume past this investigated failed run using the same continue control while GPU1 continues its active run. |
 
 ## Per-Target Summary Tables
 
