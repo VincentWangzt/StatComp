@@ -128,13 +128,13 @@
 | UIVI | on | — | 10K | **-915** | 5.26 | 3.43 | 0.115s |
 | DSIVI | on | rev2 | 10K | — | 3.60 | 2.69 | 0.055s |
 | DSIVI | off | rev2 | 10K | — | 3.53 | 2.68 | 0.064s |
-| DSIVI-uniform | on | rev10@256/1024 | 10K | n/a | 3.51 | 2.67 | 0.093s |
-| DSIVI | off | rev2 | **20K** | n/a | **3.34** | **2.63** | 0.054s |
+| DSIVI-grid (4096/2048) | on | rev2 | 10K | n/a | **2.44** | **2.43** | 0.089s |
+| DSIVI | off | rev2 | **20K** | n/a | 3.34 | 2.63 | 0.054s |
 | DSIVI | on | rev5 | 10K | — | 3.76 | 2.74 | 0.218s |
 | DSIVI | off | rev5 | 10K | — | 3.62 | 2.70 | 0.219s |
 
-*Best BNN: DSIVI-off-rev2-20K (RMSE 3.34, NLL 2.63) — 33% better RMSE than UIVI.*
-*Uniform rerun (2026-03-28): bs=256 and rbs=1024 was unexpectedly strong on Boston - second-best NLL overall (2.67), much better than the earlier bs=256/rbs=8192 sweep, and close to the 20K best run despite halving the training budget.*
+*Best BNN: DSIVI-grid (4096/2048) reaches RMSE 2.44 and NLL 2.43, decisively beating the older 20K Boston run and the earlier 10K comparisons.*
+*The completed rev2 grid is the important correction here: Boston is no longer the fragile outlier from the earlier partial sweep, and several tuned 10K points land well below the old `2.63` NLL mark.*
 
 ---
 
@@ -165,7 +165,7 @@
 
 | 1st | 2nd | 3rd |
 |-----|-----|-----|
-| DSIVI-off-rev2-20K (**2.63**) | DSIVI-uniform-10K (2.67) | DSIVI-off-rev2-10K (2.68) |
+| DSIVI-grid-10K 4096/2048 (**2.43**) | DSIVI-grid-10K 1024/4096 (2.44) | DSIVI-grid-10K 256/8192 (2.45) |
 
 ---
 
@@ -189,10 +189,10 @@
 3. **KSIVI (fixed)** is best on multimodal (KL ~0) and x_shaped (KL 0.001) but diverges on Langevin and fails on high-dim targets.
 4. **DSIVI 3–9x faster per epoch** than UIVI on toy/mid-dim; equal speed on high-dim BNN (>500D).
 5. **rev2 is optimal for DSIVI**: faster AND better than rev5 across all targets.
-6. **20K epochs improve DSIVI** on Bnn_boston (NLL 2.68→2.63), protein (NLL 2.97→2.94), and x_shaped; toy 2D and most BNN converge by 10K.
+6. **The completed rev2 batch grid changed the 10K/20K story on BNNs**: tuned 10K runs now beat the older Boston 20K result, materially improve yacht/concrete, and nearly match the older best protein run; only protein still clearly prefers the earlier off-20K setup overall.
 7. **KSIVI annealing**: improves banana (KL 0.074→0.061), breaks student_uc (diverges), marginally helps multimodal. Best config is target-dependent.
 8. **RSIVI/AISIVI** unreliable due to RealNVP instability on several targets.
-9. **DSIVI annealing pattern for new BNN**: annealing on wins for small/medium datasets (yacht, power, concrete); off wins for large datasets (protein N=45K; winered UIVI wins).
+9. **DSIVI annealing pattern for new BNN after the completed grid**: annealing on now wins clearly on boston, yacht, power, and concrete once batches are tuned; protein still prefers the older off-20K run overall, and winered still belongs to UIVI/SIVI.
 10. **KSIVI 25K vs 50K**: significantly worse on banana and x_shaped — 50K epochs needed for toy 2D targets.
 
 ---
@@ -258,220 +258,158 @@
 | SIVI | on | 20K | 1.866 | 2.706 | — | 0.020s |
 | UIVI | on | 10K | 2.469 | 2.701 | — | 0.095s |
 | DSIVI | on | 10K | 0.794 | **1.073** | n/a | 0.059s |
-| DSIVI-uniform | on | 10K | **0.752** | 1.086 | n/a | 0.063s |
+| DSIVI-grid (4096/2048) | on | 10K | **0.627** | **1.025** | n/a | 0.078s |
 | DSIVI | off | 10K | 1.975 | 2.342 | — | 0.060s |
 | DSIVI | off | 20K | 1.807 | 2.480 | — | 0.055s |
 | KSIVI | off | 10K | ★ div | — | 8572 | 0.009s |
 | KSIVI | off | 20K | ★ div | — | 116K | 0.009s |
 | KSIVI | off | 30K | ★ div | — | -18M | 0.009s |
 
-*Best NLL: DSIVI-on-10K (1.073). Best RMSE: DSIVI-uniform-10K (0.752). Annealed DSIVI still dominates yacht overall, and KSIVI diverges (KSD explodes).*
-*Uniform rerun (2026-03-28): the bs=256, rbs=1024 setting improved RMSE while only slightly worsening NLL, so this aggressive setting clearly holds up on yacht when paired with annealing.*
+*Best NLL/RMSE: DSIVI-grid (4096/2048) at RMSE 0.627 and NLL 1.025. The completed rev2 grid cleanly improves on both the older default annealed run and the one-off uniform rerun.*
+*Yacht remains strongly anneal-friendly, but the finished grid shows the winning pair is `4096/2048`, with `256/4096` as the cheap close second rather than the earlier `256/1024` probe.*
 
 ---
 
-## DSIVI Batch Size Sweep (2026-03-26/27)
+## DSIVI Reduced Batch Grid (2026-03-29)
 
-**Purpose**: Systematically test how DSIVI performance degrades as we reduce main batch size (bs) and reverse batch size (rbs) on all 6 BNN targets.
+**Purpose**: finish the rev2 DSIVI BNN batch search with the reduced grid requested after the earlier partial sweep turned out to be misleading.
+
+**Setup**: annealing on, `train.reverse.epochs=2`, `train.epochs=10000` for all 6 BNN targets, `bs ∈ {256, 1024, 4096}`, `rbs ∈ {1024, 2048, 4096, 8192}`.
+
+**Execution ledger**: 72 total points = 44 newly run + 28 exact 10K reuses. Every reused point was an exact `10K` `rev2` match; no halfway `20K` truncation was needed.
+
+### Sweep Summary
+
+| Target | Best bs/rbs | RMSE↓ | NLL↓ | Avg ep | Fastest bs/rbs | Fastest avg ep |
+|--------|-------------|-------|------|--------|----------------|----------------|
+| Bnn_boston | 4096/2048 | 2.4448 | 2.4319 | 0.089s | 256/1024 | 0.032s |
+| Bnn_yacht | 4096/2048 | 0.6271 | 1.0251 | 0.078s | 256/1024 | 0.027s |
+| Bnn_power | 4096/8192 | 4.1458 | 2.8418 | 0.094s | 256/1024 | 0.025s |
+| Bnn_concrete | 4096/1024 | 6.0833 | 3.2215 | 0.084s | 256/1024 | 0.029s |
+| Bnn_protein | 1024/2048 | 4.6210 | 2.9521 | 0.049s | 256/1024 | 0.032s |
+| Bnn_winered | 1024/8192 | 0.5932 | 0.8879 | 0.112s | 256/1024 | 0.031s |
 
 ### Bnn_boston (z_dim=751)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 3.2601 | 2.8024 | 0.032s | reused | 20260329_121959 |
+| 256 | 2048 | 2.9127 | 2.5275 | 0.047s | reused | 20260329_122703 |
+| 256 | 4096 | 3.3187 | 3.1973 | 0.067s | reused | 20260329_123645 |
+| 256 | 8192 | 2.5463 | 2.4511 | 0.112s | reused | 20260329_124943 |
+| 1024 | 1024 | 2.8303 | 2.5082 | 0.045s | reused | 20260329_131009 |
+| 1024 | 2048 | 2.7435 | 2.4924 | 0.056s | reused | 20260329_131926 |
+| 1024 | 4096 | 2.5009 | 2.4428 | 0.077s | reused | 20260329_133032 |
+| 1024 | 8192 | 2.6290 | 2.4697 | 0.125s | reused | 20260329_134508 |
+| 4096 | 1024 | 2.8385 | 2.5116 | 0.078s | new | see runs.tsv |
+| 4096 | 2048 | **2.4448** | **2.4319** | 0.089s | new | see runs.tsv |
+| 4096 | 4096 | 2.6797 | 2.4780 | 0.114s | new | see runs.tsv |
+| 4096 | 8192 | 2.6993 | 2.4812 | 0.167s | new | see runs.tsv |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **2048** | 8192 | 20K | **3.34** | **2.63** | 0.054s |
-| 1024 | 8192 | 20K | 4.78 | 3.27 | 0.113s |
-| 512 | 8192 | 20K | 4.90 | 3.31 | 0.111s |
-| 256 | 8192 | 20K | 4.73 | 3.32 | 0.120s |
-| 128 | 8192 | 20K | 4.83 | 3.32 | 0.106s |
-
-*Performance degrades significantly below bs=2048 — NLL increases by 25% at bs=1024.*
-
-#### Reverse batch size sweep (bs=2048 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 2048 | **8192** | 20K | **3.34** | **2.63** | 0.054s |
-| 2048 | 4096 | 20K | 3.62 | 2.70 | 0.074s |
-| 2048 | 2048 | 20K | 4.20 | 2.86 | 0.051s |
-| 2048 | 1024 | 20K | 3.45 | 2.65 | 0.041s |
-| 2048 | 512 | 20K | 4.59 | 3.03 | 0.036s |
-
-*Safe rbs range: 1024–8192 (NLL within 5% of baseline). rbs=1024 actually gives faster training with similar performance.*
+*Boston was the big correction: the completed rev2 grid beats the older `20K` run by a wide margin, and several 10K points cluster tightly in the `2.43-2.53` NLL band.*
 
 ### Bnn_yacht (z_dim=401)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 1.4779 | 1.7807 | 0.027s | new | see runs.tsv |
+| 256 | 2048 | 0.9877 | 1.1500 | 0.033s | new | see runs.tsv |
+| 256 | 4096 | 0.6844 | 1.0315 | 0.045s | new | see runs.tsv |
+| 256 | 8192 | 0.9679 | 1.1473 | 0.108s | reused | 20260326_215651 |
+| 1024 | 1024 | 0.9422 | 1.3808 | 0.032s | new | see runs.tsv |
+| 1024 | 2048 | 0.7819 | 1.5059 | 0.038s | new | see runs.tsv |
+| 1024 | 4096 | 1.0275 | 1.5681 | 0.053s | new | see runs.tsv |
+| 1024 | 8192 | 1.0285 | 2.0084 | 0.109s | reused | 20260326_212008 |
+| 4096 | 1024 | 1.0518 | 1.3961 | 0.073s | reused | 20260327_025407 |
+| 4096 | 2048 | **0.6271** | **1.0251** | 0.078s | reused | 20260327_024000 |
+| 4096 | 4096 | 1.1264 | 1.8546 | 0.091s | reused | 20260327_022347 |
+| 4096 | 8192 | 0.7939 | 1.0729 | 0.119s | reused | 20260326_022947 |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **4096** | 8192 | 10K | **0.79** | **1.07** | 0.059s |
-| 2048 | 8192 | 10K | 1.33 | 1.84 | 0.049s |
-| 1024 | 8192 | 10K | 1.03 | 2.01 | 0.049s |
-| 512 | 8192 | 10K | 1.06 | 1.77 | 0.039s |
-| 256 | 8192 | 10K | **0.97** | **1.15** | 0.048s |
-| 128 | 8192 | 10K | 1.86 | 2.48 | 0.038s |
-
-*bs=256 surprisingly competitive with baseline — small dataset benefits from smaller batches.*
-
-#### Reverse batch size sweep (bs=4096 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 4096 | **8192** | 10K | **0.79** | **1.07** | 0.059s |
-| 4096 | 4096 | 10K | 1.13 | 1.85 | 0.031s |
-| 4096 | 2048 | 10K | 0.63 | 1.03 | 0.018s |
-| 4096 | 1024 | 10K | 1.05 | 1.40 | 0.013s |
-| 4096 | 512 | 10K | 0.62 | 1.01 | 0.010s |
-
-*rbs=512–2048 gives best performance AND fastest training — dramatic speedup opportunity.*
+*Yacht stayed highly non-monotone: `4096/2048` wins, `256/4096` is a very close second, and the `1024/*` band is uniformly worse on NLL.*
 
 ### Bnn_power (z_dim=301)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 4.1758 | 2.8523 | 0.025s | new | see runs.tsv |
+| 256 | 2048 | 4.2843 | 2.9036 | 0.030s | new | see runs.tsv |
+| 256 | 4096 | 4.2212 | 2.8592 | 0.040s | new | see runs.tsv |
+| 256 | 8192 | 4.1998 | 2.8546 | 0.084s | reused | 20260326_231934 |
+| 1024 | 1024 | 4.1806 | 2.8579 | 0.029s | new | see runs.tsv |
+| 1024 | 2048 | 4.1474 | 2.8421 | 0.034s | new | see runs.tsv |
+| 1024 | 4096 | 4.2948 | 2.8951 | 0.041s | new | see runs.tsv |
+| 1024 | 8192 | 4.2091 | 2.8564 | 0.086s | reused | 20260326_224912 |
+| 4096 | 1024 | 4.2864 | 2.8906 | 0.059s | reused | 20260327_034438 |
+| 4096 | 2048 | 4.3943 | 2.9128 | 0.063s | reused | 20260327_033309 |
+| 4096 | 4096 | 4.1702 | 2.8474 | 0.073s | reused | 20260327_032009 |
+| 4096 | 8192 | **4.1458** | **2.8418** | 0.094s | reused | 20260326_041301 |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **4096** | 8192 | 10K | **4.15** | **2.84** | 0.034s |
-| 2048 | 8192 | 10K | 4.15 | 2.84 | 0.031s |
-| 1024 | 8192 | 10K | 4.21 | 2.86 | 0.026s |
-| 512 | 8192 | 10K | 4.18 | 2.85 | 0.026s |
-| 256 | 8192 | 10K | 4.20 | 2.85 | 0.024s |
-| 128 | 8192 | 10K | 4.16 | 2.85 | 0.022s |
-
-*Very stable across bs range — power dataset is robust to batch size reduction.*
-
-#### Reverse batch size sweep (bs=4096 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 4096 | **8192** | 10K | **4.15** | **2.84** | 0.094s |
-| 4096 | 4096 | 10K | 4.17 | 2.85 | 0.073s |
-| 4096 | 2048 | 10K | 4.39 | 2.91 | 0.063s |
-| 4096 | 1024 | 10K | 4.29 | 2.89 | 0.059s |
-| 4096 | 512 | 10K | 4.29 | 2.88 | 0.057s |
-
-*Safe rbs range: 4096–8192. Performance degrades below rbs=4096 but training gets faster.*
+*Power is the flattest target in the suite: the default `4096/8192` point still wins by a hair, but `1024/2048` is effectively tied while `256/1024` gets within `0.0105` NLL at about one quarter of the epoch cost.*
 
 ### Bnn_concrete (z_dim=501)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 9.5832 | 3.8283 | 0.029s | new | see runs.tsv |
+| 256 | 2048 | 9.4386 | 3.9324 | 0.034s | new | see runs.tsv |
+| 256 | 4096 | 6.4749 | 3.3036 | 0.053s | new | see runs.tsv |
+| 256 | 8192 | 6.2919 | 3.2675 | 0.113s | reused | 20260326_181102 |
+| 1024 | 1024 | 7.5781 | 3.5575 | 0.036s | new | see runs.tsv |
+| 1024 | 2048 | 9.3107 | 3.9315 | 0.044s | new | see runs.tsv |
+| 1024 | 4096 | 9.9017 | 3.9396 | 0.061s | new | see runs.tsv |
+| 1024 | 8192 | 9.9835 | 3.9547 | 0.127s | reused | 20260326_172710 |
+| 4096 | 1024 | **6.0833** | **3.2215** | 0.084s | reused | 20260327_034851 |
+| 4096 | 2048 | 9.0770 | 3.6689 | 0.092s | reused | 20260327_033214 |
+| 4096 | 4096 | 6.4670 | 3.3017 | 0.106s | reused | 20260327_031315 |
+| 4096 | 8192 | 6.1318 | 3.2373 | 0.140s | reused | 20260326_021727 |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **4096** | 8192 | 10K | **6.13** | **3.24** | 0.080s |
-| 2048 | 8192 | 10K | 9.66 | 3.96 | 0.074s |
-| 1024 | 8192 | 10K | 9.98 | 3.95 | 0.067s |
-| 512 | 8192 | 10K | 10.69 | 4.01 | 0.061s |
-| 256 | 8192 | 10K | 6.29 | 3.27 | 0.053s |
-| 128 | 8192 | 10K | 10.34 | 4.03 | 0.064s |
-
-*bs=256 surprisingly good — concrete benefits from smaller batches like yacht.*
-
-#### Reverse batch size sweep (bs=4096 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 4096 | **8192** | 10K | **6.13** | **3.24** | 0.080s |
-| 4096 | 4096 | 10K | 6.47 | 3.30 | 0.046s |
-| 4096 | 2048 | 10K | 9.08 | 3.67 | 0.032s |
-| 4096 | 1024 | 10K | **6.08** | **3.22** | 0.024s |
-| 4096 | 512 | 10K | 6.37 | 3.28 | 0.022s |
-
-*rbs=1024 gives best performance AND fastest training — similar pattern to yacht.*
+*Concrete is the sharpest counterexample to any blanket low-rbs rule: `4096/1024` is best, `4096/8192` is nearly as good, but several neighboring points collapse back into the `3.67-3.95` NLL range.*
 
 ### Bnn_protein (z_dim=551)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 4.9670 | 3.0206 | 0.032s | new | see runs.tsv |
+| 256 | 2048 | 4.7812 | 2.9835 | 0.041s | new | see runs.tsv |
+| 256 | 4096 | 4.8416 | 2.9959 | 0.059s | new | see runs.tsv |
+| 256 | 8192 | 4.6580 | 2.9594 | 0.094s | new | see runs.tsv |
+| 1024 | 1024 | 4.7421 | 2.9761 | 0.041s | new | see runs.tsv |
+| 1024 | 2048 | **4.6210** | **2.9521** | 0.049s | new | see runs.tsv |
+| 1024 | 4096 | 4.6493 | 2.9575 | 0.067s | new | see runs.tsv |
+| 1024 | 8192 | 4.8151 | 2.9899 | 0.103s | new | see runs.tsv |
+| 4096 | 1024 | 4.7160 | 2.9712 | 0.085s | new | see runs.tsv |
+| 4096 | 2048 | 4.8174 | 2.9906 | 0.093s | new | see runs.tsv |
+| 4096 | 4096 | 4.6894 | 2.9655 | 0.110s | new | see runs.tsv |
+| 4096 | 8192 | 4.6755 | 2.9626 | 0.163s | reused | 20260326_041841 |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **4096** | 8192 | 20K | **4.57** | **2.94** | 0.099s |
-| 2048 | 8192 | 20K | 4.85 | 3.00 | 0.088s |
-| 1024 | 8192 | 20K | 4.75 | 2.98 | 0.078s |
-| 512 | 8192 | 20K | 4.79 | 2.99 | 0.074s |
-| 256 | 8192 | 20K | 4.77 | 2.98 | 0.074s |
-| 128 | 8192 | 20K | 4.80 | 2.99 | 0.066s |
-
-*Very stable across bs range — large dataset provides robust gradient estimates.*
-
-#### Reverse batch size sweep (bs=4096 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 4096 | **8192** | 20K | **4.57** | **2.94** | 0.099s |
-| 4096 | 4096 | 20K | 4.62 | 2.95 | 0.068s |
-| 4096 | 2048 | 20K | 4.80 | 2.99 | 0.050s |
-| 4096 | 1024 | 20K | 4.53 | 2.93 | 0.042s |
-| 4096 | 512 | 20K | 4.68 | 2.97 | 0.038s |
-
-*rbs=1024–4096 safe range — again showing smaller rbs can be beneficial.*
+*Protein prefers the middle of the grid: `1024/2048` is the clear 10K winner, while the older `20K` off-anneal run still holds the overall protein crown by a small margin.*
 
 ### Bnn_winered (z_dim=651)
 
-#### Main batch size sweep (rbs=8192 fixed)
+| bs | rbs | RMSE↓ | NLL↓ | Avg ep | Source | Run dir |
+|----|-----|-------|------|--------|--------|---------|
+| 256 | 1024 | 0.6026 | 0.9064 | 0.031s | new | see runs.tsv |
+| 256 | 2048 | 0.6581 | 1.0056 | 0.041s | new | see runs.tsv |
+| 256 | 4096 | 0.6137 | 0.9304 | 0.061s | new | see runs.tsv |
+| 256 | 8192 | 0.6535 | 1.0015 | 0.107s | new | see runs.tsv |
+| 1024 | 1024 | 0.6024 | 0.9063 | 0.042s | new | see runs.tsv |
+| 1024 | 2048 | 0.6349 | 0.9662 | 0.048s | new | see runs.tsv |
+| 1024 | 4096 | 0.6484 | 0.9868 | 0.070s | new | see runs.tsv |
+| 1024 | 8192 | **0.5932** | **0.8879** | 0.112s | new | see runs.tsv |
+| 4096 | 1024 | 0.7070 | 1.1030 | 0.071s | new | see runs.tsv |
+| 4096 | 2048 | 0.6045 | 0.9145 | 0.080s | new | see runs.tsv |
+| 4096 | 4096 | **0.5902** | 0.8907 | 0.101s | new | see runs.tsv |
+| 4096 | 8192 | 0.5948 | 0.8946 | 0.175s | reused | 20260326_063600 |
 
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| **4096** | 8192 | 20K | **0.582** | **0.875** | 0.111s |
-| 2048 | 8192 | 20K | 0.699 | 1.085 | 0.105s |
-| 1024 | 8192 | 20K | 0.713 | 1.105 | 0.098s |
-| 512 | 8192 | 20K | 0.679 | 1.048 | 0.088s |
-| 256 | 8192 | 20K | 0.656 | 1.003 | 0.094s |
-| 128 | 8192 | 20K | **0.575** | **0.861** | 0.091s |
+*Winered improves modestly with tuning, but the broader story does not change: the grid narrows the gap to the best DSIVI points, yet UIVI and SIVI still win overall on this target.*
 
-*bs=128 gives best performance — winered strongly prefers smaller batches.*
+### Updated Takeaways
 
-#### Reverse batch size sweep (bs=4096 fixed)
-
-| bs | rbs | Epochs | RMSE↓ | NLL↓ | Ep time |
-|----|-----|--------|-------|------|---------|
-| 4096 | **8192** | 20K | **0.582** | **0.875** | 0.111s |
-| 4096 | 4096 | 20K | 0.703 | 1.093 | 0.075s |
-| 4096 | 2048 | 20K | 0.651 | 0.995 | 0.055s |
-| 4096 | 1024 | 20K | 0.625 | 0.926 | 0.045s |
-| 4096 | 512 | 20K | 0.641 | 0.972 | 0.042s |
-
-*rbs=1024–2048 optimal — consistent pattern across all targets.*
-
-### Minimum Viable Batch Size Summary
-
-| Target | Safe bs range | Safe rbs range | Recommendation |
-|--------|---------------|----------------|-----------------|
-| Bnn_boston | **2048 only** | 1024–8192 | Conservative: keep bs=2048, rbs=1024 for speed |
-| Bnn_yacht | 256–4096 | **512–2048** | Aggressive: bs=256, rbs=512 (fastest + best) |
-| Bnn_power | 128–4096 | 4096–8192 | Flexible: bs=128, rbs=4096 (balanced) |
-| Bnn_concrete | **256–4096** | **1024–8192** | Aggressive: bs=256, rbs=1024 (optimal) |
-| Bnn_protein | 128–4096 | 1024–4096 | Flexible: bs=128, rbs=1024 (efficient) |
-| Bnn_winered | **128–4096** | **1024–2048** | Aggressive: bs=128, rbs=1024 (NLL=0.926, RMSE=0.625) |
-
-**Key findings**:
-- **Small datasets (yacht, concrete, winered)**: benefit from smaller batches (bs=128–256)
-- **Large datasets (protein, power)**: robust to batch size reduction (bs=128–4096 safe)
-- **Reverse batch size**: consistently optimal at rbs=1024–2048 across all targets
-- **Speedup potential**: 20–40% faster training with optimized rbs
-- **Performance**: Often IMPROVES with smaller rbs (better reverse model training)
-
-### Uniform DSIVI Rerun (2026-03-28; anneal on, bs=256, rbs=1024, 10K)
-
-| Target | Run dir | RMSE | NLL | Avg ep | Outcome |
-|--------|---------|------|-----|--------|---------|
-| Bnn_boston | 20260328_105609 | 3.507 | 2.670 | 0.093s | Strong surprise: 2nd-best Boston NLL overall |
-| Bnn_yacht | 20260328_111441 | 0.752 | 1.086 | 0.063s | Holds up well: best RMSE, near-best NLL |
-| Bnn_power | 20260328_112649 | 4.333 | 2.981 | 0.057s | Usable but worse than prior DSIVI best |
-| Bnn_concrete | 20260328_113806 | 9.255 | 3.920 | 0.073s | Counterexample: much worse than expected |
-| Bnn_protein | 20260328_115310 | 5.015 | 3.029 | 0.075s | Stable but clearly behind the best 20K run |
-| Bnn_winered | 20260328_120906 | 0.644 | 0.984 | 0.081s | Acceptable, but still behind UIVI and best DSIVI |
-
-**What changed after the joint rerun**:
-- **Combination effects matter**: the earlier one-factor sweeps were directionally useful, but `bs=256` and `rbs=1024` do not combine uniformly across targets.
-- **Boston is the surprise winner**: this joint setting rescues the poor `bs=256, rbs=8192` result and lands near the 20K optimum.
-- **Concrete is the failure case**: each marginal sweep looked favorable, but the combined setting collapses to RMSE 9.255 / NLL 3.920.
-- **Recommendation update**: do not use `bs=256, rbs=1024` as a blanket default; keep target-specific choices, and treat the uniform setting as a good low-cost probe rather than a universal recipe.
-- **ELBO remains unreliable**: on all DSIVI BNN targets, RMSE/NLL are still the trustworthy metrics for comparison.
-
-**Updated recommendation**: keep the per-target minimum-viable ranges above. For a single exploratory rerun, `bs=256, rbs=1024` is reasonable, but it should not replace the target-specific defaults because it fails badly on concrete and leaves performance on power/protein/winered on the table.
+- **Boston was the main surprise**: the completed `rev2` grid overturns the earlier partial picture and makes `10K` clearly sufficient once batch sizes are tuned.
+- **Yacht and concrete are highly non-monotone** in `rbs`: neighboring points can swing from excellent to clearly bad, so one-factor sweeps were not enough.
+- **Power is almost flat**: if runtime matters, `256/1024` is a very cheap point that gives up almost nothing.
+- **Protein prefers the middle of the grid**: `1024/2048` is the best `10K` annealed point, but the older `off-20K` run is still slightly better overall.
+- **Winered only moves a little**: tuning helps DSIVI, but it still does not dislodge UIVI or SIVI on this dataset.
 
 ---
 
@@ -482,15 +420,15 @@
 | SIVI | on | 20K | 4.334 | 3.069 | — | 0.016s |
 | UIVI | on | 10K | 4.366 | 3.061 | — | 0.095s |
 | DSIVI | on | 10K | **4.146** | **2.842** | — | 0.034s |
-| DSIVI-uniform | on | 10K | 4.333 | 2.981 | n/a | 0.057s |
+| DSIVI-grid (1024/2048) | on | 10K | 4.147 | 2.842 | n/a | 0.034s |
 | DSIVI | off | 10K | 4.310 | 2.915 | — | 0.033s |
 | DSIVI | off | 20K | 4.308 | 2.948 | — | 0.033s |
 | KSIVI | off | 10K | ★ div | — | 1075 | 0.009s |
 | KSIVI | off | 20K | ★ div | — | -612 | 0.009s |
 | KSIVI | off | 30K | ★ div | — | -1573 | 0.009s |
 
-*Best: DSIVI-on-10K (RMSE 4.15, NLL 2.84). KSIVI diverges. Anneal-on beats off on power. 20K offers no benefit over 10K.*
-*Uniform rerun (2026-03-28): power stayed stable enough to be usable, but the joint bs=256 / rbs=1024 setting is still clearly worse than the existing DSIVI-on-10K baseline on both RMSE and NLL.*
+*Best: the annealed 10K DSIVI family still wins power. The completed grid shows `4096/8192` is the absolute best point by a hair, while `1024/2048` is effectively tied and much cheaper.*
+*Power is the least sensitive target in the sweep: even the fastest `256/1024` point only gives up about `0.01` NLL relative to the best result.*
 
 ---
 
@@ -501,15 +439,15 @@
 | SIVI | on | 20K | 12.305 | 4.140 | — | 0.023s |
 | UIVI | on | 10K | 10.210 | 4.088 | — | 0.094s |
 | DSIVI | on | 10K | **6.132** | **3.237** | — | 0.080s |
-| DSIVI-uniform | on | 10K | 9.255 | 3.920 | n/a | 0.073s |
+| DSIVI-grid (4096/1024) | on | 10K | **6.083** | **3.222** | n/a | 0.084s |
 | DSIVI | off | 10K | 10.344 | 4.008 | — | 0.077s |
 | DSIVI | off | 20K | 10.505 | 3.998 | — | 0.080s |
 | KSIVI | off | 10K | ★ div | — | 32149 | 0.009s |
 | KSIVI | off | 20K | ★ div | — | 16131 | 0.009s |
 | KSIVI | off | 30K | ★ div | — | 331 | 0.009s |
 
-*Best: DSIVI-on-10K by large margin (RMSE 6.13 vs UIVI 10.21, NLL 3.24 vs 4.09). Annealing critical here. KSIVI diverges on all epoch counts (KSD still 331 at 30K — slowly improving but not useful).*
-*Uniform rerun (2026-03-28): concrete is the strongest warning sign against a blanket uniform default - the combined bs=256 / rbs=1024 setting is far worse than the target-tuned DSIVI-on baseline, despite both marginal sweeps looking favorable in isolation.*
+*Best: DSIVI-grid (4096/1024) improves the already-strong annealed baseline to RMSE 6.08 and NLL 3.22, far ahead of UIVI and all off-anneal runs.*
+*Concrete is the clearest warning against blanket rules: both `4096/1024` and `4096/8192` are excellent, but neighboring points in the same grid collapse back toward the `3.7-4.0` NLL band.*
 
 ---
 
@@ -520,15 +458,15 @@
 | SIVI | on | 20K | 5.097 | 3.047 | — | 0.025s |
 | UIVI | on | 10K | 5.111 | 3.050 | — | 0.093s |
 | DSIVI | on | 10K | 4.676 | 2.963 | — | 0.103s |
-| DSIVI-uniform | on | 10K | 5.015 | 3.029 | n/a | 0.075s |
+| DSIVI-grid (1024/2048) | on | 10K | 4.621 | 2.952 | n/a | 0.049s |
 | DSIVI | off | 10K | 4.707 | 2.968 | — | 0.105s |
 | DSIVI | off | 20K | **4.566** | **2.941** | — | 0.099s |
 | KSIVI | off | 10K | ★ div | — | 104K | 0.009s |
 | KSIVI | off | 20K | ★ div | — | -143M | 0.010s |
 | KSIVI | off | 30K | ★ div | — | -116G | 0.009s |
 
-*Best: DSIVI-off-20K (RMSE 4.57, NLL 2.94). KSIVI catastrophically diverges — KSD hits -116 billion at 30K. Annealing slightly hurts on large dataset; 20K better than 10K.*
-*Uniform rerun (2026-03-28): protein remains stable under the aggressive setting, but the result regresses toward SIVI/UIVI territory and does not threaten the existing 20K DSIVI runs.*
+*Best overall: DSIVI-off-20K (RMSE 4.57, NLL 2.94). Within the annealed 10K grid, `1024/2048` is the clear winner and now nearly matches the older off-20K result.*
+*Protein prefers middle-sized batches: the grid substantially improves the earlier annealed 10K point without changing the overall conclusion that protein is one of the few targets still worth pushing past 10K when annealing is off.*
 
 ---
 
@@ -539,15 +477,15 @@
 | SIVI | on | 20K | 0.577 | 0.868 | — | 0.029s |
 | UIVI | on | 10K | **0.568** | **0.853** | — | 0.091s |
 | DSIVI | on | 10K | 0.595 | 0.895 | — | 0.115s |
-| DSIVI-uniform | on | 10K | 0.644 | 0.984 | n/a | 0.081s |
+| DSIVI-grid (1024/8192) | on | 10K | 0.593 | 0.888 | n/a | 0.112s |
 | DSIVI | off | 10K | 0.587 | 0.876 | — | 0.119s |
 | DSIVI | off | 20K | 0.582 | 0.875 | — | 0.111s |
 | KSIVI | off | 10K | ★ div | — | -246K | 0.009s |
 | KSIVI | off | 20K | ★ div | — | -2.1G | 0.010s |
 | KSIVI | off | 30K | ★ div | — | 597K | 0.009s |
 
-*Best: UIVI (RMSE 0.568, NLL 0.853). DSIVI competitive but slightly behind; all methods within 5% RMSE. KSIVI diverges. Likely near-optimal for this dataset.*
-*Uniform rerun (2026-03-28): winered tolerates the setting, but the gap to the best DSIVI/UIVI entries widens enough that this does not change the recommendation for this target.*
+*Best overall: UIVI (RMSE 0.568, NLL 0.853). The completed rev2 grid nudges annealed DSIVI down to NLL 0.888 at `1024/8192`, but that still leaves UIVI and SIVI ahead on winered.*
+*Winered moved only modestly under the grid search, so the broad recommendation does not change: DSIVI is competitive, but not the winner here.*
 
 ---
 
@@ -555,10 +493,10 @@
 
 | Target | 1st | 2nd | 3rd |
 |--------|-----|-----|-----|
-| Bnn_yacht | DSIVI-on-10K (**1.073**) | DSIVI-uniform-10K (1.086) | DSIVI-off-20K (2.480) |
-| Bnn_power | DSIVI-on-10K (**2.842**) | DSIVI-off-10K (2.915) | DSIVI-off-20K (2.948) |
-| Bnn_concrete | DSIVI-on-10K (**3.237**) | DSIVI-uniform-10K (3.920) | DSIVI-off-20K (3.998) |
-| Bnn_protein | DSIVI-off-20K (**2.941**) | DSIVI-off-10K (2.968) | DSIVI-on-10K (2.963) |
+| Bnn_yacht | DSIVI-grid 4096/2048 (**1.025**) | DSIVI-grid 256/4096 (1.032) | DSIVI-on-10K (1.073) |
+| Bnn_power | DSIVI-on-10K (**2.842**) | DSIVI-grid 1024/2048 (2.842) | DSIVI-grid 256/1024 (2.852) |
+| Bnn_concrete | DSIVI-grid 4096/1024 (**3.222**) | DSIVI-on-10K (3.237) | DSIVI-grid 256/8192 (3.268) |
+| Bnn_protein | DSIVI-off-20K (**2.941**) | DSIVI-grid 1024/2048 (2.952) | DSIVI-grid 1024/4096 (2.958) |
 | Bnn_winered | UIVI (**0.853**) | SIVI (0.868) | DSIVI-off-20K (0.875) |
 
-*After the uniform rerun, DSIVI-on-10K still wins 3/5 targets, but the new bs=256 / rbs=1024 setting slots in as the runner-up on yacht and concrete only. The broader pattern still holds: annealing helps on yacht/power/concrete, while protein and winered prefer the earlier target-specific settings.*
+*After the completed rev2 grid, tuned DSIVI is now clearly top on yacht/power/concrete and dramatically better on Boston, while protein still prefers the older off-20K run and winered still belongs to UIVI/SIVI. The main lesson is that the final answer came from the joint grid, not from the earlier one-factor sweep or the one-off uniform rerun.*
