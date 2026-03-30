@@ -147,6 +147,8 @@ def main() -> None:
     ensure_dir(console_root)
 
     completed, failed = load_done_ids(events_path)
+    queue_finished_cleanly = True
+    last_event: dict | None = None
 
     for entry in queue_entries:
         run_id = entry["run_id"]
@@ -263,6 +265,7 @@ def main() -> None:
                 "failure_reason": failure_reason,
             }
             append_event(events_path, event)
+            last_event = event
 
             current_status.update(
                 {
@@ -276,8 +279,10 @@ def main() -> None:
             write_current_status(current_path, current_status)
 
             if failure_reason is not None:
+                queue_finished_cleanly = False
                 break
         except Exception as exc:
+            queue_finished_cleanly = False
             error_path = runtime / f"{args.phase}_{args.queue}_worker_error.json"
             error_payload = {
                 "run_id": run_id,
@@ -307,6 +312,33 @@ def main() -> None:
             if process is not None and process.poll() is None:
                 process.kill()
             break
+
+    if queue_finished_cleanly:
+        completed, failed = load_done_ids(events_path)
+        assigned_run_ids = {
+            entry["run_id"]
+            for entry in queue_entries
+        }
+        completed_count = len(completed & assigned_run_ids)
+        failed_count = len(failed & assigned_run_ids)
+        final_status = {
+            "status": "queue_completed",
+            "queue": args.queue,
+            "gpu": args.gpu,
+            "phase": args.phase,
+            "finished_at": utc_now(),
+            "completed_runs": completed_count,
+            "failed_runs": failed_count,
+            "run_id": None,
+            "result_path": None,
+            "tb_path": None,
+        }
+        if last_event is not None:
+            final_status["last_completed_run"] = last_event.get("run_id")
+            final_status["last_result_path"] = last_event.get("result_path")
+            final_status["last_tb_path"] = last_event.get("tb_path")
+            final_status["last_duration_sec"] = last_event.get("duration_sec")
+        write_current_status(current_path, final_status)
 
 
 if __name__ == "__main__":

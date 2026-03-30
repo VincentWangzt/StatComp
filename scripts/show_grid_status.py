@@ -49,9 +49,14 @@ def main() -> None:
         print(f"  worker_errors: {len(worker_errors)}")
         if current is not None:
             print(f"  current_status: {current.get('status')}")
-            print(f"  current_run: {current.get('run_id')}")
-            print(f"  current_gpu: {current.get('gpu')}")
-            print(f"  last_result_path: {current.get('result_path')}")
+            if current.get("status") == "queue_completed":
+                print(f"  current_gpu: {current.get('gpu')}")
+                print(f"  last_completed_run: {current.get('last_completed_run')}")
+                print(f"  last_result_path: {current.get('last_result_path')}")
+            else:
+                print(f"  current_run: {current.get('run_id')}")
+                print(f"  current_gpu: {current.get('gpu')}")
+                print(f"  last_result_path: {current.get('result_path')}")
         if completed:
             last = completed[-1]
             print(f"  last_completed: {last.get('run_id')} ({last.get('duration_sec', 0):.1f}s)")
