@@ -3,6 +3,23 @@ import numpy as np
 from typing import Tuple, Optional
 
 
+def _pairwise_squared_distances(
+    samples_x: torch.Tensor,
+    samples_y: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """
+    Compute pairwise squared Euclidean distances without materializing an
+    [N, M, D] difference tensor.
+    """
+    if samples_y is None:
+        samples_y = samples_x
+
+    x_norm = (samples_x**2).sum(dim=-1, keepdim=True)
+    y_norm = (samples_y**2).sum(dim=-1).unsqueeze(0)
+    pairwise_dists = x_norm + y_norm - 2 * samples_x @ samples_y.transpose(0, 1)
+    return pairwise_dists.clamp_min_(0.0)
+
+
 class BaseKernel:
     """
     Base class for kernel functions.
@@ -84,8 +101,7 @@ class GaussianKernel(BaseKernel):
     def fit_h(self, samples: torch.Tensor) -> float:
 
         # Median heuristic
-        pairwise_dists = ((samples[:, None, :] -
-                           samples[None, :, :])**2).sum(-1)
+        pairwise_dists = _pairwise_squared_distances(samples)
         h = torch.median(pairwise_dists)
         # Using the formula from the original gaussian_kernel function: h = sqrt(0.5 * median / log(n+1))
         self.h = torch.sqrt(0.5 * h / np.log(samples.shape[0] + 1)).item()
@@ -102,8 +118,7 @@ class GaussianKernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        pairwise_dists = ((samples_x[:, None, :] -
-                           samples_y[None, :, :])**2).sum(-1)
+        pairwise_dists = _pairwise_squared_distances(samples_x, samples_y)
         if fit_h or self.h < 0:
             h = torch.median(
                 pairwise_dists.detach() if detach_h else pairwise_dists

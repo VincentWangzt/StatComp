@@ -4,6 +4,68 @@ from utils.kernels import GaussianKernel, BaseKernel
 from typing import Optional, Callable
 
 
+def _compute_gaussian_ksd_chunked(
+    x: torch.Tensor,
+    scores: torch.Tensor,
+    kernel: GaussianKernel,
+    chunk_size: int = 256,
+) -> float:
+    """
+    Compute Gaussian-kernel KSD without materializing [N, N, D] tensors.
+    """
+    n, dim = x.shape
+    if n < 2:
+        raise ValueError("KSD requires at least two samples.")
+
+    if kernel.h < 0:
+        kernel.fit_h(x)
+
+    h = torch.as_tensor(kernel.h, device=x.device, dtype=x.dtype)
+    h2 = h.square()
+    h4 = h2.square()
+
+    x_norm = (x**2).sum(dim=1)
+    score_x = (scores * x).sum(dim=1)
+    total = x.new_tensor(0.0)
+
+    for start in range(0, n, chunk_size):
+        end = min(start + chunk_size, n)
+        x_chunk = x[start:end]
+        scores_chunk = scores[start:end]
+
+        x_dot = x_chunk @ x.transpose(0, 1)
+        score_dot = scores_chunk @ scores.transpose(0, 1)
+        score_x_chunk = (scores_chunk * x_chunk).sum(dim=1, keepdim=True)
+        score_x_cross = scores_chunk @ x.transpose(0, 1)
+        x_score_cross = x_chunk @ scores.transpose(0, 1)
+
+        dist2 = (
+            (x_chunk**2).sum(dim=1, keepdim=True)
+            + x_norm.unsqueeze(0)
+            - 2 * x_dot
+        ).clamp_min_(0.0)
+        kxy = torch.exp(-dist2 / (2 * h2))
+
+        score_diff = (
+            score_x_chunk
+            - score_x_cross
+            - x_score_cross
+            + score_x.unsqueeze(0)
+        )
+        u_matrix = kxy * (
+            score_dot
+            + score_diff / h2
+            + (dim / h2 - dist2 / h4)
+        )
+
+        diag_cols = torch.arange(start, end, device=x.device)
+        u_matrix[torch.arange(end - start, device=x.device), diag_cols] = 0.0
+        total = total + u_matrix.sum()
+
+    ksd = total / (n * (n - 1))
+    return ksd.item()
+
+
 def compute_sliced_wasserstein(
         x1: torch.Tensor,
         x2: torch.Tensor,
@@ -135,6 +197,9 @@ def compute_ksd(
         kernel = GaussianKernel()
         h = kernel.fit_h(x)
         kernel._h = h
+
+    if isinstance(kernel, GaussianKernel):
+        return _compute_gaussian_ksd_chunked(x, scores, kernel)
 
     k, grad_x, grad_y, tr_grad_xy = kernel.grad_all(x, x)
 
