@@ -29,7 +29,7 @@ Update policy:
 
 ## Current Status
 
-This file is initialized and already tracking the smoke validation and official launch state below.
+This file is initialized and tracking the live 216-run campaign, including manual checks, immediate investigations, and queue recovery actions.
 
 ## Campaign Header
 
@@ -42,10 +42,10 @@ This file is initialized and already tracking the smoke validation and official 
 
 | Status | Count |
 |--------|-------|
-| Pending | 168 |
-| Running | 2 |
-| Completed | 48 |
-| Failed | 4 |
+| Pending | 152 |
+| Running | 0 |
+| Completed | 58 |
+| Failed | 6 |
 
 ## Monitoring Log
 
@@ -61,6 +61,7 @@ This file is initialized and already tracking the smoke validation and official 
 | 2026-03-30 20:33 CST | Monitoring check | Both queues later hit additional RealNVP-based failures and paused again. GPU0 failed on `official_off_multimodal_rsivi`; GPU1 failed on `official_on_student_uc_aisivi`. At investigation time the campaign stood at 43 completed, 3 failed, 0 worker errors. |
 | 2026-03-30 22:55 CST | Failure recovery | Both queues were resumed past the investigated failures using the queue runner's continue control. GPU0 restarted at `official_on_x_shaped_sivi`; GPU1 restarted at `official_off_student_uc_sivi`. |
 | 2026-03-30 23:26 CST | Failure recovery | GPU1 encountered another AISIVI student-target failure on `official_off_student_uc_aisivi`, was investigated, and then resumed past that run. Campaign state after recovery: 48 completed, 4 failed, 2 running. |
+| 2026-03-31 00:01 CST | Failure investigation | Both queues paused again. GPU0 failed on `official_off_x_shaped_rsivi` with another `ConditionalRealNVP` non-finite sampling crash at epoch 246. GPU1 failed on `official_on_langevin_post_aisivi` during reverse warmup when `calculate_rev_KSD()` triggered a CUDA OOM. Campaign state at investigation time: 58 completed, 6 failed, 0 worker errors. |
 
 ## Failure Log
 
@@ -70,6 +71,8 @@ This file is initialized and already tracking the smoke validation and official 
 | 2026-03-30 20:33 CST | `official_off_multimodal_rsivi` | 0 | Training crashed at epoch 1502 after non-finite VI loss and repeated non-finite reverse-model samples from `ConditionalRealNVP`. Runtime error again ended with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. Queue will resume past this investigated failed run using the same continue control. |
 | 2026-03-30 20:33 CST | `official_on_student_uc_aisivi` | 1 | Training crashed at epoch 3383 when AISIVI’s reverse `ConditionalRealNVP` produced non-finite samples on three consecutive retries. | Failure recorded locally after log inspection. Queue will resume past this investigated failed run using the same continue control. |
 | 2026-03-30 23:26 CST | `official_off_student_uc_aisivi` | 1 | Training crashed at epoch 1584 after repeated non-finite importance-sampling weights, skipped VI updates, and then non-finite `ConditionalRealNVP` samples on all three retries. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failed run using the same continue control. |
+| 2026-03-31 00:00 CST | `official_off_x_shaped_rsivi` | 0 | Training crashed at epoch 246 after `ConditionalRealNVP` sampling returned non-finite values on three consecutive retries during RSIVI reverse sampling. Runtime error ended with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 will resume past this investigated failed run using the same continue control. |
+| 2026-03-31 00:00 CST | `official_on_langevin_post_aisivi` | 1 | Reverse warmup crashed at epoch 99 when `calculate_rev_KSD()` attempted a large reverse-model sample and triggered `torch.OutOfMemoryError`, requesting another 3.91 GiB on a 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control so the remaining official queue can proceed while preserving the failure record. |
 
 ## Per-Target Summary Tables
 
