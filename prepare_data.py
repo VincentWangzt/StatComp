@@ -14,6 +14,7 @@ Prepares ``.pt`` files under ``data/`` for data-dependent targets:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import numpy as np
 import scipy.io
@@ -21,25 +22,22 @@ import torch
 from sklearn.model_selection import train_test_split
 
 
+_REPO_ROOT = Path(__file__).resolve().parent
+_DATA_DIR = _REPO_ROOT / "data"
+
+
 # ---------------------------------------------------------------------------
 # Waveform
 # ---------------------------------------------------------------------------
 
-_WAVEFORM_SEARCH_PATHS = [
-    "data/waveform.mat",
-    "datasets/waveform.mat",
-    "../KSIVI/datasets/waveform.mat",
-    "D:/PKU/Programming/StatComp/KSIVI/datasets/waveform.mat",
-    "/data/workspace/KSIVI/datasets/waveform.mat",
-]
+_WAVEFORM_PATH = _DATA_DIR / "waveform.mat"
 
 
 def _find_waveform_mat() -> str:
-    for path in _WAVEFORM_SEARCH_PATHS:
-        if os.path.isfile(path):
-            return path
+    if _WAVEFORM_PATH.is_file():
+        return os.fspath(_WAVEFORM_PATH)
     raise FileNotFoundError(
-        f"Cannot find waveform.mat. Searched: {_WAVEFORM_SEARCH_PATHS}"
+        f"Cannot find waveform.mat at {_WAVEFORM_PATH}"
     )
 
 
@@ -79,20 +77,14 @@ def prepare_waveform(out_dir: str = "data/waveform") -> None:
 # Boston Housing
 # ---------------------------------------------------------------------------
 
-_BOSTON_SEARCH_PATHS = [
-    "data/boston/boston_housing.txt",
-    "datasets/boston_housing.txt",
-    "../KSIVI/datasets/boston_housing.txt",
-    "/data/workspace/KSIVI/datasets/boston_housing.txt",
-]
+_BOSTON_PATH = _DATA_DIR / "boston" / "boston_housing.txt"
 
 
 def _find_boston_file() -> str:
-    for path in _BOSTON_SEARCH_PATHS:
-        if os.path.isfile(path):
-            return path
+    if _BOSTON_PATH.is_file():
+        return os.fspath(_BOSTON_PATH)
     raise FileNotFoundError(
-        f"Cannot find boston_housing.txt.  Searched: {_BOSTON_SEARCH_PATHS}"
+        f"Cannot find boston_housing.txt at {_BOSTON_PATH}"
     )
 
 
@@ -211,7 +203,7 @@ def _prepare_regression_csv(
 def prepare_concrete(out_dir: str = "data/concrete", seed: int = 42) -> None:
     """UCI Concrete Compressive Strength: 8 features, target col 8, N=1030."""
     _prepare_regression_csv(
-        src="data/Concrete_Data.csv",
+        src=os.fspath(_DATA_DIR / "Concrete_Data.csv"),
         out_dir=out_dir,
         delimiter=",",
         feature_cols=list(range(8)),
@@ -224,7 +216,7 @@ def prepare_concrete(out_dir: str = "data/concrete", seed: int = 42) -> None:
 def prepare_power(out_dir: str = "data/power", seed: int = 42) -> None:
     """UCI Combined Cycle Power Plant: 4 features, target col 4, N=9568."""
     _prepare_regression_csv(
-        src="data/power.csv",
+        src=os.fspath(_DATA_DIR / "power.csv"),
         out_dir=out_dir,
         delimiter=",",
         feature_cols=list(range(4)),
@@ -237,7 +229,7 @@ def prepare_power(out_dir: str = "data/power", seed: int = 42) -> None:
 def prepare_protein(out_dir: str = "data/protein", seed: int = 42) -> None:
     """UCI Protein Physicochemical: 9 features, target col 9, N=45730."""
     _prepare_regression_csv(
-        src="data/protein.csv",
+        src=os.fspath(_DATA_DIR / "protein.csv"),
         out_dir=out_dir,
         delimiter=",",
         feature_cols=list(range(9)),
@@ -250,7 +242,7 @@ def prepare_protein(out_dir: str = "data/protein", seed: int = 42) -> None:
 def prepare_winered(out_dir: str = "data/winered", seed: int = 42) -> None:
     """UCI Wine Quality Red: 11 features, target col 11, N=1599."""
     _prepare_regression_csv(
-        src="data/winered.csv",
+        src=os.fspath(_DATA_DIR / "winered.csv"),
         out_dir=out_dir,
         delimiter=";",
         feature_cols=list(range(11)),
@@ -263,7 +255,7 @@ def prepare_winered(out_dir: str = "data/winered", seed: int = 42) -> None:
 def prepare_yacht(out_dir: str = "data/yacht", seed: int = 42) -> None:
     """UCI Yacht Hydrodynamics: 6 features, target col 6, N=308."""
     _prepare_regression_csv(
-        src="data/yacht.csv",
+        src=os.fspath(_DATA_DIR / "yacht.csv"),
         out_dir=out_dir,
         delimiter=None,
         feature_cols=list(range(6)),
