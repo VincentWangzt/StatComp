@@ -44,8 +44,8 @@ This file is initialized and already tracking the smoke validation and official 
 |--------|-------|
 | Pending | 168 |
 | Running | 2 |
-| Completed | 43 |
-| Failed | 3 |
+| Completed | 48 |
+| Failed | 4 |
 
 ## Monitoring Log
 
@@ -60,6 +60,7 @@ This file is initialized and already tracking the smoke validation and official 
 | 2026-03-30 19:16 CST | Manual check | Campaign recovered after the RSIVI failure. GPU0 resumed past the investigated failed run and progressed to `official_on_multimodal_uivi`; GPU1 progressed to `official_off_multimodal_dsivi_bs4096_rbs4096`. Totals at this checkpoint: 26 completed, 1 failed, 2 running, 0 worker errors. |
 | 2026-03-30 20:33 CST | Monitoring check | Both queues later hit additional RealNVP-based failures and paused again. GPU0 failed on `official_off_multimodal_rsivi`; GPU1 failed on `official_on_student_uc_aisivi`. At investigation time the campaign stood at 43 completed, 3 failed, 0 worker errors. |
 | 2026-03-30 22:55 CST | Failure recovery | Both queues were resumed past the investigated failures using the queue runner's continue control. GPU0 restarted at `official_on_x_shaped_sivi`; GPU1 restarted at `official_off_student_uc_sivi`. |
+| 2026-03-30 23:26 CST | Failure recovery | GPU1 encountered another AISIVI student-target failure on `official_off_student_uc_aisivi`, was investigated, and then resumed past that run. Campaign state after recovery: 48 completed, 4 failed, 2 running. |
 
 ## Failure Log
 
@@ -68,6 +69,7 @@ This file is initialized and already tracking the smoke validation and official 
 | 2026-03-30 18:32 CST | `official_off_banana_rsivi` | 0 | Training crashed at epoch 371. The reverse `ConditionalRealNVP` began producing non-finite samples after the loss exploded under annealing-off training; runtime error: `Failed to obtain finite samples from RealNVP after 3 attempts.` | Queue stopped as intended. Failure recorded locally and investigated from remote logs. GPU0 was later resumed past this investigated failed run using the queue runner's `--continue-past-failed` control so the remaining queue could continue without erasing the failure record. |
 | 2026-03-30 20:33 CST | `official_off_multimodal_rsivi` | 0 | Training crashed at epoch 1502 after non-finite VI loss and repeated non-finite reverse-model samples from `ConditionalRealNVP`. Runtime error again ended with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. Queue will resume past this investigated failed run using the same continue control. |
 | 2026-03-30 20:33 CST | `official_on_student_uc_aisivi` | 1 | Training crashed at epoch 3383 when AISIVI’s reverse `ConditionalRealNVP` produced non-finite samples on three consecutive retries. | Failure recorded locally after log inspection. Queue will resume past this investigated failed run using the same continue control. |
+| 2026-03-30 23:26 CST | `official_off_student_uc_aisivi` | 1 | Training crashed at epoch 1584 after repeated non-finite importance-sampling weights, skipped VI updates, and then non-finite `ConditionalRealNVP` samples on all three retries. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failed run using the same continue control. |
 
 ## Per-Target Summary Tables
 
