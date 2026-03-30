@@ -21,8 +21,6 @@ target:
   data:
     batch_size: null
     batch_mode: full
-    source: official_mat
-    mat_path: D:/PKU/Programming/StatComp/KSIVI/datasets/waveform.mat
 
 train:
   epochs: 20000

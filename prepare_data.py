@@ -1,121 +1,78 @@
-"""One-time data download and preprocessing script.
+"""One-time data preprocessing script.
 
 Prepares ``.pt`` files under ``data/`` for data-dependent targets:
 
-- **Waveform**: UCI Waveform (21 features, 3 classes → binarised to 2).
-  Generated synthetically following the original UCI specification.
-- **Boston Housing**: 13 features regression (loaded from bundled text file
-  or the KSIVI ``datasets/`` directory).
+- **Waveform**: official KSIVI waveform split loaded from ``waveform.mat``.
+- **Boston Housing**: 13 features regression.
 - **Concrete**: UCI Concrete Compressive Strength (8 features, N=1030).
 - **Power**: UCI Combined Cycle Power Plant (4 features, N=9568).
 - **Protein**: UCI Physicochemical Properties of Protein (9 features, N=45730).
-- **Winered**: UCI Wine Quality – Red (11 features, N=1599).
+- **Winered**: UCI Wine Quality Red (11 features, N=1599).
 - **Yacht**: UCI Yacht Hydrodynamics (6 features, N=308).
-
-Usage::
-
-    python prepare_data.py
-
-Output files::
-
-    data/waveform/train.pt   – dict(X=..., y=...)
-    data/waveform/test.pt    – dict(X=..., y=...)
-    data/boston/train.pt      – dict(X=..., y=..., mean_y=..., std_y=..., X_dev=..., y_dev=...)
-    data/boston/test.pt       – dict(X=..., y=...)
-    data/<name>/train.pt      – dict(X=..., y=..., mean_y=..., std_y=..., X_dev=..., y_dev=...)
-    data/<name>/test.pt       – dict(X=..., y=...)
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import numpy as np
+import scipy.io
 import torch
 from sklearn.model_selection import train_test_split
 
 
 # ---------------------------------------------------------------------------
-# Waveform (UCI) — synthetic generation following the standard specification
+# Waveform
 # ---------------------------------------------------------------------------
 
-# The UCI waveform generator produces 21 continuous attributes.
-# Three classes are defined by shifted/combined triangle waves with N(0,1) noise.
-
-_WAVE_H1 = np.array([0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0], dtype=np.float64)
-_WAVE_H2 = np.array([0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0], dtype=np.float64)
-_WAVE_H3 = np.array([0, 0, 1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.float64)
-
-
-def _generate_waveform(n_samples: int, seed: int = 42) -> tuple[np.ndarray, np.ndarray]:
-    """Generate the UCI Waveform dataset (3 classes, 21 features).
-
-    Each sample belongs to one of three classes defined by:
-        class 0: u * h1 + (1-u) * h2 + noise
-        class 1: u * h1 + (1-u) * h3 + noise
-        class 2: u * h2 + (1-u) * h3 + noise
-    where u ~ Uniform(0,1) and noise ~ N(0,1).
-    """
-    rng = np.random.RandomState(seed)
-    n_per_class = n_samples // 3
-    remainder = n_samples - 3 * n_per_class
-
-    Xs, ys = [], []
-    templates = [(_WAVE_H1, _WAVE_H2), (_WAVE_H1, _WAVE_H3), (_WAVE_H2, _WAVE_H3)]
-    for cls_idx, (ha, hb) in enumerate(templates):
-        n_cls = n_per_class + (1 if cls_idx < remainder else 0)
-        u = rng.uniform(0, 1, size=(n_cls, 1))
-        noise = rng.randn(n_cls, 21)
-        X_cls = u * ha + (1 - u) * hb + noise
-        Xs.append(X_cls)
-        ys.append(np.full(n_cls, cls_idx, dtype=np.int64))
-
-    X = np.vstack(Xs)
-    y = np.concatenate(ys)
-    # Shuffle
-    idx = rng.permutation(len(X))
-    return X[idx], y[idx]
+_WAVEFORM_SEARCH_PATHS = [
+    "data/waveform.mat",
+    "datasets/waveform.mat",
+    "../KSIVI/datasets/waveform.mat",
+    "D:/PKU/Programming/StatComp/KSIVI/datasets/waveform.mat",
+    "/data/workspace/KSIVI/datasets/waveform.mat",
+]
 
 
-def prepare_waveform(out_dir: str = "data/waveform", seed: int = 42) -> None:
-    """Generate waveform data, binarise, add bias, split, standardise, and save."""
+def _find_waveform_mat() -> str:
+    for path in _WAVEFORM_SEARCH_PATHS:
+        if os.path.isfile(path):
+            return path
+    raise FileNotFoundError(
+        f"Cannot find waveform.mat. Searched: {_WAVEFORM_SEARCH_PATHS}"
+    )
+
+
+def prepare_waveform(out_dir: str = "data/waveform") -> None:
+    """Load the official waveform split and save it as prepared ``.pt`` files."""
     os.makedirs(out_dir, exist_ok=True)
 
-    X, y = _generate_waveform(n_samples=5000, seed=seed)
+    src = _find_waveform_mat()
+    data = scipy.io.loadmat(src)
 
-    # Binarise: class 0 vs rest
-    y_bin = (y == 0).astype(np.float64)
-
-    # Train/test split (80/20)
-    rng = np.random.RandomState(seed)
-    idx = rng.permutation(len(X))
-    n_train = int(0.8 * len(X))
-    X_train, X_test = X[idx[:n_train]], X[idx[n_train:]]
-    y_train, y_test = y_bin[idx[:n_train]], y_bin[idx[n_train:]]
-
-    # Standardise features using training stats
-    mu = X_train.mean(axis=0)
-    std = X_train.std(axis=0) + 1e-8
-    X_train = (X_train - mu) / std
-    X_test = (X_test - mu) / std
-
-    # Append bias column
-    X_train = np.hstack([X_train, np.ones((len(X_train), 1))])
-    X_test = np.hstack([X_test, np.ones((len(X_test), 1))])
+    X_train = data["X_train"].astype(np.float64, copy=False)
+    y_train = data["y_train"].reshape(-1).astype(np.float64, copy=False)
+    X_test = data["X_test"].astype(np.float64, copy=False)
+    y_test = data["y_test"].reshape(-1).astype(np.float64, copy=False)
 
     torch.save(
-        {"X": torch.tensor(X_train, dtype=torch.float32),
-         "y": torch.tensor(y_train, dtype=torch.float32)},
+        {
+            "X": torch.tensor(X_train, dtype=torch.float32),
+            "y": torch.tensor(y_train, dtype=torch.float32),
+        },
         os.path.join(out_dir, "train.pt"),
     )
     torch.save(
-        {"X": torch.tensor(X_test, dtype=torch.float32),
-         "y": torch.tensor(y_test, dtype=torch.float32)},
+        {
+            "X": torch.tensor(X_test, dtype=torch.float32),
+            "y": torch.tensor(y_test, dtype=torch.float32),
+        },
         os.path.join(out_dir, "test.pt"),
     )
-    print(f"Waveform saved to {out_dir}/  "
-          f"(train: {X_train.shape}, test: {X_test.shape})")
+    print(
+        f"Waveform saved to {out_dir}/ from {src} "
+        f"(train: {X_train.shape}, test: {X_test.shape})"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -131,9 +88,9 @@ _BOSTON_SEARCH_PATHS = [
 
 
 def _find_boston_file() -> str:
-    for p in _BOSTON_SEARCH_PATHS:
-        if os.path.isfile(p):
-            return p
+    for path in _BOSTON_SEARCH_PATHS:
+        if os.path.isfile(path):
+            return path
     raise FileNotFoundError(
         f"Cannot find boston_housing.txt.  Searched: {_BOSTON_SEARCH_PATHS}"
     )
@@ -145,7 +102,6 @@ def prepare_boston(out_dir: str = "data/boston", seed: int = 42) -> None:
 
     src = _find_boston_file()
     data = np.loadtxt(src)
-    # Last column is the target
     X = data[:, :-1]
     y = data[:, -1]
     _prepare_bnn_regression_arrays(
@@ -161,6 +117,7 @@ def prepare_boston(out_dir: str = "data/boston", seed: int = 42) -> None:
 # Generic UCI regression datasets
 # ---------------------------------------------------------------------------
 
+
 def _prepare_bnn_regression_arrays(
     X: np.ndarray,
     y: np.ndarray,
@@ -170,7 +127,7 @@ def _prepare_bnn_regression_arrays(
     dev_fraction: float = 0.1,
     dev_max_size: int = 500,
 ) -> None:
-    """Split and standardise a BNN regression dataset using official semantics."""
+    """Split and standardize a BNN regression dataset using official semantics."""
     os.makedirs(out_dir, exist_ok=True)
 
     X_train_all, X_test, y_train_all, y_test = train_test_split(
@@ -223,7 +180,7 @@ def _prepare_bnn_regression_arrays(
 
     label = name or out_dir
     print(
-        f"{label} saved to {out_dir}/  "
+        f"{label} saved to {out_dir}/ "
         f"(train: {X_train_std.shape}, dev: {X_dev_std.shape}, test: {X_test_std.shape}, "
         f"mean_y={mean_y:.4f}, std_y={std_y:.4f})"
     )
@@ -291,7 +248,7 @@ def prepare_protein(out_dir: str = "data/protein", seed: int = 42) -> None:
 
 
 def prepare_winered(out_dir: str = "data/winered", seed: int = 42) -> None:
-    """UCI Wine Quality Red: 11 features, target col 11, N=1599, semicolon-delimited."""
+    """UCI Wine Quality Red: 11 features, target col 11, N=1599."""
     _prepare_regression_csv(
         src="data/winered.csv",
         out_dir=out_dir,
@@ -304,11 +261,11 @@ def prepare_winered(out_dir: str = "data/winered", seed: int = 42) -> None:
 
 
 def prepare_yacht(out_dir: str = "data/yacht", seed: int = 42) -> None:
-    """UCI Yacht Hydrodynamics: 6 features, target col 6, N=308, whitespace-delimited."""
+    """UCI Yacht Hydrodynamics: 6 features, target col 6, N=308."""
     _prepare_regression_csv(
         src="data/yacht.csv",
         out_dir=out_dir,
-        delimiter=None,  # np.loadtxt default: whitespace
+        delimiter=None,
         feature_cols=list(range(6)),
         target_col=6,
         seed=seed,
