@@ -42,10 +42,10 @@ This file is initialized and already tracking the smoke validation and official 
 
 | Status | Count |
 |--------|-------|
-| Pending | 211 |
-| Running | 2 |
-| Completed | 3 |
-| Failed | 0 |
+| Pending | 195 |
+| Running | 1 |
+| Completed | 19 |
+| Failed | 1 |
 
 ## Monitoring Log
 
@@ -56,11 +56,13 @@ This file is initialized and already tracking the smoke validation and official 
 | 2026-03-30 17:03 CST | Immediate check | `gpu0` running `official_on_banana_sivi`; `gpu1` running `official_on_banana_aisivi`. Both GPUs active; no failures or worker errors. |
 | 2026-03-30 17:04 CST | Immediate check | `official_on_banana_aisivi` advanced through metric logging cleanly under high memory use on GPU1; no early OOM observed. |
 | 2026-03-30 17:22 CST | Manual check | Official queues healthy. Completed runs: `official_on_banana_sivi`, `official_on_banana_aisivi`, `official_on_banana_dsivi_default`. Active runs: `official_on_banana_uivi` on GPU0 and `official_off_banana_uivi` on GPU1. `nvidia-smi` showed both GPUs active at about 5.8 GiB used with no failures or worker errors. |
+| 2026-03-30 18:32 CST | Monitoring check | Campaign reached 19 completed official runs. GPU1 continued normally into `official_off_multimodal_uivi`. GPU0 queue halted on `official_off_banana_rsivi` after a numerical failure in the RSIVI reverse model with annealing off. |
 
 ## Failure Log
 
 | Time | Run ID | GPU | Issue | Resolution |
 |------|--------|-----|-------|------------|
+| 2026-03-30 18:32 CST | `official_off_banana_rsivi` | 0 | Training crashed at epoch 371. The reverse `ConditionalRealNVP` began producing non-finite samples after the loss exploded under annealing-off training; runtime error: `Failed to obtain finite samples from RealNVP after 3 attempts.` | Queue stopped as intended. Failure recorded locally and investigated from remote logs. Resume path will skip this investigated failed run and continue the remaining queue while preserving the failure record. |
 
 ## Per-Target Summary Tables
 

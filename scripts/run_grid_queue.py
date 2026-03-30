@@ -130,6 +130,11 @@ def main() -> None:
     parser.add_argument("--gpu", type=int, required=True)
     parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--continue-past-failed",
+        action="store_true",
+        help="Skip runs already recorded as failed and continue with later queue entries.",
+    )
     args = parser.parse_args()
 
     manifest_path = args.manifest or (SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
@@ -155,6 +160,9 @@ def main() -> None:
         if run_id in completed:
             continue
         if run_id in failed:
+            if args.continue_past_failed:
+                continue
+            queue_finished_cleanly = False
             break
 
         console_log = console_root / f"{run_id}.log"
