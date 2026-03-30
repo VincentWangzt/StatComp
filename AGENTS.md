@@ -110,11 +110,12 @@ This generates pre-processed `.pt` files under `data/waveform/` and `data/boston
 - **Code path**: `~/ruivi/` (same repo, `vince-dev` branch)
 - **Conda env**: `ruivi` (Python 3.14.2, PyTorch 2.9.0+cu126)
 - **OS**: Ubuntu 22.04.1 LTS
-- **GPUs**: 1x NVIDIA GeForce RTX 3080 (10 GB)
-  - Use `cuda_visible_devices="0"` for single GPU
-  - Run experiments sequentially (no parallel GPU capability)
+- **GPUs**: 2x NVIDIA GeForce RTX 3080 (10 GB each)
+  - Use `cuda_visible_devices="0"` or `cuda_visible_devices="1"` for a single-GPU run
+  - Use `cuda_visible_devices="0,1"` only if a script is explicitly written to use both GPUs
+  - Two independent single-GPU runs can be scheduled in parallel by pinning one run to each GPU
 - **Driver**: 580.105.08 (`nvidia-smi` reports CUDA 13.0; PyTorch uses CUDA 12.6)
-- **Git state**: remote repo is currently on clean `vince-dev` at `origin/vince-dev`
+- **Git state**: remote repo is currently on `vince-dev` tracking `origin/vince-dev`, with untracked artifact folders (`results/`, `tb_logs/`) and `.ipynb_checkpoints/` directories present
 - **Workflow**: push locally -> pull on remote; use `tmux` for long runs if needed
 - **Sync logs to local**: `rsync -avz --exclude='*.pt' --exclude='*.pth' --exclude='checkpoint*' -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/results/ results/`
 - **Sync TensorBoard to local**: `rsync -avz -e 'ssh -p 44817' root@region-41.seetacloud.com:~/ruivi/tb_logs/ tb_logs/`

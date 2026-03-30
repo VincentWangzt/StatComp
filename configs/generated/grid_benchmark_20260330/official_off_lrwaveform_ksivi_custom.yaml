@@ -1,0 +1,90 @@
+seed: 42
+cuda_visible_devices: '0'
+use_cuda: true
+runner_type: KSIVI
+target_type: LRwaveform
+vi_model_type: ConditionalGaussianGlobal
+vi_model:
+  epsilon_dim: 10
+  hidden_dim: 100
+  num_layers: 2
+  activation: relu
+  variance_parameterization: logvar
+  global_log_var_init: -5.0
+  global_log_var_min: -20
+target:
+  data:
+    batch_size: null
+    batch_mode: full
+train:
+  epochs: 20000
+  batch_size: 100
+  vi:
+    lr: 0.001
+    var_lr: 0.001
+    betas:
+    - 0.9
+    - 0.999
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.7
+  annealing:
+    enabled: false
+    scheme: linear
+    steps: 5000
+  ksivi:
+    statistic: v
+    kernel: gaussian
+    detach_kernel: false
+    log_p_reg: 0.0
+  log:
+    metric_log_freq: 100
+    loss_log_freq: 100
+    reverse_log_freq: 500
+  checkpoint:
+    enabled: true
+    freq: 5000
+  sample:
+    freq: 1000
+    num: 1000
+  plot:
+    freq: 5000
+    num: 1000
+metric:
+  kl_ite:
+    enabled: false
+    num_samples: 10000
+  w2:
+    enabled: false
+    num_samples: 10000
+    num_projections: 1000
+  elbo:
+    enabled: true
+    batch_size: 512
+    num_batches: 2
+    num_z_samples: 1024
+  ksd:
+    enabled: true
+    num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+  fisher:
+    enabled: true
+    num_samples: 1000
+    num_is_samples: 512
+  bnn:
+    enabled: false
+    num_samples: 500
+resume:
+  enabled: false
+output:
+  results_dir: results/grid_benchmark_20260330/official
+  tb_dir: tb_logs/grid_benchmark_20260330/official
+campaign:
+  slug: grid_benchmark_20260330
+  run_id: official_off_lrwaveform_ksivi_custom
+  target: LRwaveform
+  variant: ksivi_custom
+  annealing_mode: 'off'

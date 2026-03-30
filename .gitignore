@@ -29,3 +29,7 @@ no_git**
 
 # Claude Code
 .claude/
+
+# Campaign runtime artifacts
+campaigns/*/runtime/
+campaigns/*/generated_reports/

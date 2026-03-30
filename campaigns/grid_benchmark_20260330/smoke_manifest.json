@@ -1,0 +1,167 @@
+[
+  {
+    "run_id": "official_on_banana_sivi",
+    "phase": "smoke",
+    "smoke": true,
+    "target": "banana",
+    "target_label": "banana",
+    "variant": "sivi",
+    "variant_label": "SIVI",
+    "runner_type": "SIVI",
+    "source_config": "configs/sivi_banana.yaml",
+    "config_path": "configs/generated/grid_benchmark_20260330/official_on_banana_sivi.yaml",
+    "annealing_mode": "on",
+    "annealing_enabled": true,
+    "expected_metrics": {
+      "elbo": true,
+      "kl": true,
+      "w2": true,
+      "ksd": true,
+      "mmd": true,
+      "fisher": true,
+      "bnn": false
+    },
+    "epochs": 20000,
+    "batch_size": 128,
+    "reverse_batch_size": null,
+    "estimated_cost": 20000.0,
+    "queue_gpu": 0,
+    "queue_name": "gpu0",
+    "output_overrides": {
+      "results_dir": "results/grid_benchmark_20260330/smoke",
+      "tb_dir": "tb_logs/grid_benchmark_20260330/smoke"
+    }
+  },
+  {
+    "run_id": "official_on_bnn_yacht_uivi",
+    "phase": "smoke",
+    "smoke": true,
+    "target": "Bnn_yacht",
+    "target_label": "Bnn_yacht",
+    "variant": "uivi",
+    "variant_label": "UIVI",
+    "runner_type": "UIVI",
+    "source_config": "configs/uivi_Bnn_yacht.yaml",
+    "config_path": "configs/generated/grid_benchmark_20260330/official_on_bnn_yacht_uivi.yaml",
+    "annealing_mode": "on",
+    "annealing_enabled": true,
+    "expected_metrics": {
+      "elbo": true,
+      "kl": false,
+      "w2": false,
+      "ksd": true,
+      "mmd": false,
+      "fisher": true,
+      "bnn": true
+    },
+    "epochs": 10000,
+    "batch_size": 128,
+    "reverse_batch_size": null,
+    "estimated_cost": 88000.0,
+    "queue_gpu": 0,
+    "queue_name": "gpu0",
+    "output_overrides": {
+      "results_dir": "results/grid_benchmark_20260330/smoke",
+      "tb_dir": "tb_logs/grid_benchmark_20260330/smoke"
+    }
+  },
+  {
+    "run_id": "official_on_banana_ksivi_custom",
+    "phase": "smoke",
+    "smoke": true,
+    "target": "banana",
+    "target_label": "banana",
+    "variant": "ksivi_custom",
+    "variant_label": "KSIVI-custom",
+    "runner_type": "KSIVI",
+    "source_config": "configs/ksivi_banana.yaml",
+    "config_path": "configs/generated/grid_benchmark_20260330/official_on_banana_ksivi_custom.yaml",
+    "annealing_mode": "on",
+    "annealing_enabled": true,
+    "expected_metrics": {
+      "elbo": true,
+      "kl": true,
+      "w2": true,
+      "ksd": true,
+      "mmd": true,
+      "fisher": true,
+      "bnn": false
+    },
+    "epochs": 50000,
+    "batch_size": 500,
+    "reverse_batch_size": null,
+    "estimated_cost": 90000.0,
+    "queue_gpu": 0,
+    "queue_name": "gpu0",
+    "output_overrides": {
+      "results_dir": "results/grid_benchmark_20260330/smoke",
+      "tb_dir": "tb_logs/grid_benchmark_20260330/smoke"
+    }
+  },
+  {
+    "run_id": "official_on_banana_ksivi_standard_cg",
+    "phase": "smoke",
+    "smoke": true,
+    "target": "banana",
+    "target_label": "banana",
+    "variant": "ksivi_standard_cg",
+    "variant_label": "KSIVI-standard-CG",
+    "runner_type": "KSIVI",
+    "source_config": "configs/ksivi_banana.yaml",
+    "config_path": "configs/generated/grid_benchmark_20260330/official_on_banana_ksivi_standard_cg.yaml",
+    "annealing_mode": "on",
+    "annealing_enabled": true,
+    "expected_metrics": {
+      "elbo": true,
+      "kl": true,
+      "w2": true,
+      "ksd": true,
+      "mmd": true,
+      "fisher": true,
+      "bnn": false
+    },
+    "epochs": 50000,
+    "batch_size": 500,
+    "reverse_batch_size": null,
+    "estimated_cost": 75000.0,
+    "queue_gpu": 0,
+    "queue_name": "gpu0",
+    "output_overrides": {
+      "results_dir": "results/grid_benchmark_20260330/smoke",
+      "tb_dir": "tb_logs/grid_benchmark_20260330/smoke"
+    }
+  },
+  {
+    "run_id": "official_on_bnn_yacht_dsivi_bs4096_rbs2048",
+    "phase": "smoke",
+    "smoke": true,
+    "target": "Bnn_yacht",
+    "target_label": "Bnn_yacht",
+    "variant": "dsivi_bs4096_rbs2048",
+    "variant_label": "DSIVI-bs4096-rbs2048",
+    "runner_type": "DSIVI",
+    "source_config": "configs/dsivi_Bnn_yacht.yaml",
+    "config_path": "configs/generated/grid_benchmark_20260330/official_on_bnn_yacht_dsivi_bs4096_rbs2048.yaml",
+    "annealing_mode": "on",
+    "annealing_enabled": true,
+    "expected_metrics": {
+      "elbo": true,
+      "kl": false,
+      "w2": false,
+      "ksd": true,
+      "mmd": false,
+      "fisher": true,
+      "bnn": true
+    },
+    "epochs": 10000,
+    "batch_size": 4096,
+    "reverse_batch_size": 2048,
+    "estimated_cost": 72000.0,
+    "queue_gpu": 0,
+    "queue_name": "gpu0",
+    "output_overrides": {
+      "results_dir": "results/grid_benchmark_20260330/smoke",
+      "tb_dir": "tb_logs/grid_benchmark_20260330/smoke"
+    }
+  }
+]
