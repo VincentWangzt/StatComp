@@ -213,8 +213,9 @@ def display_target(target: str) -> str:
 def metric_support(target: str) -> dict[str, bool]:
     has_baseline = target in BASELINE_TARGETS
     is_bnn = target in BNN_TARGETS
+    kl_enabled = has_baseline and target != "Langevin_post"
     return {
-        "kl": has_baseline,
+        "kl": kl_enabled,
         "w2": has_baseline,
         "mmd": has_baseline,
         "ksd": True,
@@ -226,4 +227,3 @@ def metric_support(target: str) -> dict[str, bool]:
 
 def runtime_dir() -> Path:
     return CAMPAIGN_DIR / "runtime"
-

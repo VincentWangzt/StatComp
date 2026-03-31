@@ -2102,7 +2102,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2131,7 +2131,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2160,7 +2160,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2189,7 +2189,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2218,7 +2218,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2247,7 +2247,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2276,7 +2276,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2305,7 +2305,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2334,7 +2334,7 @@
     "annealing_enabled": true,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2363,7 +2363,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2392,7 +2392,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2421,7 +2421,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2450,7 +2450,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2479,7 +2479,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2508,7 +2508,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2537,7 +2537,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2566,7 +2566,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,
@@ -2595,7 +2595,7 @@
     "annealing_enabled": false,
     "expected_metrics": {
       "elbo": true,
-      "kl": true,
+      "kl": false,
       "w2": true,
       "ksd": true,
       "mmd": true,

@@ -41,7 +41,7 @@ train:
     num: 1000
 metric:
   kl_ite:
-    enabled: true
+    enabled: false
     num_samples: 10000
   w2:
     enabled: true
