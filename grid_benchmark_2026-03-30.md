@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 118 |
-| Running | 1 |
-| Completed | 86 |
-| Failed | 12 |
+| Pending | 104 |
+| Running | 2 |
+| Completed | 97 |
+| Failed | 13 |
 
 ## Monitoring Log
 
@@ -70,6 +70,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-31 08:27 CST | Manual check | Both long `Langevin_post` `KSIVI-custom` runs completed cleanly during the 2-hour interval. GPU0 advanced into `official_on_langevin_post_ksivi_standard_cg` and GPU1 advanced into `official_off_langevin_post_ksivi_standard_cg`; current log positions were about `5380/100000` on GPU0 and `25892/100000` on GPU1. Campaign totals reached 71 completed, 10 failed, 1 running, 0 worker errors. |
 | 2026-03-31 14:33 CST | Monitoring resync | The previous long sleep-probe overran the tool timeout, but the remote campaign had kept progressing. By the resync check, the campaign had advanced to 78 completed and 11 failed. GPU0 had moved through the remaining `Langevin_post` KSIVI and DSIVI variants and was healthy on `official_off_langevin_post_sivi`; GPU1 had advanced into `LRwaveform` and failed late in `official_on_lrwaveform_aisivi`. |
 | 2026-03-31 15:36 CST | Monitoring check | The next one-hour probe found strong queue progress again: totals reached 86 completed and 12 failed. GPU0 remained healthy and was near completion on `official_off_langevin_post_sivi`, while GPU1 failed on `official_on_bnn_boston_aisivi` during reverse warmup with a new BNN-target AISIVI CUDA OOM. |
+| 2026-03-31 22:50 CST | Manual intervention | Reduced the official BNN evaluation budget locally to `metric.ksd.num_samples=1000` and `metric.elbo.batch_size=256`, regenerated and validated all 108 BNN generated configs, pushed commit `16d7bd4`, pulled it remotely, and reset the full official BNN slice so all BNN reruns would use the same updated settings. |
+| 2026-03-31 22:53 CST | Immediate relaunch check | After the BNN reset, official progress dropped to `97 completed / 11 failed / 108 pending_or_running`, confirming the BNN section had been cleared from campaign state before relaunch. |
+| 2026-03-31 22:56 CST | Immediate rerun check | Both official queues were relaunched into the rerun BNN block. GPU0 first failed again on `official_on_bnn_boston_sivi`, but this time the cause was confirmed to be the known training-time SIVI estimator OOM rather than ELBO/KSD evaluation. GPU1 first failed on `official_on_bnn_boston_aisivi` with RealNVP non-finite sampling rather than CUDA OOM, then resumed into `official_on_bnn_boston_dsivi_default`. Current state: GPU0 on `official_on_bnn_boston_uivi`, GPU1 on `official_on_bnn_boston_dsivi_default`, totals `97 completed / 13 failed / 106 pending_or_running`. |
 
 ## Failure Log
 
@@ -87,6 +90,8 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-31 03:23 CST | `official_on_langevin_post_rsivi` | 0 | Training crashed at epoch 932 after long stalls, repeated `ConditionalRealNVP` non-finite sampling warnings, and a final `Failed to obtain finite samples from RealNVP after 3 attempts.` runtime error. | Failure recorded locally after log inspection. GPU0 will resume past this investigated failed run using the same continue control while GPU1 continues its active run. |
 | 2026-03-31 14:33 CST | `official_on_lrwaveform_aisivi` | 1 | Training crashed late at epoch 9957 after repeated `NaN or Inf detected in reverse model loss` warnings and three consecutive non-finite `ConditionalRealNVP` sampling retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control while GPU0 continues its active run. |
 | 2026-03-31 15:36 CST | `official_on_bnn_boston_aisivi` | 1 | Reverse warmup crashed at epoch 99 during `calculate_rev_KSD()` with `torch.OutOfMemoryError`, trying to allocate another 2.87 GiB on the 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control while GPU0 continues its active run. |
+| 2026-03-31 22:53 CST | `official_on_bnn_boston_sivi` | 0 | After the BNN evaluation-budget reduction and full BNN reset, the rerun still crashed immediately in SIVI training. The failure remained a CUDA OOM in the training-time `log q_phi(z)` estimate at [sivi.py](/D:/PKU/Programming/StatComp/project/runner/sivi.py) and [vi_model.py](/D:/PKU/Programming/StatComp/project/models/vi_model.py), requesting another 1.47 GiB. This confirms the SIVI Boston blocker is the training estimator shape, not ELBO/KSD evaluation. | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure using the same continue control so the rerun sweep could keep moving. |
+| 2026-03-31 22:55 CST | `official_on_bnn_boston_aisivi` | 1 | On the rerun with reduced BNN evaluation budgets, AISIVI no longer failed with the earlier reverse-warmup CUDA OOM. It instead crashed at epoch 104 after repeated non-finite importance weights and `ConditionalRealNVP` sampling retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure using the same continue control so the rerun sweep could keep moving. |
 
 ## Per-Target Summary Tables
 
