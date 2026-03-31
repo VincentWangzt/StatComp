@@ -116,6 +116,10 @@ def _apply_variant_overrides(config: dict, target: str, variant: str) -> None:
         config.pop("vi_model", None)
         config.pop("vi_model_config_path", None)
 
+    if variant == "sivi" and target in BNN_TARGETS:
+        config.setdefault("train", {})
+        config["train"]["reverse_sample_num"] = 2048
+
     if variant == "ksivi_custom":
         pass
     elif variant == "ksivi_standard_cg":

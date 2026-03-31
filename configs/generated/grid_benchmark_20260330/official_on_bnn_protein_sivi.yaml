@@ -7,7 +7,7 @@ vi_model_type: ConditionalGaussian
 train:
   epochs: 20000
   batch_size: 128
-  reverse_sample_num: 4096
+  reverse_sample_num: 2048
   vi:
     lr: 0.001
     scheduler:

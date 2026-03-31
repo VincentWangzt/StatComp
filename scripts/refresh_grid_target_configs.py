@@ -10,10 +10,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from grid_benchmark_common import MANIFEST_CSV_PATH, MANIFEST_PATH, load_yaml, metric_budgets, metric_support, save_json, save_yaml  # noqa: E402
+from grid_benchmark_common import BNN_TARGETS, MANIFEST_CSV_PATH, MANIFEST_PATH, load_yaml, metric_budgets, metric_support, save_json, save_yaml  # noqa: E402
 
 
-def _refresh_config(config_path: Path, target: str) -> None:
+def _refresh_config(config_path: Path, target: str, variant: str | None) -> None:
     config = load_yaml(config_path)
     metric = config.setdefault("metric", {})
     support = metric_support(target)
@@ -51,15 +51,21 @@ def _refresh_config(config_path: Path, target: str) -> None:
     metric["bnn"]["enabled"] = support["bnn"]
     metric["bnn"]["num_samples"] = budgets["bnn_num_samples"]
 
+    if variant == "sivi" and target in BNN_TARGETS:
+        train = config.setdefault("train", {})
+        train["reverse_sample_num"] = 2048
+
     save_yaml(config, config_path)
 
 
-def _refresh_manifest(target: str) -> int:
+def _refresh_manifest(target: str, variant: str | None) -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     support = metric_support(target)
     count = 0
     for entry in manifest:
         if entry.get("target") != target:
+            continue
+        if variant is not None and entry.get("variant") != variant:
             continue
         count += 1
         expected = entry.setdefault("expected_metrics", {})
@@ -67,12 +73,12 @@ def _refresh_manifest(target: str) -> int:
         expected["w2"] = support["w2"]
         expected["mmd"] = support["mmd"]
         config_path = Path(entry["config_path"])
-        _refresh_config(config_path, target)
+        _refresh_config(config_path, target, entry.get("variant"))
     save_json(manifest, MANIFEST_PATH)
     return count
 
 
-def _refresh_manifest_csv(target: str) -> None:
+def _refresh_manifest_csv(target: str, variant: str | None) -> None:
     if not MANIFEST_CSV_PATH.exists():
         return
     rows = list(csv.DictReader(MANIFEST_CSV_PATH.open("r", encoding="utf-8", newline="")))
@@ -89,11 +95,15 @@ def _refresh_manifest_csv(target: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Refresh generated grid configs and manifest metadata for one target.")
     parser.add_argument("--target", required=True)
+    parser.add_argument("--variant")
     args = parser.parse_args()
 
-    refreshed = _refresh_manifest(args.target)
-    _refresh_manifest_csv(args.target)
-    print(f"Refreshed {refreshed} manifest entries and generated configs for target {args.target}.")
+    refreshed = _refresh_manifest(args.target, args.variant)
+    _refresh_manifest_csv(args.target, args.variant)
+    if args.variant:
+        print(f"Refreshed {refreshed} manifest entries and generated configs for target {args.target}, variant {args.variant}.")
+    else:
+        print(f"Refreshed {refreshed} manifest entries and generated configs for target {args.target}.")
 
 
 if __name__ == "__main__":

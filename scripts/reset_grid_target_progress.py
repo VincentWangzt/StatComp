@@ -25,11 +25,23 @@ def _load_manifest() -> list[dict]:
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
-def _target_run_ids(target: str, phase: str) -> set[str]:
+def _matching_entries(target: str, phase: str, variant: str | None) -> list[dict]:
+    entries = []
+    for entry in _load_manifest():
+        if entry.get("target") != target:
+            continue
+        if entry.get("phase", "official") != phase:
+            continue
+        if variant is not None and entry.get("variant") != variant:
+            continue
+        entries.append(entry)
+    return entries
+
+
+def _target_run_ids(entries: list[dict]) -> set[str]:
     return {
         entry["run_id"]
-        for entry in _load_manifest()
-        if entry.get("target") == target and entry.get("phase", "official") == phase
+        for entry in entries
     }
 
 
@@ -73,11 +85,13 @@ def _remove_console_logs(console_root: Path, target_run_ids: set[str]) -> int:
     return removed
 
 
-def _remove_target_dirs(root: Path, target: str) -> int:
+def _remove_target_dirs(root: Path, target: str, runner_types: set[str]) -> int:
     if not root.exists():
         return 0
     removed = 0
     for runner_dir in root.iterdir():
+        if runner_types and runner_dir.name not in runner_types:
+            continue
         target_dir = runner_dir / target
         if target_dir.exists():
             shutil.rmtree(target_dir)
@@ -89,9 +103,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Reset grid campaign progress and artifacts for one target.")
     parser.add_argument("--target", required=True)
     parser.add_argument("--phase", choices=["official", "smoke"], default="official")
+    parser.add_argument("--variant")
     args = parser.parse_args()
 
-    target_run_ids = _target_run_ids(args.target, args.phase)
+    entries = _matching_entries(args.target, args.phase, args.variant)
+    target_run_ids = _target_run_ids(entries)
+    runner_types = {entry.get("runner_type") for entry in entries if entry.get("runner_type")}
     rt_dir = runtime_dir()
     console_root = rt_dir / "console_logs"
 
@@ -110,14 +127,15 @@ def main() -> None:
         results_root = REPO_ROOT / SMOKE_RESULTS_DIR
         tb_root = REPO_ROOT / SMOKE_TB_DIR
 
-    removed_result_dirs = _remove_target_dirs(results_root, args.target)
-    removed_tb_dirs = _remove_target_dirs(tb_root, args.target)
+    removed_result_dirs = _remove_target_dirs(results_root, args.target, runner_types)
+    removed_tb_dirs = _remove_target_dirs(tb_root, args.target, runner_types)
 
     print(
         json.dumps(
             {
                 "target": args.target,
                 "phase": args.phase,
+                "variant": args.variant,
                 "run_ids": sorted(target_run_ids),
                 "removed_event_records": removed_events,
                 "removed_current_files": removed_current,
