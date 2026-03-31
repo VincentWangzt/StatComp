@@ -42,9 +42,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 137 |
+| Pending | 135 |
 | Running | 1 |
-| Completed | 69 |
+| Completed | 71 |
 | Failed | 10 |
 
 ## Monitoring Log
@@ -67,6 +67,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-31 02:21 CST | Monitoring check | After a one-hour wait, GPU0 had completed `official_on_langevin_post_sivi` and advanced into `official_on_langevin_post_uivi`. GPU1 completed `official_off_langevin_post_uivi` but failed on `official_off_langevin_post_aisivi` during reverse warmup with the same Langevin-post AISIVI OOM pattern seen earlier. Campaign state at investigation time: 68 completed, 9 failed, 1 running, 0 worker errors. |
 | 2026-03-31 03:23 CST | Monitoring check | The next one-hour probe found GPU0 had completed `official_on_langevin_post_uivi` but then failed on `official_on_langevin_post_rsivi` after another `ConditionalRealNVP` instability. GPU1 remained healthy on `official_off_langevin_post_ksivi_custom`. Campaign state at investigation time: 69 completed, 10 failed, 1 running, 0 worker errors. |
 | 2026-03-31 06:26 CST | Manual check | No new run boundary since the last recovery, but both long `Langevin_post` `KSIVI-custom` runs remained healthy. GPU0 log advanced to about `63680/100000` epochs and GPU1 log advanced to about `84283/100000`, with fresh log timestamps on both queues. Campaign totals stayed at 69 completed, 10 failed, 1 running, 0 worker errors. |
+| 2026-03-31 08:27 CST | Manual check | Both long `Langevin_post` `KSIVI-custom` runs completed cleanly during the 2-hour interval. GPU0 advanced into `official_on_langevin_post_ksivi_standard_cg` and GPU1 advanced into `official_off_langevin_post_ksivi_standard_cg`; current log positions were about `5380/100000` on GPU0 and `25892/100000` on GPU1. Campaign totals reached 71 completed, 10 failed, 1 running, 0 worker errors. |
 
 ## Failure Log
 
