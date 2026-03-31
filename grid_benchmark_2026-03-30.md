@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 80 |
+| Pending | 73 |
 | Running | 2 |
-| Completed | 117 |
-| Failed | 17 |
+| Completed | 123 |
+| Failed | 20 |
 
 ## Monitoring Log
 
@@ -78,6 +78,8 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 01:10 CST | Manual check | The next near-hour probe showed another strong chunk of BNN progress. Totals reached `109 completed / 17 failed`, which implies both Boston KSIVI variants and the Boston DSIVI variants cleared in the meantime. The new stops were `official_off_bnn_boston_sivi`, which repeated the known Boston SIVI training-estimator CUDA OOM, and `official_on_bnn_concrete_aisivi`, which failed with the same RealNVP non-finite sampling instability seen on other AISIVI/RSIVI runs. After resuming both queues, GPU0 advanced to `official_off_bnn_boston_aisivi` and GPU1 advanced to `official_on_bnn_concrete_dsivi_default`. |
 | 2026-04-01 03:11 CST | Manual intervention | Changed the local campaign policy so all official BNN `SIVI` runs now use `train.reverse_sample_num=2048` instead of `4096`, refreshed and validated the 12 affected generated configs, pushed commit `4d8fd08`, pulled it remotely, and added targeted reset support so only `target + variant` slices can be rerun. |
 | 2026-04-01 03:12 CST | Immediate rerun check | Reset only the 12 official BNN `SIVI` runs on the remote campaign. At the moment of reset, only the two Boston `SIVI` runs had existing official history, so the counters moved from `117 completed / 19 failed` back to `117 completed / 17 failed`. The two active queue stops at that time, `official_off_bnn_boston_aisivi` and `official_on_bnn_power_aisivi`, were both confirmed as the usual RealNVP non-finite sampling failures. After resuming the queues, GPU0 re-entered the updated `official_on_bnn_boston_sivi` run and GPU1 advanced to `official_on_bnn_power_dsivi_default`. |
+| 2026-04-01 03:24 CST | Stabilization check | The updated `official_on_bnn_boston_sivi` rerun still failed, but the OOM size dropped materially after lowering `reverse_sample_num` from `4096` to `2048`: the new crash requested about `752 MiB` instead of `1.47 GiB`. In the same interval, GPU1 completed `official_on_bnn_power_dsivi_default` successfully and advanced into `official_off_bnn_power_uivi`. GPU0 was then resumed into the matching annealing-off Boston SIVI rerun, `official_off_bnn_boston_sivi`, while GPU1 remained healthy. |
+| 2026-04-01 04:05 CST | Manual check | The updated SIVI-BNN rerun now has a clearer boundary. `official_off_bnn_boston_sivi` failed with the same reduced-size Boston OOM as the annealing-on rerun, again requesting about `752 MiB`, so Boston remains too large for SIVI even at `reverse_sample_num=2048`. But `official_on_bnn_concrete_sivi` completed successfully in about `1705.4s`, showing that the reduced setting does work on smaller BNN targets. In the same window, GPU1 recovered from `official_off_bnn_power_rsivi`, completed `official_off_bnn_power_uivi`, and advanced through `official_off_bnn_power_dsivi_default` into `official_off_bnn_power_dsivi_bs4096_rbs2048`. Totals reached `123 completed / 20 failed / 73 pending`. |
 
 ## Failure Log
 
@@ -103,6 +105,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 01:10 CST | `official_on_bnn_concrete_aisivi` | 1 | The BNN-concrete AISIVI rerun failed in the reverse-model path with `Failed to obtain finite samples from RealNVP after 3 attempts.`, not with a CUDA OOM. This aligns it with the recurring RealNVP numerical-instability class rather than the BNN evaluation-budget issue. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure using the same continue control so the rerun sweep could keep moving. |
 | 2026-04-01 03:12 CST | `official_off_bnn_boston_aisivi` | 0 | The annealing-off Boston AISIVI run failed at epoch 309 after repeated non-finite importance-sampling weights, NaN/Inf VI and reverse-model loss warnings, and three consecutive non-finite `ConditionalRealNVP` sampling retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure using the same continue control while the targeted BNN-SIVI rerun was being installed. |
 | 2026-04-01 03:12 CST | `official_on_bnn_power_aisivi` | 1 | The BNN-power AISIVI run failed at epoch 348 with the same RealNVP non-finite sampling pattern, after NaN/Inf reverse-model loss warnings and three consecutive non-finite `ConditionalRealNVP` retries. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure using the same continue control while the targeted BNN-SIVI rerun was being installed. |
+| 2026-04-01 03:24 CST | `official_on_bnn_boston_sivi` | 0 | After the targeted BNN-SIVI rerun update to `train.reverse_sample_num=2048`, the annealing-on Boston SIVI run still failed in the training-time `log q_phi(z)` path, but the memory request dropped from about `1.47 GiB` to about `752 MiB`. This confirms the change reduced the pressure substantially without yet making Boston SIVI viable on the 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure and continued into `official_off_bnn_boston_sivi` so the rest of the sweep could keep moving. |
+| 2026-04-01 04:05 CST | `official_off_bnn_boston_sivi` | 0 | The annealing-off rerun with the updated `train.reverse_sample_num=2048` failed in the same Boston SIVI training-time `log q_phi(z)` path as the annealing-on rerun, again requesting about `752 MiB`. This confirms the reduced reverse-sample setting helps but still does not make Boston SIVI fit. | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure and continued into `official_on_bnn_concrete_sivi`, which then completed successfully. |
+| 2026-04-01 04:05 CST | `official_off_bnn_power_rsivi` | 1 | The annealing-off BNN-power RSIVI run failed around epoch 1731 after a long sequence of NaN/Inf reverse-model loss warnings and three consecutive non-finite `ConditionalRealNVP` retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure and continued into the KSIVI and DSIVI BNN-power block. |
 
 ## Per-Target Summary Tables
 
