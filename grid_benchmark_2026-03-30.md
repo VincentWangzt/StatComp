@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 127 |
+| Pending | 118 |
 | Running | 1 |
-| Completed | 78 |
-| Failed | 11 |
+| Completed | 86 |
+| Failed | 12 |
 
 ## Monitoring Log
 
@@ -69,6 +69,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-31 06:26 CST | Manual check | No new run boundary since the last recovery, but both long `Langevin_post` `KSIVI-custom` runs remained healthy. GPU0 log advanced to about `63680/100000` epochs and GPU1 log advanced to about `84283/100000`, with fresh log timestamps on both queues. Campaign totals stayed at 69 completed, 10 failed, 1 running, 0 worker errors. |
 | 2026-03-31 08:27 CST | Manual check | Both long `Langevin_post` `KSIVI-custom` runs completed cleanly during the 2-hour interval. GPU0 advanced into `official_on_langevin_post_ksivi_standard_cg` and GPU1 advanced into `official_off_langevin_post_ksivi_standard_cg`; current log positions were about `5380/100000` on GPU0 and `25892/100000` on GPU1. Campaign totals reached 71 completed, 10 failed, 1 running, 0 worker errors. |
 | 2026-03-31 14:33 CST | Monitoring resync | The previous long sleep-probe overran the tool timeout, but the remote campaign had kept progressing. By the resync check, the campaign had advanced to 78 completed and 11 failed. GPU0 had moved through the remaining `Langevin_post` KSIVI and DSIVI variants and was healthy on `official_off_langevin_post_sivi`; GPU1 had advanced into `LRwaveform` and failed late in `official_on_lrwaveform_aisivi`. |
+| 2026-03-31 15:36 CST | Monitoring check | The next one-hour probe found strong queue progress again: totals reached 86 completed and 12 failed. GPU0 remained healthy and was near completion on `official_off_langevin_post_sivi`, while GPU1 failed on `official_on_bnn_boston_aisivi` during reverse warmup with a new BNN-target AISIVI CUDA OOM. |
 
 ## Failure Log
 
@@ -85,6 +86,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-03-31 02:21 CST | `official_off_langevin_post_aisivi` | 1 | Reverse warmup crashed at epoch 99 when `calculate_rev_KSD()` attempted a large reverse-model sample and again triggered `torch.OutOfMemoryError`, requesting another 3.91 GiB on a 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control while GPU0 continues its active run. |
 | 2026-03-31 03:23 CST | `official_on_langevin_post_rsivi` | 0 | Training crashed at epoch 932 after long stalls, repeated `ConditionalRealNVP` non-finite sampling warnings, and a final `Failed to obtain finite samples from RealNVP after 3 attempts.` runtime error. | Failure recorded locally after log inspection. GPU0 will resume past this investigated failed run using the same continue control while GPU1 continues its active run. |
 | 2026-03-31 14:33 CST | `official_on_lrwaveform_aisivi` | 1 | Training crashed late at epoch 9957 after repeated `NaN or Inf detected in reverse model loss` warnings and three consecutive non-finite `ConditionalRealNVP` sampling retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control while GPU0 continues its active run. |
+| 2026-03-31 15:36 CST | `official_on_bnn_boston_aisivi` | 1 | Reverse warmup crashed at epoch 99 during `calculate_rev_KSD()` with `torch.OutOfMemoryError`, trying to allocate another 2.87 GiB on the 10 GiB RTX 3080. | Failure recorded locally after log inspection. GPU1 will resume past this investigated failed run using the same continue control while GPU0 continues its active run. |
 
 ## Per-Target Summary Tables
 
