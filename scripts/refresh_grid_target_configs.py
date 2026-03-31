@@ -10,26 +10,46 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from grid_benchmark_common import MANIFEST_CSV_PATH, MANIFEST_PATH, load_yaml, metric_support, save_json, save_yaml  # noqa: E402
+from grid_benchmark_common import MANIFEST_CSV_PATH, MANIFEST_PATH, load_yaml, metric_budgets, metric_support, save_json, save_yaml  # noqa: E402
 
 
 def _refresh_config(config_path: Path, target: str) -> None:
     config = load_yaml(config_path)
     metric = config.setdefault("metric", {})
     support = metric_support(target)
+    budgets = metric_budgets(target)
 
     metric.setdefault("kl_ite", {})
     metric["kl_ite"]["enabled"] = support["kl"]
-    metric["kl_ite"]["num_samples"] = 10000
+    metric["kl_ite"]["num_samples"] = budgets["kl_num_samples"]
 
     metric.setdefault("w2", {})
     metric["w2"]["enabled"] = support["w2"]
-    metric["w2"]["num_samples"] = 10000
-    metric["w2"]["num_projections"] = 1000
+    metric["w2"]["num_samples"] = budgets["w2_num_samples"]
+    metric["w2"]["num_projections"] = budgets["w2_num_projections"]
 
     metric.setdefault("mmd", {})
     metric["mmd"]["enabled"] = support["mmd"]
-    metric["mmd"]["num_samples"] = 1000
+    metric["mmd"]["num_samples"] = budgets["mmd_num_samples"]
+
+    metric.setdefault("ksd", {})
+    metric["ksd"]["enabled"] = True
+    metric["ksd"]["num_samples"] = budgets["ksd_num_samples"]
+
+    metric.setdefault("fisher", {})
+    metric["fisher"]["enabled"] = True
+    metric["fisher"]["num_samples"] = budgets["fisher_num_samples"]
+    metric["fisher"]["num_is_samples"] = budgets["fisher_num_is_samples"]
+
+    metric.setdefault("elbo", {})
+    metric["elbo"]["enabled"] = True
+    metric["elbo"]["batch_size"] = budgets["elbo_batch_size"]
+    metric["elbo"]["num_batches"] = budgets["elbo_num_batches"]
+    metric["elbo"]["num_z_samples"] = budgets["elbo_num_z_samples"]
+
+    metric.setdefault("bnn", {})
+    metric["bnn"]["enabled"] = support["bnn"]
+    metric["bnn"]["num_samples"] = budgets["bnn_num_samples"]
 
     save_yaml(config, config_path)
 

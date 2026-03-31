@@ -225,5 +225,22 @@ def metric_support(target: str) -> dict[str, bool]:
     }
 
 
+def metric_budgets(target: str) -> dict[str, int]:
+    is_bnn = target in BNN_TARGETS
+    return {
+        "kl_num_samples": 10000,
+        "w2_num_samples": 10000,
+        "w2_num_projections": 1000,
+        "mmd_num_samples": 1000,
+        "ksd_num_samples": 1000 if is_bnn else 2000,
+        "fisher_num_samples": 1000,
+        "fisher_num_is_samples": 512,
+        "elbo_batch_size": 256 if is_bnn else 512,
+        "elbo_num_batches": 2,
+        "elbo_num_z_samples": 1024,
+        "bnn_num_samples": 500,
+    }
+
+
 def runtime_dir() -> Path:
     return CAMPAIGN_DIR / "runtime"

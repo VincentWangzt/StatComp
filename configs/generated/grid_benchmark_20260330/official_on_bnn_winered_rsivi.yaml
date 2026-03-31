@@ -48,7 +48,7 @@ metric:
     num_projections: 1000
   elbo:
     enabled: true
-    batch_size: 512
+    batch_size: 256
     num_batches: 2
     num_z_samples: 1024
   bnn:
@@ -59,7 +59,7 @@ metric:
     num_samples: 1000
   ksd:
     enabled: true
-    num_samples: 2000
+    num_samples: 1000
   fisher:
     enabled: true
     num_samples: 1000
