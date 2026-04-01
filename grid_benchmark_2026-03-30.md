@@ -42,9 +42,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 27 |
-| Running | 2 |
-| Completed | 159 |
+| Pending | 19 |
+| Running | 1 |
+| Completed | 168 |
 | Failed | 28 |
 
 ## Monitoring Log
@@ -86,6 +86,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 14:30 CST | Manual check | Clean progress only. The campaign advanced to `137 completed / 24 failed / 53 pending / 2 running` with no new worker errors or queue interventions needed. GPU0 completed `official_on_bnn_power_sivi` and advanced to `official_on_bnn_power_uivi`, while GPU1 moved through more of the protein block and reached `official_off_bnn_protein_dsivi_bs4096_rbs2048`. |
 | 2026-04-01 16:52 CST | Manual check | The next delayed hourly probe found both queues paused on investigated AISIVI failures, but the remote resume commands succeeded and both workers are running again. Current state is `155 completed / 26 failed / 33 pending / 2 running / 0 worker_errors`. GPU0 is back on `official_on_bnn_protein_sivi`; GPU1 is back on `official_on_bnn_yacht_dsivi_default`. `nvidia-smi` showed both RTX 3080s active at about `8.5 GiB` and `4.8 GiB` used, respectively. The two new stops, `official_off_bnn_power_aisivi` and `official_on_bnn_yacht_aisivi`, were both confirmed as the usual RealNVP non-finite sampling failures rather than CUDA OOM. |
 | 2026-04-01 17:55 CST | Manual check | One hour later, both queues had again paused on investigated RSIVI failures, but they resumed cleanly into the KSIVI-custom block after recovery. Current state is `159 completed / 28 failed / 27 pending / 2 running / 0 worker_errors`. GPU0 is now running `official_on_bnn_protein_ksivi_custom`; GPU1 is now running `official_off_bnn_yacht_ksivi_custom`. `nvidia-smi` showed both GPUs active again after recovery at about `5.6 GiB` and `4.1 GiB` used. The two new stops, `official_on_bnn_protein_rsivi` and `official_off_bnn_yacht_rsivi`, were both the usual RealNVP non-finite sampling failures rather than OOM. |
+| 2026-04-01 18:58 CST | Manual check | Clean progress across the hour with no new failures or worker errors. The campaign advanced to `168 completed / 28 failed / 19 pending / 1 running`. GPU1 fully finished its assigned official queue and now reports `queue_completed`; GPU0 remains healthy on `official_off_bnn_protein_sivi`. `nvidia-smi` showed GPU0 active at about `8.5 GiB` used while GPU1 was idle. |
 
 ## Failure Log
 
