@@ -42,7 +42,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 73 |
+| Pending | 66 |
 | Running | 2 |
 | Completed | 126 |
 | Failed | 22 |
@@ -81,6 +81,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 03:24 CST | Stabilization check | The updated `official_on_bnn_boston_sivi` rerun still failed, but the OOM size dropped materially after lowering `reverse_sample_num` from `4096` to `2048`: the new crash requested about `752 MiB` instead of `1.47 GiB`. In the same interval, GPU1 completed `official_on_bnn_power_dsivi_default` successfully and advanced into `official_off_bnn_power_uivi`. GPU0 was then resumed into the matching annealing-off Boston SIVI rerun, `official_off_bnn_boston_sivi`, while GPU1 remained healthy. |
 | 2026-04-01 04:05 CST | Manual check | The updated SIVI-BNN rerun now has a clearer boundary. `official_off_bnn_boston_sivi` failed with the same reduced-size Boston OOM as the annealing-on rerun, again requesting about `752 MiB`, so Boston remains too large for SIVI even at `reverse_sample_num=2048`. But `official_on_bnn_concrete_sivi` completed successfully in about `1705.4s`, showing that the reduced setting does work on smaller BNN targets. In the same window, GPU1 recovered from `official_off_bnn_power_rsivi`, completed `official_off_bnn_power_uivi`, and advanced through `official_off_bnn_power_dsivi_default` into `official_off_bnn_power_dsivi_bs4096_rbs2048`. Totals reached `123 completed / 20 failed / 73 pending`. |
 | 2026-04-01 12:34 CST | Manual check | The longer wait overran the tool timeout again, but the campaign progressed substantially while it was running. By the delayed probe, totals reached `126 completed / 22 failed`. `official_on_bnn_concrete_sivi` had completed cleanly and advanced into `official_on_bnn_concrete_uivi`, which also completed, confirming the lowered `SIVI` reverse-sample setting is viable on `Bnn_concrete`. The new queue stops were `official_on_bnn_concrete_rsivi` and `official_on_bnn_protein_aisivi`, both of which failed with the usual RealNVP non-finite sampling pattern rather than CUDA OOM. After resuming both queues, GPU0 advanced to `official_on_bnn_concrete_ksivi_custom` and GPU1 advanced to `official_on_bnn_protein_dsivi_default`. |
+| 2026-04-01 13:05 CST | Recovery check | The queues were resumed successfully after the delayed manual check. GPU0 is healthy on `official_on_bnn_concrete_ksivi_custom`, GPU1 is healthy on `official_on_bnn_protein_dsivi_default`, and the campaign remains at `126 completed / 22 failed / 66 pending / 2 running`. No new worker errors appeared. |
 
 ## Failure Log
 
