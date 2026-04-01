@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 66 |
+| Pending | 57 |
 | Running | 2 |
-| Completed | 126 |
-| Failed | 22 |
+| Completed | 133 |
+| Failed | 24 |
 
 ## Monitoring Log
 
@@ -82,6 +82,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 04:05 CST | Manual check | The updated SIVI-BNN rerun now has a clearer boundary. `official_off_bnn_boston_sivi` failed with the same reduced-size Boston OOM as the annealing-on rerun, again requesting about `752 MiB`, so Boston remains too large for SIVI even at `reverse_sample_num=2048`. But `official_on_bnn_concrete_sivi` completed successfully in about `1705.4s`, showing that the reduced setting does work on smaller BNN targets. In the same window, GPU1 recovered from `official_off_bnn_power_rsivi`, completed `official_off_bnn_power_uivi`, and advanced through `official_off_bnn_power_dsivi_default` into `official_off_bnn_power_dsivi_bs4096_rbs2048`. Totals reached `123 completed / 20 failed / 73 pending`. |
 | 2026-04-01 12:34 CST | Manual check | The longer wait overran the tool timeout again, but the campaign progressed substantially while it was running. By the delayed probe, totals reached `126 completed / 22 failed`. `official_on_bnn_concrete_sivi` had completed cleanly and advanced into `official_on_bnn_concrete_uivi`, which also completed, confirming the lowered `SIVI` reverse-sample setting is viable on `Bnn_concrete`. The new queue stops were `official_on_bnn_concrete_rsivi` and `official_on_bnn_protein_aisivi`, both of which failed with the usual RealNVP non-finite sampling pattern rather than CUDA OOM. After resuming both queues, GPU0 advanced to `official_on_bnn_concrete_ksivi_custom` and GPU1 advanced to `official_on_bnn_protein_dsivi_default`. |
 | 2026-04-01 13:05 CST | Recovery check | The queues were resumed successfully after the delayed manual check. GPU0 is healthy on `official_on_bnn_concrete_ksivi_custom`, GPU1 is healthy on `official_on_bnn_protein_dsivi_default`, and the campaign remains at `126 completed / 22 failed / 66 pending / 2 running`. No new worker errors appeared. |
+| 2026-04-01 14:00 CST | Manual check | The 30-minute probe found another good stretch of progress. Totals reached `133 completed / 24 failed`. The lowered `SIVI` reverse-sample setting continued to look good beyond concrete: `official_off_bnn_concrete_sivi` completed successfully, and GPU0 had already moved on into `official_on_bnn_power_sivi` after resuming from an `official_off_bnn_concrete_aisivi` RealNVP failure. GPU1 pushed through more of the protein block before stopping on `official_off_bnn_protein_rsivi`, again with the same RealNVP non-finite sampling pattern. After recovery, GPU1 advanced to `official_off_bnn_protein_ksivi_custom`. |
 
 ## Failure Log
 
@@ -112,6 +113,8 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 04:05 CST | `official_off_bnn_power_rsivi` | 1 | The annealing-off BNN-power RSIVI run failed around epoch 1731 after a long sequence of NaN/Inf reverse-model loss warnings and three consecutive non-finite `ConditionalRealNVP` retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure and continued into the KSIVI and DSIVI BNN-power block. |
 | 2026-04-01 12:34 CST | `official_on_bnn_concrete_rsivi` | 0 | The annealing-on BNN-concrete RSIVI run failed around epoch 118 after a burst of NaN/Inf reverse-model loss warnings and three consecutive non-finite `ConditionalRealNVP` retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure and continued into the BNN-concrete KSIVI block. |
 | 2026-04-01 12:34 CST | `official_on_bnn_protein_aisivi` | 1 | The annealing-on BNN-protein AISIVI run failed around epoch 2921 after many non-finite importance-sampling weights, NaN/Inf VI and reverse-model loss warnings, and three consecutive non-finite `ConditionalRealNVP` retries. | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure and continued into the BNN-protein DSIVI block. |
+| 2026-04-01 14:00 CST | `official_off_bnn_concrete_aisivi` | 0 | The annealing-off BNN-concrete AISIVI run failed around epoch 345 after NaN/Inf VI and reverse-model loss warnings, a few non-finite importance-sampling weights, and three consecutive non-finite `ConditionalRealNVP` retries. | Failure recorded locally after log inspection. GPU0 resumed past this investigated failure and continued into the BNN-power SIVI block. |
+| 2026-04-01 14:00 CST | `official_off_bnn_protein_rsivi` | 1 | The annealing-off BNN-protein RSIVI run failed around epoch 435 after extended NaN/Inf reverse-model loss warnings and repeated non-finite `ConditionalRealNVP` sampling retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 resumed past this investigated failure and continued into the BNN-protein KSIVI block. |
 
 ## Per-Target Summary Tables
 
