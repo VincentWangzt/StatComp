@@ -42,9 +42,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 57 |
+| Pending | 53 |
 | Running | 2 |
-| Completed | 133 |
+| Completed | 137 |
 | Failed | 24 |
 
 ## Monitoring Log
@@ -83,6 +83,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 12:34 CST | Manual check | The longer wait overran the tool timeout again, but the campaign progressed substantially while it was running. By the delayed probe, totals reached `126 completed / 22 failed`. `official_on_bnn_concrete_sivi` had completed cleanly and advanced into `official_on_bnn_concrete_uivi`, which also completed, confirming the lowered `SIVI` reverse-sample setting is viable on `Bnn_concrete`. The new queue stops were `official_on_bnn_concrete_rsivi` and `official_on_bnn_protein_aisivi`, both of which failed with the usual RealNVP non-finite sampling pattern rather than CUDA OOM. After resuming both queues, GPU0 advanced to `official_on_bnn_concrete_ksivi_custom` and GPU1 advanced to `official_on_bnn_protein_dsivi_default`. |
 | 2026-04-01 13:05 CST | Recovery check | The queues were resumed successfully after the delayed manual check. GPU0 is healthy on `official_on_bnn_concrete_ksivi_custom`, GPU1 is healthy on `official_on_bnn_protein_dsivi_default`, and the campaign remains at `126 completed / 22 failed / 66 pending / 2 running`. No new worker errors appeared. |
 | 2026-04-01 14:00 CST | Manual check | The 30-minute probe found another good stretch of progress. Totals reached `133 completed / 24 failed`. The lowered `SIVI` reverse-sample setting continued to look good beyond concrete: `official_off_bnn_concrete_sivi` completed successfully, and GPU0 had already moved on into `official_on_bnn_power_sivi` after resuming from an `official_off_bnn_concrete_aisivi` RealNVP failure. GPU1 pushed through more of the protein block before stopping on `official_off_bnn_protein_rsivi`, again with the same RealNVP non-finite sampling pattern. After recovery, GPU1 advanced to `official_off_bnn_protein_ksivi_custom`. |
+| 2026-04-01 14:30 CST | Manual check | Clean progress only. The campaign advanced to `137 completed / 24 failed / 53 pending / 2 running` with no new worker errors or queue interventions needed. GPU0 completed `official_on_bnn_power_sivi` and advanced to `official_on_bnn_power_uivi`, while GPU1 moved through more of the protein block and reached `official_off_bnn_protein_dsivi_bs4096_rbs2048`. |
 
 ## Failure Log
 
