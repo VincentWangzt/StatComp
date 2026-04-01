@@ -33,7 +33,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 ## Campaign Header
 
-- Commit SHA: `ef8c537`
+- Commit SHA: `4dd9939`
 - Remote environment: 2x RTX 3080, Python 3.14.2, PyTorch 2.9.0+cu126
 - Official run count: 216
 - Queue plan: GPU0 + GPU1 independent single-GPU queues
@@ -42,9 +42,9 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 8 |
+| Pending | 3 |
 | Running | 1 |
-| Completed | 175 |
+| Completed | 180 |
 | Failed | 32 |
 
 ## Monitoring Log
@@ -90,6 +90,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 20:00 CST | Manual check | The next hourly probe found GPU0 had completed `official_off_bnn_protein_sivi` but then hit two investigated failures in quick succession before recovery. The campaign is now at `169 completed / 30 failed / 16 pending / 1 running / 0 worker_errors`. The first stop, `official_off_bnn_protein_aisivi`, was the usual RealNVP non-finite sampling failure. Immediately after resuming, `official_on_bnn_winered_sivi` exposed a new BNN-SIVI memory boundary, failing at epoch 100 with a CUDA OOM requesting about `652 MiB`. After the second recovery, GPU0 is running `official_on_bnn_winered_uivi` and GPU1 remains queue-complete. |
 | 2026-04-02 00:45 CST | Manual check | The next active probe found another strong stretch of progress through the `Bnn_winered` block. The campaign advanced to `175 completed / 31 failed / 9 pending / 1 running / 0 worker_errors`. GPU0 completed six more official runs and then paused on `official_off_bnn_winered_sivi`, which failed with the same early epoch-100 CUDA OOM boundary as the annealing-on `Bnn_winered` SIVI run, again requesting about `652 MiB`. After recovery, GPU0 is running `official_off_bnn_winered_aisivi` and GPU1 remains `queue_completed`. `nvidia-smi` showed GPU0 active again at about `8.0 GiB` used after the resume. |
 | 2026-04-02 01:14 CST | Manual check | The interrupted wait was rechecked from scratch and found one new investigated failure, but no worker-level issue. The campaign now stands at `175 completed / 32 failed / 8 pending / 1 running / 0 worker_errors`. `official_off_bnn_winered_aisivi` failed with the familiar RealNVP non-finite sampling pattern rather than CUDA OOM. After recovery, GPU0 is running `official_on_bnn_yacht_sivi`, GPU1 remains `queue_completed`, and `nvidia-smi` showed GPU0 back at about `8.5 GiB` used. |
+| 2026-04-02 02:16 CST | Manual check | Clean progress only. The campaign advanced to `180 completed / 32 failed / 3 pending / 1 running / 0 worker_errors` with no new queue stops. GPU0 is healthy on `official_on_bnn_yacht_dsivi_bs4096_rbs2048`, which means the sweep has moved through the earlier `Bnn_yacht` SIVI/UIVI/AISIVI/KSIVI segment without another recorded failure since the last checkpoint. GPU1 remains `queue_completed`. `nvidia-smi` showed GPU0 active at about `4.8 GiB` used while GPU1 stayed idle. |
 
 ## Failure Log
 
