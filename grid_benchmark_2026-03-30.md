@@ -42,10 +42,10 @@ This file is initialized and tracking the live 216-run campaign, including manua
 
 | Status | Count |
 |--------|-------|
-| Pending | 19 |
+| Pending | 16 |
 | Running | 1 |
 | Completed | 168 |
-| Failed | 28 |
+| Failed | 30 |
 
 ## Monitoring Log
 
@@ -87,6 +87,7 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 16:52 CST | Manual check | The next delayed hourly probe found both queues paused on investigated AISIVI failures, but the remote resume commands succeeded and both workers are running again. Current state is `155 completed / 26 failed / 33 pending / 2 running / 0 worker_errors`. GPU0 is back on `official_on_bnn_protein_sivi`; GPU1 is back on `official_on_bnn_yacht_dsivi_default`. `nvidia-smi` showed both RTX 3080s active at about `8.5 GiB` and `4.8 GiB` used, respectively. The two new stops, `official_off_bnn_power_aisivi` and `official_on_bnn_yacht_aisivi`, were both confirmed as the usual RealNVP non-finite sampling failures rather than CUDA OOM. |
 | 2026-04-01 17:55 CST | Manual check | One hour later, both queues had again paused on investigated RSIVI failures, but they resumed cleanly into the KSIVI-custom block after recovery. Current state is `159 completed / 28 failed / 27 pending / 2 running / 0 worker_errors`. GPU0 is now running `official_on_bnn_protein_ksivi_custom`; GPU1 is now running `official_off_bnn_yacht_ksivi_custom`. `nvidia-smi` showed both GPUs active again after recovery at about `5.6 GiB` and `4.1 GiB` used. The two new stops, `official_on_bnn_protein_rsivi` and `official_off_bnn_yacht_rsivi`, were both the usual RealNVP non-finite sampling failures rather than OOM. |
 | 2026-04-01 18:58 CST | Manual check | Clean progress across the hour with no new failures or worker errors. The campaign advanced to `168 completed / 28 failed / 19 pending / 1 running`. GPU1 fully finished its assigned official queue and now reports `queue_completed`; GPU0 remains healthy on `official_off_bnn_protein_sivi`. `nvidia-smi` showed GPU0 active at about `8.5 GiB` used while GPU1 was idle. |
+| 2026-04-01 20:00 CST | Manual check | The next hourly probe found GPU0 had completed `official_off_bnn_protein_sivi` but then hit two investigated failures in quick succession before recovery. The campaign is now at `169 completed / 30 failed / 16 pending / 1 running / 0 worker_errors`. The first stop, `official_off_bnn_protein_aisivi`, was the usual RealNVP non-finite sampling failure. Immediately after resuming, `official_on_bnn_winered_sivi` exposed a new BNN-SIVI memory boundary, failing at epoch 100 with a CUDA OOM requesting about `652 MiB`. After the second recovery, GPU0 is running `official_on_bnn_winered_uivi` and GPU1 remains queue-complete. |
 
 ## Failure Log
 
@@ -123,6 +124,8 @@ This file is initialized and tracking the live 216-run campaign, including manua
 | 2026-04-01 16:52 CST | `official_on_bnn_yacht_aisivi` | 1 | The annealing-on BNN-yacht AISIVI run failed around epoch 312 after a long stretch of NaN/Inf reverse-model loss warnings, a few non-finite importance-sampling weights, and three consecutive non-finite `ConditionalRealNVP` retries. This was another numerical-instability failure, not a CUDA OOM. | Failure recorded locally after log inspection. GPU1 was resumed past this investigated failure using the queue runner's continue control so the remaining sweep could continue. |
 | 2026-04-01 17:55 CST | `official_on_bnn_protein_rsivi` | 0 | The annealing-on BNN-protein RSIVI run failed around epoch 555 after a long streak of NaN/Inf reverse-model loss warnings and then three consecutive non-finite `ConditionalRealNVP` retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 was resumed past this investigated failure using the queue runner's continue control so the remaining sweep could continue. |
 | 2026-04-01 17:55 CST | `official_off_bnn_yacht_rsivi` | 1 | The annealing-off BNN-yacht RSIVI run failed around epoch 1552 after extended NaN/Inf reverse-model loss warnings and then three consecutive non-finite `ConditionalRealNVP` retries, ending with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU1 was resumed past this investigated failure using the queue runner's continue control so the remaining sweep could continue. |
+| 2026-04-01 20:00 CST | `official_off_bnn_protein_aisivi` | 0 | The annealing-off BNN-protein AISIVI run failed around epoch 1434 after the first NaN/Inf reverse-model loss warning was followed immediately by non-finite importance-sampling weights, a skipped VI update, and then three consecutive non-finite `ConditionalRealNVP` retries. The run ended with `Failed to obtain finite samples from RealNVP after 3 attempts.` | Failure recorded locally after log inspection. GPU0 was resumed past this investigated failure using the queue runner's continue control so the remaining sweep could continue. |
+| 2026-04-01 20:00 CST | `official_on_bnn_winered_sivi` | 0 | The annealing-on BNN-winered SIVI run failed early at epoch 100 with a CUDA OOM during the backward pass, requesting about `652 MiB` on the 10 GiB RTX 3080. This is a new BNN-SIVI memory boundary beyond Boston: the lowered `train.reverse_sample_num=2048` is still not enough for at least this larger BNN target. | Failure recorded locally after log inspection. GPU0 was resumed past this investigated failure using the queue runner's continue control so the remaining sweep could continue. |
 
 ## Per-Target Summary Tables
 
