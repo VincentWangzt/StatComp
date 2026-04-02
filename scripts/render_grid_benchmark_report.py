@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from grid_benchmark_common import (  # noqa: E402
+    BEST_METRIC_MODES,
     BNN_TARGETS,
     CAMPAIGN_DIR,
     MANIFEST_PATH,
@@ -51,6 +52,9 @@ METRIC_COLUMNS = [
 ]
 
 METRIC_PREFIX_TO_LABEL = {prefix: label for label, prefix in METRIC_COLUMNS}
+METRIC_PREFIX_TO_MODE = {
+    tag.replace("/", "__"): mode for tag, mode in BEST_METRIC_MODES.items()
+}
 _EVENT_TEXT_CACHE: dict[str, str] = {}
 
 
@@ -137,17 +141,31 @@ def _fmt_num(value: Any) -> str:
 
 
 def _metric_cell(row: dict[str, str], prefix: str) -> str:
+    return _metric_cell_with_highlights(row, prefix, set(), set())
+
+
+def _metric_cell_with_highlights(
+    row: dict[str, str],
+    prefix: str,
+    best_final_prefixes: set[str],
+    best_best_prefixes: set[str],
+) -> str:
     final_key = f"{prefix}__final"
     best_key = f"{prefix}__best"
     best_epoch_key = f"{prefix}__best_epoch"
     if final_key not in row:
         return "N/A"
     final_text = _fmt_num(row.get(final_key))
+    if prefix in best_final_prefixes:
+        final_text = f"**{final_text}**"
     best_value = row.get(best_key)
     best_epoch = row.get(best_epoch_key)
     if best_value in ("", None) or best_epoch in ("", None):
         return final_text
-    return f"{final_text} (best {_fmt_num(best_value)}@{best_epoch})"
+    best_value_text = _fmt_num(best_value)
+    if prefix in best_best_prefixes:
+        best_value_text = f"**{best_value_text}**"
+    return f"{final_text} (best {best_value_text}@{best_epoch})"
 
 
 def _parse_last_epoch(event: dict[str, Any]) -> int | None:
@@ -275,15 +293,95 @@ def _metric_row(
     entry: dict[str, Any],
     event: dict[str, Any] | None,
     completed_row: dict[str, str] | None,
+    best_final_by_run: dict[str, set[str]],
+    best_best_by_run: dict[str, set[str]],
 ) -> list[str]:
     status = event.get("status") if event else "pending"
     row = [entry["variant_label"], entry["annealing_mode"], status]
     if status != "completed" or completed_row is None:
         row.extend(["FAILED" if status == "failed" else "N/A"] * len(METRIC_COLUMNS))
         return row
+    best_final_prefixes = best_final_by_run.get(entry["run_id"], set())
+    best_best_prefixes = best_best_by_run.get(entry["run_id"], set())
     for _, prefix in METRIC_COLUMNS:
-        row.append(_metric_cell(completed_row, prefix))
+        row.append(
+            _metric_cell_with_highlights(
+                completed_row,
+                prefix,
+                best_final_prefixes,
+                best_best_prefixes,
+            )
+        )
     return row
+
+
+def _metric_value(row: dict[str, str], prefix: str, suffix: str) -> float | None:
+    key = f"{prefix}__{suffix}"
+    value = row.get(key)
+    if value in ("", None):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed):
+        return None
+    return parsed
+
+
+def _is_best_value(value: float, best_value: float, mode: str, tol: float = 1.0e-9) -> bool:
+    if mode == "max":
+        return value >= best_value - tol
+    return value <= best_value + tol
+
+
+def _metric_highlights(
+    target_records: list[dict[str, Any]],
+) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    best_final_by_run: dict[str, set[str]] = {}
+    best_best_by_run: dict[str, set[str]] = {}
+
+    for _, prefix in METRIC_COLUMNS:
+        mode = METRIC_PREFIX_TO_MODE.get(prefix)
+        if mode is None:
+            continue
+
+        final_candidates: list[tuple[str, float]] = []
+        best_candidates: list[tuple[str, float]] = []
+        for item in target_records:
+            event = item["event"]
+            row = item["completed_row"]
+            if row is None or (event or {}).get("status") != "completed":
+                continue
+            run_id = item["entry"]["run_id"]
+            final_value = _metric_value(row, prefix, "final")
+            best_value = _metric_value(row, prefix, "best")
+            if final_value is not None:
+                final_candidates.append((run_id, final_value))
+            if best_value is not None:
+                best_candidates.append((run_id, best_value))
+
+        if final_candidates:
+            best_final_value = (
+                max(value for _, value in final_candidates)
+                if mode == "max"
+                else min(value for _, value in final_candidates)
+            )
+            for run_id, value in final_candidates:
+                if _is_best_value(value, best_final_value, mode):
+                    best_final_by_run.setdefault(run_id, set()).add(prefix)
+
+        if best_candidates:
+            best_best_value = (
+                max(value for _, value in best_candidates)
+                if mode == "max"
+                else min(value for _, value in best_candidates)
+            )
+            for run_id, value in best_candidates:
+                if _is_best_value(value, best_best_value, mode):
+                    best_best_by_run.setdefault(run_id, set()).add(prefix)
+
+    return best_final_by_run, best_best_by_run
 
 
 def _markdown_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -346,6 +444,8 @@ def _render_per_target_summary(
         "- Grid 1 forced annealing on; Grid 2 forced annealing off.",
         "",
         "Metric cell format: `final (best@epoch)`. `N/A` means the metric was intentionally disabled for that target family. `FAILED` means the run did not finish, so no final campaign metric is recorded for that row.",
+        "- `**bold final**` marks the best final value in that target table for the metric.",
+        "- `best **value**@epoch` marks the best achieved value in that target table for the metric.",
     ]
 
     records = _records_by_target(manifest, latest_events, completed_rows)
@@ -385,9 +485,16 @@ def _render_per_target_summary(
         ]
         lines.extend(["", _markdown_table(status_headers, status_rows), ""])
 
+        best_final_by_run, best_best_by_run = _metric_highlights(target_records)
         metric_headers = ["Variant", "Anneal", "Status"] + [label for label, _ in METRIC_COLUMNS]
         metric_rows = [
-            _metric_row(item["entry"], item["event"], item["completed_row"])
+            _metric_row(
+                item["entry"],
+                item["event"],
+                item["completed_row"],
+                best_final_by_run,
+                best_best_by_run,
+            )
             for item in target_records
         ]
         lines.extend([_markdown_table(metric_headers, metric_rows), ""])
