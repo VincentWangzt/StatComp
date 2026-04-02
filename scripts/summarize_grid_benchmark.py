@@ -22,6 +22,20 @@ from grid_benchmark_common import (  # noqa: E402
 )
 
 
+def _resolve_repo_path(path_str: str | None) -> Path | None:
+    if not path_str:
+        return None
+    path = Path(path_str)
+    if path.exists():
+        return path
+    for anchor in ("tb_logs", "results", "configs", "campaigns"):
+        if anchor in path.parts:
+            idx = path.parts.index(anchor)
+            candidate = REPO_ROOT.joinpath(*path.parts[idx:])
+            return candidate
+    return REPO_ROOT / path
+
+
 def _load_json(path: Path) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -91,7 +105,10 @@ def main() -> None:
         tb_path = event.get("tb_path")
         if not tb_path:
             continue
-        metrics_csv = REPO_ROOT / Path(tb_path) / "extracted" / "metrics.csv"
+        local_tb_path = _resolve_repo_path(tb_path)
+        if local_tb_path is None:
+            continue
+        metrics_csv = local_tb_path / "extracted" / "metrics.csv"
         metrics = _read_metrics_csv(metrics_csv)
 
         row: dict[str, str | float | int] = {
@@ -105,8 +122,9 @@ def main() -> None:
             "epochs": entry["epochs"],
             "batch_size": entry["batch_size"],
             "reverse_batch_size": entry.get("reverse_batch_size") or "",
+            "config_path": entry["config_path"],
             "result_path": event.get("result_path") or "",
-            "tb_path": event.get("tb_path") or "",
+            "tb_path": local_tb_path.as_posix(),
         }
 
         for tag, mode in BEST_METRIC_MODES.items():
