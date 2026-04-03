@@ -634,8 +634,12 @@ def main() -> None:
             logger.info(f"Skipping already processed run: {run_id}")
             continue
 
-        config_path = _resolve_repo_path(row["config_path"])
-        result_dir = _resolve_repo_path(row["result_path"])
+        config_path = _resolve_repo_path(
+            row.get("config_path") or manifest_entry.get("config_path")
+        )
+        result_dir = _resolve_repo_path(
+            row.get("result_path") or manifest_entry.get("result_path")
+        )
         if config_path is None or not config_path.exists():
             skipped_rows[run_id] = {
                 "run_id": run_id,
