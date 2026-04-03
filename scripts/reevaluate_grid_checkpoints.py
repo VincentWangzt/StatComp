@@ -293,11 +293,17 @@ def build_runner_for_evaluation(
     runner.n_elbo_batch_size = budget["elbo_batch_size"]
     runner.n_elbo_batches = budget["elbo_num_batches"]
     runner.n_bnn_samples = budget["bnn_num_samples"]
+    runner._reeval_budget = dict(budget)
     runner.metric_mmd_enabled = bool(support["mmd"])
     if getattr(runner, "metric_mmd_enabled", False):
         runner._init_mmd_baseline_samples()
 
     return runner, base_seed
+
+
+def _is_cuda_oom(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return isinstance(exc, RuntimeError) and "out of memory" in message
 
 
 def _capture_metric(
@@ -306,14 +312,151 @@ def _capture_metric(
     values: dict[str, float],
     errors: dict[str, str],
     runtimes: dict[str, float],
+    retry_adjustments: list[tuple[str, Any]] | None = None,
 ) -> None:
     start = time.perf_counter()
+    pending_adjustments = list(retry_adjustments or [])
     try:
-        values[metric_name] = float(fn())
-    except Exception as exc:  # noqa: BLE001
-        errors[metric_name] = f"{type(exc).__name__}: {exc}"
+        while True:
+            try:
+                values[metric_name] = float(fn())
+                errors.pop(metric_name, None)
+                return
+            except Exception as exc:  # noqa: BLE001
+                if pending_adjustments and _is_cuda_oom(exc):
+                    label, adjust = pending_adjustments.pop(0)
+                    logger.warning(
+                        f"{metric_name.upper()} evaluation OOM; retrying with {label}."
+                    )
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    adjust()
+                    continue
+                errors[metric_name] = f"{type(exc).__name__}: {exc}"
+                return
     finally:
         runtimes[f"{metric_name}_runtime_sec"] = time.perf_counter() - start
+
+
+def _reset_runner_budget(runner) -> None:
+    budget = getattr(runner, "_reeval_budget", None)
+    if not budget:
+        return
+    runner.n_ite_samples = budget["kl_num_samples"]
+    runner.n_w2_samples = budget["w2_num_samples"]
+    runner.n_w2_projections = budget["w2_num_projections"]
+    runner.n_mmd_samples = budget["mmd_num_samples"]
+    runner.n_ksd_samples = budget["ksd_num_samples"]
+    runner.n_elbo_z_samples = budget["elbo_num_z_samples"]
+    runner.n_elbo_batch_size = budget["elbo_batch_size"]
+    runner.n_elbo_batches = budget["elbo_num_batches"]
+    runner.n_bnn_samples = budget["bnn_num_samples"]
+    if getattr(runner, "metric_mmd_enabled", False):
+        runner._init_mmd_baseline_samples()
+
+
+def _elbo_retry_adjustments(runner) -> list[tuple[str, Any]]:
+    current_z = int(runner.n_elbo_z_samples)
+    current_batch = int(runner.n_elbo_batch_size)
+    candidates = [
+        (current_z, max(current_batch // 2, 64)),
+        (max(current_z // 2, 512), max(current_batch // 2, 64)),
+        (max(current_z // 2, 512), max(current_batch // 4, 64)),
+    ]
+    unique: list[tuple[str, Any]] = []
+    seen: set[tuple[int, int]] = set()
+    for z_samples, batch_size in candidates:
+        key = (z_samples, batch_size)
+        if key in seen or key == (current_z, current_batch):
+            continue
+        seen.add(key)
+        unique.append(
+            (
+                f"num_z_samples={z_samples}, batch_size={batch_size}",
+                lambda z=z_samples, b=batch_size: (
+                    setattr(runner, "n_elbo_z_samples", z),
+                    setattr(runner, "n_elbo_batch_size", b),
+                ),
+            )
+        )
+    return unique
+
+
+def _w2_retry_adjustments(runner) -> list[tuple[str, Any]]:
+    current_samples = int(runner.n_w2_samples)
+    current_projections = int(runner.n_w2_projections)
+    candidates = [
+        (25000, 2048),
+        (20000, 2048),
+        (20000, 1024),
+        (10000, 1024),
+        (10000, 512),
+    ]
+    adjustments: list[tuple[str, Any]] = []
+    for samples, projections in candidates:
+        if samples >= current_samples and projections >= current_projections:
+            continue
+        adjustments.append(
+            (
+                f"num_samples={samples}, num_projections={projections}",
+                lambda s=samples, p=projections: (
+                    setattr(runner, "n_w2_samples", s),
+                    setattr(runner, "n_w2_projections", p),
+                ),
+            )
+        )
+    return adjustments
+
+
+def _mmd_retry_adjustments(runner) -> list[tuple[str, Any]]:
+    current_samples = int(runner.n_mmd_samples)
+    candidates = [4000, 3000, 2000, 1000]
+    adjustments: list[tuple[str, Any]] = []
+    for samples in candidates:
+        if samples >= current_samples:
+            continue
+        adjustments.append(
+            (
+                f"num_samples={samples}",
+                lambda s=samples: (
+                    setattr(runner, "n_mmd_samples", s),
+                    runner._init_mmd_baseline_samples(),
+                ),
+            )
+        )
+    return adjustments
+
+
+def _ksd_retry_adjustments(runner) -> list[tuple[str, Any]]:
+    current_samples = int(runner.n_ksd_samples)
+    candidates = [8000, 5000, 2500, 1000]
+    adjustments: list[tuple[str, Any]] = []
+    for samples in candidates:
+        if samples >= current_samples:
+            continue
+        adjustments.append(
+            (
+                f"num_samples={samples}",
+                lambda s=samples: setattr(runner, "n_ksd_samples", s),
+            )
+        )
+    return adjustments
+
+
+def _bnn_retry_adjustments(runner) -> list[tuple[str, Any]]:
+    current_samples = int(runner.n_bnn_samples)
+    candidates = [1000, 500, 250]
+    adjustments: list[tuple[str, Any]] = []
+    for samples in candidates:
+        if samples >= current_samples:
+            continue
+        adjustments.append(
+            (
+                f"num_samples={samples}",
+                lambda s=samples: setattr(runner, "n_bnn_samples", s),
+            )
+        )
+    return adjustments
 
 
 def evaluate_runner_once(
@@ -325,6 +468,7 @@ def evaluate_runner_once(
     _set_seed(seed, runner.device == "cuda")
     if runner.device == "cuda" and torch.cuda.is_available():
         torch.cuda.empty_cache()
+    _reset_runner_budget(runner)
 
     values: dict[str, float] = {}
     errors: dict[str, str] = {}
@@ -337,27 +481,65 @@ def evaluate_runner_once(
             values,
             errors,
             runtimes,
+            retry_adjustments=_elbo_retry_adjustments(runner),
         )
     if support["kl"]:
         _capture_metric("kl", runner.evaluate_vi_to_baseline_kl, values, errors, runtimes)
     if support["w2"]:
-        _capture_metric("w2", runner.evaluate_vi_to_baseline_w2, values, errors, runtimes)
+        _capture_metric(
+            "w2",
+            runner.evaluate_vi_to_baseline_w2,
+            values,
+            errors,
+            runtimes,
+            retry_adjustments=_w2_retry_adjustments(runner),
+        )
     if support["mmd"]:
-        _capture_metric("mmd", runner.evaluate_mmd, values, errors, runtimes)
+        _capture_metric(
+            "mmd",
+            runner.evaluate_mmd,
+            values,
+            errors,
+            runtimes,
+            retry_adjustments=_mmd_retry_adjustments(runner),
+        )
     if support["ksd"]:
-        _capture_metric("ksd", runner.evaluate_ksd, values, errors, runtimes)
+        _capture_metric(
+            "ksd",
+            runner.evaluate_ksd,
+            values,
+            errors,
+            runtimes,
+            retry_adjustments=_ksd_retry_adjustments(runner),
+        )
     if support["rmse"] or support["nll"]:
         start = time.perf_counter()
+        pending_adjustments = _bnn_retry_adjustments(runner)
         try:
-            rmse, test_llk = runner.evaluate_bnn_metrics()
-            values["rmse"] = float(rmse)
-            values["nll"] = float(-test_llk)
-        except Exception as exc:  # noqa: BLE001
-            message = f"{type(exc).__name__}: {exc}"
-            if support["rmse"]:
-                errors["rmse"] = message
-            if support["nll"]:
-                errors["nll"] = message
+            while True:
+                try:
+                    rmse, test_llk = runner.evaluate_bnn_metrics()
+                    values["rmse"] = float(rmse)
+                    values["nll"] = float(-test_llk)
+                    errors.pop("rmse", None)
+                    errors.pop("nll", None)
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    if pending_adjustments and _is_cuda_oom(exc):
+                        label, adjust = pending_adjustments.pop(0)
+                        logger.warning(
+                            f"BNN evaluation OOM; retrying with {label}."
+                        )
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                        adjust()
+                        continue
+                    message = f"{type(exc).__name__}: {exc}"
+                    if support["rmse"]:
+                        errors["rmse"] = message
+                    if support["nll"]:
+                        errors["nll"] = message
+                    break
         finally:
             runtimes["bnn_runtime_sec"] = time.perf_counter() - start
 
@@ -367,6 +549,17 @@ def evaluate_runner_once(
         "metrics": values,
         "errors": errors,
         "runtimes": runtimes,
+        "budget_used": {
+            "kl_num_samples": int(runner.n_ite_samples),
+            "w2_num_samples": int(runner.n_w2_samples),
+            "w2_num_projections": int(runner.n_w2_projections),
+            "mmd_num_samples": int(runner.n_mmd_samples),
+            "ksd_num_samples": int(runner.n_ksd_samples),
+            "elbo_num_z_samples": int(runner.n_elbo_z_samples),
+            "elbo_batch_size": int(runner.n_elbo_batch_size),
+            "elbo_num_batches": int(runner.n_elbo_batches),
+            "bnn_num_samples": int(runner.n_bnn_samples),
+        },
     }
 
 
