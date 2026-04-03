@@ -144,6 +144,39 @@ def _find_final_checkpoint(result_dir: Path) -> tuple[Path | None, int | None, s
     return ckpt_dir, epoch, None
 
 
+def _config_campaign_run_id(config_path: Path) -> str | None:
+    if not config_path.is_file():
+        return None
+    try:
+        config = OmegaConf.load(config_path)
+    except Exception:
+        return None
+    run_id = OmegaConf.select(config, "campaign.run_id")
+    return str(run_id) if run_id else None
+
+
+def _resolve_best_result_dir(result_dir: Path, run_id: str) -> Path:
+    search_root = result_dir.parent
+    if not search_root.exists():
+        return result_dir
+
+    matched_dirs: list[tuple[int, str, Path]] = []
+    for config_path in search_root.glob("*/full_config.yaml"):
+        candidate_dir = config_path.parent
+        candidate_run_id = _config_campaign_run_id(config_path)
+        if candidate_run_id != run_id:
+            continue
+        ckpt_dir, checkpoint_epoch, _ = _find_final_checkpoint(candidate_dir)
+        has_checkpoint = int(ckpt_dir is not None and checkpoint_epoch is not None)
+        matched_dirs.append((has_checkpoint, candidate_dir.name, candidate_dir))
+
+    if not matched_dirs:
+        return result_dir
+
+    _, _, best_dir = max(matched_dirs, key=lambda item: (item[0], item[1]))
+    return best_dir
+
+
 def _set_seed(seed: int, use_cuda: bool) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -976,6 +1009,14 @@ def main() -> None:
             }
             _flush_outputs(summary_rows, skipped_rows)
             continue
+
+        resolved_result_dir = _resolve_best_result_dir(result_dir, run_id)
+        if resolved_result_dir != result_dir:
+            logger.info(
+                f"Resolved alternate result directory for {run_id}: "
+                f"{result_dir.as_posix()} -> {resolved_result_dir.as_posix()}"
+            )
+        result_dir = resolved_result_dir
 
         checkpoint_dir, checkpoint_epoch, error_reason = _find_final_checkpoint(result_dir)
         if checkpoint_dir is None or checkpoint_epoch is None:
