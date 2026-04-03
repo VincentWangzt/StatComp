@@ -48,6 +48,18 @@ SCRATCH_RESULTS_DIR = f"results/{CAMPAIGN_SLUG}/reeval_scratch"
 SCRATCH_TB_DIR = f"tb_logs/{CAMPAIGN_SLUG}/reeval_scratch"
 
 REPORT_METRICS = ["elbo", "kl", "w2", "mmd", "ksd", "rmse", "nll"]
+METRIC_DIRECTIONS = {
+    "elbo": "max",
+    "kl": "min",
+    "w2": "min",
+    "mmd": "min",
+    "ksd": "min",
+    "rmse": "min",
+    "nll": "min",
+}
+BEST_Z_THRESHOLD = 1.96
+
+
 def _resolve_repo_path(path_str: str | None) -> Path | None:
     if not path_str:
         return None
@@ -158,6 +170,31 @@ def _format_float(value: float | None) -> str:
     if abs_value >= 1:
         return f"{value:.4f}"
     return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def _coerce_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        value = float(value)
+        return value if math.isfinite(value) else None
+    if isinstance(value, str):
+        if not value or value in {"N/A", "FAILED"}:
+            return None
+        try:
+            parsed = float(value)
+        except ValueError:
+            return None
+        return parsed if math.isfinite(parsed) else None
+    return None
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() == "true"
+    return bool(value)
 
 
 def _metric_support_for_target(target: str) -> dict[str, bool]:
@@ -610,16 +647,55 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def _metric_cell(row: dict[str, Any], metric: str) -> str:
-    supported = row.get(f"{metric}_supported", False)
-    if isinstance(supported, str):
-        supported = supported.lower() == "true"
+    supported = _coerce_bool(row.get(f"{metric}_supported", False))
     if not supported:
         return "N/A"
-    mean = row.get(f"{metric}_mean")
-    se = row.get(f"{metric}_se")
+    mean = _coerce_float(row.get(f"{metric}_mean"))
+    se = _coerce_float(row.get(f"{metric}_se"))
     if mean is None:
         return "FAILED"
     return f"{_format_float(mean)} +/- {_format_float(se)}"
+
+
+def _best_metric_run_ids(rows: list[dict[str, Any]], metric: str) -> set[str]:
+    direction = METRIC_DIRECTIONS[metric]
+    candidates: list[dict[str, Any]] = []
+    for row in rows:
+        if not _coerce_bool(row.get(f"{metric}_supported", False)):
+            continue
+        mean = _coerce_float(row.get(f"{metric}_mean"))
+        se = _coerce_float(row.get(f"{metric}_se"))
+        run_id = str(row.get("run_id", ""))
+        if mean is None or not run_id:
+            continue
+        candidates.append(
+            {
+                "run_id": run_id,
+                "mean": mean,
+                "se": 0.0 if se is None else se,
+            }
+        )
+
+    if not candidates:
+        return set()
+
+    reverse = direction == "max"
+    top = sorted(candidates, key=lambda item: item["mean"], reverse=reverse)[0]
+    best_run_ids = {top["run_id"]}
+    for candidate in candidates:
+        combined_se = math.sqrt(top["se"] ** 2 + candidate["se"] ** 2)
+        if combined_se == 0:
+            is_tied = math.isclose(candidate["mean"], top["mean"])
+        else:
+            gap = (
+                top["mean"] - candidate["mean"]
+                if direction == "max"
+                else candidate["mean"] - top["mean"]
+            )
+            is_tied = gap / combined_se < BEST_Z_THRESHOLD
+        if is_tied:
+            best_run_ids.add(candidate["run_id"])
+    return best_run_ids
 
 
 def _write_markdown(
@@ -639,28 +715,35 @@ def _write_markdown(
         target_rows = [row for row in rows if row["target"] == target]
         if not target_rows:
             continue
+        best_metric_ids = {
+            metric: _best_metric_run_ids(target_rows, metric)
+            for metric in REPORT_METRICS
+        }
         lines.extend(
             [
                 f"## {target}",
+                "",
+                "Best cells are bolded when they are not significantly worse than the top mean at the 95% level using combined standard error.",
                 "",
                 "| Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |",
                 "|---------|--------|------|----|----|-----|-----|------|-----|-------------------|",
             ]
         )
         for row in target_rows:
+            run_id = str(row.get("run_id", ""))
+            metric_cells: list[str] = []
+            for metric in REPORT_METRICS:
+                cell = _metric_cell(row, metric)
+                if run_id and run_id in best_metric_ids[metric] and cell not in {"N/A", "FAILED"}:
+                    cell = f"**{cell}**"
+                metric_cells.append(cell)
             lines.append(
                 "| "
                 + " | ".join(
                     [
                         str(row["variant_label"]),
                         str(row["annealing_mode"]),
-                        _metric_cell(row, "elbo"),
-                        _metric_cell(row, "kl"),
-                        _metric_cell(row, "w2"),
-                        _metric_cell(row, "mmd"),
-                        _metric_cell(row, "ksd"),
-                        _metric_cell(row, "rmse"),
-                        _metric_cell(row, "nll"),
+                        *metric_cells,
                         f"{_format_float(row['duration_sec'])}s / e{row['checkpoint_epoch']}",
                     ]
                 )
