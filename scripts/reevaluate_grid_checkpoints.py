@@ -190,8 +190,8 @@ def _budget_for_target(target: str) -> dict[str, int]:
     if target == "Langevin_post":
         return {
             "kl_num_samples": 0,
-            "w2_num_samples": 50000,
-            "w2_num_projections": 4096,
+            "w2_num_samples": 20000,
+            "w2_num_projections": 1024,
             "mmd_num_samples": 5000,
             "ksd_num_samples": 10000,
             "elbo_num_z_samples": 4096,
@@ -213,8 +213,8 @@ def _budget_for_target(target: str) -> dict[str, int]:
         }
     return {
         "kl_num_samples": 50000,
-        "w2_num_samples": 50000,
-        "w2_num_projections": 4096,
+        "w2_num_samples": 20000,
+        "w2_num_projections": 1024,
         "mmd_num_samples": 5000,
         "ksd_num_samples": 10000,
         "elbo_num_z_samples": 4096,
