@@ -787,6 +787,42 @@ def _append_raw_records(path: Path, records: list[dict[str, Any]]) -> None:
             fh.write(json.dumps(record, ensure_ascii=True) + "\n")
 
 
+def _prune_existing_outputs_for_run_ids(
+    run_ids: set[str],
+    summary_rows: dict[str, dict[str, Any]],
+    skipped_rows: dict[str, dict[str, Any]],
+) -> None:
+    if not run_ids:
+        return
+
+    for run_id in run_ids:
+        summary_rows.pop(run_id, None)
+        skipped_rows.pop(run_id, None)
+
+    if not RAW_JSONL_PATH.exists():
+        return
+
+    kept_lines: list[str] = []
+    with RAW_JSONL_PATH.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                record = json.loads(stripped)
+            except json.JSONDecodeError:
+                kept_lines.append(line)
+                continue
+            if record.get("run_id") in run_ids:
+                continue
+            kept_lines.append(line)
+
+    if kept_lines:
+        RAW_JSONL_PATH.write_text("".join(kept_lines), encoding="utf-8")
+    else:
+        RAW_JSONL_PATH.unlink(missing_ok=True)
+
+
 def _ordered_summary_rows(summary_rows: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     ordered_run_ids = sorted(
         summary_rows,
@@ -903,6 +939,10 @@ def main() -> None:
 
     summary_rows: dict[str, dict[str, Any]] = {run_id: dict(row) for run_id, row in existing_summary.items()}
     skipped_rows: dict[str, dict[str, Any]] = {run_id: dict(row) for run_id, row in existing_skips.items()}
+    selected_run_ids = {row["run_id"] for row, _ in selected}
+    explicit_selection = bool(args.run_id or args.target)
+    if explicit_selection and not args.overwrite:
+        _prune_existing_outputs_for_run_ids(selected_run_ids, summary_rows, skipped_rows)
 
     for row, manifest_entry in selected:
         run_id = row["run_id"]
