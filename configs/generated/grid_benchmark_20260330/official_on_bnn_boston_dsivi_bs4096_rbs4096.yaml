@@ -31,7 +31,7 @@ train:
     reverse_log_freq: 500
     time_avg_window: 500
   checkpoint:
-    enabled: false
+    enabled: true
     freq: 1000
   sample:
     freq: 500
