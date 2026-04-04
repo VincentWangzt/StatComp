@@ -1,6 +1,6 @@
 # Official Re-Evaluation By Target
 
-Runs summarized: 128
+Runs summarized: 164
 
 ## banana
 
@@ -147,12 +147,18 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| UIVI | on | -1031.232 +/- 0.837239 | N/A | N/A | N/A | **0.284029 +/- 0.040334** | 3.6711 +/- 0.008825 | 3.3488 +/- 0.001024 | 1001.112s / e10000 |
-| UIVI | off | **-1021.842 +/- 0.451484** | N/A | N/A | N/A | **0.308638 +/- 0.049937** | 3.6034 +/- 0.007805 | 3.3460 +/- 8.969e-04 | 1010.682s / e10000 |
-| KSIVI-custom | on | -3605.556 +/- 2.8624 | N/A | N/A | N/A | 10.5178 +/- 0.034182 | **2.6334 +/- 8.268e-04** | **2.5084 +/- 2.132e-04** | 243.275s / e20000 |
-| KSIVI-custom | off | -3605.556 +/- 2.8624 | N/A | N/A | N/A | 10.5178 +/- 0.034182 | **2.6334 +/- 8.268e-04** | **2.5084 +/- 2.132e-04** | 240.358s / e20000 |
-| KSIVI-standard-CG | on | -2083.909 +/- 0.894375 | N/A | N/A | N/A | **0.347857 +/- 0.001616** | 2.7427 +/- 0.001314 | 2.5524 +/- 2.636e-04 | 276.102s / e20000 |
+| UIVI | on | -1031.232 +/- 0.837239 | N/A | N/A | N/A | 0.284029 +/- 0.040334 | 3.6711 +/- 0.008825 | 3.3488 +/- 0.001024 | 1001.112s / e10000 |
+| UIVI | off | **-1021.842 +/- 0.451484** | N/A | N/A | N/A | 0.308638 +/- 0.049937 | 3.6034 +/- 0.007805 | 3.3460 +/- 8.969e-04 | 1010.682s / e10000 |
+| KSIVI-custom | on | -3605.556 +/- 2.8624 | N/A | N/A | N/A | 10.5178 +/- 0.034182 | 2.6334 +/- 8.268e-04 | 2.5084 +/- 2.132e-04 | 243.275s / e20000 |
+| KSIVI-custom | off | -3605.556 +/- 2.8624 | N/A | N/A | N/A | 10.5178 +/- 0.034182 | 2.6334 +/- 8.268e-04 | 2.5084 +/- 2.132e-04 | 240.358s / e20000 |
+| KSIVI-standard-CG | on | -2083.909 +/- 0.894375 | N/A | N/A | N/A | 0.347857 +/- 0.001616 | 2.7427 +/- 0.001314 | 2.5524 +/- 2.636e-04 | 276.102s / e20000 |
 | KSIVI-standard-CG | off | -2072.626 +/- 1.1029 | N/A | N/A | N/A | 0.409093 +/- 0.002066 | 2.7760 +/- 0.001142 | 2.5455 +/- 2.223e-04 | 277.268s / e20000 |
+| DSIVI-default | on | -4182.598 +/- 0.324998 | N/A | N/A | N/A | 16.0915 +/- 0.024871 | 2.5453 +/- 2.136e-04 | 2.4516 +/- 4.209e-05 | 549.608s / e10000 |
+| DSIVI-default | off | -1557.968 +/- 0.657045 | N/A | N/A | N/A | 0.024426 +/- 0.001911 | 3.0970 +/- 0.006123 | 3.0117 +/- 6.685e-04 | 555.674s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -4247.595 +/- 0.197603 | N/A | N/A | N/A | 14.3729 +/- 0.00761 | 2.6206 +/- 2.570e-04 | 2.4674 +/- 5.313e-05 | 944.070s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | -1414.318 +/- 0.479276 | N/A | N/A | N/A | **0.017244 +/- 0.001608** | 3.0921 +/- 0.00629 | 3.0762 +/- 7.615e-04 | 935.174s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -4323.169 +/- 0.14219 | N/A | N/A | N/A | 17.4635 +/- 0.009327 | **2.4042 +/- 1.739e-04** | **2.4237 +/- 3.154e-05** | 1154.529s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | -4204.635 +/- 0.300421 | N/A | N/A | N/A | 18.4425 +/- 0.038721 | 2.4384 +/- 2.303e-04 | 2.4306 +/- 4.460e-05 | 1153.061s / e10000 |
 
 ## Bnn_concrete
 
@@ -160,11 +166,17 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| SIVI | on | -2370.747 +/- 0.280428 | N/A | N/A | N/A | **0.123306 +/- 0.022035** | 12.9248 +/- 0.010722 | 4.1790 +/- 9.312e-04 | 1710.721s / e20000 |
+| SIVI | on | -2370.747 +/- 0.280428 | N/A | N/A | N/A | 0.123306 +/- 0.022035 | 12.9248 +/- 0.010722 | 4.1790 +/- 9.312e-04 | 1710.721s / e20000 |
 | SIVI | off | -2370.559 +/- 0.274174 | N/A | N/A | N/A | 0.135258 +/- 0.024597 | 12.8321 +/- 0.011156 | 4.1777 +/- 9.571e-04 | 1716.910s / e20000 |
-| UIVI | on | -2320.436 +/- 0.306458 | N/A | N/A | N/A | 0.148187 +/- 0.023116 | 10.2488 +/- 0.009573 | **4.1220 +/- 8.927e-04** | 1044.070s / e10000 |
-| UIVI | off | **-2284.584 +/- 0.327069** | N/A | N/A | N/A | **0.080016 +/- 0.010778** | **10.1693 +/- 0.009107** | **4.1213 +/- 8.879e-04** | 1062.257s / e10000 |
+| UIVI | on | -2320.436 +/- 0.306458 | N/A | N/A | N/A | 0.148187 +/- 0.023116 | 10.2488 +/- 0.009573 | 4.1220 +/- 8.927e-04 | 1044.070s / e10000 |
+| UIVI | off | -2284.584 +/- 0.327069 | N/A | N/A | N/A | 0.080016 +/- 0.010778 | 10.1693 +/- 0.009107 | 4.1213 +/- 8.879e-04 | 1062.257s / e10000 |
 | RSIVI | off | -1.864e+04 +/- 286.176 | N/A | N/A | N/A | 1.473e+04 +/- 405.007 | 143.667 +/- 0.988239 | 6.2747 +/- 0.002731 | 839.306s / e10000 |
+| DSIVI-default | on | -4290.557 +/- 0.177034 | N/A | N/A | N/A | 14.6977 +/- 0.018775 | **6.4447 +/- 3.498e-04** | **3.2941 +/- 8.040e-05** | 441.267s / e10000 |
+| DSIVI-default | off | -2380.334 +/- 0.454553 | N/A | N/A | N/A | 0.019069 +/- 0.002349 | 10.3257 +/- 0.011323 | 3.9732 +/- 6.252e-04 | 448.449s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -4447.947 +/- 0.075619 | N/A | N/A | N/A | 16.6654 +/- 0.004513 | 6.4723 +/- 2.446e-04 | 3.3036 +/- 5.335e-05 | 675.986s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | -2319.783 +/- 0.756758 | N/A | N/A | N/A | **0.013477 +/- 0.001425** | 9.5515 +/- 0.008467 | 3.9383 +/- 7.964e-04 | 695.300s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -4344.942 +/- 0.159166 | N/A | N/A | N/A | 12.4411 +/- 0.006319 | 6.5487 +/- 5.293e-04 | 3.3162 +/- 1.094e-04 | 853.140s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | **-2167.948 +/- 0.946556** | N/A | N/A | N/A | 0.025114 +/- 0.003325 | 10.0359 +/- 0.013015 | 3.9947 +/- 7.240e-04 | 857.578s / e10000 |
 
 ## Bnn_power
 
@@ -172,11 +184,17 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| SIVI | on | **-1.938e+04 +/- 0.577314** | N/A | N/A | N/A | **2.4096 +/- 0.506047** | **4.1511 +/- 6.265e-04** | **3.0521 +/- 5.610e-04** | 1152.349s / e20000 |
-| SIVI | off | **-1.938e+04 +/- 0.576771** | N/A | N/A | N/A | **2.5320 +/- 0.525237** | 4.1531 +/- 6.358e-04 | **3.0530 +/- 5.695e-04** | 1157.732s / e20000 |
-| UIVI | on | **-1.938e+04 +/- 0.576531** | N/A | N/A | N/A | **2.2842 +/- 0.458875** | 4.1648 +/- 9.319e-04 | 3.0574 +/- 5.745e-04 | 1031.420s / e10000 |
-| UIVI | off | **-1.938e+04 +/- 0.586508** | N/A | N/A | N/A | 10.5377 +/- 1.2586 | 4.2914 +/- 0.00243 | 3.0653 +/- 6.135e-04 | 1020.840s / e10000 |
+| SIVI | on | -1.938e+04 +/- 0.577314 | N/A | N/A | N/A | 2.4096 +/- 0.506047 | 4.1511 +/- 6.265e-04 | 3.0521 +/- 5.610e-04 | 1152.349s / e20000 |
+| SIVI | off | -1.938e+04 +/- 0.576771 | N/A | N/A | N/A | 2.5320 +/- 0.525237 | 4.1531 +/- 6.358e-04 | 3.0530 +/- 5.695e-04 | 1157.732s / e20000 |
+| UIVI | on | -1.938e+04 +/- 0.576531 | N/A | N/A | N/A | 2.2842 +/- 0.458875 | 4.1648 +/- 9.319e-04 | 3.0574 +/- 5.745e-04 | 1031.420s / e10000 |
+| UIVI | off | -1.938e+04 +/- 0.586508 | N/A | N/A | N/A | 10.5377 +/- 1.2586 | 4.2914 +/- 0.00243 | 3.0653 +/- 6.135e-04 | 1020.840s / e10000 |
 | RSIVI | on | -8.356e+08 +/- 2.308e+07 | N/A | N/A | N/A | 1.865e+14 +/- 1.360e+13 | 1.108e+04 +/- 51.5265 | 8.4864 +/- 0.015722 | 616.377s / e10000 |
+| DSIVI-default | on | -2.036e+04 +/- 0.430621 | N/A | N/A | N/A | 7.8505 +/- 0.047138 | 3.9771 +/- 8.817e-05 | 2.8035 +/- 1.934e-05 | 333.030s / e10000 |
+| DSIVI-default | off | -1.925e+04 +/- 2.6959 | N/A | N/A | N/A | **1.3847 +/- 0.320318** | 4.1005 +/- 8.577e-04 | 2.8982 +/- 2.138e-04 | 327.693s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -2.044e+04 +/- 0.432966 | N/A | N/A | N/A | 16.2279 +/- 0.054782 | **3.9657 +/- 8.167e-05** | **2.8011 +/- 1.789e-05** | 483.488s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | **-1.879e+04 +/- 3.6493** | N/A | N/A | N/A | **1.1460 +/- 0.160011** | 4.0886 +/- 5.230e-04 | 2.8652 +/- 1.005e-04 | 492.197s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -2.045e+04 +/- 0.470478 | N/A | N/A | N/A | 22.5508 +/- 0.112458 | 3.9823 +/- 1.383e-04 | 2.8047 +/- 2.992e-05 | 581.983s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | -1.941e+04 +/- 0.980682 | N/A | N/A | N/A | **1.2146 +/- 0.274891** | 4.1714 +/- 6.905e-04 | 2.9103 +/- 1.761e-04 | 588.511s / e10000 |
 
 ## Bnn_protein
 
@@ -184,10 +202,16 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| SIVI | on | **-1.025e+05 +/- 7.9953** | N/A | N/A | N/A | 432.443 +/- 66.6160 | 5.1908 +/- 2.239e-04 | 3.0627 +/- 3.731e-05 | 1879.212s / e20000 |
-| SIVI | off | **-1.025e+05 +/- 8.0217** | N/A | N/A | N/A | 593.993 +/- 84.2611 | 5.2038 +/- 2.839e-04 | 3.0648 +/- 4.649e-05 | 1861.093s / e20000 |
-| UIVI | on | **-1.026e+05 +/- 7.6177** | N/A | N/A | N/A | 2188.949 +/- 242.873 | 5.2544 +/- 4.336e-04 | 3.0744 +/- 7.233e-05 | 1042.916s / e10000 |
-| UIVI | off | **-1.025e+05 +/- 7.7906** | N/A | N/A | N/A | **251.142 +/- 37.1528** | **5.1812 +/- 1.608e-04** | **3.0618 +/- 2.613e-05** | 985.611s / e10000 |
+| SIVI | on | -1.025e+05 +/- 7.9953 | N/A | N/A | N/A | 432.443 +/- 66.6160 | 5.1908 +/- 2.239e-04 | 3.0627 +/- 3.731e-05 | 1879.212s / e20000 |
+| SIVI | off | -1.025e+05 +/- 8.0217 | N/A | N/A | N/A | 593.993 +/- 84.2611 | 5.2038 +/- 2.839e-04 | 3.0648 +/- 4.649e-05 | 1861.093s / e20000 |
+| UIVI | on | -1.026e+05 +/- 7.6177 | N/A | N/A | N/A | 2188.949 +/- 242.873 | 5.2544 +/- 4.336e-04 | 3.0744 +/- 7.233e-05 | 1042.916s / e10000 |
+| UIVI | off | -1.025e+05 +/- 7.7906 | N/A | N/A | N/A | 251.142 +/- 37.1528 | 5.1812 +/- 1.608e-04 | 3.0618 +/- 2.613e-05 | 985.611s / e10000 |
+| DSIVI-default | on | -1.042e+05 +/- 7.9010 | N/A | N/A | N/A | 160.534 +/- 13.9275 | 4.7262 +/- 5.279e-05 | 2.9723 +/- 1.023e-05 | 491.519s / e10000 |
+| DSIVI-default | off | -1.037e+05 +/- 7.7318 | N/A | N/A | N/A | 303.952 +/- 48.7683 | 4.8528 +/- 1.699e-04 | 2.9866 +/- 7.479e-05 | 492.760s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -1.043e+05 +/- 7.1760 | N/A | N/A | N/A | 154.636 +/- 14.3355 | **4.6782 +/- 4.359e-05** | **2.9628 +/- 8.071e-06** | 946.446s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | **-1.019e+05 +/- 7.8816** | N/A | N/A | N/A | **36.4761 +/- 3.9165** | 5.0631 +/- 1.151e-04 | 3.0386 +/- 2.458e-05 | 939.642s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -1.043e+05 +/- 6.6618 | N/A | N/A | N/A | 197.522 +/- 19.5298 | 4.7159 +/- 6.166e-05 | 2.9702 +/- 1.176e-05 | 1116.421s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | -1.021e+05 +/- 7.4905 | N/A | N/A | N/A | 59.1963 +/- 6.1696 | 4.9594 +/- 1.529e-04 | 3.0175 +/- 2.828e-05 | 1118.001s / e10000 |
 
 ## Bnn_winered
 
@@ -195,11 +219,17 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| UIVI | on | **-1991.778 +/- 28.4303** | N/A | N/A | N/A | **2532.761 +/- 667.922** | 0.609076 +/- 3.447e-05 | 0.920905 +/- 6.525e-05 | 1016.299s / e10000 |
-| UIVI | off | **-2000.104 +/- 28.7193** | N/A | N/A | N/A | **1652.320 +/- 463.702** | **0.599755 +/- 3.361e-05** | **0.903441 +/- 5.582e-05** | 1044.161s / e10000 |
+| UIVI | on | **-1991.778 +/- 28.4303** | N/A | N/A | N/A | 2532.761 +/- 667.922 | 0.609076 +/- 3.447e-05 | 0.920905 +/- 6.525e-05 | 1016.299s / e10000 |
+| UIVI | off | **-2000.104 +/- 28.7193** | N/A | N/A | N/A | 1652.320 +/- 463.702 | 0.599755 +/- 3.361e-05 | 0.903441 +/- 5.582e-05 | 1044.161s / e10000 |
 | RSIVI | on | -3.709e+09 +/- 2.826e+08 | N/A | N/A | N/A | 6.575e+16 +/- 1.066e+16 | 340.699 +/- 1.6689 | 4.9722 +/- 0.014843 | 1018.058s / e10000 |
 | RSIVI | off | -1.716e+08 +/- 7.401e+06 | N/A | N/A | N/A | 1.059e+14 +/- 9.495e+12 | 152.425 +/- 0.669764 | 3.8289 +/- 0.005102 | 1031.483s / e10000 |
 | AISIVI | on | -9.203e+07 +/- 2.418e+06 | N/A | N/A | N/A | 3.513e+13 +/- 2.076e+12 | 36.6328 +/- 0.17045 | 3.0879 +/- 0.002634 | 968.575s / e10000 |
+| DSIVI-default | on | -3812.715 +/- 14.8747 | N/A | N/A | N/A | 784.921 +/- 41.1000 | 0.653021 +/- 1.906e-05 | 1.0010 +/- 3.583e-05 | 537.529s / e10000 |
+| DSIVI-default | off | -3361.120 +/- 22.3939 | N/A | N/A | N/A | 1268.496 +/- 88.5385 | **0.597171 +/- 1.456e-05** | **0.903256 +/- 2.500e-05** | 540.566s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -3882.373 +/- 17.7985 | N/A | N/A | N/A | 1259.247 +/- 84.8577 | 0.667451 +/- 2.231e-05 | 1.0281 +/- 4.307e-05 | 828.020s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | -3068.296 +/- 24.6177 | N/A | N/A | N/A | 750.433 +/- 129.307 | 0.60634 +/- 1.820e-05 | 0.917543 +/- 3.094e-05 | 860.779s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -2658.690 +/- 26.0576 | N/A | N/A | N/A | **326.155 +/- 48.9430** | 0.612689 +/- 2.589e-05 | 0.926031 +/- 4.659e-05 | 1027.965s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | -2908.234 +/- 24.6709 | N/A | N/A | N/A | 916.372 +/- 118.432 | 0.601618 +/- 3.245e-05 | 0.908398 +/- 5.302e-05 | 1055.325s / e10000 |
 
 ## Bnn_yacht
 
@@ -207,69 +237,39 @@ Best cells are bolded when they are not significantly worse than the top mean at
 
 | Variant | Anneal | ELBO | KL | W2 | MMD | KSD | RMSE | NLL | Train Time / Ckpt |
 |---------|--------|------|----|----|-----|-----|------|-----|-------------------|
-| SIVI | on | -422.124 +/- 0.255489 | N/A | N/A | N/A | **1.1302 +/- 0.214748** | **2.7478 +/- 0.004078** | **2.7943 +/- 0.001693** | 1441.429s / e20000 |
-| SIVI | off | -422.336 +/- 0.257884 | N/A | N/A | N/A | **1.0093 +/- 0.159364** | **2.7587 +/- 0.004052** | **2.7926 +/- 0.001571** | 1434.516s / e20000 |
-| UIVI | on | **-421.659 +/- 0.295355** | N/A | N/A | N/A | 6.5273 +/- 0.684106 | 2.8679 +/- 0.005186 | 2.8161 +/- 0.001493 | 1010.898s / e10000 |
-| UIVI | off | **-421.281 +/- 0.27004** | N/A | N/A | N/A | 2.8315 +/- 0.413118 | 2.7688 +/- 0.00481 | 2.8043 +/- 0.001662 | 1026.588s / e10000 |
+| SIVI | on | -422.124 +/- 0.255489 | N/A | N/A | N/A | 1.1302 +/- 0.214748 | 2.7478 +/- 0.004078 | 2.7943 +/- 0.001693 | 1441.429s / e20000 |
+| SIVI | off | -422.336 +/- 0.257884 | N/A | N/A | N/A | **1.0093 +/- 0.159364** | 2.7587 +/- 0.004052 | 2.7926 +/- 0.001571 | 1434.516s / e20000 |
+| UIVI | on | -421.659 +/- 0.295355 | N/A | N/A | N/A | 6.5273 +/- 0.684106 | 2.8679 +/- 0.005186 | 2.8161 +/- 0.001493 | 1010.898s / e10000 |
+| UIVI | off | -421.281 +/- 0.27004 | N/A | N/A | N/A | 2.8315 +/- 0.413118 | 2.7688 +/- 0.00481 | 2.8043 +/- 0.001662 | 1026.588s / e10000 |
 | RSIVI | on | -1.546e+05 +/- 2788.795 | N/A | N/A | N/A | 1.406e+07 +/- 6.334e+05 | 184.251 +/- 0.98572 | 6.0539 +/- 0.007411 | 722.713s / e10000 |
 | AISIVI | off | -4.291e+04 +/- 994.057 | N/A | N/A | N/A | 818.873 +/- 17.1604 | 29.4767 +/- 0.51159 | 5.3379 +/- 0.005143 | 674.475s / e10000 |
+| DSIVI-default | on | -1935.443 +/- 0.086753 | N/A | N/A | N/A | 15.9449 +/- 0.015259 | 1.3245 +/- 4.798e-04 | 1.4417 +/- 0.005153 | 369.255s / e10000 |
+| DSIVI-default | off | -540.990 +/- 1.8540 | N/A | N/A | N/A | **0.665906 +/- 0.107422** | 2.3128 +/- 0.00262 | 2.3021 +/- 0.001099 | 371.679s / e10000 |
+| DSIVI-bs4096-rbs2048 | on | -1978.378 +/- 0.077103 | N/A | N/A | N/A | 18.4598 +/- 0.010196 | 1.3480 +/- 5.846e-04 | 1.4321 +/- 0.006246 | 582.056s / e10000 |
+| DSIVI-bs4096-rbs2048 | off | **-11.1063 +/- 6.4694** | N/A | N/A | N/A | 1.2487 +/- 0.122196 | 2.1444 +/- 0.002814 | 2.1551 +/- 0.001067 | 580.076s / e10000 |
+| DSIVI-bs4096-rbs4096 | on | -1976.509 +/- 0.067533 | N/A | N/A | N/A | 18.3249 +/- 0.011556 | **1.2386 +/- 5.237e-04** | **1.3741 +/- 0.003769** | 684.005s / e10000 |
+| DSIVI-bs4096-rbs4096 | off | -400.354 +/- 2.4709 | N/A | N/A | N/A | **0.664003 +/- 0.086035** | 2.5737 +/- 0.002573 | 2.3811 +/- 0.001078 | 716.192s / e10000 |
 
 ## Skipped Runs
 
 | Target | Variant | Anneal | Reason |
 |--------|---------|--------|--------|
-| Bnn_boston | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_boston | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_boston | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_boston | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_boston | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_boston | DSIVI-default | on | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_concrete | DSIVI-default | on | checkpoints_dir_missing |
 | Bnn_concrete | KSIVI-custom | off | checkpoints_dir_missing |
 | Bnn_concrete | KSIVI-custom | on | checkpoints_dir_missing |
 | Bnn_concrete | KSIVI-standard-CG | off | checkpoints_dir_missing |
 | Bnn_concrete | KSIVI-standard-CG | on | checkpoints_dir_missing |
-| Bnn_power | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_power | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_power | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_power | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_power | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_power | DSIVI-default | on | checkpoints_dir_missing |
 | Bnn_power | KSIVI-custom | off | checkpoints_dir_missing |
 | Bnn_power | KSIVI-custom | on | checkpoints_dir_missing |
 | Bnn_power | KSIVI-standard-CG | off | checkpoints_dir_missing |
 | Bnn_power | KSIVI-standard-CG | on | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_protein | DSIVI-default | on | checkpoints_dir_missing |
 | Bnn_protein | KSIVI-custom | off | checkpoints_dir_missing |
 | Bnn_protein | KSIVI-custom | on | checkpoints_dir_missing |
 | Bnn_protein | KSIVI-standard-CG | off | checkpoints_dir_missing |
 | Bnn_protein | KSIVI-standard-CG | on | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_winered | DSIVI-default | on | checkpoints_dir_missing |
 | Bnn_winered | KSIVI-custom | off | checkpoints_dir_missing |
 | Bnn_winered | KSIVI-custom | on | checkpoints_dir_missing |
 | Bnn_winered | KSIVI-standard-CG | off | checkpoints_dir_missing |
 | Bnn_winered | KSIVI-standard-CG | on | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-bs4096-rbs2048 | off | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-bs4096-rbs2048 | on | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-bs4096-rbs4096 | off | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-bs4096-rbs4096 | on | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-default | off | checkpoints_dir_missing |
-| Bnn_yacht | DSIVI-default | on | checkpoints_dir_missing |
 | Bnn_yacht | KSIVI-custom | off | checkpoints_dir_missing |
 | Bnn_yacht | KSIVI-custom | on | checkpoints_dir_missing |
 | Bnn_yacht | KSIVI-standard-CG | off | checkpoints_dir_missing |
