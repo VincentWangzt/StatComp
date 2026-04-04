@@ -30,7 +30,7 @@ train:
     loss_log_freq: 100
     reverse_log_freq: 500
   checkpoint:
-    enabled: false
+    enabled: true
     freq: 5000
   sample:
     freq: 999999
