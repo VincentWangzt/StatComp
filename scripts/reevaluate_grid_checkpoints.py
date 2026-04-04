@@ -892,6 +892,11 @@ def _flush_outputs(
     summary_rows: dict[str, dict[str, Any]],
     skipped_rows: dict[str, dict[str, Any]],
 ) -> None:
+    skipped_rows = {
+        run_id: row
+        for run_id, row in skipped_rows.items()
+        if run_id not in summary_rows
+    }
     ordered_summary_rows = _ordered_summary_rows(summary_rows)
     ordered_skip_rows = _ordered_skip_rows(skipped_rows)
     _write_csv(
