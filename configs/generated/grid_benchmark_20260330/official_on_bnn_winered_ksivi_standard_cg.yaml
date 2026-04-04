@@ -5,7 +5,7 @@ runner_type: KSIVI
 target_type: Bnn_winered
 vi_model_type: ConditionalGaussian
 train:
-  epochs: 20000
+  epochs: 100000
   batch_size: 100
   grad_clip: 1.0
   ema:

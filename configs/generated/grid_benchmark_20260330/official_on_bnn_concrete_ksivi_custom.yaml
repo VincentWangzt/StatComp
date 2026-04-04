@@ -5,7 +5,7 @@ runner_type: KSIVI
 target_type: Bnn_concrete
 vi_model_type: ConditionalGaussianGlobal
 train:
-  epochs: 20000
+  epochs: 100000
   batch_size: 100
   grad_clip: 1.0
   ema:
