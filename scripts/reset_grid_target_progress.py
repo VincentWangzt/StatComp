@@ -11,23 +11,26 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from grid_benchmark_common import (  # noqa: E402
+    discover_queue_names,
     MANIFEST_PATH,
     OFFICIAL_RESULTS_DIR,
     OFFICIAL_TB_DIR,
     REPO_ROOT,
+    SMOKE_MANIFEST_PATH,
     SMOKE_RESULTS_DIR,
     SMOKE_TB_DIR,
     runtime_dir,
 )
 
 
-def _load_manifest() -> list[dict]:
-    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+def _load_manifest(phase: str) -> list[dict]:
+    manifest_path = SMOKE_MANIFEST_PATH if phase == "smoke" else MANIFEST_PATH
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
 def _matching_entries(target: str, phase: str, variant: str | None) -> list[dict]:
     entries = []
-    for entry in _load_manifest():
+    for entry in _load_manifest(phase):
         if entry.get("target") != target:
             continue
         if entry.get("phase", "official") != phase:
@@ -106,15 +109,17 @@ def main() -> None:
     parser.add_argument("--variant")
     args = parser.parse_args()
 
+    manifest = _load_manifest(args.phase)
     entries = _matching_entries(args.target, args.phase, args.variant)
     target_run_ids = _target_run_ids(entries)
     runner_types = {entry.get("runner_type") for entry in entries if entry.get("runner_type")}
     rt_dir = runtime_dir()
     console_root = rt_dir / "console_logs"
+    queue_names = discover_queue_names(manifest, args.phase)
 
     removed_events = 0
     removed_current = 0
-    for queue in ("gpu0", "gpu1"):
+    for queue in queue_names:
         removed_events += _rewrite_events(rt_dir / f"{args.phase}_{queue}_events.jsonl", target_run_ids)
         removed_current += int(_reset_current(rt_dir / f"{args.phase}_{queue}_current.json", target_run_ids))
 

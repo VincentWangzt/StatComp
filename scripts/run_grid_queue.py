@@ -22,7 +22,9 @@ from grid_benchmark_common import (  # noqa: E402
     SMOKE_MANIFEST_PATH,
     SMOKE_RESULTS_DIR,
     SMOKE_TB_DIR,
+    discover_queue_names,
     ensure_dir,
+    queue_index_from_name,
     runtime_dir,
     to_relpath,
 )
@@ -126,8 +128,8 @@ def _tail_log(log_path: Path, num_lines: int = 20) -> list[str]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one GPU queue for the grid benchmark.")
     parser.add_argument("--phase", choices=["official", "smoke"], default="official")
-    parser.add_argument("--queue", choices=["gpu0", "gpu1"], required=True)
-    parser.add_argument("--gpu", type=int, required=True)
+    parser.add_argument("--queue", required=True)
+    parser.add_argument("--gpu", type=int, default=None)
     parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
@@ -139,6 +141,14 @@ def main() -> None:
 
     manifest_path = args.manifest or (SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
     manifest = load_manifest(manifest_path)
+    known_queues = discover_queue_names(manifest, args.phase)
+    if args.queue not in known_queues:
+        parser.error(f"Unknown queue {args.queue!r}. Known queues: {', '.join(known_queues)}")
+    if args.gpu is None:
+        inferred_gpu = queue_index_from_name(args.queue)
+        if inferred_gpu is None:
+            parser.error("--gpu is required when --queue does not follow the gpuN naming convention.")
+        args.gpu = inferred_gpu
 
     queue_entries = [entry for entry in manifest if entry.get("queue_name", args.queue) == args.queue]
     if args.limit is not None:

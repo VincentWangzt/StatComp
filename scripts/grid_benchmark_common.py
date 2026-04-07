@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ SMOKE_MANIFEST_PATH = CAMPAIGN_DIR / "smoke_manifest.json"
 QUEUE_GPU0_PATH = CAMPAIGN_DIR / "queue_gpu0.txt"
 QUEUE_GPU1_PATH = CAMPAIGN_DIR / "queue_gpu1.txt"
 README_PATH = CAMPAIGN_DIR / "README.md"
+DEFAULT_QUEUE_COUNT = 2
 
 TARGETS = [
     "banana",
@@ -193,6 +195,86 @@ def save_yaml(data: dict[str, Any], path: Path) -> None:
 def save_json(data: Any, path: Path) -> None:
     ensure_dir(path.parent)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def queue_name_for(index: int) -> str:
+    if index < 0:
+        raise ValueError(f"Queue index must be non-negative, got {index}.")
+    return f"gpu{index}"
+
+
+def queue_names(count: int) -> list[str]:
+    if count < 1:
+        raise ValueError(f"Queue count must be at least 1, got {count}.")
+    return [queue_name_for(idx) for idx in range(count)]
+
+
+def queue_path_for(queue: str | int) -> Path:
+    queue_name = queue_name_for(queue) if isinstance(queue, int) else str(queue)
+    return CAMPAIGN_DIR / f"queue_{queue_name}.txt"
+
+
+_QUEUE_NAME_RE = re.compile(r"^gpu(?P<index>\d+)$")
+
+
+def queue_index_from_name(queue_name: str) -> int | None:
+    match = _QUEUE_NAME_RE.fullmatch(queue_name)
+    if match is None:
+        return None
+    return int(match.group("index"))
+
+
+def sort_queue_names(names: list[str] | set[str]) -> list[str]:
+    unique_names = {name for name in names if name}
+
+    def _sort_key(name: str) -> tuple[int, int | str]:
+        queue_index = queue_index_from_name(name)
+        if queue_index is not None:
+            return (0, queue_index)
+        return (1, name)
+
+    return sorted(unique_names, key=_sort_key)
+
+
+def queue_names_from_manifest(manifest: list[dict[str, Any]]) -> list[str]:
+    names = [str(entry["queue_name"]) for entry in manifest if entry.get("queue_name")]
+    if names:
+        return sort_queue_names(names)
+    return queue_names(DEFAULT_QUEUE_COUNT)
+
+
+def runtime_queue_names(phase: str | None = None) -> list[str]:
+    rt_dir = runtime_dir()
+    if not rt_dir.exists():
+        return []
+
+    names: set[str] = set()
+    phase_prefix = f"{phase}_" if phase else ""
+    runtime_pattern = re.compile(
+        rf"^{re.escape(phase_prefix)}(?P<queue>gpu\d+)_(?:events\.jsonl|current\.json)$"
+    )
+
+    for path in rt_dir.iterdir():
+        if not path.is_file():
+            continue
+        match = runtime_pattern.match(path.name)
+        if match is not None:
+            names.add(match.group("queue"))
+
+    return sort_queue_names(names)
+
+
+def discover_queue_names(
+    manifest: list[dict[str, Any]] | None = None,
+    phase: str | None = None,
+) -> list[str]:
+    names: set[str] = set()
+    if manifest is not None:
+        names.update(queue_names_from_manifest(manifest))
+    names.update(runtime_queue_names(phase))
+    if names:
+        return sort_queue_names(names)
+    return queue_names(DEFAULT_QUEUE_COUNT)
 
 
 def target_schedule(target: str) -> tuple[float, int, float]:

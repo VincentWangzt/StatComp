@@ -15,6 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from grid_benchmark_common import (  # noqa: E402
     BEST_METRIC_MODES,
     CAMPAIGN_DIR,
+    discover_queue_names,
     MANIFEST_PATH,
     REPO_ROOT,
     SMOKE_MANIFEST_PATH,
@@ -74,9 +75,9 @@ def _best_point(points: list[dict[str, float]], mode: str) -> dict[str, float] |
     return min(points, key=lambda item: item["value"])
 
 
-def _completed_map(phase: str) -> dict[str, dict]:
+def _completed_map(phase: str, queue_names: list[str]) -> dict[str, dict]:
     completed: dict[str, dict] = {}
-    for queue in ("gpu0", "gpu1"):
+    for queue in queue_names:
         for event in _load_events(runtime_dir() / f"{phase}_{queue}_events.jsonl"):
             if event.get("status") == "completed":
                 completed[event["run_id"]] = event
@@ -89,7 +90,7 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = _load_json(SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
-    completed = _completed_map(args.phase)
+    completed = _completed_map(args.phase, discover_queue_names(manifest, args.phase))
 
     out_dir = CAMPAIGN_DIR / "generated_reports"
     out_dir.mkdir(parents=True, exist_ok=True)

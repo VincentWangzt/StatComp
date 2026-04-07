@@ -18,6 +18,7 @@ from grid_benchmark_common import (  # noqa: E402
     BEST_METRIC_MODES,
     BNN_TARGETS,
     CAMPAIGN_DIR,
+    discover_queue_names,
     MANIFEST_PATH,
     MARKDOWN_PATH,
     METHOD_VARIANTS,
@@ -62,9 +63,9 @@ def _load_json(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _load_latest_terminal_events() -> dict[str, dict[str, Any]]:
+def _load_latest_terminal_events(queue_names: list[str]) -> dict[str, dict[str, Any]]:
     latest: dict[str, dict[str, Any]] = {}
-    for queue in ("gpu0", "gpu1"):
+    for queue in queue_names:
         path = runtime_dir() / f"official_{queue}_events.jsonl"
         if not path.exists():
             continue
@@ -666,7 +667,7 @@ def _render_end_summary(
 
 def main() -> None:
     manifest = _load_json(MANIFEST_PATH)
-    latest_events = _load_latest_terminal_events()
+    latest_events = _load_latest_terminal_events(discover_queue_names(manifest, "official"))
     completed_rows = _load_completed_rows()
 
     per_target = _render_per_target_summary(manifest, latest_events, completed_rows)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import csv
 from copy import deepcopy
 from pathlib import Path
@@ -11,6 +12,7 @@ from grid_benchmark_common import (
     CAMPAIGN_DIR,
     CAMPAIGN_SLUG,
     CAMPAIGN_TITLE,
+    DEFAULT_QUEUE_COUNT,
     GENERATED_CONFIG_DIR,
     MANIFEST_CSV_PATH,
     MANIFEST_PATH,
@@ -18,8 +20,6 @@ from grid_benchmark_common import (
     METHOD_VARIANTS,
     OFFICIAL_RESULTS_DIR,
     OFFICIAL_TB_DIR,
-    QUEUE_GPU0_PATH,
-    QUEUE_GPU1_PATH,
     README_PATH,
     REPO_ROOT,
     SMOKE_MANIFEST_PATH,
@@ -34,6 +34,9 @@ from grid_benchmark_common import (
     load_yaml,
     metric_budgets,
     metric_support,
+    queue_name_for,
+    queue_names,
+    queue_path_for,
     run_id_for,
     save_json,
     save_yaml,
@@ -165,22 +168,25 @@ def _estimated_cost(config: dict, target: str, variant: str) -> float:
     return epochs * VARIANT_SPECS[variant]["cost_factor"] * TARGET_COST_FACTORS[target]
 
 
-def _assign_gpu_queues(entries: list[dict]) -> None:
-    queue_costs = {0: 0.0, 1: 0.0}
+def _assign_gpu_queues(entries: list[dict], num_gpus: int) -> None:
+    if num_gpus < 1:
+        raise ValueError(f"num_gpus must be at least 1, got {num_gpus}.")
+
+    queue_costs = {gpu: 0.0 for gpu in range(num_gpus)}
     for entry in sorted(entries, key=lambda item: item["estimated_cost"], reverse=True):
-        gpu = 0 if queue_costs[0] <= queue_costs[1] else 1
+        gpu = min(queue_costs, key=queue_costs.get)
         entry["queue_gpu"] = gpu
-        entry["queue_name"] = f"gpu{gpu}"
+        entry["queue_name"] = queue_name_for(gpu)
         queue_costs[gpu] += entry["estimated_cost"]
 
 
-def _smoke_manifest(entries: list[dict]) -> list[dict]:
+def _smoke_manifest(entries: list[dict], num_gpus: int) -> list[dict]:
     smoke_queue_overrides = {
-        "official_on_banana_sivi": ("gpu0", 0),
-        "official_on_bnn_yacht_uivi": ("gpu0", 0),
-        "official_on_banana_ksivi_custom": ("gpu0", 0),
-        "official_on_banana_ksivi_standard_cg": ("gpu1", 1),
-        "official_on_bnn_yacht_dsivi_bs4096_rbs2048": ("gpu1", 1),
+        "official_on_banana_sivi": 0,
+        "official_on_bnn_yacht_uivi": 0,
+        "official_on_banana_ksivi_custom": 0,
+        "official_on_banana_ksivi_standard_cg": 1,
+        "official_on_bnn_yacht_dsivi_bs4096_rbs2048": 1,
     }
     smoke_entries = []
     by_id = {entry["run_id"]: entry for entry in entries}
@@ -188,7 +194,9 @@ def _smoke_manifest(entries: list[dict]) -> list[dict]:
         base = deepcopy(by_id[run_id])
         base["phase"] = "smoke"
         base["smoke"] = True
-        queue_name, queue_gpu = smoke_queue_overrides[run_id]
+        preferred_gpu = smoke_queue_overrides[run_id]
+        queue_gpu = preferred_gpu if preferred_gpu < num_gpus else preferred_gpu % num_gpus
+        queue_name = queue_name_for(queue_gpu)
         base["queue_name"] = queue_name
         base["queue_gpu"] = queue_gpu
         base["output_overrides"] = {
@@ -199,15 +207,15 @@ def _smoke_manifest(entries: list[dict]) -> list[dict]:
     return smoke_entries
 
 
-def _write_markdown_template(entries: list[dict]) -> None:
+def _write_markdown_template(entries: list[dict], num_gpus: int) -> None:
     content = f"""# {CAMPAIGN_TITLE}
 
 ## Campaign Header
 
 - Commit SHA:
-- Remote environment: 2x RTX 3080, Python 3.14.2, PyTorch 2.9.0+cu126
+- Remote environment: fill in the actual host GPU inventory, Python version, and PyTorch build.
 - Official run count: {len(entries)}
-- Queue plan: GPU0 + GPU1 independent single-GPU queues
+- Queue plan: {num_gpus} independent single-GPU queue(s)
 
 ## Progress Table
 
@@ -239,7 +247,24 @@ Pending.
     MARKDOWN_PATH.write_text(content, encoding="utf-8")
 
 
-def _write_readme(entries: list[dict], smoke_entries: list[dict]) -> None:
+def _write_readme(entries: list[dict], smoke_entries: list[dict], num_gpus: int) -> None:
+    remote_cmds = [
+        "source /root/miniconda3/etc/profile.d/conda.sh",
+        "conda activate ruivi",
+    ]
+    smoke_queues = sorted({entry["queue_name"] for entry in smoke_entries})
+    official_queues = queue_names(num_gpus)
+    for queue_name in smoke_queues:
+        queue_gpu = queue_name.removeprefix("gpu")
+        remote_cmds.append(
+            f"python scripts/run_grid_queue.py --phase smoke --queue {queue_name} --gpu {queue_gpu}"
+        )
+    for queue_name in official_queues:
+        queue_gpu = queue_name.removeprefix("gpu")
+        remote_cmds.append(
+            f"python scripts/run_grid_queue.py --phase official --queue {queue_name} --gpu {queue_gpu}"
+        )
+
     lines = [
         f"# {CAMPAIGN_TITLE}",
         "",
@@ -263,17 +288,17 @@ def _write_readme(entries: list[dict], smoke_entries: list[dict]) -> None:
         "## Remote Queue Commands",
         "",
         "```bash",
-        "source /root/miniconda3/etc/profile.d/conda.sh",
-        "conda activate ruivi",
-        "python scripts/run_grid_queue.py --phase smoke --queue gpu0 --gpu 0",
-        "python scripts/run_grid_queue.py --phase official --queue gpu0 --gpu 0",
-        "python scripts/run_grid_queue.py --phase official --queue gpu1 --gpu 1",
+        *remote_cmds,
         "```",
     ]
     README_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate the grid benchmark campaign files.")
+    parser.add_argument("--num-gpus", type=int, default=DEFAULT_QUEUE_COUNT)
+    args = parser.parse_args()
+
     ensure_dir(CAMPAIGN_DIR)
     ensure_dir(GENERATED_CONFIG_DIR)
 
@@ -326,8 +351,8 @@ def main() -> None:
                 }
                 manifest_entries.append(entry)
 
-    _assign_gpu_queues(manifest_entries)
-    smoke_entries = _smoke_manifest(manifest_entries)
+    _assign_gpu_queues(manifest_entries, args.num_gpus)
+    smoke_entries = _smoke_manifest(manifest_entries, args.num_gpus)
 
     save_json(manifest_entries, MANIFEST_PATH)
     save_json(smoke_entries, SMOKE_MANIFEST_PATH)
@@ -353,18 +378,25 @@ def main() -> None:
         for entry in manifest_entries:
             writer.writerow({key: entry.get(key) for key in fieldnames})
 
-    gpu0_ids = [entry["run_id"] for entry in manifest_entries if entry["queue_gpu"] == 0]
-    gpu1_ids = [entry["run_id"] for entry in manifest_entries if entry["queue_gpu"] == 1]
-    QUEUE_GPU0_PATH.write_text("\n".join(gpu0_ids) + "\n", encoding="utf-8")
-    QUEUE_GPU1_PATH.write_text("\n".join(gpu1_ids) + "\n", encoding="utf-8")
+    expected_queue_files = {queue_path_for(queue_name).name for queue_name in queue_names(args.num_gpus)}
+    for queue_file in CAMPAIGN_DIR.glob("queue_gpu*.txt"):
+        if queue_file.name not in expected_queue_files:
+            queue_file.unlink()
+    for queue_name in queue_names(args.num_gpus):
+        queue_ids = [entry["run_id"] for entry in manifest_entries if entry["queue_name"] == queue_name]
+        queue_text = "\n".join(queue_ids)
+        if queue_text:
+            queue_text += "\n"
+        queue_path_for(queue_name).write_text(queue_text, encoding="utf-8")
 
-    _write_markdown_template(manifest_entries)
-    _write_readme(manifest_entries, smoke_entries)
+    _write_markdown_template(manifest_entries, args.num_gpus)
+    _write_readme(manifest_entries, smoke_entries, args.num_gpus)
 
     print(f"Generated {len(manifest_entries)} official configs in {to_relpath(GENERATED_CONFIG_DIR)}")
     print(f"Manifest: {to_relpath(MANIFEST_PATH)}")
     print(f"Smoke manifest: {to_relpath(SMOKE_MANIFEST_PATH)}")
     print(f"Markdown template: {to_relpath(MARKDOWN_PATH)}")
+    print(f"Queues: {', '.join(queue_names(args.num_gpus))}")
 
 
 if __name__ == "__main__":

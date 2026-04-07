@@ -9,7 +9,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from grid_benchmark_common import MANIFEST_PATH, SMOKE_MANIFEST_PATH, runtime_dir  # noqa: E402
+from grid_benchmark_common import MANIFEST_PATH, SMOKE_MANIFEST_PATH, discover_queue_names, runtime_dir  # noqa: E402
 
 
 def _load_manifest(path: Path) -> list[dict]:
@@ -34,8 +34,9 @@ def main() -> None:
     manifest = _load_manifest(SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
     total = len(manifest)
     rt_dir = runtime_dir()
+    queue_names = discover_queue_names(manifest, args.phase)
 
-    for queue in ("gpu0", "gpu1"):
+    for queue in queue_names:
         events = _load_events(rt_dir / f"{args.phase}_{queue}_events.jsonl")
         completed = [event for event in events if event.get("status") == "completed"]
         failed = [event for event in events if event.get("status") == "failed"]
@@ -71,7 +72,7 @@ def main() -> None:
     total_completed = 0
     total_failed = 0
     total_worker_errors = 0
-    for queue in ("gpu0", "gpu1"):
+    for queue in queue_names:
         events = _load_events(rt_dir / f"{args.phase}_{queue}_events.jsonl")
         total_completed += sum(1 for event in events if event.get("status") == "completed")
         total_failed += sum(1 for event in events if event.get("status") == "failed")
