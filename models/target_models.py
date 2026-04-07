@@ -29,6 +29,7 @@ __all__ = [
     "Banana_shape",
     "X_shaped",
     "Multimodal",
+    "EightGaussians",
     "StudentTFullDim",
     "LRwaveform",
     "Bnn",
@@ -64,6 +65,7 @@ class TargetModel(Protocol):
 
 DEFAULT_BBOX: dict[str, list[float]] = {
     "multimodal": [-5, 5, -5, 5],
+    "8_gaussians": [-6, 6, -6, 6],
     "banana": [-3.5, 3.5, -6, 1],
     "x_shaped": [-5, 5, -5, 5],
     "student_uc": [-5, 5, -5, 5],
@@ -77,6 +79,11 @@ _X_SHAPED_COV_SCALE: float = 0.76
 
 # Multimodal mixture component separation along x-axis
 _MULTIMODAL_SPREAD: float = 2.0
+
+# Eight-Gaussians FFJORD-style ring parameters
+_EIGHT_GAUSSIANS_RADIUS: float = 4.0
+_EIGHT_GAUSSIANS_SIGMA: float = 0.5
+_EIGHT_GAUSSIANS_NUM_COMPONENTS: int = 8
 
 # StudentT degrees of freedom and scale-matrix seed
 _STUDENT_T_DF: float = 2.0
@@ -484,6 +491,111 @@ class Multimodal(Toy_2D):
             ),
             1,
         )
+
+
+class EightGaussians(Toy_2D):
+    """Eight-component isotropic Gaussian mixture arranged on a ring.
+
+    This follows the looser FFJORD-style toy target: eight equally weighted
+    modes on a circle of radius :data:`_EIGHT_GAUSSIANS_RADIUS`, each with
+    covariance ``sigma^2 I`` where ``sigma =``
+    :data:`_EIGHT_GAUSSIANS_SIGMA`.
+
+    Parameters
+    ----------
+    device : torch.device
+        Computation device.
+    """
+
+    name: str = "8_gaussians"
+
+    def __init__(self, device: torch.device) -> None:
+        super().__init__(device=device, name="EightGaussians")
+        sqrt2 = float(np.sqrt(2.0))
+        centers = torch.tensor(
+            [
+                [1.0, 0.0],
+                [-1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, -1.0],
+                [1.0 / sqrt2, 1.0 / sqrt2],
+                [1.0 / sqrt2, -1.0 / sqrt2],
+                [-1.0 / sqrt2, 1.0 / sqrt2],
+                [-1.0 / sqrt2, -1.0 / sqrt2],
+            ],
+            dtype=torch.float32,
+            device=self.device,
+        )
+        self.radius: float = _EIGHT_GAUSSIANS_RADIUS
+        self.sigma: float = _EIGHT_GAUSSIANS_SIGMA
+        self._var: float = self.sigma**2
+        self._centers: torch.Tensor = centers * self.radius
+        self._log_weight: float = -np.log(_EIGHT_GAUSSIANS_NUM_COMPONENTS)
+        self._log_norm: float = -np.log(2 * np.pi * self._var)
+
+    def _component_log_probs(self, X: torch.Tensor) -> torch.Tensor:
+        """Compute per-component log-densities up to equal mixture weights."""
+        sq_dist = torch.sum(
+            (X.unsqueeze(1) - self._centers.unsqueeze(0)) ** 2,
+            dim=-1,
+        )
+        return self._log_weight + self._log_norm - sq_dist / (2.0 * self._var)
+
+    def logp(self, X: torch.Tensor) -> torch.Tensor:
+        """Compute the normalized log-density of the 8-Gaussians mixture.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Input points, shape ``(batch, 2)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Log-density values, shape ``(batch,)``.
+        """
+        return torch.logsumexp(self._component_log_probs(X), dim=1)
+
+    def score(self, X: torch.Tensor) -> torch.Tensor:
+        r"""Compute :math:`\nabla_X \log p(X)` for the mixture.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            Input points, shape ``(batch, 2)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Score vectors, shape ``(batch, 2)``.
+        """
+        responsibilities = F.softmax(self._component_log_probs(X), dim=1)
+        component_scores = (self._centers.unsqueeze(0) - X.unsqueeze(1)) / self._var
+        return torch.sum(
+            responsibilities.unsqueeze(-1) * component_scores,
+            dim=1,
+        )
+
+    def sample(self, N: int) -> torch.Tensor:
+        """Draw exact samples from the mixture distribution.
+
+        Parameters
+        ----------
+        N : int
+            Number of samples.
+
+        Returns
+        -------
+        torch.Tensor
+            Samples, shape ``(N, 2)``.
+        """
+        indices = torch.randint(
+            _EIGHT_GAUSSIANS_NUM_COMPONENTS,
+            size=(N,),
+            device=self.device,
+        )
+        noise = torch.randn((N, self.z_dim), device=self.device) * self.sigma
+        return self._centers[indices] + noise
 
 
 class StudentTFullDim(Toy_2D):
@@ -1272,6 +1384,7 @@ class Langevin_post(Toy_2D):
 target_distribution: dict[str, type] = {
     "banana": Banana_shape,
     "multimodal": Multimodal,
+    "8_gaussians": EightGaussians,
     "x_shaped": X_shaped,
     "student_uc": StudentTFullDim,
     "LRwaveform": LRwaveform,
