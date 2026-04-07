@@ -23,7 +23,7 @@ train:
       gamma: 0.7
   reverse:
     lr: 1.0e-3
-    batch_size: 8192
+    batch_size: 2048
     epochs: 10
     update_freq: 1
   annealing:

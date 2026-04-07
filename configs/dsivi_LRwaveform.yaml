@@ -1,25 +1,23 @@
 seed: 42
-cuda_visible_devices: "0"
+cuda_visible_devices: '0'
 use_cuda: true
-
 runner_type: DSIVI
 target_type: LRwaveform
 vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
-
 train:
-  epochs: 2000
+  epochs: 10000
   batch_size: 128
   normalize_reverse_score: false
   vi:
-    lr: 1.0e-3
+    lr: 0.001
     scheduler:
       type: StepLR
       step_size: 1000
       gamma: 0.7
   reverse:
-    lr: 1.0e-3
-    batch_size: 8192
+    lr: 0.001
+    batch_size: 2048
     epochs: 10
     update_freq: 1
   annealing:
@@ -40,7 +38,6 @@ train:
   plot:
     freq: 500
     num: 1000
-
 metric:
   kl_ite:
     enabled: false

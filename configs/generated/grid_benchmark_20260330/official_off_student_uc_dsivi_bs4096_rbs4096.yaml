@@ -6,7 +6,7 @@ target_type: student_uc
 vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
 train:
-  epochs: 2000
+  epochs: 10000
   batch_size: 4096
   normalize_reverse_score: false
   vi:

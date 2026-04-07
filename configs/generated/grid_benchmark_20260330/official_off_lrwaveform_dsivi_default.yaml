@@ -6,7 +6,7 @@ target_type: LRwaveform
 vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
 train:
-  epochs: 2000
+  epochs: 10000
   batch_size: 128
   normalize_reverse_score: false
   vi:
@@ -17,7 +17,7 @@ train:
       gamma: 0.7
   reverse:
     lr: 0.001
-    batch_size: 8192
+    batch_size: 2048
     epochs: 10
     update_freq: 1
   annealing:

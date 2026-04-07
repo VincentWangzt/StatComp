@@ -1761,10 +1761,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 1024,
     "reverse_batch_size": 8192,
-    "estimated_cost": 4400.0,
+    "estimated_cost": 22000.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -1790,10 +1790,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 2048,
-    "estimated_cost": 9900.0,
+    "estimated_cost": 49500.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -1819,10 +1819,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 4096,
-    "estimated_cost": 11000.0,
+    "estimated_cost": 55000.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -2022,10 +2022,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 1024,
     "reverse_batch_size": 8192,
-    "estimated_cost": 4400.0,
+    "estimated_cost": 22000.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
@@ -2051,10 +2051,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 2048,
-    "estimated_cost": 9900.0,
+    "estimated_cost": 49500.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
@@ -2080,10 +2080,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 4096,
-    "estimated_cost": 11000.0,
+    "estimated_cost": 55000.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
@@ -2805,10 +2805,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 128,
     "reverse_batch_size": 8192,
-    "estimated_cost": 5200.0,
+    "estimated_cost": 26000.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -2834,10 +2834,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 2048,
-    "estimated_cost": 11700.0,
+    "estimated_cost": 58500.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -2863,10 +2863,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 4096,
-    "estimated_cost": 13000.0,
+    "estimated_cost": 65000.0,
     "queue_gpu": 0,
     "queue_name": "gpu0"
   },
@@ -3066,10 +3066,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 128,
     "reverse_batch_size": 8192,
-    "estimated_cost": 5200.0,
+    "estimated_cost": 26000.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
@@ -3095,10 +3095,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 2048,
-    "estimated_cost": 11700.0,
+    "estimated_cost": 58500.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
@@ -3124,10 +3124,10 @@
       "fisher": true,
       "bnn": false
     },
-    "epochs": 2000,
+    "epochs": 10000,
     "batch_size": 4096,
     "reverse_batch_size": 4096,
-    "estimated_cost": 13000.0,
+    "estimated_cost": 65000.0,
     "queue_gpu": 1,
     "queue_name": "gpu1"
   },
