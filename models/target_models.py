@@ -267,6 +267,9 @@ class Banana_shape(Toy_2D):
         self._sigmasqinv: torch.Tensor = torch.tensor(
             [[1.0, -0.9], [-0.9, 1.0]], device=self.device
         ) / _BANANA_COV_SCALE
+        self._cov: torch.Tensor = torch.tensor(
+            [[1.0, 0.9], [0.9, 1.0]], device=self.device
+        )
 
     def logp(self, X: torch.Tensor) -> torch.Tensor:
         """Compute unnormalized log-density of the banana distribution.
@@ -313,6 +316,14 @@ class Banana_shape(Toy_2D):
             / _BANANA_COV_SCALE
         )
 
+    def sample(self, N: int) -> torch.Tensor:
+        """Draw exact samples by inverting the banana transform."""
+        Y = torch.distributions.MultivariateNormal(
+            loc=torch.zeros(2, device=self.device),
+            covariance_matrix=self._cov,
+        ).sample((N,))
+        return torch.stack((Y[:, 0], Y[:, 1] - Y[:, 0] ** 2 - 1.0), dim=1)
+
 
 class X_shaped(Toy_2D):
     """Two-component Gaussian mixture forming an X-shaped density in 2-D.
@@ -336,6 +347,12 @@ class X_shaped(Toy_2D):
         self._sigmasqinv_1: torch.Tensor = torch.tensor(
             [[2.0, 1.8], [1.8, 2.0]], device=self.device
         ) / _X_SHAPED_COV_SCALE
+        self._cov_0: torch.Tensor = torch.tensor(
+            [[2.0, 1.8], [1.8, 2.0]], device=self.device
+        )
+        self._cov_1: torch.Tensor = torch.tensor(
+            [[2.0, -1.8], [-1.8, 2.0]], device=self.device
+        )
 
     def logp(self, X: torch.Tensor) -> torch.Tensor:
         """Compute unnormalized log-density of the X-shaped mixture.
@@ -413,6 +430,19 @@ class X_shaped(Toy_2D):
             self._sigmasqinv_1, X[:, :, None]
         ).squeeze(-1)
 
+    def sample(self, N: int) -> torch.Tensor:
+        """Draw exact samples from the two-component Gaussian mixture."""
+        component_mask = torch.rand(N, device=self.device) < 0.5
+        samples_0 = torch.distributions.MultivariateNormal(
+            loc=torch.zeros(2, device=self.device),
+            covariance_matrix=self._cov_0,
+        ).sample((N,))
+        samples_1 = torch.distributions.MultivariateNormal(
+            loc=torch.zeros(2, device=self.device),
+            covariance_matrix=self._cov_1,
+        ).sample((N,))
+        return torch.where(component_mask.unsqueeze(-1), samples_0, samples_1)
+
 
 class Multimodal(Toy_2D):
     """Symmetric two-mode Gaussian mixture in 2-D.
@@ -429,6 +459,10 @@ class Multimodal(Toy_2D):
 
     def __init__(self, device: torch.device) -> None:
         super().__init__(device=device, name="Multimodal")
+        self._means: torch.Tensor = torch.tensor(
+            [[_MULTIMODAL_SPREAD, 0.0], [-_MULTIMODAL_SPREAD, 0.0]],
+            device=self.device,
+        )
 
     def logp(self, X: torch.Tensor) -> torch.Tensor:
         """Compute unnormalized log-density of the multimodal mixture.
@@ -443,16 +477,12 @@ class Multimodal(Toy_2D):
         torch.Tensor
             Log-density values, shape ``(batch,)``.
         """
-        means = torch.tensor(
-            [[_MULTIMODAL_SPREAD, 0.0], [-_MULTIMODAL_SPREAD, 0.0]],
-            device=self.device,
-        )
         return (
             -0.5 * 2 * np.log(2 * np.pi)
             - np.log(_MULTIMODAL_SPREAD)
             + torch.logsumexp(
                 -torch.sum(
-                    (X.unsqueeze(1) - means.unsqueeze(0)) ** 2, dim=-1
+                    (X.unsqueeze(1) - self._means.unsqueeze(0)) ** 2, dim=-1
                 )
                 / 2.0
                 / 1**2,
@@ -491,6 +521,12 @@ class Multimodal(Toy_2D):
             ),
             1,
         )
+
+    def sample(self, N: int) -> torch.Tensor:
+        """Draw exact samples from the symmetric Gaussian mixture."""
+        component = torch.randint(0, 2, (N,), device=self.device)
+        noise = torch.randn(N, 2, device=self.device)
+        return self._means[component] + noise
 
 
 class EightGaussians(Toy_2D):

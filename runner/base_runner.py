@@ -476,9 +476,11 @@ class BaseSIVIRunner():
         Returns:
             (elbo_mean, elbo_std_total, elbo_std_q, elbo_ci_half) (float, float, float, float): Estimated ELBO mean, total std, std from q(z) estimation, and 1/2 width of 0.95 CI.
         """
-        # 1. Sample z from q_phi(z)
-        # We just need z samples, epsilon is implicitly integrated out in generation process.
-        _, z_samples = self.vi_model.sampling(num=self.n_elbo_z_samples)
+        # 1. Sample z from q_phi(z) and keep the generating epsilon so it can
+        # be included in the Monte Carlo estimate for each sampled z.
+        epsilon_samples, z_samples = self.vi_model.sampling(
+            num=self.n_elbo_z_samples
+        )
         # z_samples: [N_z, Dz]
 
         # 2. Estimate log q_phi(z) for each z sample
@@ -488,10 +490,11 @@ class BaseSIVIRunner():
         # We perform this for multiple batches of epsilon' to get variance estimate
         # Batches: B batches of size S
 
-        # Accumulate q(z) estimate (sum of probs)
-        # We work in log space for stability.
-        # Stores log(\sum q(z|e_k)) for each batch
+        # Accumulate q(z) estimate from auxiliary epsilon draws.
+        # We work in log space for stability and add the generating epsilon
+        # once after aggregating all auxiliary batches.
         batch_log_q_z_sums = []
+        total_aux_samples = self.n_elbo_batches * self.n_elbo_batch_size
 
         with torch.no_grad():
             for _ in range(self.n_elbo_batches):
@@ -530,9 +533,20 @@ class BaseSIVIRunner():
         # Stack: [N_z, B]
         log_sums_tensor = torch.stack(batch_log_q_z_sums, dim=1)
 
-        # --- Total Estimate (using all B*S samples) ---
-        log_total_sum = torch.logsumexp(log_sums_tensor, dim=1)  # [N_z]
-        total_samples = self.n_elbo_batches * self.n_elbo_batch_size
+        # Add the generating epsilon contribution once per sampled z.
+        log_q_z_given_generating_eps = self.vi_model.logp(
+            z_samples,
+            epsilon_samples,
+        )
+
+        # --- Total Estimate (using B*S auxiliary samples plus one generating
+        # epsilon contribution) ---
+        log_aux_total_sum = torch.logsumexp(log_sums_tensor, dim=1)  # [N_z]
+        log_total_sum = torch.logaddexp(
+            log_aux_total_sum,
+            log_q_z_given_generating_eps,
+        )
+        total_samples = total_aux_samples + 1
         log_q_z_mean = log_total_sum - torch.log(
             torch.tensor(total_samples, device=self.device))
 
@@ -550,8 +564,11 @@ class BaseSIVIRunner():
         var_estimators = torch.var(estimators_b, dim=1)  # [N_z]
         mean_estimators = torch.exp(log_q_z_mean)  # [N_z]
 
-        # Squared standard error of mean estimator (of q(z))
-        sq_se_mean_q = var_estimators / self.n_elbo_batches
+        # Squared standard error of mean estimator (of q(z)).
+        # The one-time generating-epsilon term is fixed conditional on z, so
+        # only the auxiliary-average term contributes Monte Carlo variance.
+        aux_weight = total_aux_samples / total_samples
+        sq_se_mean_q = (aux_weight ** 2) * var_estimators / self.n_elbo_batches
 
         # Squared standard error of log q(z)
         sq_se_log_q = sq_se_mean_q / (mean_estimators**2 + 1e-10)
