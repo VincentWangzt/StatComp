@@ -68,8 +68,8 @@ class BaseSIVIRunner():
         results_dir = self.config.output.get('results_dir', 'results')
         tb_dir = self.config.output.get('tb_dir', 'tb_logs')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.save_path = os.path.join(results_dir, self.name,
-                                      self.target_type, timestamp)
+        self.save_path = os.path.join(results_dir, self.name, self.target_type,
+                                      timestamp)
         os.makedirs(self.save_path, exist_ok=True)
 
         # attach file logger under save path
@@ -92,8 +92,7 @@ class BaseSIVIRunner():
             if cfg_z_dim is not None and cfg_z_dim != model_z_dim:
                 logger.info(
                     f"Overriding target z_dim from config ({cfg_z_dim}) "
-                    f"with model z_dim ({model_z_dim})"
-                )
+                    f"with model z_dim ({model_z_dim})")
             self.config.target.z_dim = model_z_dim
             self.config.target.epsilon_dim = model_z_dim
 
@@ -104,7 +103,8 @@ class BaseSIVIRunner():
         self.metric_kl_enabled = self.config['metric']['kl_ite'].setdefault(
             'enabled', True)
         if self.metric_kl_enabled and self.baseline_samples is None:
-            logger.warning("No baseline samples available; disabling KL metric.")
+            logger.warning(
+                "No baseline samples available; disabling KL metric.")
             self.metric_kl_enabled = False
         self.n_ite_samples = self.config['metric']['kl_ite']['num_samples']
 
@@ -112,7 +112,8 @@ class BaseSIVIRunner():
         self.metric_w2_enabled = self.config['metric']['w2'].setdefault(
             'enabled', True)
         if self.metric_w2_enabled and self.baseline_samples is None:
-            logger.warning("No baseline samples available; disabling W2 metric.")
+            logger.warning(
+                "No baseline samples available; disabling W2 metric.")
             self.metric_w2_enabled = False
         self.n_w2_samples = self.config['metric']['w2']['num_samples']
         self.n_w2_projections = self.config['metric']['w2']['num_projections']
@@ -129,7 +130,8 @@ class BaseSIVIRunner():
         self.metric_mmd_enabled = self.config['metric']['mmd'].setdefault(
             'enabled', False)
         if self.metric_mmd_enabled and self.baseline_samples is None:
-            logger.warning("No baseline samples available; disabling MMD metric.")
+            logger.warning(
+                "No baseline samples available; disabling MMD metric.")
             self.metric_mmd_enabled = False
         self.n_mmd_samples = self.config['metric']['mmd'].setdefault(
             'num_samples', 1000)
@@ -137,8 +139,8 @@ class BaseSIVIRunner():
 
         # fisher divergence config
         self.config.metric.setdefault('fisher', {})
-        self.metric_fisher_enabled = self.config['metric']['fisher'].setdefault(
-            'enabled', False)
+        self.metric_fisher_enabled = self.config['metric'][
+            'fisher'].setdefault('enabled', False)
         self.n_fisher_samples = self.config['metric']['fisher'].setdefault(
             'num_samples', 1000)
         self.n_fisher_is_samples = self.config['metric']['fisher'].setdefault(
@@ -151,14 +153,31 @@ class BaseSIVIRunner():
         self.n_elbo_batches = self.config['metric']['elbo']['num_batches']
         self.n_elbo_batch_size = self.config['metric']['elbo']['batch_size']
 
+        # expected log marginal samples
+        self.config.metric.setdefault('expected_log_marginal', {})
+        self.metric_expected_log_marginal_enabled = self.config['metric'][
+            'expected_log_marginal'].setdefault('enabled', True)
+        if (self.metric_expected_log_marginal_enabled
+                and self.baseline_samples is None):
+            logger.warning(
+                "No baseline samples available; disabling expected log marginal metric."
+            )
+            self.metric_expected_log_marginal_enabled = False
+        self.n_expected_log_marginal_ref_samples = self.config['metric'][
+            'expected_log_marginal'].setdefault('num_ref_samples', 1000)
+        self.n_expected_log_marginal_batches = self.config['metric'][
+            'expected_log_marginal'].setdefault('num_batches', 2)
+        self.n_expected_log_marginal_batch_size = self.config['metric'][
+            'expected_log_marginal'].setdefault('batch_size', 512)
+
         # bnn metrics config (RMSE + test log-likelihood; BNN targets only)
         # Auto-detect: enable if target is a DataBoundTarget wrapping Bnn,
         # unless explicitly configured via metric.bnn.enabled in the runner config.
         self.config.metric.setdefault('bnn', {})
         from models.data_bound_target import DataBoundTarget
         from models.target_models import Bnn
-        _is_bnn_target = (isinstance(self.target_model, DataBoundTarget) and
-                          isinstance(self.target_model.inner, Bnn))
+        _is_bnn_target = (isinstance(self.target_model, DataBoundTarget)
+                          and isinstance(self.target_model.inner, Bnn))
         self.metric_bnn_enabled = self.config['metric']['bnn'].setdefault(
             'enabled', _is_bnn_target)
         if self.metric_bnn_enabled and not _is_bnn_target:
@@ -226,11 +245,19 @@ class BaseSIVIRunner():
         # Create VI optimizer and scheduler
         if self.vi_var_lr is not None and hasattr(self.vi_model, 'var_raw'):
             other_params = [
-                p for n, p in self.vi_model.named_parameters() if n != 'var_raw']
+                p for n, p in self.vi_model.named_parameters()
+                if n != 'var_raw'
+            ]
             self.optimizer_vi = torch.optim.Adam(
                 [
-                    {'params': other_params, 'lr': self.vi_lr},
-                    {'params': [self.vi_model.var_raw], 'lr': self.vi_var_lr},
+                    {
+                        'params': other_params,
+                        'lr': self.vi_lr
+                    },
+                    {
+                        'params': [self.vi_model.var_raw],
+                        'lr': self.vi_var_lr
+                    },
                 ],
                 betas=self.vi_opt_betas,
             )
@@ -296,7 +323,8 @@ class BaseSIVIRunner():
         # Gradient clipping (None = disabled)
         self.grad_clip = self.training_cfg.get('grad_clip', None)
         if self.grad_clip is not None:
-            logger.info(f"Gradient clipping enabled with max_norm={self.grad_clip}")
+            logger.info(
+                f"Gradient clipping enabled with max_norm={self.grad_clip}")
 
         # EMA (Exponential Moving Average) for stable evaluation
         ema_cfg = self.training_cfg.get('ema', {})
@@ -332,9 +360,8 @@ class BaseSIVIRunner():
         if self.target_type in self._DATA_DEPENDENT_TARGETS:
             from models.data_bound_target import build_data_bound_target
 
-            target_cfg = OmegaConf.to_container(
-                self.config.get('target', {}), resolve=True
-            )
+            target_cfg = OmegaConf.to_container(self.config.get('target', {}),
+                                                resolve=True)
             return build_data_bound_target(
                 target_type=self.target_type,
                 target_cfg=target_cfg,
@@ -386,8 +413,7 @@ class BaseSIVIRunner():
         except Exception as e:
             logger.warning(
                 f"Failed to load baseline samples from {baseline_path}: {e}. "
-                f"KL and W2 metrics will be disabled."
-            )
+                f"KL and W2 metrics will be disabled.")
             return None
 
     def evaluate_vi_to_baseline_kl(self) -> float:
@@ -479,8 +505,7 @@ class BaseSIVIRunner():
         # 1. Sample z from q_phi(z) and keep the generating epsilon so it can
         # be included in the Monte Carlo estimate for each sampled z.
         epsilon_samples, z_samples = self.vi_model.sampling(
-            num=self.n_elbo_z_samples
-        )
+            num=self.n_elbo_z_samples)
         # z_samples: [N_z, Dz]
 
         # 2. Estimate log q_phi(z) for each z sample
@@ -568,7 +593,7 @@ class BaseSIVIRunner():
         # The one-time generating-epsilon term is fixed conditional on z, so
         # only the auxiliary-average term contributes Monte Carlo variance.
         aux_weight = total_aux_samples / total_samples
-        sq_se_mean_q = (aux_weight ** 2) * var_estimators / self.n_elbo_batches
+        sq_se_mean_q = (aux_weight**2) * var_estimators / self.n_elbo_batches
 
         # Squared standard error of log q(z)
         sq_se_log_q = sq_se_mean_q / (mean_estimators**2 + 1e-10)
@@ -602,13 +627,147 @@ class BaseSIVIRunner():
         elbo_val, elbo_std_total, elbo_std_q, elbo_ci_half = self.evaluate_elbo(
         )
         self.writer.add_scalar("metric/vi_model/elbo", elbo_val, epoch)
-        self.writer.add_scalar("metric/vi_model/elbo_std_total", elbo_std_total,
-                               epoch)
+        self.writer.add_scalar("metric/vi_model/elbo_std_total",
+                               elbo_std_total, epoch)
         self.writer.add_scalar("metric/vi_model/elbo_std_q", elbo_std_q, epoch)
-        self.writer.add_scalar("metric/vi_model/elbo_ci_half", elbo_ci_half, epoch)
+        self.writer.add_scalar("metric/vi_model/elbo_ci_half", elbo_ci_half,
+                               epoch)
 
         logger.debug(
             f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}, CI Half: {elbo_ci_half:.4f}"
+        )
+
+    def _sample_reference_baseline_samples(self,
+                                           num_samples: int) -> torch.Tensor:
+        """Sample reference points from the baseline store without replacement."""
+        if self.baseline_samples is None:
+            raise RuntimeError(
+                "Baseline samples not loaded; cannot compute expected log marginal."
+            )
+
+        if self.baseline_samples.shape[0] > num_samples:
+            indices = np.random.choice(
+                self.baseline_samples.shape[0],
+                num_samples,
+                replace=False,
+            )
+            reference_samples = self.baseline_samples[indices]
+        else:
+            reference_samples = self.baseline_samples
+
+        return torch.as_tensor(reference_samples, device=self.device)
+
+    def _estimate_log_q_marginal(
+        self,
+        z_samples: torch.Tensor,
+        num_batches: int,
+        batch_size: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Estimate ``log q_phi(z)`` and its inner Monte Carlo variance.
+
+        This uses the same auxiliary-batch regime as ELBO, but evaluates the
+        marginal variational density at fixed reference samples rather than at
+        samples drawn from ``q_phi`` itself.
+        """
+        if num_batches < 1:
+            raise ValueError("num_batches must be at least 1.")
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1.")
+
+        n_samples = z_samples.shape[0]
+        batch_log_q_means = []
+
+        with torch.no_grad():
+            for _ in range(num_batches):
+                epsilon_prime = self.vi_model.sample_epsilon(num=batch_size)
+                z_expanded = z_samples.unsqueeze(1).expand(
+                    -1,
+                    batch_size,
+                    -1,
+                )
+                eps_expanded = epsilon_prime.unsqueeze(0).expand(
+                    n_samples,
+                    -1,
+                    -1,
+                )
+                # logger.warning(f"{eps_expanded.shape=}, {z_expanded.shape=}")
+                log_q_z_given_eps = self.vi_model.logp(
+                    z_expanded,
+                    eps_expanded,
+                )
+                # logger.warning(f"{log_q_z_given_eps.shape=}")
+                batch_log_q_means.append(
+                    torch.logsumexp(log_q_z_given_eps, dim=1) -
+                    np.log(batch_size))
+
+        log_q_batch_means = torch.stack(batch_log_q_means, dim=1)
+        log_q_marginal = torch.logsumexp(log_q_batch_means,
+                                         dim=1) - np.log(num_batches)
+
+        if num_batches == 1:
+            inner_var_log_q = torch.zeros_like(log_q_marginal)
+        else:
+            relative_q = torch.exp(log_q_batch_means -
+                                   log_q_marginal.unsqueeze(1))
+            var_relative_q = torch.var(relative_q, dim=1, unbiased=True)
+            inner_var_log_q = var_relative_q / num_batches
+
+        return log_q_marginal, inner_var_log_q
+
+    def evaluate_expected_log_marginal(self) -> tuple[float, float]:
+        r"""Estimate expected log marginal variational density.
+
+        The metric is
+
+            E_{z ~ r}[log q_phi(z)],
+
+        where ``r`` is represented by reference baseline samples. The marginal
+        variational density ``q_phi(z)`` is approximated by averaging
+        ``q_phi(z | epsilon)`` over auxiliary epsilon batches.
+
+        Returns:
+            tuple[float, float]:
+                Estimated expected log marginal and its standard error.
+        """
+        reference_samples = self._sample_reference_baseline_samples(
+            self.n_expected_log_marginal_ref_samples)
+        log_q_marginal, inner_var_log_q = self._estimate_log_q_marginal(
+            reference_samples,
+            num_batches=self.n_expected_log_marginal_batches,
+            batch_size=self.n_expected_log_marginal_batch_size,
+        )
+
+        n_ref = log_q_marginal.shape[0]
+        metric_mean = torch.mean(log_q_marginal)
+
+        if n_ref > 1:
+            outer_var = torch.var(log_q_marginal, unbiased=True) / n_ref
+        else:
+            outer_var = torch.zeros((), device=log_q_marginal.device)
+
+        if self.n_expected_log_marginal_batches > 1:
+            inner_var = inner_var_log_q.sum() / (n_ref**2)
+        else:
+            inner_var = torch.zeros((), device=log_q_marginal.device)
+
+        stderr = torch.sqrt((outer_var + inner_var).clamp_min(0.0))
+        return metric_mean.item(), stderr.item()
+
+    def eval_expected_log_marginal(self, epoch: int):
+        """Evaluate expected log marginal and log to TensorBoard."""
+        metric_mean, metric_stderr = self.evaluate_expected_log_marginal()
+        self.writer.add_scalar(
+            "metric/vi_model/expected_log_marginal",
+            metric_mean,
+            epoch,
+        )
+        self.writer.add_scalar(
+            "metric/vi_model/expected_log_marginal_stderr",
+            metric_stderr,
+            epoch,
+        )
+        logger.debug(
+            f"Epoch {epoch}, Expected Log Marginal: {metric_mean:.4f}, StdErr: {metric_stderr:.4f}"
         )
 
     def evaluate_ksd(self) -> float:
@@ -745,14 +904,16 @@ class BaseSIVIRunner():
             # eps: [K, De]
 
             # Expand for joint computation: z [N,1,Dz], eps [1,K,De]
-            z_exp = z_samples.unsqueeze(1).expand(-1, self.n_fisher_is_samples, -1)
+            z_exp = z_samples.unsqueeze(1).expand(-1, self.n_fisher_is_samples,
+                                                  -1)
             eps_exp = eps.unsqueeze(0).expand(self.n_fisher_samples, -1, -1)
 
             # 3. log q(z|eps_k): [N, K]
             log_q_z_given_eps = self.vi_model.logp(z_exp, eps_exp)
 
             # 4. Softmax weights over K: [N, K]
-            log_w = log_q_z_given_eps - torch.logsumexp(log_q_z_given_eps, dim=1, keepdim=True)
+            log_w = log_q_z_given_eps - torch.logsumexp(
+                log_q_z_given_eps, dim=1, keepdim=True)
             w = torch.exp(log_w)  # [N, K]
 
             # 5. nabla_z log q(z|eps_k): [N, K, Dz]
@@ -765,9 +926,7 @@ class BaseSIVIRunner():
             score_p = self.target_model.score(z_samples)
 
             # 8. Fisher divergence: E[ || score_p - score_q ||^2 ]
-            fisher_div = torch.mean(
-                torch.sum((score_p - score_q) ** 2, dim=-1)
-            )
+            fisher_div = torch.mean(torch.sum((score_p - score_q)**2, dim=-1))
 
         return fisher_div.item()
 
@@ -995,8 +1154,7 @@ class BaseSIVIRunner():
         """
         # Sample epsilon
         t_vi0 = time.perf_counter()
-        epsilon = self.vi_model.sample_epsilon(
-            num=self.training_batch_size)
+        epsilon = self.vi_model.sample_epsilon(num=self.training_batch_size)
 
         # Sample z from variational distribution
         z, neg_score_implicit = self.vi_model.forward(epsilon)
@@ -1160,7 +1318,7 @@ class BaseSIVIRunner():
                     score_conditional = self.vi_model.score(
                         z.detach(), epsilon.detach())
                     score_gap = torch.mean(
-                        torch.sum((score_q - score_conditional) ** 2, dim=-1))
+                        torch.sum((score_q - score_conditional)**2, dim=-1))
                     self.writer.add_scalar(
                         "diagnostic/vi_model/marginal_conditional_score_l2_gap",
                         score_gap.item(),
@@ -1246,6 +1404,14 @@ class BaseSIVIRunner():
                     t_elbo1 = time.perf_counter()
 
                     time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
+
+                if self.metric_expected_log_marginal_enabled:
+                    t_elm0 = time.perf_counter()
+                    self.eval_expected_log_marginal(epoch)
+                    t_elm1 = time.perf_counter()
+
+                    time_scalars[
+                        'expected_log_marginal_estimation'] = t_elm1 - t_elm0
 
                 if self.metric_mmd_enabled:
                     t_mmd0 = time.perf_counter()
