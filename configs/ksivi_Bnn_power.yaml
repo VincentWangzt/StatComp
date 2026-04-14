@@ -7,15 +7,38 @@ runner_type: KSIVI
 target_type: Bnn_power
 vi_model_type: ConditionalGaussianGlobal
 
+vi_model:
+  epsilon_dim: 3
+  hidden_dim: 10
+  num_layers: 2
+  activation: relu
+  variance_parameterization: logvar
+  global_log_var_init: -8.0
+  global_log_var_min: -20
+
+target:
+  data:
+    batch_size: 100
+    batch_mode: cyclic
+    dev_fraction: 0.1
+    dev_max_size: 500
+
 train:
   epochs: 100000
   batch_size: 100
   grad_clip: 1.0
+  pretrain:
+    enabled: true
+    steps: 100
+    lr: 1.0e-2
+    batch_size: 100
   ema:
     enabled: true
     beta: 0.999
   vi:
     lr: 1.0e-3
+    var_lr: 1.0e-3
+    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
       step_size: 3000
@@ -29,6 +52,7 @@ train:
     kernel: gaussian
     detach_kernel: false
     log_p_reg: 1.0
+    log_p_reg_mode: always
   log:
     metric_log_freq: 1000
     loss_log_freq: 100
@@ -37,7 +61,7 @@ train:
     enabled: true
     freq: 5000
   sample:
-    freq: 999999
+    freq: 1000
     num: 100
   plot:
     freq: 999999
@@ -62,4 +86,9 @@ metric:
   mmd:
     enabled: false
   bnn:
-    num_samples: 500
+    enabled: true
+    num_samples: 100
+  fisher:
+    enabled: false
+  expected_log_marginal:
+    enabled: false

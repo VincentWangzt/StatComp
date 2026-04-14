@@ -88,4 +88,9 @@ metric:
   mmd:
     enabled: false
   bnn:
-    num_samples: 500
+    enabled: true
+    num_samples: 100
+  fisher:
+    enabled: false
+  expected_log_marginal:
+    enabled: false

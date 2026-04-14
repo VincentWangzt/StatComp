@@ -1,0 +1,169 @@
+target,config_path,config_yaml
+Bnn_boston,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_boston.yml,"target_score: Bnn_boston
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 100
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 751
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"
+Bnn_concrete,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_concrete.yml,"target_score: Bnn_concrete
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 100
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 501
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"
+Bnn_power,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_power.yml,"target_score: Bnn_power
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 100
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 301
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"
+Bnn_protein,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_protein.yml,"target_score: Bnn_protein
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 200
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 551
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"
+Bnn_winered,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_winered.yml,"target_score: Bnn_winered
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 100
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 651
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"
+Bnn_yacht,D:\PKU\Programming\StatComp\KSIVI\configs\kernel_sivi_yacht.yml,"target_score: Bnn_yacht
+kernel: gaussian
+train:
+  SIMI: SIMINet
+  num_epochs: 1000
+  num_perepoch: 100
+  batchsize: 100
+  sto_batchsize: 100
+  pre_lr: 0.01
+  pre_iters_num: 100
+  lr_SIMI: 0.001
+  lr_SIMI_var: 0.001
+  ema: 0.999
+  gradient_clip: true
+  reg_logp: true
+  gamma: 0.9
+  gamma_step: 3000
+  z_dim: 3
+  h_dim: 10
+  out_dim: 401
+  annealing: false
+  ustat: false
+  warm_ratio: 4.0
+  log_var_ini: -8
+  log_var_min: -20
+sampling:
+  visual_time: 10
+  num: 100"

@@ -124,7 +124,68 @@ def _apply_variant_overrides(config: dict, target: str, variant: str) -> None:
         config["train"]["reverse_sample_num"] = 2048
 
     if variant == "ksivi_custom":
-        pass
+        if target in BNN_TARGETS:
+            train = config.setdefault("train", {})
+            target_cfg = config.setdefault("target", {})
+            target_data = target_cfg.setdefault("data", {})
+            vi_model = config.setdefault("vi_model", {})
+            metric = config.setdefault("metric", {})
+            metric_bnn = metric.setdefault("bnn", {})
+
+            vi_model["epsilon_dim"] = 3
+            vi_model["hidden_dim"] = 10
+            vi_model["num_layers"] = 2
+            vi_model["activation"] = "relu"
+            vi_model["variance_parameterization"] = "logvar"
+            vi_model["global_log_var_init"] = -8.0
+            vi_model["global_log_var_min"] = -20.0
+
+            target_data["batch_mode"] = "cyclic"
+            target_data["dev_fraction"] = 0.1
+            target_data["dev_max_size"] = 500
+
+            train["pretrain"] = {
+                "enabled": True,
+                "steps": 100,
+                "lr": 1.0e-2,
+                "batch_size": 100,
+            }
+            train["ema"] = {"enabled": True, "beta": 0.999}
+            train.setdefault("vi", {})
+            train["vi"]["lr"] = 1.0e-3
+            train["vi"]["var_lr"] = 1.0e-3
+            train["vi"]["betas"] = [0.9, 0.999]
+            train["vi"].setdefault("scheduler", {})
+            train["vi"]["scheduler"]["type"] = "StepLR"
+            train["vi"]["scheduler"]["step_size"] = 3000
+            train["vi"]["scheduler"]["gamma"] = 0.9
+            train.setdefault("annealing", {})
+            train["annealing"]["enabled"] = False
+            train.setdefault("ksivi", {})
+            train["ksivi"]["statistic"] = "v"
+            train["ksivi"]["kernel"] = "gaussian"
+            train["ksivi"]["detach_kernel"] = False
+            train["ksivi"]["log_p_reg"] = 1.0
+            train["ksivi"]["log_p_reg_mode"] = "always"
+            train.setdefault("log", {})
+            train["log"]["metric_log_freq"] = 1000
+            train["log"]["loss_log_freq"] = 100
+            train["log"]["reverse_log_freq"] = 500
+            train.setdefault("checkpoint", {})
+            train["checkpoint"]["enabled"] = True
+            train["checkpoint"]["freq"] = 5000
+            train.setdefault("sample", {})
+            train["sample"]["freq"] = 1000
+            train["sample"]["num"] = 100
+            train.setdefault("plot", {})
+            train["plot"]["freq"] = 999999
+            train["plot"]["num"] = 100
+            metric_bnn["enabled"] = True
+            metric_bnn["num_samples"] = 100
+            metric.setdefault("fisher", {})
+            metric["fisher"]["enabled"] = False
+            metric.setdefault("expected_log_marginal", {})
+            metric["expected_log_marginal"]["enabled"] = False
     elif variant == "ksivi_standard_cg":
         config["vi_model_type"] = "ConditionalGaussian"
         config.pop("vi_model", None)
