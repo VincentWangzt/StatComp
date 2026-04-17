@@ -326,6 +326,16 @@ class BaseSIVIRunner():
             logger.info(
                 f"Gradient clipping enabled with max_norm={self.grad_clip}")
 
+        # Optional VI pretraining on BNN dev splits.
+        self.pretrain_cfg = self.training_cfg.get('pretrain', {})
+        self.pretrain_enabled: bool = self.pretrain_cfg.get('enabled', False)
+        self.pretrain_steps: int = int(self.pretrain_cfg.get('steps', 0))
+        self.pretrain_lr: float = float(
+            self.pretrain_cfg.get('lr', self.vi_lr))
+        self.pretrain_batch_size: int = int(
+            self.pretrain_cfg.get('batch_size', self.training_batch_size))
+        self._vi_pretrained_done = False
+
         # EMA (Exponential Moving Average) for stable evaluation
         ema_cfg = self.training_cfg.get('ema', {})
         self.ema_enabled = ema_cfg.get('enabled', False)
@@ -1110,8 +1120,62 @@ class BaseSIVIRunner():
             "train_reverse_model must be implemented in subclasses.")
 
     def pretrain_vi(self):
-        """Optional VI pretraining hook used by specific runners."""
-        return
+        """Optional VI pretraining hook for BNN targets with dev splits."""
+        from models.data_bound_target import DataBoundTarget
+
+        if (not self.pretrain_enabled or self.pretrain_steps <= 0 or
+                not isinstance(self.target_model, DataBoundTarget) or
+                self.target_model.dev_data is None or
+                not hasattr(self.target_model.inner, 'predict_y')):
+            return
+
+        X_dev, y_dev, mean_y, std_y = self.target_model.dev_data
+        if (X_dev is None or y_dev is None or mean_y is None or std_y is None):
+            return
+
+        optimizer = torch.optim.Adam(
+            self.vi_model.parameters(),
+            lr=self.pretrain_lr,
+            betas=self.vi_opt_betas,
+        )
+        log_freq = max(1, self.pretrain_steps // 10)
+        logger.info(
+            "Starting VI pretraining on dev split: "
+            f"steps={self.pretrain_steps}, lr={self.pretrain_lr}"
+        )
+
+        self.vi_model.train()
+        for step in range(1, self.pretrain_steps + 1):
+            epsilon = self.vi_model.sample_epsilon(num=self.pretrain_batch_size)
+            z, _ = self.vi_model.forward(epsilon)
+            pred_y = self.target_model.inner.predict_y(z, X_dev, mean_y, std_y)
+            loss = ((pred_y.mean(0) - y_dev)**2).mean()
+            optimizer.zero_grad()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.vi_model.parameters(),
+                    max_norm=self.grad_clip,
+                )
+            optimizer.step()
+
+            if step % log_freq == 0 or step == self.pretrain_steps:
+                self.writer.add_scalar("pretrain/vi_model/loss", loss.item(),
+                                       step)
+                logger.info(
+                    f"VI pretrain step {step}/{self.pretrain_steps}: "
+                    f"loss={loss.item():.6f}"
+                )
+
+        # Reset EMA after pretraining so evaluation starts from the pretrained
+        # weights rather than the random initialization snapshot.
+        if self.ema_enabled:
+            from utils.ema import EMA
+            self.ema = EMA(
+                beta=self.ema_beta,
+                model_params=self.vi_model.parameters(),
+            )
+        self._vi_pretrained_done = True
 
     def calc_log_q_phi_z(
         self,
@@ -1251,7 +1315,7 @@ class BaseSIVIRunner():
         # If resuming, optionally load optimizer & scheduler states
         if self.resume:
             self.load_checkpoints()
-        else:
+        elif not self._vi_pretrained_done:
             self.pretrain_vi()
 
         # Main training loop

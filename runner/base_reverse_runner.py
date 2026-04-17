@@ -567,6 +567,8 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         if self.resume:
             self.load_checkpoints()
             self.resume = False  # only load once
+        elif not self._vi_pretrained_done:
+            self.pretrain_vi()
 
         # Warmup reverse model if enabled
         if self.warmup_enabled:
