@@ -10,6 +10,13 @@ from models.reverse_model import BaseReverseConditionalModel
 
 @dataclass
 class ReverseProposalFit:
+    """Fitted reverse proposal and metadata for reverse-IS ELM.
+
+    ``reverse_model`` estimates ``q_psi(epsilon | z)``. ``cache`` is currently
+    used for the Gaussian fast path, and ``diagnostics``/``resolved_config`` are
+    written by evaluator scripts to make reproduction easier.
+    """
+
     reverse_model: BaseReverseConditionalModel
     proposal_type: str
     fit_mode: str
@@ -20,6 +27,13 @@ class ReverseProposalFit:
 
 @dataclass
 class LogQEstimate:
+    """Per-reference estimates of ``log q_phi(z_i)``.
+
+    ``log_q_values`` has shape ``[N_ref]``. ``ess_values`` is present for
+    reverse-IS estimates and contains one effective sample size per reference
+    point.
+    """
+
     log_q_values: torch.Tensor
     stderr: float
     diagnostics: dict[str, Any]
@@ -28,6 +42,13 @@ class LogQEstimate:
 
 @dataclass
 class ELMEstimate:
+    """Scalar expected log marginal summary.
+
+    ``value`` is the finite-reference mean of ``log_q_values``, estimating
+    ``E_{z ~ r}[log q_phi(z)]``. Diagnostics from the underlying estimator are
+    forwarded with the scalar value and standard error added.
+    """
+
     value: float
     stderr: float
     log_q_values: torch.Tensor

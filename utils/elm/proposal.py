@@ -14,6 +14,7 @@ from models.reverse_model import (
     ConditionalMixtureOfGaussianReverse,
     ReverseModel,
 )
+from models.vi_model import BaseVIModel
 from utils.logging import get_logger
 
 from .types import ReverseProposalFit
@@ -32,6 +33,13 @@ PROPOSAL_TYPE_CANONICAL_NAMES = {
 
 
 def module_dtype(module: torch.nn.Module) -> torch.dtype:
+    """Infer the dtype a module uses for numeric work.
+
+    ELM evaluation must put reference samples and proposal tensors in the same
+    dtype as the VI or reverse model. Parameters are preferred; buffers cover
+    direct-fit proposals such as the Gaussian model, whose fitted statistics are
+    stored as buffers rather than trainable parameters.
+    """
     parameter = next(module.parameters(), None)
     if parameter is not None:
         return parameter.dtype
@@ -42,6 +50,12 @@ def module_dtype(module: torch.nn.Module) -> torch.dtype:
 
 
 def canonical_reverse_model_type(proposal_type: str) -> tuple[str, str]:
+    """Map a user-facing proposal alias to the registered reverse-model class.
+
+    The CLI accepts compact aliases such as ``gaussian`` and ``realnvp``. The
+    model registry in ``models.reverse_model`` uses class-like names, so this
+    helper returns both the registry key and the short alias used in diagnostics.
+    """
     canonical = PROPOSAL_TYPE_ALIASES.get(proposal_type, proposal_type)
     if canonical not in ReverseModel:
         supported = ", ".join(sorted(PROPOSAL_TYPE_ALIASES))
@@ -52,14 +66,23 @@ def canonical_reverse_model_type(proposal_type: str) -> tuple[str, str]:
 
 
 def default_reverse_model_config_path(canonical_type: str) -> Path:
+    """Return the default YAML config path for a registered reverse model."""
     return Path("configs") / "reverse_models" / f"{canonical_type}.yaml"
 
 
 def resolve_reverse_model_config(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     proposal_type: str,
     proposal_config_path: str | Path | None,
 ) -> tuple[str, str, Path, DictConfig, dict[str, Any]]:
+    """Load and specialize a reverse-proposal config for the current VI model.
+
+    Reverse proposals estimate ``q_psi(epsilon | z)`` and therefore need the
+    current VI dimensions ``epsilon_dim`` and ``z_dim``. The config files keep
+    those fields templated for normal experiment configs; this resolver writes
+    concrete values, chooses the VI device, and returns both a ``DictConfig``
+    for model construction and a plain dict for JSON diagnostics.
+    """
     canonical_type, proposal_alias = canonical_reverse_model_type(proposal_type)
     config_path = (
         Path(proposal_config_path)
@@ -69,12 +92,16 @@ def resolve_reverse_model_config(
     if not config_path.is_file():
         raise FileNotFoundError(f"Reverse proposal config not found: {config_path}")
 
+    # Specialize the proposal config to the already-built VI model. This keeps
+    # standalone ELM evaluation independent from the original experiment YAML.
     device = getattr(vi_model, "device", next(vi_model.parameters()).device)
     raw_config = OmegaConf.load(config_path)
     raw_config.z_dim = int(vi_model.z_dim)
     raw_config.epsilon_dim = int(vi_model.epsilon_dim)
     raw_config.device = str(device)
     if "logit" in raw_config:
+        # Uniform epsilon models need the RealNVP proposal to use the same
+        # bounded-support transform as the VI model.
         raw_config.logit = bool(getattr(vi_model, "uniform", False))
     resolved_container = OmegaConf.to_container(raw_config, resolve=True)
     if not isinstance(resolved_container, dict):
@@ -91,15 +118,29 @@ def gaussian_reverse_cache(
     *,
     dtype: torch.dtype,
 ) -> dict[str, torch.Tensor] | None:
+    """Cache closed-form conditional-Gaussian quantities for fast reverse-IS.
+
+    A fitted ``ConditionalGaussianReverse`` stores a joint Gaussian over
+    ``[epsilon, z]``. Conditioning gives
+
+        epsilon | z ~ N(A z + b, cond_cov).
+
+    Reverse-IS repeatedly needs samples and log probabilities from this same
+    conditional Gaussian, so the cache stores ``A``, ``b``, the Cholesky factor
+    of ``cond_cov``, the precision matrix, and ``log det(cond_cov)``. Non-
+    Gaussian proposals return ``None`` and use their own model methods.
+    """
     if not isinstance(reverse_model, ConditionalGaussianReverse):
         return None
     A, b, cond_cov = reverse_model._conditional_params()
+    # A shape: [epsilon_dim, z_dim]; b shape: [epsilon_dim];
+    # cond_cov shape: [epsilon_dim, epsilon_dim].
     A = A.to(dtype=dtype)
     b = b.to(dtype=dtype)
     cond_cov = cond_cov.to(dtype=dtype)
-    chol = torch.linalg.cholesky(cond_cov)
-    precision = torch.cholesky_inverse(chol)
-    log_det = 2.0 * torch.log(torch.diagonal(chol)).sum()
+    chol = torch.linalg.cholesky(cond_cov)  # shape: [epsilon_dim, epsilon_dim]
+    precision = torch.cholesky_inverse(chol)  # shape: [epsilon_dim, epsilon_dim]
+    log_det = 2.0 * torch.log(torch.diagonal(chol)).sum()  # scalar
     return {
         "A": A,
         "b": b,
@@ -113,6 +154,12 @@ def gaussian_reverse_mean(
     z: torch.Tensor,
     cache: dict[str, torch.Tensor],
 ) -> torch.Tensor:
+    """Evaluate the cached Gaussian conditional mean ``A z + b``.
+
+    ``z`` may have leading dimensions such as ``[N_ref, K, z_dim]``; the final
+    dimension is the latent dimension and all leading dimensions are preserved.
+    """
+    # Input shape: [..., z_dim]; output shape: [..., epsilon_dim].
     return torch.matmul(z, cache["A"].transpose(0, 1)) + cache["b"]
 
 
@@ -121,10 +168,16 @@ def gaussian_reverse_log_prob(
     z: torch.Tensor,
     cache: dict[str, torch.Tensor],
 ) -> torch.Tensor:
-    mean = gaussian_reverse_mean(z, cache)
-    diff = epsilon - mean
-    quad = torch.einsum("...i,ij,...j->...", diff, cache["precision"], diff)
-    dim = epsilon.shape[-1]
+    """Compute ``log q_psi(epsilon | z)`` using the cached Gaussian factors."""
+    mean = gaussian_reverse_mean(z, cache)  # shape: [..., epsilon_dim]
+    diff = epsilon - mean  # shape: [..., epsilon_dim]
+    quad = torch.einsum(
+        "...i,ij,...j->...",
+        diff,
+        cache["precision"],
+        diff,
+    )  # shape: [...]
+    dim = epsilon.shape[-1]  # scalar: epsilon_dim
     return -0.5 * (
         dim * torch.log(torch.tensor(2.0 * torch.pi, device=epsilon.device, dtype=epsilon.dtype))
         + cache["log_det"]
@@ -138,31 +191,55 @@ def reverse_model_log_prob(
     z: torch.Tensor,
     proposal_cache: dict[str, torch.Tensor] | None = None,
 ) -> torch.Tensor:
+    """Evaluate proposal log density while preserving caller tensor layout.
+
+    Args:
+        reverse_model: Fitted model for ``q_psi(epsilon | z)``.
+        epsilon: Samples with shape ``[..., epsilon_dim]``.
+        z: Conditioning values with shape ``[..., z_dim]``.
+        proposal_cache: Optional Gaussian cache from ``gaussian_reverse_cache``.
+
+    Returns:
+        Tensor with shape ``[...]`` containing ``log q_psi(epsilon | z)``. The
+        generic path flattens leading dimensions because the reverse models are
+        batch-oriented, then reshapes back to match the estimator tensors.
+    """
     if proposal_cache is not None:
         return gaussian_reverse_log_prob(epsilon, z, proposal_cache)
 
+    # Generic proposal models expect a 2-D batch. Convert dtype/device to the
+    # proposal model, then restore the estimator's dtype/device after scoring.
     model_dtype = module_dtype(reverse_model)
     epsilon_flat = epsilon.reshape(-1, epsilon.shape[-1]).to(
         device=reverse_model.device,
         dtype=model_dtype,
-    )
+    )  # shape: [prod(...), epsilon_dim]
     z_flat = z.reshape(-1, z.shape[-1]).to(
         device=reverse_model.device,
         dtype=model_dtype,
-    )
+    )  # shape: [prod(...), z_dim]
     log_prob = reverse_model.log_prob(epsilon_flat, z_flat)
+    # shape: [prod(...)]
     return log_prob.reshape(epsilon.shape[:-1]).to(
         device=epsilon.device,
         dtype=epsilon.dtype,
-    )
+    )  # shape: [...]
 
 
 def sample_vi_joint(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     num_samples: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Draw joint samples ``(epsilon, z)`` from the fitted VI model.
+
+    These samples are the training data for reverse proposals: the proposal
+    learns the conditional density of the auxiliary variable given the produced
+    latent value, ``q_psi(epsilon | z)``.
+    """
     with torch.no_grad():
         epsilon_samples, z_samples = vi_model.sampling(num=num_samples)
+        # epsilon_samples shape: [num_samples, epsilon_dim]
+        # z_samples shape: [num_samples, z_dim]
     return epsilon_samples.detach(), z_samples.detach()
 
 
@@ -174,29 +251,45 @@ def estimate_fit_nll(
     batch_size: int,
     proposal_cache: dict[str, torch.Tensor] | None = None,
 ) -> float:
+    """Estimate proposal fit quality as average ``-log q_psi(epsilon | z)``.
+
+    The inputs are held-out or freshly sampled VI joint pairs. A lower value
+    indicates the reverse proposal assigns higher conditional likelihood to
+    epsilons that actually produced the observed ``z`` values.
+    """
     losses: list[torch.Tensor] = []
     epsilon = epsilon.reshape(-1, epsilon.shape[-1])
+    # shape: [N_eval, epsilon_dim]
     z = z.reshape(-1, z.shape[-1])
+    # shape: [N_eval, z_dim]
     with torch.no_grad():
         for start in range(0, int(epsilon.shape[0]), batch_size):
             eps_batch = epsilon[start:start + batch_size]
+            # shape: [batch, epsilon_dim]
             z_batch = z[start:start + batch_size]
+            # shape: [batch, z_dim]
             log_prob = reverse_model_log_prob(
                 reverse_model,
                 eps_batch,
                 z_batch,
                 proposal_cache=proposal_cache,
-            )
+            )  # shape: [batch]
             losses.append((-log_prob).detach().cpu())
     return float(torch.cat(losses).mean().item())
 
 
 def build_reverse_proposal(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     *,
     proposal_type: str,
     proposal_config_path: str | Path | None,
 ) -> tuple[BaseReverseConditionalModel, dict[str, Any], dict[str, Any]]:
+    """Construct an unfitted reverse proposal and initial diagnostics.
+
+    This is useful when callers need to own the fitting loop themselves. Most
+    ELM workflows use ``fit_reverse_proposal``, which calls the same resolver
+    and then performs either direct fitting or optimizer fitting.
+    """
     canonical_type, proposal_alias, config_path, proposal_cfg, resolved_config = (
         resolve_reverse_model_config(
             vi_model,
@@ -204,6 +297,7 @@ def build_reverse_proposal(
             proposal_config_path,
         )
     )
+    # Instantiate through the same registry used by the runner system.
     reverse_model = ReverseModel[canonical_type](config=proposal_cfg).to(proposal_cfg.device)
     diagnostics: dict[str, Any] = {
         "proposal_type": proposal_alias,
@@ -216,9 +310,10 @@ def build_reverse_proposal(
 
 
 def collect_vi_joint_samples(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     num_samples: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Collect ``num_samples`` pairs from ``p(epsilon) q_phi(z | epsilon)``."""
     return sample_vi_joint(vi_model, num_samples)
 
 
@@ -228,6 +323,12 @@ def run_direct_fit(
     epsilon_samples: torch.Tensor,
     z_samples: torch.Tensor,
 ) -> dict[str, Any]:
+    """Fit proposals that have a closed-form or one-call estimator.
+
+    Gaussian and MoG reverse models can fit their joint distribution from a
+    fixed set of VI samples. They then expose ``q_psi(epsilon | z)`` through
+    Gaussian conditioning formulas implemented in ``models.reverse_model``.
+    """
     fit_nll, fit_steps = reverse_model.fit(
         epsilon_samples,
         z_samples,
@@ -241,7 +342,7 @@ def run_direct_fit(
 
 def run_optimizer_fit(
     reverse_model: BaseReverseConditionalModel,
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     *,
     fit_batch_size: int,
     fit_epochs: int,
@@ -249,6 +350,17 @@ def run_optimizer_fit(
     proposal_cfg: DictConfig,
     log_every: int,
 ) -> dict[str, Any]:
+    """Train a neural reverse proposal by maximum conditional likelihood.
+
+    Each epoch draws a fresh batch ``(epsilon, z)`` from the current VI model and
+    minimizes
+
+        -E[log q_psi(epsilon | z)].
+
+    This path is used for proposals such as ConditionalRealNVP. It deliberately
+    samples online rather than reusing one finite training set, which makes the
+    objective closer to the VI joint distribution.
+    """
     resolved_lr = float(
         fit_lr
         if fit_lr is not None
@@ -261,13 +373,20 @@ def run_optimizer_fit(
     reverse_model.train()
 
     for epoch in range(1, fit_epochs + 1):
+        # Fresh VI joint batch: epsilon is the auxiliary noise, z is the sample
+        # produced by q_phi(z | epsilon).
         epsilon_samples, z_samples = collect_vi_joint_samples(vi_model, fit_batch_size)
+        # epsilon_samples shape: [fit_batch_size, epsilon_dim]
+        # z_samples shape: [fit_batch_size, z_dim]
         optimizer.zero_grad()
         log_prob = reverse_model.log_prob(epsilon_samples, z_samples)
-        loss = -torch.mean(log_prob)
+        # shape: [fit_batch_size]
+        loss = -torch.mean(log_prob)  # scalar
         loss_value = float(loss.item())
         losses.append(loss_value)
         if torch.isfinite(loss):
+            # Non-finite losses are skipped so one unstable batch does not
+            # destroy the proposal state.
             loss.backward()
             optimizer.step()
             optimizer_steps += 1
@@ -300,13 +419,18 @@ def run_optimizer_fit(
 
 def finalize_reverse_proposal_fit(
     reverse_model: BaseReverseConditionalModel,
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     *,
     diagnostics: dict[str, Any],
     fit_batch_size: int,
     num_fit_samples: int,
 ) -> tuple[dict[str, Any], dict[str, torch.Tensor] | None]:
+    """Evaluate the fitted proposal and build any reusable estimator cache."""
+    # Use fresh VI samples for an apples-to-apples proposal NLL diagnostic.
     eval_epsilon, eval_z = collect_vi_joint_samples(vi_model, num_fit_samples)
+
+    # Only Gaussian proposals currently have a closed-form cache. For other
+    # proposal families this returns None and reverse-IS calls the model methods.
     proposal_cache = gaussian_reverse_cache(reverse_model, dtype=module_dtype(vi_model))
     fit_nll = estimate_fit_nll(
         reverse_model,
@@ -320,7 +444,7 @@ def finalize_reverse_proposal_fit(
 
 
 def fit_reverse_proposal(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     *,
     proposal_type: str = "gaussian",
     proposal_config_path: str | Path | None = None,
@@ -330,6 +454,33 @@ def fit_reverse_proposal(
     fit_lr: float | None = None,
     log_every: int = 100,
 ) -> ReverseProposalFit:
+    """Fit ``q_psi(epsilon | z)`` for reverse-IS ELM estimation.
+
+    The reverse proposal is a conditional density estimator trained from VI
+    joint samples ``epsilon ~ p(epsilon)``, ``z ~ q_phi(z | epsilon)``. Once
+    fitted, it helps estimate the marginal density at reference points through
+    importance weights
+
+        q_phi(z | epsilon) p(epsilon) / q_psi(epsilon | z).
+
+    Args:
+        vi_model: Trained variational model exposing ``sampling``,
+            ``sample_epsilon``, ``log_q_epsilon``, and ``logp``.
+        proposal_type: Alias or registered class name for the reverse proposal.
+        proposal_config_path: Optional config override; otherwise the default
+            file under ``configs/reverse_models`` is used.
+        num_fit_samples: Number of VI joint pairs for direct-fit proposals and
+            final fit diagnostics.
+        fit_batch_size: Online batch size for optimizer-fit proposals and NLL
+            evaluation batch size.
+        fit_epochs: Number of optimizer epochs for neural proposals.
+        fit_lr: Optional optimizer learning rate override.
+        log_every: Optimizer progress logging interval; set to 0 to silence.
+
+    Returns:
+        ``ReverseProposalFit`` containing the fitted model, diagnostics, any
+        Gaussian cache, and the resolved config used to construct the proposal.
+    """
     if num_fit_samples < 2:
         raise ValueError("num_fit_samples must be at least 2.")
     if fit_batch_size < 1:
@@ -348,6 +499,8 @@ def fit_reverse_proposal(
     use_optimizer = bool(proposal_cfg.get("use_optimizer", True))
     fit_mode = "optimizer" if use_optimizer else "direct_fit"
 
+    # Diagnostics are persisted by the evaluator script and make budget sweeps
+    # reproducible: proposal family, fitting mode, budgets, and config path.
     diagnostics: dict[str, Any] = {
         "proposal_type": proposal_alias,
         "proposal_class": canonical_type,
@@ -366,6 +519,7 @@ def fit_reverse_proposal(
 
     try:
         if use_optimizer:
+            # Neural proposals learn q_psi(epsilon | z) with gradient descent.
             diagnostics.update(
                 run_optimizer_fit(
                     reverse_model,
@@ -378,7 +532,11 @@ def fit_reverse_proposal(
                 )
             )
         else:
+            # Direct-fit proposals estimate their parameters from one VI joint
+            # sample set, e.g. empirical joint Gaussian moments or GMM EM.
             epsilon_samples, z_samples = collect_vi_joint_samples(vi_model, num_fit_samples)
+            # epsilon_samples shape: [num_fit_samples, epsilon_dim]
+            # z_samples shape: [num_fit_samples, z_dim]
             diagnostics.update(
                 run_direct_fit(
                     reverse_model,
@@ -389,6 +547,8 @@ def fit_reverse_proposal(
             diagnostics["fit_lr"] = None
 
         reverse_model.eval()
+        # Add a held-out-style NLL diagnostic and build the Gaussian fast-path
+        # cache used by estimate_log_q_reverse_is.
         diagnostics, proposal_cache = finalize_reverse_proposal_fit(
             reverse_model,
             vi_model,
@@ -418,6 +578,12 @@ def save_reverse_proposal_fit(
     *,
     save_state: bool = False,
 ) -> tuple[Path, Path | None]:
+    """Persist fitted-proposal metadata, and optionally the model state.
+
+    ``proposal_fit.json`` is small and records the fitting setup for later
+    interpretation of ELM sweeps. ``proposal_state.pt`` is optional because many
+    workflows only need the scalar diagnostics and summary tables.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     fit_json_path = output_dir / "proposal_fit.json"

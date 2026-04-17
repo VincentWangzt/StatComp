@@ -8,6 +8,7 @@ import numpy as np
 import torch
 
 from models.reverse_model import BaseReverseConditionalModel
+from models.vi_model import BaseVIModel
 
 from .proposal import (
     gaussian_reverse_cache,
@@ -28,11 +29,24 @@ def sample_reference_samples(
     *,
     replace: bool = False,
 ) -> torch.Tensor:
+    """Choose the reference points used in the outer ELM expectation.
+
+    ELM estimates
+
+        E_{z ~ r}[log q_phi(z)],
+
+    where ``r`` is represented in this codebase by stored baseline samples,
+    typically MCMC samples. This helper returns up to ``num_ref_samples`` rows
+    with shape ``[N_ref, z_dim]`` on the requested device. The estimators below
+    treat these points as fixed conditioning locations.
+    """
     if baseline_samples is None:
         raise RuntimeError("Baseline samples are required for expected log marginal.")
     if num_ref_samples < 1:
         raise ValueError("num_ref_samples must be at least 1.")
 
+    # Keep the outer expectation cheap by subsampling the baseline store when it
+    # is larger than the requested reference budget.
     total = int(baseline_samples.shape[0])
     if total > num_ref_samples:
         indices = np.random.choice(total, num_ref_samples, replace=replace)
@@ -43,6 +57,12 @@ def sample_reference_samples(
 
 
 def summarize_tensor(values: torch.Tensor, prefix: str) -> dict[str, float]:
+    """Return finite-value summaries for diagnostic vectors such as ESS.
+
+    ``values`` is usually a one-dimensional tensor with one diagnostic per
+    reference sample. Non-finite entries are ignored so that a few failed
+    reference points do not hide the usable part of the diagnostic report.
+    """
     finite = values[torch.isfinite(values)]
     if finite.numel() == 0:
         return {
@@ -68,6 +88,17 @@ def summarize_tensor(values: torch.Tensor, prefix: str) -> dict[str, float]:
 
 
 def elm_stats(log_q_values: torch.Tensor) -> tuple[float, float, float, int]:
+    """Summarize per-reference log marginal estimates.
+
+    Args:
+        log_q_values: Tensor with shape ``[N_ref]`` containing estimates of
+            ``log q_phi(z_i)`` for fixed reference samples ``z_i``.
+
+    Returns:
+        ``(mean, stderr, std, count)`` over finite entries. The mean is the
+        scalar ELM estimate, and ``stderr`` measures variability across the
+        reference samples rather than the inner importance-sampling noise.
+    """
     finite = log_q_values[torch.isfinite(log_q_values)]
     count = int(finite.numel())
     if count == 0:
@@ -80,49 +111,96 @@ def elm_stats(log_q_values: torch.Tensor) -> tuple[float, float, float, int]:
 
 @torch.no_grad()
 def estimate_log_q_prior(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     reference_samples: torch.Tensor,
     *,
     num_samples: int,
     epsilon_batch_size: int,
 ) -> LogQEstimate:
+    """Estimate ``log q_phi(z)`` by direct Monte Carlo over the epsilon prior.
+
+    Mathematically, the marginal variational density is
+
+        q_phi(z) = E_{epsilon ~ p(epsilon)}[q_phi(z | epsilon)].
+
+    For each fixed reference sample ``z_i`` this function draws ``K`` auxiliary
+    variables from the VI prior and computes
+
+        log hat q_K(z_i) =
+            log((1 / K) * sum_k q_phi(z_i | epsilon_k)).
+
+    Tensor shapes:
+        - ``reference_samples``: ``[N_ref, z_dim]``.
+        - ``epsilon`` per chunk: ``[chunk, epsilon_dim]``.
+        - expanded ``z`` and ``epsilon``: ``[N_ref, chunk, dim]``.
+        - returned ``log_q_values``: ``[N_ref]``.
+
+    The estimate is computed with ``logsumexp`` for numerical stability. Since
+    the logarithm is outside the inner average, finite ``K`` estimates are
+    Jensen-biased downward when ``q_phi(z | epsilon)`` is highly variable.
+    """
     if num_samples < 1:
         raise ValueError("num_samples must be at least 1.")
     if epsilon_batch_size < 1:
         raise ValueError("epsilon_batch_size must be at least 1.")
 
+    # Estimation is read-only. Preserve the caller's training mode while
+    # disabling stochastic training layers such as dropout, if present.
     was_training = vi_model.training
     vi_model.eval()
     start = time.perf_counter()
     reference_samples = reference_samples.to(
         device=getattr(vi_model, "device", reference_samples.device),
         dtype=module_dtype(vi_model),
-    )
-    n_ref = int(reference_samples.shape[0])
+    )  # shape: [N_ref, z_dim]
+    n_ref = int(reference_samples.shape[0])  # scalar: N_ref
     chunk_log_means: list[torch.Tensor] = []
     chunk_sizes: list[int] = []
     remaining = num_samples
 
     while remaining > 0:
+        # Process epsilon samples in chunks so the logical MC budget can be
+        # large without materializing an ``[N_ref, K, dim]`` tensor at once.
         current = min(epsilon_batch_size, remaining)
-        epsilon = vi_model.sample_epsilon(num=current)
-        z_expanded = reference_samples.unsqueeze(1).expand(-1, current, -1)
-        eps_expanded = epsilon.unsqueeze(0).expand(n_ref, -1, -1)
-        log_q = vi_model.logp(z_expanded, eps_expanded)
-        chunk_log_means.append(torch.logsumexp(log_q, dim=1) - math.log(current))
+        epsilon = vi_model.sample_epsilon(num=current)  # shape: [current, epsilon_dim]
+
+        # Broadcast fixed reference points against the current epsilon chunk.
+        # ``logp`` returns log q_phi(z_i | epsilon_k), shape [N_ref, current].
+        z_expanded = reference_samples.unsqueeze(1).expand(
+            -1,
+            current,
+            -1,
+        )  # shape: [N_ref, current, z_dim]
+        eps_expanded = epsilon.unsqueeze(0).expand(
+            n_ref,
+            -1,
+            -1,
+        )  # shape: [N_ref, current, epsilon_dim]
+        log_q = vi_model.logp(
+            z_expanded,
+            eps_expanded,
+        )  # shape: [N_ref, current]
+
+        # Store log of the chunk mean density for each z_i:
+        # log((1/current) sum_k q_phi(z_i | epsilon_k)).
+        chunk_log_mean = torch.logsumexp(log_q, dim=1) - math.log(current)
+        # shape: [N_ref], one log mean density per reference sample.
+        chunk_log_means.append(chunk_log_mean)
         chunk_sizes.append(current)
         remaining -= current
 
-    stacked = torch.stack(chunk_log_means, dim=1)
+    # Combine chunk means with their actual chunk sizes. This preserves the
+    # same estimate regardless of how ``num_samples`` is split into batches.
+    stacked = torch.stack(chunk_log_means, dim=1)  # shape: [N_ref, n_chunks]
     weights = torch.tensor(
         chunk_sizes,
         device=stacked.device,
         dtype=stacked.dtype,
-    )
+    )  # shape: [n_chunks]
     log_q_values = (
         torch.logsumexp(stacked + torch.log(weights).unsqueeze(0), dim=1)
         - math.log(num_samples)
-    )
+    )  # shape: [N_ref]
     mean, stderr, log_q_std, finite_count = elm_stats(log_q_values)
     runtime_sec = time.perf_counter() - start
     if was_training:
@@ -147,7 +225,7 @@ def estimate_log_q_prior(
 
 @torch.no_grad()
 def estimate_log_q_reverse_is(
-    vi_model: torch.nn.Module,
+    vi_model: BaseVIModel,
     reverse_model: BaseReverseConditionalModel,
     reference_samples: torch.Tensor,
     *,
@@ -155,11 +233,40 @@ def estimate_log_q_reverse_is(
     is_batch_size: int = 1024,
     proposal_cache: dict[str, torch.Tensor] | None = None,
 ) -> LogQEstimate:
+    """Estimate ``log q_phi(z)`` with a fitted reverse importance proposal.
+
+    Direct prior sampling can miss the small set of epsilon values that make a
+    sharp conditional density ``q_phi(z | epsilon)`` large at a fixed reference
+    point. Reverse-IS instead samples
+
+        epsilon_ik ~ q_psi(epsilon | z_i)
+
+    from a fitted reverse proposal and uses the unbiased density estimator
+
+        hat q_K(z_i) = (1 / K) * sum_k
+            q_phi(z_i | epsilon_ik) p(epsilon_ik)
+            / q_psi(epsilon_ik | z_i).
+
+    This function returns ``log hat q_K(z_i)`` for every reference point, then
+    ``summarize_elm`` averages those values to produce the scalar ELM.
+
+    Tensor shapes:
+        - ``reference_samples``: ``[N_ref, z_dim]``.
+        - ``z_aux`` per chunk: ``[N_ref, chunk, z_dim]``.
+        - sampled ``epsilon``: ``[N_ref, chunk, epsilon_dim]``.
+        - ``log_weight``: ``[N_ref, chunk]``.
+        - returned ``log_q_values`` and ``ess_values``: ``[N_ref]``.
+
+    The implementation accumulates sums in log space and treats non-finite
+    weights as zero contribution. For a Gaussian proposal, ``proposal_cache``
+    stores the conditional parameters and avoids repeated distribution setup.
+    """
     if num_is_samples < 1:
         raise ValueError("num_is_samples must be at least 1.")
     if is_batch_size < 1:
         raise ValueError("is_batch_size must be at least 1.")
 
+    # Match the VI model's device/dtype and preserve both modules' modes.
     device = getattr(vi_model, "device", reference_samples.device)
     vi_dtype = module_dtype(vi_model)
     was_vi_training = vi_model.training
@@ -167,68 +274,109 @@ def estimate_log_q_reverse_is(
     vi_model.eval()
     reverse_model.eval()
 
-    reference_samples = reference_samples.to(device=device, dtype=vi_dtype)
-    n_ref = int(reference_samples.shape[0])
+    reference_samples = reference_samples.to(
+        device=device,
+        dtype=vi_dtype,
+    )  # shape: [N_ref, z_dim]
+    n_ref = int(reference_samples.shape[0])  # scalar: N_ref
     dtype = reference_samples.dtype
     start = time.perf_counter()
 
     finite_weight_count = 0
     total_weight_count = 0
 
+    # Gaussian reverse proposals have closed-form sampling/log-density code
+    # below. Other proposal families use their model methods directly.
     gaussian_cache = proposal_cache or gaussian_reverse_cache(reverse_model, dtype=dtype)
-    log_weight_sum = torch.full((n_ref,), LOG_ZERO, device=device, dtype=dtype)
-    log_weight_square_sum = torch.full((n_ref,), LOG_ZERO, device=device, dtype=dtype)
+    log_weight_sum = torch.full(
+        (n_ref,),
+        LOG_ZERO,
+        device=device,
+        dtype=dtype,
+    )  # shape: [N_ref], stores log(sum_k w_ik)
+    log_weight_square_sum = torch.full(
+        (n_ref,),
+        LOG_ZERO,
+        device=device,
+        dtype=dtype,
+    )  # shape: [N_ref], stores log(sum_k w_ik^2)
 
     for is_start in range(0, num_is_samples, is_batch_size):
+        # Chunk over the inner IS budget. ``z_aux`` repeats each reference
+        # sample across the chunk dimension so each z_i gets its own epsilons.
         chunk_n = min(is_batch_size, num_is_samples - is_start)
-        z_aux = reference_samples.unsqueeze(1).expand(n_ref, chunk_n, -1)
+        z_aux = reference_samples.unsqueeze(1).expand(
+            n_ref,
+            chunk_n,
+            -1,
+        )  # shape: [N_ref, chunk_n, z_dim]
 
         if gaussian_cache is None:
+            # Generic path: ask the reverse model to sample epsilon | z.
             _, epsilon, _ = reverse_model.sample(
                 reference_samples,
                 num_samples=chunk_n,
-            )
+            )  # epsilon shape: [N_ref, chunk_n, epsilon_dim]
         else:
-            mean_reverse = gaussian_reverse_mean(z_aux, gaussian_cache)
-            noise = torch.randn_like(mean_reverse)
+            # Fast Gaussian path: epsilon = A z + b + L eta, eta ~ N(0, I).
+            mean_reverse = gaussian_reverse_mean(
+                z_aux,
+                gaussian_cache,
+            )  # shape: [N_ref, chunk_n, epsilon_dim]
+            noise = torch.randn_like(mean_reverse)  # same shape as mean_reverse
             epsilon = mean_reverse + torch.matmul(
                 noise,
                 gaussian_cache["chol"].transpose(0, 1),
-            )
+            )  # shape: [N_ref, chunk_n, epsilon_dim]
 
-        log_prior = vi_model.log_q_epsilon(epsilon)
+        # log weight = log q_phi(z | eps) + log p(eps) - log q_psi(eps | z).
+        # Averaging exp(log_weight) over eps estimates q_phi(z).
+        log_prior = vi_model.log_q_epsilon(epsilon)  # shape: [N_ref, chunk_n]
         log_proposal = reverse_model_log_prob(
             reverse_model,
             epsilon,
             z_aux,
             proposal_cache=gaussian_cache,
-        )
-        log_conditional = vi_model.logp(z_aux, epsilon)
+        )  # shape: [N_ref, chunk_n]
+        log_conditional = vi_model.logp(
+            z_aux,
+            epsilon,
+        )  # shape: [N_ref, chunk_n]
         log_weight = log_conditional + log_prior - log_proposal
-        finite_mask = torch.isfinite(log_weight)
+        # shape: [N_ref, chunk_n]
+        finite_mask = torch.isfinite(log_weight)  # shape: [N_ref, chunk_n]
         finite_weight_count += int(finite_mask.sum().item())
         total_weight_count += int(log_weight.numel())
+
+        # Replace NaN/+inf/-inf weights with log(0) before logsumexp so they
+        # cannot poison the entire reference point.
         safe_log_weight = torch.where(
             finite_mask,
             log_weight,
             torch.full_like(log_weight, LOG_ZERO),
-        )
+        )  # shape: [N_ref, chunk_n]
+
+        # Accumulate sum_k w_k and sum_k w_k^2 in log space across chunks.
         log_weight_sum = torch.logaddexp(
             log_weight_sum,
             torch.logsumexp(safe_log_weight, dim=1),
-        )
+        )  # shape: [N_ref]
         log_weight_square_sum = torch.logaddexp(
             log_weight_square_sum,
             torch.logsumexp(2.0 * safe_log_weight, dim=1),
-        )
+        )  # shape: [N_ref]
 
-    log_q_values = log_weight_sum - math.log(num_is_samples)
-    ess_values = torch.exp(2.0 * log_weight_sum - log_weight_square_sum)
+    # Convert sum_k w_k into log((1/K) sum_k w_k). ESS is computed per z_i as
+    # (sum_k w_k)^2 / sum_k w_k^2, then clamped to the possible range [0, K].
+    log_q_values = log_weight_sum - math.log(num_is_samples)  # shape: [N_ref]
+    ess_values = torch.exp(
+        2.0 * log_weight_sum - log_weight_square_sum
+    )  # shape: [N_ref]
     ess_values = torch.where(
         torch.isfinite(ess_values),
         ess_values.clamp(min=0.0, max=float(num_is_samples)),
         torch.zeros_like(ess_values),
-    )
+    )  # shape: [N_ref]
     mean, stderr, log_q_std, finite_count = elm_stats(log_q_values)
     runtime_sec = time.perf_counter() - start
     if was_vi_training:
@@ -266,6 +414,12 @@ def estimate_log_q_reverse_is(
 
 
 def summarize_elm(log_q: LogQEstimate) -> ELMEstimate:
+    """Average per-reference log marginal values into the scalar ELM.
+
+    ``log_q.log_q_values`` contains estimates of ``log q_phi(z_i)``. This
+    function computes their finite-sample mean, which estimates
+    ``E_{z ~ r}[log q_phi(z)]``, and forwards diagnostics such as ESS.
+    """
     value, stderr, _, _ = elm_stats(log_q.log_q_values)
     diagnostics = dict(log_q.diagnostics)
     diagnostics["stderr"] = float(stderr)
