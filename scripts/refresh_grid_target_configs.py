@@ -47,6 +47,17 @@ def _refresh_config(config_path: Path, target: str, variant: str | None) -> None
     metric["elbo"]["num_batches"] = budgets["elbo_num_batches"]
     metric["elbo"]["num_z_samples"] = budgets["elbo_num_z_samples"]
 
+    metric.setdefault("expected_log_marginal", {})
+    metric["expected_log_marginal"]["enabled"] = support["mmd"]
+    metric["expected_log_marginal"]["num_ref_samples"] = budgets["elm_num_ref_samples"]
+    metric["expected_log_marginal"]["num_model_samples"] = budgets["elm_num_model_samples"]
+    metric["expected_log_marginal"]["sample_batch_size"] = budgets["elm_sample_batch_size"]
+    metric["expected_log_marginal"]["dim_chunk"] = budgets["elm_dim_chunk"]
+    metric["expected_log_marginal"]["ref_chunk"] = budgets["elm_ref_chunk"]
+    metric["expected_log_marginal"]["model_chunk"] = budgets["elm_model_chunk"]
+    metric["expected_log_marginal"]["min_bandwidth"] = 1.0e-6
+    metric["expected_log_marginal"]["dtype"] = "float32"
+
     metric.setdefault("bnn", {})
     metric["bnn"]["enabled"] = support["bnn"]
     metric["bnn"]["num_samples"] = budgets["bnn_num_samples"]

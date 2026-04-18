@@ -54,3 +54,19 @@ class ELMEstimate:
     log_q_values: torch.Tensor
     diagnostics: dict[str, Any]
     ess_values: torch.Tensor | None = None
+
+
+@dataclass
+class KDEELMEstimate:
+    """Paper-style coordinate-marginal KDE expected log marginal summary.
+
+    ``value`` is the finite-reference mean of ``per_reference_log_values``.
+    Each per-reference value is the sum of one-dimensional KDE log densities
+    across coordinates.
+    """
+
+    value: float
+    stderr: float
+    per_reference_log_values: torch.Tensor
+    diagnostics: dict[str, Any]
+    bandwidths: torch.Tensor

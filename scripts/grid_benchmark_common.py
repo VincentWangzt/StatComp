@@ -160,6 +160,7 @@ SMOKE_RUNS = [
 
 BEST_METRIC_MODES = {
     "metric/vi_model/elbo": "max",
+    "metric/vi_model/kde_expected_log_marginal": "max",
     "metric/vi_model/kl_ite": "min",
     "metric/vi_model/w2": "min",
     "metric/vi_model/ksd": "min",
@@ -320,6 +321,12 @@ def metric_budgets(target: str) -> dict[str, int]:
         "elbo_batch_size": 256 if is_bnn else 512,
         "elbo_num_batches": 2,
         "elbo_num_z_samples": 1024,
+        "elm_num_ref_samples": 1000,
+        "elm_num_model_samples": 5000,
+        "elm_sample_batch_size": 5000,
+        "elm_dim_chunk": 25,
+        "elm_ref_chunk": 500,
+        "elm_model_chunk": 20000,
         "bnn_num_samples": 500,
     }
 

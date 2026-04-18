@@ -16,10 +16,11 @@ from .proposal import (
     module_dtype,
     reverse_model_log_prob,
 )
-from .types import ELMEstimate, LogQEstimate
+from .types import ELMEstimate, KDEELMEstimate, LogQEstimate
 
 
 LOG_ZERO = float("-inf")
+HALF_LOG_2PI = 0.5 * math.log(2.0 * math.pi)
 
 
 def sample_reference_samples(
@@ -107,6 +108,216 @@ def elm_stats(log_q_values: torch.Tensor) -> tuple[float, float, float, int]:
     std = float(finite.std(unbiased=True).item()) if count > 1 else 0.0
     stderr = std / math.sqrt(count)
     return mean, stderr, std, count
+
+
+def _resolve_kde_dtype(dtype: torch.dtype | str) -> torch.dtype:
+    if isinstance(dtype, torch.dtype):
+        if dtype not in (torch.float32, torch.float64):
+            raise ValueError("KDE dtype must be torch.float32 or torch.float64.")
+        return dtype
+    dtype_name = str(dtype).lower()
+    if dtype_name in {"float32", "fp32", "torch.float32"}:
+        return torch.float32
+    if dtype_name in {"float64", "double", "fp64", "torch.float64"}:
+        return torch.float64
+    raise ValueError(f"Unsupported KDE dtype: {dtype!r}.")
+
+
+def _kde_oom_message(exc: BaseException) -> RuntimeError:
+    return RuntimeError(
+        "CUDA ran out of memory while evaluating KDE expected log marginal. "
+        "Retry with smaller --dim-chunk, --ref-chunk, or --model-chunk."
+    )
+
+
+def _is_cuda_oom(exc: BaseException) -> bool:
+    if isinstance(exc, torch.cuda.OutOfMemoryError):
+        return True
+    return "out of memory" in str(exc).lower() and "cuda" in str(exc).lower()
+
+
+@torch.no_grad()
+def kde_expected_log_marginal(
+    reference_samples: torch.Tensor | np.ndarray,
+    model_samples: torch.Tensor | np.ndarray,
+    *,
+    dim_chunk: int = 25,
+    ref_chunk: int = 500,
+    model_chunk: int = 20000,
+    min_bandwidth: float = 1.0e-6,
+    dtype: torch.dtype | str = torch.float32,
+    device: torch.device | str | None = None,
+) -> KDEELMEstimate:
+    r"""Estimate paper-style expected log marginal with coordinate-wise KDE.
+
+    The estimator fits one Gaussian KDE per coordinate from generated model
+    samples and evaluates the sum of coordinate log densities at fixed
+    reference samples:
+
+        (1 / N) * sum_i sum_j log \hat q_j(x_ij).
+
+    Model-sample chunks are combined exactly in log space. Chunk sizes only
+    control peak memory.
+    """
+    if dim_chunk < 1:
+        raise ValueError("dim_chunk must be at least 1.")
+    if ref_chunk < 1:
+        raise ValueError("ref_chunk must be at least 1.")
+    if model_chunk < 1:
+        raise ValueError("model_chunk must be at least 1.")
+    if min_bandwidth <= 0.0:
+        raise ValueError("min_bandwidth must be positive.")
+
+    kde_dtype = _resolve_kde_dtype(dtype)
+    if device is None:
+        if isinstance(model_samples, torch.Tensor):
+            kde_device = model_samples.device
+        else:
+            kde_device = torch.device("cpu")
+    else:
+        kde_device = torch.device(device)
+    if kde_device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("KDE device is CUDA, but CUDA is not available.")
+
+    start = time.perf_counter()
+    try:
+        ref = torch.as_tensor(
+            reference_samples,
+            device=kde_device,
+            dtype=kde_dtype,
+        )
+        model = torch.as_tensor(
+            model_samples,
+            device=kde_device,
+            dtype=kde_dtype,
+        )
+    except Exception as exc:
+        if _is_cuda_oom(exc):
+            raise _kde_oom_message(exc) from exc
+        raise
+
+    if ref.ndim != 2:
+        raise ValueError(f"reference_samples must have shape [N, D], got {tuple(ref.shape)}.")
+    if model.ndim != 2:
+        raise ValueError(f"model_samples must have shape [M, D], got {tuple(model.shape)}.")
+    if ref.shape[1] != model.shape[1]:
+        raise ValueError(
+            "reference_samples and model_samples must have the same dimension, "
+            f"got {ref.shape[1]} and {model.shape[1]}."
+        )
+    if model.shape[0] < 1:
+        raise ValueError("model_samples must contain at least one sample.")
+    if ref.shape[0] < 1:
+        raise ValueError("reference_samples must contain at least one sample.")
+
+    n_ref = int(ref.shape[0])
+    n_model = int(model.shape[0])
+    z_dim = int(ref.shape[1])
+
+    # Scott's factor for a one-dimensional KDE is M^{-1/5}. The unbiased
+    # coordinate std matches scipy.stats.gaussian_kde's 1D covariance.
+    if n_model > 1:
+        coord_std = model.std(dim=0, unbiased=True)
+    else:
+        coord_std = torch.zeros(z_dim, device=kde_device, dtype=kde_dtype)
+    raw_bandwidths = coord_std * (float(n_model) ** (-1.0 / 5.0))
+    finite_positive_bw = torch.isfinite(raw_bandwidths) & (raw_bandwidths > 0)
+    min_bw_tensor = torch.full_like(raw_bandwidths, float(min_bandwidth))
+    bandwidths = torch.where(
+        finite_positive_bw,
+        torch.maximum(raw_bandwidths, min_bw_tensor),
+        min_bw_tensor,
+    )
+    clamped_mask = ~finite_positive_bw | (raw_bandwidths < float(min_bandwidth))
+
+    per_ref_log_values = torch.zeros(n_ref, device=kde_device, dtype=kde_dtype)
+    log_norm_model = math.log(float(n_model))
+
+    try:
+        for dim_start in range(0, z_dim, dim_chunk):
+            dim_stop = min(dim_start + dim_chunk, z_dim)
+            dim_slice = slice(dim_start, dim_stop)
+            model_dim = model[:, dim_slice].transpose(0, 1).contiguous()
+            bandwidth_dim = bandwidths[dim_slice]
+            log_bandwidth_dim = torch.log(bandwidth_dim)
+
+            for ref_start in range(0, n_ref, ref_chunk):
+                ref_stop = min(ref_start + ref_chunk, n_ref)
+                ref_dim = ref[ref_start:ref_stop, dim_slice].transpose(0, 1).contiguous()
+                log_kernel_sum = torch.full(
+                    (dim_stop - dim_start, ref_stop - ref_start),
+                    LOG_ZERO,
+                    device=kde_device,
+                    dtype=kde_dtype,
+                )
+
+                for model_start in range(0, n_model, model_chunk):
+                    model_stop = min(model_start + model_chunk, n_model)
+                    model_part = model_dim[:, model_start:model_stop]
+                    scaled_diff = (
+                        ref_dim.unsqueeze(2) - model_part.unsqueeze(1)
+                    ) / bandwidth_dim.view(-1, 1, 1)
+                    kernel_log = -0.5 * scaled_diff.square()
+                    log_kernel_sum = torch.logaddexp(
+                        log_kernel_sum,
+                        torch.logsumexp(kernel_log, dim=2),
+                    )
+
+                log_density = (
+                    log_kernel_sum
+                    - log_norm_model
+                    - log_bandwidth_dim.unsqueeze(1)
+                    - HALF_LOG_2PI
+                )
+                per_ref_log_values[ref_start:ref_stop] += log_density.sum(dim=0)
+    except Exception as exc:
+        if _is_cuda_oom(exc):
+            raise _kde_oom_message(exc) from exc
+        raise
+
+    elapsed = time.perf_counter() - start
+    finite_values = per_ref_log_values[torch.isfinite(per_ref_log_values)]
+    finite_count = int(finite_values.numel())
+    if finite_count == 0:
+        value = float("nan")
+        stderr = float("nan")
+        std = float("nan")
+        min_value = float("nan")
+        max_value = float("nan")
+    else:
+        value = float(finite_values.mean().item())
+        std = float(finite_values.std(unbiased=True).item()) if finite_count > 1 else 0.0
+        stderr = std / math.sqrt(finite_count)
+        min_value = float(finite_values.min().item())
+        max_value = float(finite_values.max().item())
+
+    diagnostics: dict[str, Any] = {
+        "estimator": "kde_expected_log_marginal",
+        "bandwidth_rule": "scott",
+        "num_ref_samples": n_ref,
+        "num_model_samples": n_model,
+        "z_dim": z_dim,
+        "dtype": str(kde_dtype).replace("torch.", ""),
+        "device": str(kde_device),
+        "dim_chunk": int(dim_chunk),
+        "ref_chunk": int(ref_chunk),
+        "model_chunk": int(model_chunk),
+        "min_bandwidth": float(min_bandwidth),
+        "num_bandwidth_clamped_dims": int(clamped_mask.sum().item()),
+        "runtime_sec": float(elapsed),
+        "num_finite_ref_log_values": finite_count,
+        "std_across_refs": float(std),
+        "min_per_ref_log": float(min_value),
+        "max_per_ref_log": float(max_value),
+    }
+
+    return KDEELMEstimate(
+        value=value,
+        stderr=stderr,
+        per_reference_log_values=per_ref_log_values.detach().cpu(),
+        diagnostics=diagnostics,
+        bandwidths=bandwidths.detach().cpu(),
+    )
 
 
 @torch.no_grad()

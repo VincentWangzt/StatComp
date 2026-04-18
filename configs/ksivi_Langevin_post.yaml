@@ -67,8 +67,13 @@ metric:
   expected_log_marginal:
     enabled: true
     num_ref_samples: 1000
-    num_batches: 2
-    batch_size: 512
+    num_model_samples: 5000
+    sample_batch_size: 5000
+    dim_chunk: 25
+    ref_chunk: 500
+    model_chunk: 20000
+    min_bandwidth: 1.0e-6
+    dtype: float32
   ksd:
     enabled: true
     num_samples: 1000

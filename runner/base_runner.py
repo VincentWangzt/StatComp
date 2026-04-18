@@ -12,6 +12,7 @@ import numpy as np
 from omegaconf import OmegaConf, DictConfig
 from collections import defaultdict
 from utils.annealing import annealing
+from utils.elm import kde_expected_log_marginal
 from utils.metrics import compute_sliced_wasserstein, compute_ksd, compute_mmd
 
 logger = get_logger()
@@ -153,7 +154,7 @@ class BaseSIVIRunner():
         self.n_elbo_batches = self.config['metric']['elbo']['num_batches']
         self.n_elbo_batch_size = self.config['metric']['elbo']['batch_size']
 
-        # expected log marginal samples
+        # KDE expected log marginal samples
         self.config.metric.setdefault('expected_log_marginal', {})
         self.metric_expected_log_marginal_enabled = self.config['metric'][
             'expected_log_marginal'].setdefault('enabled', True)
@@ -165,10 +166,21 @@ class BaseSIVIRunner():
             self.metric_expected_log_marginal_enabled = False
         self.n_expected_log_marginal_ref_samples = self.config['metric'][
             'expected_log_marginal'].setdefault('num_ref_samples', 1000)
-        self.n_expected_log_marginal_batches = self.config['metric'][
-            'expected_log_marginal'].setdefault('num_batches', 2)
-        self.n_expected_log_marginal_batch_size = self.config['metric'][
-            'expected_log_marginal'].setdefault('batch_size', 512)
+        self.n_expected_log_marginal_model_samples = self.config['metric'][
+            'expected_log_marginal'].setdefault('num_model_samples', 5000)
+        self.n_expected_log_marginal_sample_batch_size = self.config['metric'][
+            'expected_log_marginal'].setdefault('sample_batch_size', 5000)
+        self.n_expected_log_marginal_dim_chunk = self.config['metric'][
+            'expected_log_marginal'].setdefault('dim_chunk', 25)
+        self.n_expected_log_marginal_ref_chunk = self.config['metric'][
+            'expected_log_marginal'].setdefault('ref_chunk', 500)
+        self.n_expected_log_marginal_model_chunk = self.config['metric'][
+            'expected_log_marginal'].setdefault('model_chunk', 20000)
+        self.expected_log_marginal_min_bandwidth = self.config['metric'][
+            'expected_log_marginal'].setdefault('min_bandwidth', 1.0e-6)
+        self.expected_log_marginal_dtype = self.config['metric'][
+            'expected_log_marginal'].setdefault('dtype', 'float32')
+        self._expected_log_marginal_reference_samples = None
 
         # bnn metrics config (RMSE + test log-likelihood; BNN targets only)
         # Auto-detect: enable if target is a DataBoundTarget wrapping Bnn,
@@ -667,117 +679,97 @@ class BaseSIVIRunner():
 
         return torch.as_tensor(reference_samples, device=self.device)
 
-    def _estimate_log_q_marginal(
-        self,
-        z_samples: torch.Tensor,
-        num_batches: int,
-        batch_size: int,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Estimate ``log q_phi(z)`` and its inner Monte Carlo variance.
+    def _expected_log_marginal_reference_set(self) -> torch.Tensor:
+        """Return the fixed reference set used for training-time KDE ELM."""
+        if self._expected_log_marginal_reference_samples is None:
+            self._expected_log_marginal_reference_samples = (
+                self._sample_reference_baseline_samples(
+                    self.n_expected_log_marginal_ref_samples))
+        return self._expected_log_marginal_reference_samples
 
-        This uses the same auxiliary-batch regime as ELBO, but evaluates the
-        marginal variational density at fixed reference samples rather than at
-        samples drawn from ``q_phi`` itself.
-        """
-        if num_batches < 1:
-            raise ValueError("num_batches must be at least 1.")
+    @torch.no_grad()
+    def _sample_vi_model_for_kde(self, num_samples: int,
+                                 batch_size: int) -> torch.Tensor:
+        """Draw VI samples for the coordinate-wise KDE ELM metric."""
+        if num_samples < 1:
+            raise ValueError("num_model_samples must be at least 1.")
         if batch_size < 1:
-            raise ValueError("batch_size must be at least 1.")
+            raise ValueError("sample_batch_size must be at least 1.")
 
-        n_samples = z_samples.shape[0]
-        batch_log_q_means = []
+        samples = torch.empty(
+            (num_samples, self.z_dim),
+            device=self.device,
+            dtype=next(self.vi_model.parameters()).dtype,
+        )
+        was_training = self.vi_model.training
+        self.vi_model.eval()
+        try:
+            for start in range(0, num_samples, batch_size):
+                current = min(batch_size, num_samples - start)
+                _, z = self.vi_model.sampling(num=current)
+                samples[start:start + current].copy_(z.detach())
+        finally:
+            if was_training:
+                self.vi_model.train()
+        return samples
 
-        with torch.no_grad():
-            for _ in range(num_batches):
-                epsilon_prime = self.vi_model.sample_epsilon(num=batch_size)
-                z_expanded = z_samples.unsqueeze(1).expand(
-                    -1,
-                    batch_size,
-                    -1,
-                )
-                eps_expanded = epsilon_prime.unsqueeze(0).expand(
-                    n_samples,
-                    -1,
-                    -1,
-                )
-                # logger.warning(f"{eps_expanded.shape=}, {z_expanded.shape=}")
-                log_q_z_given_eps = self.vi_model.logp(
-                    z_expanded,
-                    eps_expanded,
-                )
-                # logger.warning(f"{log_q_z_given_eps.shape=}")
-                batch_log_q_means.append(
-                    torch.logsumexp(log_q_z_given_eps, dim=1) -
-                    np.log(batch_size))
-
-        log_q_batch_means = torch.stack(batch_log_q_means, dim=1)
-        log_q_marginal = torch.logsumexp(log_q_batch_means,
-                                         dim=1) - np.log(num_batches)
-
-        if num_batches == 1:
-            inner_var_log_q = torch.zeros_like(log_q_marginal)
-        else:
-            relative_q = torch.exp(log_q_batch_means -
-                                   log_q_marginal.unsqueeze(1))
-            var_relative_q = torch.var(relative_q, dim=1, unbiased=True)
-            inner_var_log_q = var_relative_q / num_batches
-
-        return log_q_marginal, inner_var_log_q
-
-    def evaluate_expected_log_marginal(self) -> tuple[float, float]:
-        r"""Estimate expected log marginal variational density.
+    def evaluate_expected_log_marginal(self):
+        r"""Estimate paper-style KDE expected log marginal.
 
         The metric is
 
-            E_{z ~ r}[log q_phi(z)],
+            E_{z ~ r}[sum_j log q_hat_phi,j(z_j)],
 
-        where ``r`` is represented by reference baseline samples. The marginal
-        variational density ``q_phi(z)`` is approximated by averaging
-        ``q_phi(z | epsilon)`` over auxiliary epsilon batches.
+        where ``r`` is represented by reference baseline samples and each
+        ``q_hat_phi,j`` is a one-dimensional Gaussian KDE fit from VI samples.
 
         Returns:
-            tuple[float, float]:
-                Estimated expected log marginal and its standard error.
+            KDEELMEstimate: Scalar metric, per-reference values, and
+                diagnostics from the chunked KDE evaluator.
         """
-        reference_samples = self._sample_reference_baseline_samples(
-            self.n_expected_log_marginal_ref_samples)
-        log_q_marginal, inner_var_log_q = self._estimate_log_q_marginal(
+        reference_samples = self._expected_log_marginal_reference_set()
+        model_samples = self._sample_vi_model_for_kde(
+            self.n_expected_log_marginal_model_samples,
+            self.n_expected_log_marginal_sample_batch_size,
+        )
+        return kde_expected_log_marginal(
             reference_samples,
-            num_batches=self.n_expected_log_marginal_batches,
-            batch_size=self.n_expected_log_marginal_batch_size,
+            model_samples,
+            dim_chunk=self.n_expected_log_marginal_dim_chunk,
+            ref_chunk=self.n_expected_log_marginal_ref_chunk,
+            model_chunk=self.n_expected_log_marginal_model_chunk,
+            min_bandwidth=self.expected_log_marginal_min_bandwidth,
+            dtype=self.expected_log_marginal_dtype,
+            device=self.device,
         )
 
-        n_ref = log_q_marginal.shape[0]
-        metric_mean = torch.mean(log_q_marginal)
-
-        if n_ref > 1:
-            outer_var = torch.var(log_q_marginal, unbiased=True) / n_ref
-        else:
-            outer_var = torch.zeros((), device=log_q_marginal.device)
-
-        if self.n_expected_log_marginal_batches > 1:
-            inner_var = inner_var_log_q.sum() / (n_ref**2)
-        else:
-            inner_var = torch.zeros((), device=log_q_marginal.device)
-
-        stderr = torch.sqrt((outer_var + inner_var).clamp_min(0.0))
-        return metric_mean.item(), stderr.item()
-
     def eval_expected_log_marginal(self, epoch: int):
-        """Evaluate expected log marginal and log to TensorBoard."""
-        metric_mean, metric_stderr = self.evaluate_expected_log_marginal()
+        """Evaluate KDE expected log marginal and log to TensorBoard."""
+        estimate = self.evaluate_expected_log_marginal()
+        metric_mean = estimate.value
+        diagnostics = estimate.diagnostics
         self.writer.add_scalar(
             "metric/vi_model/expected_log_marginal",
             metric_mean,
             epoch,
         )
         self.writer.add_scalar(
-            "metric/vi_model/expected_log_marginal_stderr",
-            metric_stderr,
+            "metric/vi_model/kde_expected_log_marginal",
+            metric_mean,
+            epoch,
+        )
+        self.writer.add_scalar(
+            "diagnostic/vi_model/kde_expected_log_marginal_std",
+            diagnostics["std_across_refs"],
+            epoch,
+        )
+        self.writer.add_scalar(
+            "diagnostic/vi_model/kde_expected_log_marginal_clamped_dims",
+            diagnostics["num_bandwidth_clamped_dims"],
             epoch,
         )
         logger.debug(
-            f"Epoch {epoch}, Expected Log Marginal: {metric_mean:.4f}, StdErr: {metric_stderr:.4f}"
+            f"Epoch {epoch}, KDE Expected Log Marginal: {metric_mean:.4f}"
         )
 
     def evaluate_ksd(self) -> float:

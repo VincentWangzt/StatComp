@@ -1,16 +1,22 @@
 # Expected Log Marginal (ELM)
 
-This package contains the helpers used to estimate the expected log marginal
-variational density
+This package contains helpers for expected-log-marginal style diagnostics.
+The training-time `metric.expected_log_marginal` hook uses the paper-style
+coordinate-marginal KDE estimator:
+
+```text
+KDE-ELM = E_{z ~ r}[sum_j log q_hat_phi,j(z_j)].
+```
+
+The package also keeps legacy post-hoc helpers for estimating the full
+semi-implicit marginal density
 
 ```text
 ELM = E_{z ~ r}[log q_phi(z)],
 ```
 
 where `r` is an empirical reference distribution, usually stored baseline or
-MCMC samples. The code is meant for post-hoc evaluation of a trained VI model,
-especially when you want to understand how the estimate changes as the number
-of reverse importance-sampling samples changes.
+MCMC samples.
 
 ## Workflow
 
@@ -21,8 +27,18 @@ of reverse importance-sampling samples changes.
 4. Estimate `log q_phi(z_i)` for several IS budgets.
 5. Inspect ELM, standard error, ESS, and runtime as the IS budget grows.
 
-The standalone entry point for this workflow is
+The standalone entry point for the legacy reverse-IS workflow is
 `scripts/evaluate_expected_log_marginal.py`.
+
+For paper-style coordinate-marginal KDE evaluation, use
+`scripts/evaluate_kde_expected_log_marginal.py`. This estimates
+
+```text
+KDE-ELM = (1 / N) sum_i sum_j log q_hat_phi,j(z_ij),
+```
+
+where each `q_hat_phi,j` is a one-dimensional Gaussian KDE fit from generated
+VI samples in coordinate `j`.
 
 ## Math To Code Map
 
@@ -99,6 +115,8 @@ likely to capture rare high-density contributions.
 - `estimators.py`
   - `sample_reference_samples`: selects fixed baseline samples for the outer
     expectation over `z`.
+  - `kde_expected_log_marginal`: estimates paper-style ELM from coordinate-wise
+    Gaussian KDE marginals of generated VI samples.
   - `estimate_log_q_prior`: estimates `log q_phi(z_i)` by direct prior Monte
     Carlo over epsilon.
   - `estimate_log_q_reverse_is`: estimates `log q_phi(z_i)` using a fitted
@@ -136,6 +154,26 @@ samples:
   --device auto `
   --overwrite
 ```
+
+## Minimal KDE Sweep
+
+```powershell
+.\.venv\Scripts\python.exe scripts\evaluate_kde_expected_log_marginal.py `
+  --config <FULL_CONFIG> `
+  --checkpoint-dir <CHECKPOINT_DIR> `
+  --output-dir analysis\kde_expected_log_marginal `
+  --sample-budgets 10000 60000 100000 200000 `
+  --num-ref-samples 1000 `
+  --kde-device cuda `
+  --dim-chunk 25 `
+  --ref-chunk 500 `
+  --model-chunk 20000 `
+  --overwrite
+```
+
+The evaluator generates samples once at the largest requested budget and reuses
+prefixes for smaller budgets. Model-sample chunks are aggregated exactly in log
+space, so chunk sizes control memory rather than the statistical estimate.
 
 Where:
 
