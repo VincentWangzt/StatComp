@@ -125,10 +125,48 @@ def _standardize_common(config: dict, target: str, variant: str, anneal_enabled:
 
 
 def _apply_variant_overrides(config: dict, target: str, variant: str) -> None:
-    if variant in {"sivi", "uivi", "rsivi", "aisivi", "dsivi_default"}:
+    if variant in {"sivi", "uivi", "rsivi", "dsivi_default"}:
         config["vi_model_type"] = "ConditionalGaussian"
         config.pop("vi_model", None)
         config.pop("vi_model_config_path", None)
+
+    if variant == "aisivi":
+        train = config.setdefault("train", {})
+        train["grad_clip"] = 10.0
+        if target == "Langevin_post":
+            config["vi_model_type"] = "ConditionalGaussianGlobalUniform"
+            config[
+                "vi_model_config_path"
+            ] = "configs/vi_models/ConditionalGaussianGlobalUniform-AISIVI.yaml"
+            config[
+                "reverse_model_config_path"
+            ] = "configs/reverse_models/ConditionalRealNVP-AISIVI-Langevin.yaml"
+            train["batch_size"] = 128
+            train["reverse_sample_num"] = 256
+            train.setdefault("vi", {})["lr"] = 2.0e-4
+            reverse = train.setdefault("reverse", {})
+            reverse["lr"] = 2.0e-4
+            reverse["weight_decay"] = 0.0
+            reverse["batch_size"] = 128
+        elif target in BNN_TARGETS:
+            config["vi_model_type"] = "ConditionalGaussianGlobalUniform"
+            config[
+                "vi_model_config_path"
+            ] = "configs/vi_models/ConditionalGaussianGlobalUniform-Bnn-aisivi.yaml"
+            config[
+                "reverse_model_config_path"
+            ] = "configs/reverse_models/ConditionalRealNVP-AISIVI-Bnn.yaml"
+            train["batch_size"] = 100
+            train["reverse_sample_num"] = 256
+            reverse = train.setdefault("reverse", {})
+            reverse["lr"] = 5.0e-5
+            reverse["weight_decay"] = 0.0
+            reverse["batch_size"] = 100
+            reverse["scheduler"] = {
+                "type": "StepLR",
+                "step_size": 5000,
+                "gamma": 0.01,
+            }
 
     if variant == "sivi" and target in BNN_TARGETS:
         config.setdefault("train", {})

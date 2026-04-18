@@ -94,10 +94,16 @@ class AISIVIRunner(BaseReverseConditionalRunner):
         '''
         with torch.no_grad():
             self.reverse_model.eval()
-            z_aux, epsilon_aux, log_q_psi_epsilon_given_z = self.reverse_model.sample(
-                z,
-                num_samples=self.training_reverse_sample_num,
-            )
+            try:
+                z_aux, epsilon_aux, log_q_psi_epsilon_given_z = self.reverse_model.sample(
+                    z,
+                    num_samples=self.training_reverse_sample_num,
+                )
+            except RuntimeError as e:
+                logger.warning(
+                    f"Reverse model sampling failed at epoch {self.curr_epoch}: {e}. Skipping VI update."
+                )
+                return torch.full((z.shape[0],), float('nan'), device=z.device, dtype=z.dtype)
 
             log_q_epsilon = self.vi_model.log_q_epsilon(epsilon_aux)
 

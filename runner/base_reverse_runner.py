@@ -52,6 +52,13 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             self.config,
         )  # type: ignore
 
+        # The reverse conditional must model q_psi(epsilon | z) for the
+        # instantiated VI family.  Some legacy reverse configs interpolate
+        # dimensions from the target, which breaks AISIVI variants that use a
+        # lower-dimensional semi-implicit epsilon.
+        self.config.reverse_model.z_dim = self.z_dim
+        self.config.reverse_model.epsilon_dim = self.epsilon_dim
+
         # construct reverse model seperately to adopt direct gradient estimation
         self.reverse_model = self._get_reverse_model()
         self.reverse_model.to(self.device)
@@ -85,6 +92,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         # Load reverse training configs
         self.rev_train_cfg = self.training_cfg['reverse']
         self.reverse_lr = self.rev_train_cfg['lr']
+        self.reverse_weight_decay = self.rev_train_cfg.get(
+            'weight_decay',
+            self.config.reverse_model.get('weight_decay', 0.0),
+        )
         self.rev_batch_size = self.rev_train_cfg['batch_size']
         self.rev_epochs = self.rev_train_cfg['epochs']
         self.rev_update_freq = self.rev_train_cfg['update_freq']
@@ -108,6 +119,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             self.training_reverse_optimizer = torch.optim.Adam(
                 self.reverse_model.parameters(),
                 lr=self.reverse_lr,
+                weight_decay=self.reverse_weight_decay,
             )
 
             self.training_reverse_scheduler = None
@@ -335,7 +347,9 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
-        if epoch % self.training_metric_log_freq == 0:
+        if (self.training_metric_log_freq
+                and self.training_metric_log_freq > 0
+                and epoch % self.training_metric_log_freq == 0):
 
             if self.metric_kl_enabled:
                 kl_div = self.calculate_rev_KL()
@@ -392,6 +406,10 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             optimizer = torch.optim.Adam(
                 self.reverse_model.parameters(),
                 lr=lr,
+                weight_decay=self.warmup_cfg.get(
+                    'weight_decay',
+                    self.reverse_weight_decay,
+                ),
             )
 
         self.warmup_sample_loss = 0.0
@@ -567,7 +585,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         if self.resume:
             self.load_checkpoints()
             self.resume = False  # only load once
-        elif not self._vi_pretrained_done:
+        elif not getattr(self, "_vi_pretrained_done", False):
             self.pretrain_vi()
 
         # Warmup reverse model if enabled
