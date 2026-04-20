@@ -23,7 +23,7 @@ train:
     epochs: 1
     update_freq: 1
   annealing:
-    enabled: true
+    enabled: false
     scheme: linear
     steps: 5000
   log:

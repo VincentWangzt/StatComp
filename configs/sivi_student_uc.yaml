@@ -4,7 +4,7 @@ use_cuda: true
 
 runner_type: SIVI
 target_type: student_uc
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 
 train:
   epochs: 20000
@@ -17,7 +17,7 @@ train:
       step_size: 1000
       gamma: 0.7
   annealing:
-    enabled: true
+    enabled: false
     scheme: linear
     steps: 5000
   log:

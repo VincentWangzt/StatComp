@@ -8,7 +8,7 @@ use_cuda: true
 
 runner_type: RSIVI
 target_type: x_shaped
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 
 train:
@@ -27,7 +27,7 @@ train:
     epochs: 1
     update_freq: 1
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
     steps: 1000
   log:

@@ -4,7 +4,7 @@ use_cuda: true
 
 runner_type: AISIVI
 target_type: student_uc
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 reverse_model_type: ConditionalRealNVP
 
 train:
@@ -23,7 +23,7 @@ train:
     epochs: 1
     update_freq: 1
   annealing:
-    enabled: true
+    enabled: false
     scheme: linear
     steps: 5000
   log:

@@ -6,7 +6,7 @@ use_cuda: true
 
 runner_type: KSIVI
 target_type: multimodal
-vi_model_type: ConditionalGaussianGlobal
+vi_model_type: ConditionalGaussian
 
 vi_model:
   epsilon_dim: 3

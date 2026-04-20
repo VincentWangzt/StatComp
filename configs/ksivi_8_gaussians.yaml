@@ -1,11 +1,11 @@
-# KSIVI on Student-t distribution
-# Original: kernel=riesz, epochs=500*100=50k, batch=500, lr=0.001, annealing=True
+# KSIVI on Banana distribution
+# Original: kernel=gaussian, epochs=500*100=50k, batch=500, lr=0.001, no annealing
 seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
 runner_type: KSIVI
-target_type: student_uc
+target_type: 8_gaussians
 vi_model_type: ConditionalGaussian
 
 vi_model:
@@ -14,7 +14,7 @@ vi_model:
   num_layers: 2
   activation: relu
   variance_parameterization: logvar
-  global_log_var_init: 0.0
+  global_log_var_init: -1.3862943611198906
   global_log_var_min: -20
 
 train:
@@ -29,16 +29,14 @@ train:
       step_size: 1000
       gamma: 0.9
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
-    steps: 25000
+    steps: 5000
   ksivi:
     statistic: v
-    kernel: riesz
+    kernel: gaussian
     detach_kernel: false
-    log_p_reg: 0.05
-    log_p_reg_mode: warmup_only
-    affine_invariant: true
+    log_p_reg: 0.0
   log:
     metric_log_freq: 500
     loss_log_freq: 100
@@ -48,10 +46,10 @@ train:
     freq: 5000
   sample:
     freq: 500
-    num: 5000
+    num: 100000
   plot:
     freq: 500
-    num: 5000
+    num: 1000
 
 metric:
   kl_ite:

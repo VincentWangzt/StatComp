@@ -6,7 +6,7 @@ use_cuda: true
 
 runner_type: KSIVI
 target_type: banana
-vi_model_type: ConditionalGaussianGlobal
+vi_model_type: ConditionalGaussian
 
 vi_model:
   epsilon_dim: 3
@@ -29,7 +29,7 @@ train:
       step_size: 1000
       gamma: 0.9
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
     steps: 5000
   ksivi:

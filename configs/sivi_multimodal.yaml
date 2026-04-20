@@ -8,7 +8,7 @@ use_cuda: true
 
 runner_type: SIVI
 target_type: multimodal
-vi_model_type: ConditionalGaussianUniform
+vi_model_type: ConditionalGaussian
 
 train:
   epochs: 20000
