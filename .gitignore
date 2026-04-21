@@ -19,13 +19,14 @@ Thumbs.db
 *.tar.gz
 
 # Project artifacts
-results/
-tb_logs/
+results*/
+tb_logs*/
 *.pt
 *.pth
 output.txt
 nogit**
 no_git**
+tmp*
 
 # Claude Code
 .claude/

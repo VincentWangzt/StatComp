@@ -25,6 +25,7 @@ from grid_benchmark_common import (  # noqa: E402
     discover_queue_names,
     ensure_dir,
     queue_index_from_name,
+    queue_names_from_manifest,
     runtime_dir,
     to_relpath,
 )
@@ -67,10 +68,40 @@ def write_current_status(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _repo_path(path: Path) -> Path:
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def _campaign_runtime_dir(args: argparse.Namespace) -> Path:
+    if args.campaign_dir is None:
+        return runtime_dir()
+    return _repo_path(args.campaign_dir) / "runtime"
+
+
 def _build_output_roots(entry: dict, args: argparse.Namespace) -> tuple[str, str]:
+    default_results_dir = SMOKE_RESULTS_DIR if args.phase == "smoke" else OFFICIAL_RESULTS_DIR
+    default_tb_dir = SMOKE_TB_DIR if args.phase == "smoke" else OFFICIAL_TB_DIR
+    output_roots = entry.get("output_roots") or entry.get("output_overrides") or {}
+    if not isinstance(output_roots, dict):
+        output_roots = {}
+    return (
+        str(output_roots.get("results_dir") or default_results_dir),
+        str(output_roots.get("tb_dir") or default_tb_dir),
+    )
+
+
+def _manifest_path(args: argparse.Namespace) -> Path:
+    if args.manifest is not None:
+        return _repo_path(args.manifest)
     if args.phase == "smoke":
-        return SMOKE_RESULTS_DIR, SMOKE_TB_DIR
-    return OFFICIAL_RESULTS_DIR, OFFICIAL_TB_DIR
+        return SMOKE_MANIFEST_PATH
+    return MANIFEST_PATH
+
+
+def _known_queue_names(manifest: list[dict], args: argparse.Namespace) -> list[str]:
+    if args.manifest is not None or args.campaign_dir is not None:
+        return queue_names_from_manifest(manifest)
+    return discover_queue_names(manifest, args.phase)
 
 
 def _launch_command(entry: dict, gpu: int, args: argparse.Namespace) -> list[str]:
@@ -87,10 +118,10 @@ def _launch_command(entry: dict, gpu: int, args: argparse.Namespace) -> list[str
     return cmd
 
 
-def _expected_tb_path(result_path: Path, args: argparse.Namespace) -> Path:
+def _expected_tb_path(result_path: Path, entry: dict, args: argparse.Namespace) -> Path:
     timestamp = result_path.name
-    root = SMOKE_TB_DIR if args.phase == "smoke" else OFFICIAL_TB_DIR
-    return REPO_ROOT / root / result_path.parent.parent.name / result_path.parent.name / timestamp
+    _, tb_dir = _build_output_roots(entry, args)
+    return REPO_ROOT / tb_dir / result_path.parent.parent.name / result_path.parent.name / timestamp
 
 
 def _run_extractor(tb_path: Path) -> subprocess.CompletedProcess[str]:
@@ -131,6 +162,7 @@ def main() -> None:
     parser.add_argument("--queue", required=True)
     parser.add_argument("--gpu", type=int, default=None)
     parser.add_argument("--manifest", type=Path, default=None)
+    parser.add_argument("--campaign-dir", type=Path, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
         "--continue-past-failed",
@@ -139,9 +171,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    manifest_path = args.manifest or (SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
+    manifest_path = _manifest_path(args)
     manifest = load_manifest(manifest_path)
-    known_queues = discover_queue_names(manifest, args.phase)
+    known_queues = _known_queue_names(manifest, args)
     if args.queue not in known_queues:
         parser.error(f"Unknown queue {args.queue!r}. Known queues: {', '.join(known_queues)}")
     if args.gpu is None:
@@ -154,7 +186,7 @@ def main() -> None:
     if args.limit is not None:
         queue_entries = queue_entries[:args.limit]
 
-    runtime = runtime_dir()
+    runtime = _campaign_runtime_dir(args)
     ensure_dir(runtime)
     events_path = runtime / f"{args.phase}_{args.queue}_events.jsonl"
     current_path = runtime / f"{args.phase}_{args.queue}_current.json"
@@ -225,7 +257,7 @@ def main() -> None:
                     if marker in line:
                         result_path = Path(line.split(marker, 1)[1].strip())
                         current_status["result_path"] = str(result_path)
-                        current_status["tb_path"] = str(_expected_tb_path(result_path, args))
+                        current_status["tb_path"] = str(_expected_tb_path(result_path, entry, args))
                         write_current_status(current_path, current_status)
 
                 process.wait()
@@ -245,7 +277,7 @@ def main() -> None:
             elif result_path is None:
                 failure_reason = "missing result path marker in console log"
             else:
-                tb_path = _expected_tb_path(result_path, args)
+                tb_path = _expected_tb_path(result_path, entry, args)
                 run_log_path = result_path / "run.log"
                 if not result_path.exists():
                     failure_reason = f"result path not found: {result_path}"

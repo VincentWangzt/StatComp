@@ -19,8 +19,13 @@ from grid_benchmark_common import (  # noqa: E402
     MANIFEST_PATH,
     REPO_ROOT,
     SMOKE_MANIFEST_PATH,
+    queue_names_from_manifest,
     runtime_dir,
 )
+
+
+def _repo_path(path: Path) -> Path:
+    return path if path.is_absolute() else REPO_ROOT / path
 
 
 def _resolve_repo_path(path_str: str | None) -> Path | None:
@@ -75,10 +80,10 @@ def _best_point(points: list[dict[str, float]], mode: str) -> dict[str, float] |
     return min(points, key=lambda item: item["value"])
 
 
-def _completed_map(phase: str, queue_names: list[str]) -> dict[str, dict]:
+def _completed_map(phase: str, queue_names: list[str], rt_dir: Path) -> dict[str, dict]:
     completed: dict[str, dict] = {}
     for queue in queue_names:
-        for event in _load_events(runtime_dir() / f"{phase}_{queue}_events.jsonl"):
+        for event in _load_events(rt_dir / f"{phase}_{queue}_events.jsonl"):
             if event.get("status") == "completed":
                 completed[event["run_id"]] = event
     return completed
@@ -87,12 +92,24 @@ def _completed_map(phase: str, queue_names: list[str]) -> dict[str, dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Summarize completed benchmark runs.")
     parser.add_argument("--phase", choices=["official", "smoke"], default="official")
+    parser.add_argument("--manifest", type=Path, default=None)
+    parser.add_argument("--campaign-dir", type=Path, default=None)
     args = parser.parse_args()
 
-    manifest = _load_json(SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
-    completed = _completed_map(args.phase, discover_queue_names(manifest, args.phase))
+    manifest_path = args.manifest
+    if manifest_path is None:
+        manifest_path = SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH
+    else:
+        manifest_path = _repo_path(manifest_path)
+    manifest = _load_json(manifest_path)
+    rt_dir = _repo_path(args.campaign_dir) / "runtime" if args.campaign_dir else runtime_dir()
+    if args.manifest is not None or args.campaign_dir is not None:
+        queue_names = queue_names_from_manifest(manifest)
+    else:
+        queue_names = discover_queue_names(manifest, args.phase)
+    completed = _completed_map(args.phase, queue_names, rt_dir)
 
-    out_dir = CAMPAIGN_DIR / "generated_reports"
+    out_dir = (_repo_path(args.campaign_dir) if args.campaign_dir else CAMPAIGN_DIR) / "generated_reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     summary_csv = out_dir / f"{args.phase}_completed_runs.csv"
     summary_md = out_dir / f"{args.phase}_completed_runs.md"

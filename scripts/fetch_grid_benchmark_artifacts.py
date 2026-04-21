@@ -20,33 +20,51 @@ def main() -> None:
     parser.add_argument("--host", default="root@region-41.seetacloud.com")
     parser.add_argument("--port", type=int, default=44817)
     parser.add_argument("--remote-repo", default="~/ruivi")
+    parser.add_argument("--campaign-slug", default=CAMPAIGN_SLUG)
+    parser.add_argument(
+        "--remote-artifact-root",
+        default=None,
+        help="Optional remote root containing results/ and tb_logs/. Use for campaigns stored outside the repo.",
+    )
     args = parser.parse_args()
 
     if shutil.which("ssh") is None:
         raise RuntimeError("ssh command not found on PATH")
 
+    artifact_root = args.remote_artifact_root or args.remote_repo
     remote_cmd = f"""
 set -e
-cd {args.remote_repo}
-TMP_LIST="$(mktemp)"
+REMOTE_REPO={args.remote_repo}
+ARTIFACT_ROOT={artifact_root}
+STAGE="$(mktemp -d)"
 cleanup() {{
-  rm -f "$TMP_LIST"
+  rm -rf "$STAGE"
 }}
 trap cleanup EXIT
-if [ -d campaigns/{CAMPAIGN_SLUG}/runtime ]; then
-  find campaigns/{CAMPAIGN_SLUG}/runtime -type f >> "$TMP_LIST"
+cd "$REMOTE_REPO"
+if [ -d campaigns/{args.campaign_slug}/runtime ]; then
+  mkdir -p "$STAGE"
+  tar -cf - campaigns/{args.campaign_slug}/runtime | tar -xf - -C "$STAGE"
 fi
-if [ -d results/{CAMPAIGN_SLUG} ]; then
-  find results/{CAMPAIGN_SLUG} -type f \\( -name run.log -o -name full_config.yaml \\) >> "$TMP_LIST"
+
+TMP_LIST="$(mktemp)"
+cd "$ARTIFACT_ROOT"
+if [ -d results/{args.campaign_slug} ]; then
+  find results/{args.campaign_slug} -type f \\( -name run.log -o -name full_config.yaml \\) >> "$TMP_LIST"
 fi
-if [ -d tb_logs/{CAMPAIGN_SLUG} ]; then
-  find tb_logs/{CAMPAIGN_SLUG} -type f -path "*/extracted/*" >> "$TMP_LIST"
+if [ -d tb_logs/{args.campaign_slug} ]; then
+  find tb_logs/{args.campaign_slug} -type f -path "*/extracted/*" >> "$TMP_LIST"
 fi
 sort -u "$TMP_LIST" -o "$TMP_LIST"
-if [ ! -s "$TMP_LIST" ]; then
+if [ -s "$TMP_LIST" ]; then
+  tar -cf - -T "$TMP_LIST" | tar -xf - -C "$STAGE"
+fi
+rm -f "$TMP_LIST"
+if [ -z "$(find "$STAGE" -type f -print -quit)" ]; then
   exit 0
 fi
-tar -czf - -T "$TMP_LIST"
+cd "$STAGE"
+tar -czf - .
 """
 
     with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_fh:

@@ -9,7 +9,20 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from grid_benchmark_common import MANIFEST_PATH, SMOKE_MANIFEST_PATH, discover_queue_names, runtime_dir  # noqa: E402
+from grid_benchmark_common import (  # noqa: E402
+    MANIFEST_PATH,
+    SMOKE_MANIFEST_PATH,
+    discover_queue_names,
+    queue_names_from_manifest,
+    runtime_dir,
+)
+
+
+REPO_ROOT = SCRIPT_DIR.parent
+
+
+def _repo_path(path: Path) -> Path:
+    return path if path.is_absolute() else REPO_ROOT / path
 
 
 def _load_manifest(path: Path) -> list[dict]:
@@ -29,12 +42,22 @@ def _load_events(path: Path) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Show grid benchmark queue status.")
     parser.add_argument("--phase", choices=["official", "smoke"], default="official")
+    parser.add_argument("--manifest", type=Path, default=None)
+    parser.add_argument("--campaign-dir", type=Path, default=None)
     args = parser.parse_args()
 
-    manifest = _load_manifest(SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH)
+    manifest_path = args.manifest
+    if manifest_path is None:
+        manifest_path = SMOKE_MANIFEST_PATH if args.phase == "smoke" else MANIFEST_PATH
+    else:
+        manifest_path = _repo_path(manifest_path)
+    manifest = _load_manifest(manifest_path)
     total = len(manifest)
-    rt_dir = runtime_dir()
-    queue_names = discover_queue_names(manifest, args.phase)
+    rt_dir = _repo_path(args.campaign_dir) / "runtime" if args.campaign_dir else runtime_dir()
+    if args.manifest is not None or args.campaign_dir is not None:
+        queue_names = queue_names_from_manifest(manifest)
+    else:
+        queue_names = discover_queue_names(manifest, args.phase)
 
     for queue in queue_names:
         events = _load_events(rt_dir / f"{args.phase}_{queue}_events.jsonl")

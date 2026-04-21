@@ -1,0 +1,82 @@
+seed: 42
+cuda_visible_devices: '0'
+use_cuda: true
+runner_type: SIVI
+target_type: student_uc
+vi_model_type: ConditionalGaussian
+train:
+  epochs: 20000
+  batch_size: 128
+  reverse_sample_num: 4096
+  vi:
+    lr: 0.001
+    scheduler:
+      type: StepLR
+      step_size: 1000
+      gamma: 0.7
+  annealing:
+    enabled: false
+    scheme: linear
+    steps: 5000
+  log:
+    metric_log_freq: 10
+    loss_log_freq: 100
+    reverse_log_freq: 500
+    time_avg_window: 500
+  checkpoint:
+    enabled: true
+    freq: 1000
+  sample:
+    freq: 500
+    num: 100000
+  plot:
+    freq: 500
+    num: 1000
+metric:
+  kl_ite:
+    num_samples: 10000
+    enabled: true
+  w2:
+    num_samples: 10000
+    num_projections: 1000
+    enabled: true
+  elbo:
+    batch_size: 512
+    num_batches: 2
+    num_z_samples: 1024
+    enabled: true
+  mmd:
+    enabled: true
+    num_samples: 1000
+  ksd:
+    enabled: true
+    num_samples: 2000
+  fisher:
+    enabled: true
+    num_samples: 1000
+    num_is_samples: 512
+  expected_log_marginal:
+    enabled: true
+    num_ref_samples: 1000
+    num_model_samples: 5000
+    sample_batch_size: 5000
+    dim_chunk: 25
+    ref_chunk: 500
+    model_chunk: 20000
+    min_bandwidth: 1.0e-06
+    dtype: float32
+  bnn:
+    enabled: false
+resume:
+  enabled: false
+output:
+  results_dir: /root/autodl-tmp/results/toy_method_defaults_20260420/official
+  tb_dir: /root/autodl-tmp/tb_logs/toy_method_defaults_20260420/official
+campaign:
+  slug: toy_method_defaults_20260420
+  run_id: official_sivi_student_uc
+  target: student_uc
+  method: SIVI
+  method_slug: sivi
+  annealing_mode: 'off'
+  smoke: false

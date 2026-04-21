@@ -1,4 +1,4 @@
-# KSIVI on Banana distribution
+# KSIVI on 8-Gaussians distribution
 # Original: kernel=gaussian, epochs=500*100=50k, batch=500, lr=0.001, no annealing
 seed: 42
 cuda_visible_devices: "0"
