@@ -174,20 +174,16 @@ def _apply_variant_overrides(config: dict, target: str, variant: str) -> None:
 
     if variant == "ksivi_custom":
         if target in BNN_TARGETS:
+            config["vi_model_type"] = "ConditionalGaussianGlobal"
+            config[
+                "vi_model_config_path"
+            ] = "configs/vi_models/ConditionalGaussianGlobal-Bnn-ksivi.yaml"
+            config.pop("vi_model", None)
             train = config.setdefault("train", {})
             target_cfg = config.setdefault("target", {})
             target_data = target_cfg.setdefault("data", {})
-            vi_model = config.setdefault("vi_model", {})
             metric = config.setdefault("metric", {})
             metric_bnn = metric.setdefault("bnn", {})
-
-            vi_model["epsilon_dim"] = 3
-            vi_model["hidden_dim"] = 10
-            vi_model["num_layers"] = 2
-            vi_model["activation"] = "relu"
-            vi_model["variance_parameterization"] = "logvar"
-            vi_model["global_log_var_init"] = -8.0
-            vi_model["global_log_var_min"] = -20.0
 
             target_data["batch_mode"] = "cyclic"
             target_data["dev_fraction"] = 0.1

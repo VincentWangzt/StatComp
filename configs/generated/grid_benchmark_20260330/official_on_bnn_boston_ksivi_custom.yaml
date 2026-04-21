@@ -4,14 +4,7 @@ use_cuda: true
 runner_type: KSIVI
 target_type: Bnn_boston
 vi_model_type: ConditionalGaussianGlobal
-vi_model:
-  epsilon_dim: 3
-  hidden_dim: 10
-  num_layers: 2
-  activation: relu
-  variance_parameterization: logvar
-  global_log_var_init: -8.0
-  global_log_var_min: -20
+vi_model_config_path: configs/vi_models/ConditionalGaussianGlobal-Bnn-ksivi.yaml
 target:
   data:
     batch_size: 100
