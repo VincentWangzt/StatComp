@@ -160,6 +160,14 @@ class ConditionalGaussian(BaseVIModel):
         self.num_layers: int = config.num_layers
         self.out_dim = self.z_dim * 2
         self.var_min = float(config.get('var_min', 1e-4))
+        self.variance_parameterization = config.get(
+            'variance_parameterization', 'softplus_var')
+        if self.variance_parameterization not in ('softplus_var', 'logvar'):
+            raise ValueError(
+                "variance_parameterization must be one of "
+                "('softplus_var', 'logvar')"
+            )
+        self.log_var_min = float(config.get('log_var_min', -20.0))
         self.activation = config.get('activation', 'silu')
         # The network outputs both mean and variance
         layers = []
@@ -170,6 +178,29 @@ class ConditionalGaussian(BaseVIModel):
             input_dim = self.hidden_dim
         layers.append(nn.Linear(self.hidden_dim, self.out_dim))
         self.net = nn.Sequential(*layers)
+        if self.variance_parameterization == 'logvar':
+            self._init_logvar_head(float(config.get('log_var_init', 0.0)))
+
+    def _init_logvar_head(self, log_var_init: float) -> None:
+        """Initialize only the variance head; keep the mean head untouched."""
+        final_layer = self.net[-1]
+        if not isinstance(final_layer, nn.Linear):
+            return
+        with torch.no_grad():
+            final_layer.weight[self.z_dim:].zero_()
+            if final_layer.bias is not None:
+                final_layer.bias[self.z_dim:].fill_(log_var_init)
+
+    def _variance_from_raw(
+        self,
+        var_raw: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.variance_parameterization == 'logvar':
+            log_var = var_raw.clamp(min=self.log_var_min)
+            return torch.exp(log_var), log_var
+        var = torch.nn.functional.softplus(var_raw)
+        var = var.clamp(min=self.var_min)
+        return var, var.log()
 
     def reparameterize(
         self,
@@ -186,8 +217,7 @@ class ConditionalGaussian(BaseVIModel):
             (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std` where
             `z = mu + std * u` and `u ~ N(0, I)`.
         """
-        var = torch.nn.functional.softplus(var_raw)
-        var = var.clamp(min=self.var_min)
+        var, _ = self._variance_from_raw(var_raw)
         std = torch.sqrt(var)
         u = torch.randn_like(mu)
         return mu + std * u, u / std
@@ -199,8 +229,7 @@ class ConditionalGaussian(BaseVIModel):
     def getstd(self, epsilon: torch.Tensor) -> torch.Tensor:
         """Return `std(epsilon)` by clamping variance and taking square root."""
         var_raw = self.net(epsilon).chunk(2, dim=-1)[1]
-        var = torch.nn.functional.softplus(var_raw)
-        var = var.clamp(min=self.var_min)
+        var, _ = self._variance_from_raw(var_raw)
         std = torch.sqrt(var)
         return std
 
@@ -266,8 +295,7 @@ class ConditionalGaussian(BaseVIModel):
             score (torch.Tensor): Score `-(z - mu(epsilon)) / var(epsilon)`.
         """
         mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
-        var = torch.nn.functional.softplus(var_raw)
-        var = var.clamp(min=self.var_min)
+        var, _ = self._variance_from_raw(var_raw)
         score = -(z - mu) / (var)
         return score
 
@@ -286,11 +314,10 @@ class ConditionalGaussian(BaseVIModel):
             log_prob (torch.Tensor): shape [...]
         """
         mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
-        var = torch.nn.functional.softplus(var_raw)
-        var = var.clamp(min=self.var_min)
+        var, log_var = self._variance_from_raw(var_raw)
         # Gaussian log-likelihood per sample
         const = -0.5 * z.shape[-1] * math.log(2 * math.pi)
-        ll = const - 0.5 * (var.log().sum(dim=-1) +
+        ll = const - 0.5 * (log_var.sum(dim=-1) +
                             ((z - mu)**2 / var).sum(dim=-1))
         return ll
 

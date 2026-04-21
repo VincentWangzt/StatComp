@@ -5,29 +5,51 @@ use_cuda: true
 runner_type: DSIVI
 target_type: Bnn_concrete
 vi_model_type: ConditionalGaussian
-vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-exp.yaml
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-ksivi.yaml
 reverse_model_type: MLPDenoiseModel
-reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-Bnn-exp.yaml
+reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-Bnn-v3.yaml
+
+reverse_model:
+  warmup:
+    epochs: 5000
+
+target:
+  data:
+    batch_size: 100
+    batch_mode: cyclic
+    dev_fraction: 0.1
+    dev_max_size: 500
 
 train:
   epochs: 10000
   batch_size: 1024
+  grad_clip: 1.0
   normalize_reverse_score: false
+  pretrain:
+    enabled: true
+    steps: 100
+    lr: 1.0e-2
+    batch_size: 100
+  ema:
+    enabled: true
+    beta: 0.999
   vi:
     lr: 1.0e-3
+    var_lr: 1.0e-3
+    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
-      step_size: 2000
-      gamma: 0.7
+      step_size: 1000
+      gamma: 0.9
   reverse:
-    lr: 2.0e-3
+    lr: 1.0e-3
     batch_size: 2048
     epochs: 2
     update_freq: 1
   annealing:
     enabled: true
     scheme: linear
-    steps: 1000
+    steps: 10000
   log:
     metric_log_freq: 100
     loss_log_freq: 100
@@ -60,4 +82,5 @@ metric:
     enabled: true
     num_samples: 500
   bnn:
+    enabled: true
     num_samples: 500

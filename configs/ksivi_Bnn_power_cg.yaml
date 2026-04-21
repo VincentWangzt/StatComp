@@ -2,29 +2,22 @@ seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
-runner_type: DSIVI
-target_type: Bnn_protein
+runner_type: KSIVI
+target_type: Bnn_power
 vi_model_type: ConditionalGaussian
 vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-ksivi.yaml
-reverse_model_type: MLPDenoiseModel
-reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-Bnn-v3.yaml
-
-reverse_model:
-  warmup:
-    epochs: 5000
 
 target:
   data:
-    batch_size: 200
+    batch_size: 100
     batch_mode: cyclic
     dev_fraction: 0.1
     dev_max_size: 500
 
 train:
-  epochs: 10000
-  batch_size: 1024
+  epochs: 100000
+  batch_size: 100
   grad_clip: 1.0
-  normalize_reverse_score: false
   pretrain:
     enabled: true
     steps: 100
@@ -39,31 +32,31 @@ train:
     betas: [0.9, 0.999]
     scheduler:
       type: StepLR
-      step_size: 1000
+      step_size: 3000
       gamma: 0.9
-  reverse:
-    lr: 1.0e-3
-    batch_size: 2048
-    epochs: 2
-    update_freq: 1
   annealing:
-    enabled: true
+    enabled: false
     scheme: linear
-    steps: 10000
+    steps: 5000
+  ksivi:
+    statistic: v
+    kernel: gaussian
+    detach_kernel: false
+    log_p_reg: 1.0
+    log_p_reg_mode: always
   log:
-    metric_log_freq: 100
+    metric_log_freq: 1000
     loss_log_freq: 100
     reverse_log_freq: 500
-    time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 1000
+    freq: 5000
   sample:
-    freq: 500
-    num: 1000
+    freq: 1000
+    num: 100
   plot:
-    freq: 500
-    num: 1000
+    freq: 999999
+    num: 100
 
 metric:
   kl_ite:
@@ -74,13 +67,19 @@ metric:
     num_samples: 10000
     num_projections: 1000
   elbo:
-    enabled: true
-    batch_size: 512
-    num_batches: 10
-    num_z_samples: 1000
+    enabled: false
+    batch_size: 128
+    num_batches: 5
+    num_z_samples: 200
   ksd:
     enabled: true
-    num_samples: 500
+    num_samples: 100
+  mmd:
+    enabled: false
   bnn:
     enabled: true
-    num_samples: 500
+    num_samples: 100
+  fisher:
+    enabled: false
+  expected_log_marginal:
+    enabled: false
