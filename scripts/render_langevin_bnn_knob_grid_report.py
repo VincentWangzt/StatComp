@@ -15,16 +15,16 @@ REPORT_MD = CAMPAIGN_DIR / "generated_reports" / "knob_grid_report.md"
 
 
 METRIC_COLUMNS = {
-    "elbo_final": "metric/vi_model/elbo__final",
-    "elbo_best": "metric/vi_model/elbo__best",
-    "elm_final": "metric/vi_model/kde_expected_log_marginal__final",
-    "elm_best": "metric/vi_model/kde_expected_log_marginal__best",
-    "rmse_final": "metric/vi_model/rmse__final",
-    "rmse_best": "metric/vi_model/rmse__best",
-    "test_llk_final": "metric/vi_model/test_llk__final",
-    "test_llk_best": "metric/vi_model/test_llk__best",
-    "nll_final": "metric/vi_model/nll__final",
-    "nll_best": "metric/vi_model/nll__best",
+    "elbo_final": "metric__vi_model__elbo__final",
+    "elbo_best": "metric__vi_model__elbo__best",
+    "elm_final": "metric__vi_model__kde_expected_log_marginal__final",
+    "elm_best": "metric__vi_model__kde_expected_log_marginal__best",
+    "rmse_final": "metric__vi_model__rmse__final",
+    "rmse_best": "metric__vi_model__rmse__best",
+    "test_llk_final": "metric__vi_model__test_llk__final",
+    "test_llk_best": "metric__vi_model__test_llk__best",
+    "nll_final": "metric__vi_model__nll__final",
+    "nll_best": "metric__vi_model__nll__best",
 }
 
 
