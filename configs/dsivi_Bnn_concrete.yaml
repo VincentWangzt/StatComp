@@ -9,13 +9,9 @@ vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-ksivi.yaml
 reverse_model_type: MLPDenoiseModel
 reverse_model_config_path: configs/reverse_models/MLPDenoiseModel-Bnn-v3.yaml
 
-reverse_model:
-  warmup:
-    epochs: 5000
-
 train:
   epochs: 10000
-  batch_size: 1024
+  batch_size: 128
   grad_clip: 1.0
   pretrain:
     enabled: true

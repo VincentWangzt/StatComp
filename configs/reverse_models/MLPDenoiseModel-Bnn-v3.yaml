@@ -7,4 +7,4 @@ warmup:
   enabled: true
   lr: 2.0e-3
   batch_size: 2048
-  epochs: 500
+  epochs: 5000

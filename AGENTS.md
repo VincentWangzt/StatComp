@@ -36,6 +36,7 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 - Driver: 580.105.08
 - PyTorch: 2.9.0+cu126
 - Use `tmux` for long-running remote experiments
+- Keep direct changes made on the remote server minimal. Prefer making code/config changes locally, then push and sync them to the remote environment.
 
 ## Core Commands
 
@@ -52,6 +53,7 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 
 - Standard run outputs: `results/{runner_type}/{target_type}/{timestamp}/`
 - Standard TensorBoard logs: `tb_logs/{runner_type}/{target_type}/{timestamp}/`
+- Keep all experiment outputs inside the existing `results/` folder and all TensorBoard logs inside the existing `tb_logs/` folder. Do not spill generated files into unrelated directories, especially on the remote server; create a new subfolder under the corresponding existing folder when needed.
 
 There is no formal test suite, lint, or formatter configuration in the repo.
 

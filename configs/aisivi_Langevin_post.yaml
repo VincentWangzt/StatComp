@@ -19,7 +19,7 @@ train:
   reverse_sample_num: 256
   grad_clip: 10.0
   vi:
-    lr: 2.0e-4
+    lr: 1.0e-3
     scheduler:
       type: StepLR
       step_size: 1000
