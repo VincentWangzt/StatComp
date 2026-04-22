@@ -1,23 +1,15 @@
-# KSIVI on Bayesian Neural Network (Power)
 seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
 runner_type: KSIVI
 target_type: Bnn_power
-vi_model_type: ConditionalGaussianGlobal
-vi_model_config_path: configs/vi_models/ConditionalGaussianGlobal-Bnn-ksivi.yaml
-
-target:
-  data:
-    batch_size: 100
-    batch_mode: cyclic
-    dev_fraction: 0.1
-    dev_max_size: 500
+vi_model_type: ConditionalGaussian
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-ksivi.yaml
 
 train:
   epochs: 100000
-  batch_size: 100
+  batch_size: 128
   grad_clip: 1.0
   pretrain:
     enabled: true
@@ -30,7 +22,6 @@ train:
   vi:
     lr: 1.0e-3
     var_lr: 1.0e-3
-    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
       step_size: 3000
@@ -49,14 +40,15 @@ train:
     metric_log_freq: 1000
     loss_log_freq: 100
     reverse_log_freq: 500
+    time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 5000
+    freq: 10000
   sample:
-    freq: 1000
+    freq: 10000
     num: 100
   plot:
-    freq: 999999
+    freq: 10000
     num: 100
 
 metric:
@@ -69,18 +61,29 @@ metric:
     num_projections: 1000
   elbo:
     enabled: false
-    batch_size: 128
-    num_batches: 5
-    num_z_samples: 200
-  ksd:
-    enabled: true
-    num_samples: 100
-  mmd:
-    enabled: false
-  bnn:
-    enabled: true
-    num_samples: 100
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 5000
   fisher:
     enabled: false
+    num_samples: 1000
+    num_is_samples: 512
+  ksd:
+    enabled: false
+    num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+  bnn:
+    enabled: true
+    num_samples: 500
   expected_log_marginal:
     enabled: false
+    num_ref_samples: 1000
+    num_model_samples: 50000
+    sample_batch_size: 50000
+    dim_chunk: 50
+    ref_chunk: 500
+    model_chunk: 5000
+    min_bandwidth: 1.0e-6
+    dtype: float32

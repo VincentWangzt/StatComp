@@ -47,10 +47,10 @@ train:
     enabled: true
     freq: 1000
   sample:
-    freq: 500
+    freq: 1000
     num: 1000
   plot:
-    freq: 500
+    freq: 1000
     num: 1000
 
 metric:
@@ -67,9 +67,25 @@ metric:
     num_batches: 10
     num_z_samples: 5000
   fisher:
-    enabled: true
+    enabled: false
     num_samples: 1000
     num_is_samples: 512
   ksd:
-    enabled: true
+    enabled: false
     num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+  bnn:
+    enabled: false
+    num_samples: 500
+  expected_log_marginal:
+    enabled: true
+    num_ref_samples: 1000
+    num_model_samples: 50000
+    sample_batch_size: 50000
+    dim_chunk: 50
+    ref_chunk: 500
+    model_chunk: 5000
+    min_bandwidth: 1.0e-6
+    dtype: float32

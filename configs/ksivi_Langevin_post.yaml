@@ -7,23 +7,14 @@ use_cuda: true
 runner_type: KSIVI
 target_type: Langevin_post
 vi_model_type: ConditionalGaussianGlobal
-
-vi_model:
-  epsilon_dim: 100
-  hidden_dim: 128
-  num_layers: 2
-  activation: relu
-  variance_parameterization: logvar
-  global_log_var_init: -2.0
-  global_log_var_min: -12
+vi_model_config_path: configs/vi_models/ConditionalGaussianGlobal-Langevin.yaml
 
 train:
-  epochs: 100000
+  epochs: 50000
   batch_size: 128
   vi:
     lr: 2.0e-4
     var_lr: 2.0e-4
-    betas: [0.9, 0.999]
     scheduler:
       type: StepLR
       step_size: 10000
@@ -38,17 +29,18 @@ train:
     detach_kernel: false
     log_p_reg: 0.0
   log:
-    metric_log_freq: 1000
+    metric_log_freq: 500
     loss_log_freq: 500
     reverse_log_freq: 500
+    time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 10000
+    freq: 5000
   sample:
-    freq: 1000
+    freq: 5000
     num: 1000
   plot:
-    freq: 1000
+    freq: 5000
     num: 1000
 
 metric:
@@ -56,26 +48,34 @@ metric:
     enabled: false
     num_samples: 10000
   w2:
-    enabled: false
+    enabled: true
     num_samples: 10000
     num_projections: 1000
   elbo:
-    enabled: false
+    enabled: true
     batch_size: 512
-    num_batches: 5
-    num_z_samples: 200
+    num_batches: 10
+    num_z_samples: 5000
+  fisher:
+    enabled: false
+    num_samples: 1000
+    num_is_samples: 512
+  ksd:
+    enabled: false
+    num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+  bnn:
+    enabled: false
+    num_samples: 500
   expected_log_marginal:
     enabled: true
     num_ref_samples: 1000
-    num_model_samples: 5000
-    sample_batch_size: 5000
-    dim_chunk: 25
+    num_model_samples: 50000
+    sample_batch_size: 50000
+    dim_chunk: 50
     ref_chunk: 500
-    model_chunk: 20000
+    model_chunk: 5000
     min_bandwidth: 1.0e-6
     dtype: float32
-  ksd:
-    enabled: true
-    num_samples: 1000
-  mmd:
-    enabled: false

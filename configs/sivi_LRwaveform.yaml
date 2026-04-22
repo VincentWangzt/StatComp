@@ -21,18 +21,18 @@ train:
     scheme: linear
     steps: 5000
   log:
-    metric_log_freq: 100
+    metric_log_freq: 200
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 1000
+    freq: 2000
   sample:
-    freq: 500
+    freq: 2000
     num: 1000
   plot:
-    freq: 500
+    freq: 2000
     num: 1000
 
 metric:
@@ -46,5 +46,29 @@ metric:
   elbo:
     enabled: true
     batch_size: 512
-    num_batches: 5
-    num_z_samples: 500
+    num_batches: 10
+    num_z_samples: 5000
+  fisher:
+    enabled: false
+    num_samples: 1000
+    num_is_samples: 512
+  ksd:
+    enabled: false
+    num_samples: 2000
+  mmd:
+    enabled: false
+    num_samples: 1000
+  bnn:
+    enabled: false
+    num_samples: 500
+  expected_log_marginal:
+    enabled: false
+    num_ref_samples: 1000
+    num_model_samples: 50000
+    sample_batch_size: 50000
+    dim_chunk: 50
+    ref_chunk: 500
+    model_chunk: 5000
+    min_bandwidth: 1.0e-6
+    dtype: float32
+

@@ -6,3 +6,6 @@ data:
   n_hidden: 50
   loglambda: -1.003869799168037
   loggamma: -2.555990767319021
+  batch_mode: cyclic
+  dev_fraction: 0.1
+  dev_max_size: 500
