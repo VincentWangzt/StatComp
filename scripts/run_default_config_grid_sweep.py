@@ -22,7 +22,7 @@ from omegaconf import OmegaConf
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
-DEFAULT_METHODS = ("sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi")
+DEFAULT_METHODS = ("sivi", "uivi", "aisivi", "dsivi", "ksivi")
 
 METRIC_MODES = {
     "metric/vi_model/elbo": "max",
