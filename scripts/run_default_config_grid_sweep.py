@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -39,6 +40,14 @@ LOSS_TAG = "train/vi_model/loss"
 TOTAL_TRAINING_TIME_TAG = "summary/total_training_time"
 AVG_EPOCH_TIME_TAG = "summary/avg_epoch_time"
 ARTIFACT_MARKER = "Artifacts will be saved to: "
+CONFIG_HASH_VERSION = "default-grid-effective-v1"
+CONFIG_HASH_IGNORED_KEYS = {
+    "config_path",
+    "cuda_visible_devices",
+    "device",
+    "output",
+}
+REVERSE_RUNNERS = {"RSIVI", "AISIVI", "DSIVI"}
 
 
 @dataclass
@@ -78,6 +87,255 @@ def repo_path(path: Path | str) -> Path:
 
 def load_config(path: Path) -> dict[str, Any]:
     return OmegaConf.to_container(OmegaConf.load(path), resolve=True)  # type: ignore[return-value]
+
+
+def _load_omega_config(path: Path | str) -> Any:
+    return OmegaConf.load(repo_path(path))
+
+
+def _config_path_from(config: Any, key: str, default_path: str) -> str:
+    value = config.get(key, default_path)
+    return str(value)
+
+
+def _resolved_effective_config(
+    config_path: Path | str,
+    seed: int,
+    extra_overrides: list[str] | None = None,
+) -> dict[str, Any]:
+    config_path = repo_path(config_path)
+    config = OmegaConf.load(config_path)
+    dotlist = [f"seed={seed}"]
+    dotlist.extend(extra_overrides or [])
+    config = OmegaConf.merge(config, OmegaConf.from_dotlist(dotlist))
+    config.config_path = relpath(config_path) or str(config_path)
+    config.setdefault("device", "cuda" if config.get("use_cuda", False) else "cpu")
+
+    target_type = str(config.get("target_type"))
+    target_config_path = _config_path_from(
+        config,
+        "target_config_path",
+        f"configs/targets/{target_type}.yaml",
+    )
+    config.target_config_path = target_config_path
+    config = OmegaConf.merge({"target": _load_omega_config(target_config_path)}, config)
+
+    vi_model_type = str(config.get("vi_model_type"))
+    vi_model_config_path = _config_path_from(
+        config,
+        "vi_model_config_path",
+        f"configs/vi_models/{vi_model_type}.yaml",
+    )
+    config.vi_model_config_path = vi_model_config_path
+    config = OmegaConf.merge({"vi_model": _load_omega_config(vi_model_config_path)}, config)
+
+    runner_type = str(config.get("runner_type", ""))
+    if runner_type == "UIVI":
+        reverse_model_config_path = _config_path_from(
+            config,
+            "reverse_model_config_path",
+            "configs/reverse_models/HMC.yaml",
+        )
+        config.reverse_model_config_path = reverse_model_config_path
+        config = OmegaConf.merge({"hmc": _load_omega_config(reverse_model_config_path)}, config)
+    elif runner_type in REVERSE_RUNNERS and "reverse_model_type" in config:
+        reverse_model_type = str(config.get("reverse_model_type"))
+        reverse_model_config_path = _config_path_from(
+            config,
+            "reverse_model_config_path",
+            f"configs/reverse_models/{reverse_model_type}.yaml",
+        )
+        config.reverse_model_config_path = reverse_model_config_path
+        config = OmegaConf.merge(
+            {"reverse_model": _load_omega_config(reverse_model_config_path)},
+            config,
+        )
+        if "reverse_model" in config and "vi_model" in config:
+            config.reverse_model.z_dim = config.vi_model.get("z_dim", config.reverse_model.get("z_dim"))
+            if "epsilon_dim" in config.reverse_model:
+                config.reverse_model.epsilon_dim = config.vi_model.get(
+                    "epsilon_dim",
+                    config.reverse_model.get("epsilon_dim"),
+                )
+
+    return OmegaConf.to_container(config, resolve=True)  # type: ignore[return-value]
+
+
+def _normalize_for_config_hash(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        normalized: dict[str, Any] = {}
+        for key, value in payload.items():
+            key_str = str(key)
+            if key_str in CONFIG_HASH_IGNORED_KEYS or key_str.endswith("_config_path"):
+                continue
+            normalized[key_str] = _normalize_for_config_hash(value)
+        return normalized
+    if isinstance(payload, list):
+        return [_normalize_for_config_hash(value) for value in payload]
+    if isinstance(payload, tuple):
+        return [_normalize_for_config_hash(value) for value in payload]
+    return payload
+
+
+def _hash_normalized_payload(payload: Any) -> str:
+    encoded = json.dumps(
+        {
+            "config_hash_version": CONFIG_HASH_VERSION,
+            "payload": _normalize_for_config_hash(payload),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def effective_config_hash(
+    config_path: Path | str,
+    seed: int,
+    extra_overrides: list[str] | None = None,
+) -> str:
+    return _hash_normalized_payload(
+        _resolved_effective_config(config_path, seed, extra_overrides)
+    )
+
+
+def artifact_config_hash(full_config_path: Path | str) -> str:
+    return _hash_normalized_payload(load_config(repo_path(full_config_path)))
+
+
+def classify_config_staleness(entry: dict[str, Any], previous: dict[str, Any] | None) -> str:
+    if previous is None:
+        return "new"
+    status = previous.get("status")
+    if status != "completed":
+        return str(status or "unknown")
+    previous_hash = previous.get("config_hash")
+    if not previous_hash:
+        return "unverified"
+    if previous_hash == entry.get("config_hash"):
+        return "fresh"
+    return "stale"
+
+
+def enqueue_pending_entries(
+    entries: list[dict[str, Any]],
+    statuses: dict[str, dict[str, Any]],
+    retry_failed: bool,
+    rerun_stale: bool,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    pending: list[dict[str, Any]] = []
+    stale_completed: list[dict[str, Any]] = []
+    unverified_completed: list[dict[str, Any]] = []
+    for entry in entries:
+        previous = statuses.get(entry["run_id"])
+        staleness = classify_config_staleness(entry, previous)
+        if previous is None:
+            pending.append(entry)
+        elif previous.get("status") in {"failed", "worker_error"} and retry_failed:
+            pending.append(entry)
+        elif staleness == "stale":
+            stale_completed.append({"entry": entry, "previous": previous})
+            if rerun_stale:
+                pending.append(entry)
+        elif staleness == "unverified":
+            unverified_completed.append({"entry": entry, "previous": previous})
+    return pending, stale_completed, unverified_completed
+
+
+def _short_hash(value: Any) -> str:
+    return str(value or "missing")[:12]
+
+
+def warn_about_staleness(
+    stale_completed: list[dict[str, Any]],
+    unverified_completed: list[dict[str, Any]],
+    rerun_stale: bool,
+) -> None:
+    if stale_completed:
+        action = "queueing for rerun" if rerun_stale else "skipping; pass --rerun-stale to rerun"
+        print(
+            f"WARNING: {len(stale_completed)} completed run(s) have stale config hashes; {action}.",
+            file=sys.stderr,
+        )
+        for item in stale_completed[:20]:
+            entry = item["entry"]
+            previous = item["previous"]
+            print(
+                "  "
+                f"{entry['run_id']}: previous={_short_hash(previous.get('config_hash'))} "
+                f"current={_short_hash(entry.get('config_hash'))} "
+                f"config={entry['config_path']}",
+                file=sys.stderr,
+            )
+        if len(stale_completed) > 20:
+            print(f"  ... {len(stale_completed) - 20} more stale run(s)", file=sys.stderr)
+
+    if unverified_completed:
+        print(
+            "WARNING: "
+            f"{len(unverified_completed)} completed legacy run(s) have no config hash; "
+            "skipping as unverified. Use --hash-existing-artifacts to inventory saved full_config.yaml files.",
+            file=sys.stderr,
+        )
+        for item in unverified_completed[:20]:
+            entry = item["entry"]
+            print(
+                f"  {entry['run_id']}: config={entry['config_path']}",
+                file=sys.stderr,
+            )
+        if len(unverified_completed) > 20:
+            print(
+                f"  ... {len(unverified_completed) - 20} more unverified run(s)",
+                file=sys.stderr,
+            )
+
+
+def write_artifact_hash_inventory(
+    statuses: dict[str, dict[str, Any]],
+    json_path: Path,
+    csv_path: Path,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for run_id, event in sorted(statuses.items()):
+        if event.get("status") != "completed":
+            continue
+        result_path_value = event.get("result_path") or ""
+        full_config_path = repo_path(result_path_value) / "full_config.yaml" if result_path_value else None
+        row: dict[str, Any] = {
+            "run_id": run_id,
+            "result_path": result_path_value,
+            "full_config_path": "" if full_config_path is None else str(full_config_path),
+            "artifact_config_hash": "",
+            "config_hash_version": CONFIG_HASH_VERSION,
+            "status": "missing_result_path" if full_config_path is None else "missing_full_config",
+            "error": "",
+        }
+        if full_config_path is not None and full_config_path.exists():
+            try:
+                row["artifact_config_hash"] = artifact_config_hash(full_config_path)
+                row["status"] = "hashed"
+            except Exception as exc:
+                row["status"] = "hash_error"
+                row["error"] = repr(exc)
+        rows.append(row)
+
+    write_json(json_path, rows)
+    ensure_dir(csv_path.parent)
+    fieldnames = [
+        "run_id",
+        "status",
+        "artifact_config_hash",
+        "config_hash_version",
+        "result_path",
+        "full_config_path",
+        "error",
+    ]
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
 
 
 def run_id_for(seed: int, method: str, target: str) -> str:
@@ -199,6 +457,16 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
             entry["status"] = "pending"
             entry["runtime_gpu"] = ""
             entry["extra_overrides"] = list(args.extra_override)
+            entry["config_hash_version"] = CONFIG_HASH_VERSION
+            entry["config_hash"] = effective_config_hash(
+                entry["config_path"],
+                seed=seed,
+                extra_overrides=entry["extra_overrides"],
+            )
+            entry["config_hash_basis"] = (
+                "resolved main config plus seed and extra overrides; "
+                "target/vi/reverse config files expanded; scheduler/output/device paths ignored"
+            )
             entry["command_template"] = build_command(
                 entry,
                 gpu=0,
@@ -258,6 +526,9 @@ def write_manifest(path: Path, entries: list[dict[str, Any]], statuses: dict[str
             row["result_path"] = event.get("result_path", "")
             row["tb_path"] = event.get("tb_path", "")
             row["failure_reason"] = event.get("failure_reason", "")
+            row["previous_config_hash"] = event.get("config_hash", "")
+            row["artifact_config_hash"] = event.get("artifact_config_hash", "")
+        row["config_staleness"] = classify_config_staleness(entry, event)
         manifest.append(row)
     write_json(path, manifest)
 
@@ -265,7 +536,8 @@ def write_manifest(path: Path, entries: list[dict[str, Any]], statuses: dict[str
 def write_manifest_csv(path: Path, entries: list[dict[str, Any]], statuses: dict[str, dict[str, Any]]) -> None:
     rows: list[dict[str, Any]] = []
     for entry in entries:
-        event = statuses.get(entry["run_id"], {})
+        previous = statuses.get(entry["run_id"])
+        event = previous or {}
         rows.append(
             {
                 "run_id": entry["run_id"],
@@ -276,6 +548,11 @@ def write_manifest_csv(path: Path, entries: list[dict[str, Any]], statuses: dict
                 "target_slug": entry["target_slug"],
                 "seed": entry["seed"],
                 "config_path": entry["config_path"],
+                "config_hash": entry["config_hash"],
+                "config_hash_version": entry["config_hash_version"],
+                "config_staleness": classify_config_staleness(entry, previous),
+                "previous_config_hash": event.get("config_hash", ""),
+                "artifact_config_hash": event.get("artifact_config_hash", ""),
                 "expected_epochs": entry["expected_epochs"],
                 "batch_size": entry["batch_size"],
                 "runtime_gpu": event.get("gpu", ""),
@@ -318,6 +595,7 @@ def write_current(
                 "method": run.entry["method"],
                 "target": run.entry["target"],
                 "started_at": run.started_at,
+                "config_hash": run.entry.get("config_hash", ""),
                 "result_path": relpath(run.result_path),
                 "console_log": relpath(run.console_log),
             }
@@ -468,6 +746,10 @@ def summarize_completed_run(
         "seed": entry["seed"],
         "gpu": event.get("gpu", ""),
         "config_path": entry["config_path"],
+        "config_hash": entry.get("config_hash", ""),
+        "config_hash_version": entry.get("config_hash_version", ""),
+        "artifact_config_hash": event.get("artifact_config_hash", ""),
+        "config_staleness": classify_config_staleness(entry, event),
         "wall_clock_sec": event.get("duration_sec", ""),
         "training_time_sec": total_training_time,
         "iterations": iterations,
@@ -508,6 +790,10 @@ def write_summary(report_dir: Path, entries: list[dict[str, Any]], events: list[
                     "seed": entry["seed"],
                     "gpu": event.get("gpu", ""),
                     "config_path": entry["config_path"],
+                    "config_hash": entry.get("config_hash", ""),
+                    "config_hash_version": entry.get("config_hash_version", ""),
+                    "artifact_config_hash": event.get("artifact_config_hash", ""),
+                    "config_staleness": classify_config_staleness(entry, event),
                     "wall_clock_sec": event.get("duration_sec", ""),
                     "failure_reason": event.get("failure_reason", ""),
                     "console_log": event.get("console_log", ""),
@@ -599,6 +885,7 @@ def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
     extractor_stdout = ""
     extractor_stderr = ""
     failure_reason: str | None = None
+    artifact_hash = ""
 
     if exit_code != 0:
         failure_reason = f"training exit code {exit_code}"
@@ -619,6 +906,12 @@ def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
             extractor_stderr = extractor.stderr
             if extractor.returncode != 0:
                 failure_reason = f"extractor failed with exit code {extractor.returncode}"
+        full_config_path = result_path / "full_config.yaml"
+        if full_config_path.exists():
+            try:
+                artifact_hash = artifact_config_hash(full_config_path)
+            except Exception:
+                artifact_hash = ""
 
     status = "completed" if failure_reason is None else "failed"
     return {
@@ -631,6 +924,10 @@ def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
         "target_slug": entry["target_slug"],
         "gpu": active_run.gpu,
         "config_path": entry["config_path"],
+        "config_hash": entry.get("config_hash", ""),
+        "config_hash_version": entry.get("config_hash_version", CONFIG_HASH_VERSION),
+        "config_hash_basis": entry.get("config_hash_basis", ""),
+        "artifact_config_hash": artifact_hash,
         "command": build_command(
             entry,
             gpu=active_run.gpu,
@@ -683,6 +980,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--rerun-stale",
+        action="store_true",
+        help="Rerun completed runs whose saved config hash differs from the current effective config hash.",
+    )
+    parser.add_argument(
+        "--hash-existing-artifacts",
+        action="store_true",
+        help="Hash completed runs' result_path/full_config.yaml files and write an inventory under campaign runtime.",
+    )
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--extra-override", action="append", default=[])
     return parser.parse_args()
@@ -718,11 +1025,24 @@ def main() -> None:
     events_path = runtime_dir / "events.jsonl"
     current_path = runtime_dir / "current.json"
 
-    gpus = args.gpus if args.gpus is not None else discover_gpus()
     entries = build_manifest_entries(args)
 
     if args.dry_run:
+        gpus = args.gpus if args.gpus is not None else discover_gpus()
         print_dry_run(entries, gpus, args)
+        return
+
+    if args.hash_existing_artifacts:
+        statuses = latest_terminal_status(load_events(events_path))
+        rows = write_artifact_hash_inventory(
+            statuses,
+            runtime_dir / "artifact_config_hashes.json",
+            runtime_dir / "artifact_config_hashes.csv",
+        )
+        hashed = sum(1 for row in rows if row.get("status") == "hashed")
+        print(
+            f"Wrote artifact hash inventory for {len(rows)} completed run(s); {hashed} full_config.yaml file(s) hashed."
+        )
         return
 
     ensure_dir(console_root)
@@ -733,19 +1053,24 @@ def main() -> None:
 
     events = load_events(events_path) if args.resume else []
     statuses = latest_terminal_status(events)
+
     write_manifest(manifest_path, entries, statuses)
     write_manifest_csv(manifest_csv_path, entries, statuses)
 
+    gpus = args.gpus if args.gpus is not None else discover_gpus()
     if not gpus:
         raise RuntimeError("No GPUs discovered. Pass --gpus explicitly if discovery is unavailable.")
 
     pending: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    for entry in entries:
-        previous = statuses.get(entry["run_id"])
-        if previous is None:
-            pending.put(entry)
-        elif previous.get("status") in {"failed", "worker_error"} and args.retry_failed:
-            pending.put(entry)
+    pending_entries, stale_completed, unverified_completed = enqueue_pending_entries(
+        entries,
+        statuses,
+        retry_failed=args.retry_failed,
+        rerun_stale=args.rerun_stale,
+    )
+    warn_about_staleness(stale_completed, unverified_completed, args.rerun_stale)
+    for entry in pending_entries:
+        pending.put(entry)
 
     active: dict[int, ActiveRun] = {}
     free_gpus = list(gpus)
@@ -760,6 +1085,8 @@ def main() -> None:
             "seeds": args.seeds,
             "total_runs": len(entries),
             "extra_overrides": args.extra_override,
+            "config_hash_version": CONFIG_HASH_VERSION,
+            "rerun_stale": args.rerun_stale,
         },
     )
 
@@ -782,6 +1109,9 @@ def main() -> None:
                         "target_slug": entry["target_slug"],
                         "gpu": gpu,
                         "config_path": entry["config_path"],
+                        "config_hash": entry.get("config_hash", ""),
+                        "config_hash_version": entry.get("config_hash_version", CONFIG_HASH_VERSION),
+                        "config_hash_basis": entry.get("config_hash_basis", ""),
                         "started_at": started.started_at,
                         "command": build_command(entry, gpu, entry["results_dir"], entry["tb_dir"], entry.get("extra_overrides", [])),
                         "console_log": relpath(started.console_log),
@@ -824,6 +1154,9 @@ def main() -> None:
                         "status": "worker_error",
                         "run_id": active_run.entry["run_id"],
                         "gpu": gpu,
+                        "config_hash": active_run.entry.get("config_hash", ""),
+                        "config_hash_version": active_run.entry.get("config_hash_version", CONFIG_HASH_VERSION),
+                        "config_hash_basis": active_run.entry.get("config_hash_basis", ""),
                         "started_at": active_run.started_at,
                         "finished_at": utc_now(),
                         "duration_sec": time.perf_counter() - active_run.start_perf_time,
@@ -854,6 +1187,7 @@ def main() -> None:
                 "finished_at": utc_now(),
                 "campaign_slug": args.campaign_slug,
                 "gpus": gpus,
+                "config_hash_version": CONFIG_HASH_VERSION,
             },
         )
     finally:
