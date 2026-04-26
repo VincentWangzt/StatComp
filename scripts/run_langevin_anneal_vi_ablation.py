@@ -154,6 +154,8 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
                         str(annealing["slug"]),
                         str(vi_regime["slug"]),
                     )
+                    run_results_dir = f"{args.results_dir}/{run_id}"
+                    run_tb_dir = f"{args.tb_dir}/{run_id}"
                     config_path_rel = sweep.relpath(config_path)
                     entry = {
                         "run_id": run_id,
@@ -174,8 +176,10 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
                         "expected_epochs": effective_epochs,
                         "batch_size": train_cfg.get("batch_size", ""),
                         "reverse_batch_size": train_cfg.get("reverse", {}).get("batch_size", ""),
-                        "results_dir": args.results_dir,
-                        "tb_dir": args.tb_dir,
+                        "campaign_results_dir": args.results_dir,
+                        "campaign_tb_dir": args.tb_dir,
+                        "results_dir": run_results_dir,
+                        "tb_dir": run_tb_dir,
                         "status": "pending",
                         "runtime_gpu": "",
                         "annealing_mode": annealing["label"],
@@ -202,8 +206,8 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
                     entry["command_template"] = sweep.build_command(
                         entry,
                         gpu=0,
-                        results_dir=args.results_dir,
-                        tb_dir=args.tb_dir,
+                        results_dir=run_results_dir,
+                        tb_dir=run_tb_dir,
                         extra_overrides=extra_overrides,
                     )
                     entries.append(entry)
@@ -221,8 +225,8 @@ def print_dry_run(entries: list[dict[str, Any]], gpus: list[int], args: argparse
         command = sweep.build_command(
             entry,
             gpu=gpus[0] if gpus else 0,
-            results_dir=args.results_dir,
-            tb_dir=args.tb_dir,
+            results_dir=entry.get("results_dir", args.results_dir),
+            tb_dir=entry.get("tb_dir", args.tb_dir),
             extra_overrides=entry.get("extra_overrides", []),
         )
         print(f"{entry['run_id']}: {' '.join(command)}")
