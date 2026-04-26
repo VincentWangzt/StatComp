@@ -39,14 +39,6 @@ METHODS: tuple[dict[str, Any], ...] = (
         "overrides": (),
     },
     {
-        "slug": "rsivi",
-        "method": "RSIVI",
-        "runner_type": "RSIVI",
-        "source_method": "rsivi",
-        "epoch_multiplier": 1,
-        "overrides": (),
-    },
-    {
         "slug": "aisivi",
         "method": "AISIVI",
         "runner_type": "AISIVI",
@@ -61,6 +53,14 @@ METHODS: tuple[dict[str, Any], ...] = (
         "source_method": "dsivi",
         "epoch_multiplier": 1,
         "overrides": (),
+    },
+    {
+        "slug": "dsivi_rev5",
+        "method": "DSIVI-rev5",
+        "runner_type": "DSIVI",
+        "source_method": "dsivi",
+        "epoch_multiplier": 1,
+        "overrides": ("train.reverse.epochs=5",),
     },
     {
         "slug": "ksivi",
