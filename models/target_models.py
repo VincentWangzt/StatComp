@@ -1228,8 +1228,8 @@ class Langevin_post(Toy_2D):
             torch.arange(1, self.dim + 1) % self.u_step == 0
         )
 
-        torch.manual_seed(_LANGEVIN_SEED)
-        xs = torch.randn((self.dim, 1))
+        data_generator = torch.Generator().manual_seed(_LANGEVIN_SEED)
+        xs = torch.randn((self.dim, 1), generator=data_generator)
         u = torch.zeros((1,))
         us_list: list[torch.Tensor] = []
         for i in range(self.dim):
@@ -1241,7 +1241,12 @@ class Langevin_post(Toy_2D):
             us_list.append(u)
         self.u: torch.Tensor = torch.tensor(us_list).to(self.device)
         us = (torch.stack(us_list).T)[:, self.u_step - 1 :: self.u_step]
-        noise = torch.randn_like(us)
+        noise = torch.randn(
+            us.shape,
+            generator=data_generator,
+            dtype=us.dtype,
+            device=us.device,
+        )
 
         data = us + noise * self.sigma
         self.data: torch.Tensor = data.to(self.device)
