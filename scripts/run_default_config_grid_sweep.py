@@ -61,6 +61,14 @@ class ActiveRun:
     start_wall_time: float
     start_perf_time: float
     result_path: Path | None = None
+    phase: str = "training"
+    process_pid: int | None = None
+    returncode: int | None = None
+    result_detected_at: str | None = None
+    finished_detected_at: str | None = None
+    finalize_started_at: str | None = None
+    finalize_start_perf_time: float | None = None
+    finalize_finished_at: str | None = None
 
 
 def utc_now() -> str:
@@ -510,6 +518,18 @@ def append_event(events_path: Path, event: dict[str, Any]) -> None:
         fh.write(json.dumps(event, sort_keys=True) + "\n")
 
 
+def append_debug_event(debug_path: Path | None, event_type: str, payload: dict[str, Any]) -> None:
+    if debug_path is None:
+        return
+    event = {
+        "status": "debug",
+        "event_type": event_type,
+        "timestamp": utc_now(),
+    }
+    event.update(payload)
+    append_event(debug_path, event)
+
+
 def write_json(path: Path, payload: Any) -> None:
     ensure_dir(path.parent)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
@@ -595,6 +615,18 @@ def write_current(
                 "method": run.entry["method"],
                 "target": run.entry["target"],
                 "started_at": run.started_at,
+                "phase": run.phase,
+                "process_pid": run.process_pid,
+                "returncode": run.returncode,
+                "elapsed_sec": time.perf_counter() - run.start_perf_time,
+                "finished_detected_at": run.finished_detected_at,
+                "finalize_started_at": run.finalize_started_at,
+                "finalize_elapsed_sec": (
+                    None
+                    if run.finalize_start_perf_time is None
+                    else time.perf_counter() - run.finalize_start_perf_time
+                ),
+                "result_detected_at": run.result_detected_at,
                 "config_hash": run.entry.get("config_hash", ""),
                 "result_path": relpath(run.result_path),
                 "console_log": relpath(run.console_log),
@@ -626,8 +658,23 @@ def infer_tb_path(result_path: Path, entry: dict[str, Any]) -> Path:
     return repo_path(entry["tb_dir"]) / entry["runner_type"] / entry["target"] / timestamp
 
 
-def run_extractor(tb_path: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+def run_extractor(
+    tb_path: Path,
+    debug_path: Path | None = None,
+    run_id: str | None = None,
+    gpu: int | None = None,
+) -> subprocess.CompletedProcess[str]:
+    started = time.perf_counter()
+    append_debug_event(
+        debug_path,
+        "extractor_started",
+        {
+            "run_id": run_id,
+            "gpu": gpu,
+            "tb_path": relpath(tb_path),
+        },
+    )
+    result = subprocess.run(
         [
             sys.executable,
             "utils/extract_tensorboard_run.py",
@@ -640,6 +687,20 @@ def run_extractor(tb_path: Path) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
+    append_debug_event(
+        debug_path,
+        "extractor_finished",
+        {
+            "run_id": run_id,
+            "gpu": gpu,
+            "tb_path": relpath(tb_path),
+            "exit_code": result.returncode,
+            "duration_sec": time.perf_counter() - started,
+            "stdout_tail": result.stdout.splitlines()[-10:],
+            "stderr_tail": result.stderr.splitlines()[-10:],
+        },
+    )
+    return result
 
 
 def read_metrics_csv(path: Path) -> dict[str, list[dict[str, float]]]:
@@ -832,9 +893,23 @@ def write_summary(report_dir: Path, entries: list[dict[str, Any]], events: list[
     (report_dir / "summary.md").write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 
 
-def poll_process_output(active_run: ActiveRun) -> None:
+def poll_process_output(active_run: ActiveRun, debug_path: Path | None = None) -> None:
     if active_run.result_path is None:
-        active_run.result_path = parse_result_path_from_console_log(active_run.console_log)
+        result_path = parse_result_path_from_console_log(active_run.console_log)
+        if result_path is not None:
+            active_run.result_path = result_path
+            active_run.result_detected_at = utc_now()
+            append_debug_event(
+                debug_path,
+                "result_path_detected",
+                {
+                    "run_id": active_run.entry["run_id"],
+                    "gpu": active_run.gpu,
+                    "pid": active_run.process_pid,
+                    "result_path": relpath(result_path),
+                    "elapsed_sec": time.perf_counter() - active_run.start_perf_time,
+                },
+            )
 
 
 def drain_remaining_output(active_run: ActiveRun) -> None:
@@ -868,17 +943,36 @@ def launch_run(entry: dict[str, Any], gpu: int, console_root: Path) -> ActiveRun
         started_at=utc_now(),
         start_wall_time=time.time(),
         start_perf_time=time.perf_counter(),
+        process_pid=process.pid,
     )
 
 
-def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
+def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[str, Any]:
     entry = active_run.entry
+    active_run.phase = "finalizing"
+    active_run.returncode = active_run.process.poll()
+    active_run.finalize_started_at = active_run.finalize_started_at or utc_now()
+    active_run.finalize_start_perf_time = active_run.finalize_start_perf_time or time.perf_counter()
+    append_debug_event(
+        debug_path,
+        "finalize_started",
+        {
+            "run_id": entry["run_id"],
+            "gpu": active_run.gpu,
+            "pid": active_run.process_pid,
+            "returncode": active_run.returncode,
+            "result_path": relpath(active_run.result_path),
+            "console_log": relpath(active_run.console_log),
+            "elapsed_sec": time.perf_counter() - active_run.start_perf_time,
+        },
+    )
     active_run.process.wait()
     drain_remaining_output(active_run)
     active_run.console_fh.close()
 
     duration_sec = time.perf_counter() - active_run.start_perf_time
     exit_code = active_run.process.returncode
+    active_run.returncode = exit_code
     result_path = active_run.result_path
     tb_path: Path | None = None
     run_log_path: Path | None = None
@@ -901,7 +995,12 @@ def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
         elif not run_log_path.exists():
             failure_reason = f"run log not found: {run_log_path}"
         else:
-            extractor = run_extractor(tb_path)
+            extractor = run_extractor(
+                tb_path,
+                debug_path=debug_path,
+                run_id=entry["run_id"],
+                gpu=active_run.gpu,
+            )
             extractor_stdout = extractor.stdout
             extractor_stderr = extractor.stderr
             if extractor.returncode != 0:
@@ -914,6 +1013,27 @@ def finalize_run(active_run: ActiveRun) -> dict[str, Any]:
                 artifact_hash = ""
 
     status = "completed" if failure_reason is None else "failed"
+    active_run.finalize_finished_at = utc_now()
+    append_debug_event(
+        debug_path,
+        "finalize_finished",
+        {
+            "run_id": entry["run_id"],
+            "gpu": active_run.gpu,
+            "pid": active_run.process_pid,
+            "run_status": status,
+            "exit_code": exit_code,
+            "failure_reason": failure_reason,
+            "result_path": relpath(result_path),
+            "tb_path": relpath(tb_path),
+            "duration_sec": duration_sec,
+            "finalize_duration_sec": (
+                None
+                if active_run.finalize_start_perf_time is None
+                else time.perf_counter() - active_run.finalize_start_perf_time
+            ),
+        },
+    )
     return {
         "status": status,
         "run_id": entry["run_id"],
@@ -1004,13 +1124,42 @@ def write_all_state(
     entries: list[dict[str, Any]],
     active: dict[int, ActiveRun],
     gpus: list[int],
+    debug_path: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
+    started = time.perf_counter()
+    checkpoints: dict[str, float] = {}
     events = load_events(events_path)
+    checkpoints["load_events_sec"] = time.perf_counter() - started
     statuses = latest_terminal_status(events)
+    checkpoints["latest_status_sec"] = time.perf_counter() - started - sum(checkpoints.values())
     write_manifest(manifest_path, entries, statuses)
+    checkpoints["write_manifest_sec"] = time.perf_counter() - started - sum(checkpoints.values())
     write_manifest_csv(manifest_csv_path, entries, statuses)
+    checkpoints["write_manifest_csv_sec"] = time.perf_counter() - started - sum(checkpoints.values())
     write_current(current_path, entries, active, statuses, gpus)
+    checkpoints["write_current_sec"] = time.perf_counter() - started - sum(checkpoints.values())
     write_summary(report_dir, entries, events)
+    checkpoints["write_summary_sec"] = time.perf_counter() - started - sum(checkpoints.values())
+    append_debug_event(
+        debug_path,
+        "state_write_finished",
+        {
+            "active_runs": len(active),
+            "events": len(events),
+            "completed_runs": sum(
+                1
+                for entry in entries
+                if statuses.get(entry["run_id"], {}).get("status") == "completed"
+            ),
+            "failed_runs": sum(
+                1
+                for entry in entries
+                if statuses.get(entry["run_id"], {}).get("status") in {"failed", "worker_error"}
+            ),
+            "total_duration_sec": time.perf_counter() - started,
+            **checkpoints,
+        },
+    )
     return statuses
 
 
@@ -1023,6 +1172,7 @@ def main() -> None:
     manifest_path = campaign_dir / "manifest.json"
     manifest_csv_path = campaign_dir / "manifest.csv"
     events_path = runtime_dir / "events.jsonl"
+    debug_events_path = runtime_dir / "debug_events.jsonl"
     current_path = runtime_dir / "current.json"
 
     entries = build_manifest_entries(args)
@@ -1097,6 +1247,24 @@ def main() -> None:
                 entry = pending.get()
                 started = launch_run(entry, gpu, console_root)
                 active[gpu] = started
+                append_debug_event(
+                    debug_events_path,
+                    "run_launched",
+                    {
+                        "run_id": entry["run_id"],
+                        "gpu": gpu,
+                        "pid": started.process_pid,
+                        "config_path": entry["config_path"],
+                        "command": build_command(
+                            entry,
+                            gpu,
+                            entry["results_dir"],
+                            entry["tb_dir"],
+                            entry.get("extra_overrides", []),
+                        ),
+                        "console_log": relpath(started.console_log),
+                    },
+                )
                 append_event(
                     events_path,
                     {
@@ -1126,12 +1294,29 @@ def main() -> None:
                     entries,
                     active,
                     gpus,
+                    debug_events_path,
                 )
 
             finished_gpus: list[int] = []
             for gpu, active_run in list(active.items()):
-                poll_process_output(active_run)
+                poll_process_output(active_run, debug_path=debug_events_path)
                 if active_run.process.poll() is not None:
+                    if active_run.finished_detected_at is None:
+                        active_run.finished_detected_at = utc_now()
+                        active_run.returncode = active_run.process.returncode
+                        active_run.phase = "process_finished"
+                        append_debug_event(
+                            debug_events_path,
+                            "process_finished_detected",
+                            {
+                                "run_id": active_run.entry["run_id"],
+                                "gpu": gpu,
+                                "pid": active_run.process_pid,
+                                "returncode": active_run.returncode,
+                                "result_path": relpath(active_run.result_path),
+                                "elapsed_sec": time.perf_counter() - active_run.start_perf_time,
+                            },
+                        )
                     finished_gpus.append(gpu)
 
             if not finished_gpus:
@@ -1140,9 +1325,13 @@ def main() -> None:
                 continue
 
             for gpu in finished_gpus:
-                active_run = active.pop(gpu)
+                active_run = active[gpu]
+                active_run.phase = "finalizing"
+                active_run.finalize_started_at = utc_now()
+                active_run.finalize_start_perf_time = time.perf_counter()
+                write_current(current_path, entries, active, latest_terminal_status(load_events(events_path)), gpus)
                 try:
-                    event = finalize_run(active_run)
+                    event = finalize_run(active_run, debug_path=debug_events_path)
                 except Exception as exc:
                     if active_run.process.poll() is None:
                         active_run.process.kill()
@@ -1165,6 +1354,18 @@ def main() -> None:
                         "console_log": relpath(active_run.console_log),
                         "result_path": relpath(active_run.result_path),
                     }
+                    append_debug_event(
+                        debug_events_path,
+                        "finalize_worker_error",
+                        {
+                            "run_id": active_run.entry["run_id"],
+                            "gpu": gpu,
+                            "pid": active_run.process_pid,
+                            "failure_reason": repr(exc),
+                            "result_path": relpath(active_run.result_path),
+                        },
+                    )
+                active.pop(gpu, None)
                 append_event(events_path, event)
                 write_all_state(
                     manifest_path,
@@ -1175,6 +1376,7 @@ def main() -> None:
                     entries,
                     active,
                     gpus,
+                    debug_events_path,
                 )
                 free_gpus.append(gpu)
                 free_gpus.sort()
@@ -1207,6 +1409,7 @@ def main() -> None:
             entries,
             {},
             gpus,
+            debug_events_path,
         )
 
 
