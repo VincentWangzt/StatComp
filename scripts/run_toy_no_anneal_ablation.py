@@ -203,6 +203,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--extra-override", action="append", default=[])
+    parser.add_argument("--finalize-mode", choices=["async", "sync"], default="async")
+    parser.add_argument("--finalize-workers", type=int, default=1)
+    parser.add_argument("--summary-interval-sec", type=float, default=120.0)
+    parser.add_argument("--finalize-retries", type=int, default=3)
     return parser.parse_args()
 
 

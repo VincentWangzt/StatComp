@@ -12,12 +12,15 @@ import subprocess
 import sys
 import time
 import traceback
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from omegaconf import OmegaConf
+
+import grid_finalization as finalization
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -507,7 +510,14 @@ def latest_terminal_status(events: list[dict[str, Any]]) -> dict[str, dict[str, 
     for event in events:
         status = event.get("status")
         run_id = event.get("run_id")
-        if run_id and status in {"completed", "failed", "worker_error"}:
+        if not run_id:
+            continue
+        if status == "process_finished":
+            row = dict(event)
+            row["event_status"] = "process_finished"
+            row["status"] = str(event.get("run_status") or "failed")
+            statuses[str(run_id)] = row
+        elif status in {"completed", "failed", "worker_error"}:
             statuses[str(run_id)] = event
     return statuses
 
@@ -521,25 +531,45 @@ def append_event(events_path: Path, event: dict[str, Any]) -> None:
 def append_debug_event(debug_path: Path | None, event_type: str, payload: dict[str, Any]) -> None:
     if debug_path is None:
         return
+    payload = dict(payload)
+    payload_status = payload.pop("status", None)
     event = {
         "status": "debug",
         "event_type": event_type,
         "timestamp": utc_now(),
     }
     event.update(payload)
+    if payload_status is not None:
+        event["payload_status"] = payload_status
     append_event(debug_path, event)
 
 
 def write_json(path: Path, payload: Any) -> None:
     ensure_dir(path.parent)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(path)
 
 
-def write_manifest(path: Path, entries: list[dict[str, Any]], statuses: dict[str, dict[str, Any]]) -> None:
+def atomic_write_text(path: Path, text: str) -> None:
+    ensure_dir(path.parent)
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(text, encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def write_manifest(
+    path: Path,
+    entries: list[dict[str, Any]],
+    statuses: dict[str, dict[str, Any]],
+    finalize_statuses: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    finalize_statuses = finalize_statuses or {}
     manifest: list[dict[str, Any]] = []
     for entry in entries:
         row = dict(entry)
         event = statuses.get(entry["run_id"])
+        finalize_event = finalize_statuses.get(entry["run_id"], {})
         if event is not None:
             row["status"] = event.get("status", row["status"])
             row["runtime_gpu"] = event.get("gpu", row.get("runtime_gpu", ""))
@@ -547,21 +577,34 @@ def write_manifest(path: Path, entries: list[dict[str, Any]], statuses: dict[str
             row["tb_path"] = event.get("tb_path", "")
             row["failure_reason"] = event.get("failure_reason", "")
             row["previous_config_hash"] = event.get("config_hash", "")
-            row["artifact_config_hash"] = event.get("artifact_config_hash", "")
+            row["artifact_config_hash"] = finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", ""))
+        row["finalize_status"] = finalize_event.get("status", "pending" if event is not None else "")
+        row["finalize_attempts"] = finalize_event.get("attempt", "")
+        row["finalize_failure_reason"] = finalize_event.get("finalize_failure_reason", "")
         row["config_staleness"] = classify_config_staleness(entry, event)
         manifest.append(row)
     write_json(path, manifest)
 
 
-def write_manifest_csv(path: Path, entries: list[dict[str, Any]], statuses: dict[str, dict[str, Any]]) -> None:
+def write_manifest_csv(
+    path: Path,
+    entries: list[dict[str, Any]],
+    statuses: dict[str, dict[str, Any]],
+    finalize_statuses: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    finalize_statuses = finalize_statuses or {}
     rows: list[dict[str, Any]] = []
     for entry in entries:
         previous = statuses.get(entry["run_id"])
         event = previous or {}
+        finalize_event = finalize_statuses.get(entry["run_id"], {})
         rows.append(
             {
                 "run_id": entry["run_id"],
                 "status": event.get("status", entry.get("status", "pending")),
+                "finalize_status": finalize_event.get("status", "pending" if previous is not None else ""),
+                "finalize_attempts": finalize_event.get("attempt", ""),
+                "finalize_failure_reason": finalize_event.get("finalize_failure_reason", ""),
                 "method": entry["method"],
                 "method_slug": entry["method_slug"],
                 "target": entry["target"],
@@ -572,12 +615,12 @@ def write_manifest_csv(path: Path, entries: list[dict[str, Any]], statuses: dict
                 "config_hash_version": entry["config_hash_version"],
                 "config_staleness": classify_config_staleness(entry, previous),
                 "previous_config_hash": event.get("config_hash", ""),
-                "artifact_config_hash": event.get("artifact_config_hash", ""),
+                "artifact_config_hash": finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", "")),
                 "expected_epochs": entry["expected_epochs"],
                 "batch_size": entry["batch_size"],
                 "runtime_gpu": event.get("gpu", ""),
                 "result_path": event.get("result_path", ""),
-                "tb_path": event.get("tb_path", ""),
+                "tb_path": finalize_event.get("tb_path", event.get("tb_path", "")),
                 "failure_reason": event.get("failure_reason", ""),
                 "command_template": " ".join(map(str, entry["command_template"])),
             }
@@ -585,10 +628,12 @@ def write_manifest_csv(path: Path, entries: list[dict[str, Any]], statuses: dict
 
     ensure_dir(path.parent)
     fieldnames = list(rows[0].keys()) if rows else []
-    with path.open("w", newline="", encoding="utf-8") as fh:
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    with tmp_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    tmp_path.replace(path)
 
 
 def write_current(
@@ -597,9 +642,16 @@ def write_current(
     active: dict[int, ActiveRun],
     statuses: dict[str, dict[str, Any]],
     gpus: list[int],
+    finalize_statuses: dict[str, dict[str, Any]] | None = None,
+    finalizer_state: dict[str, Any] | None = None,
+    last_summary_write_at: str | None = None,
 ) -> None:
+    finalize_statuses = finalize_statuses or {}
+    finalizer_state = finalizer_state or {}
     completed = sum(1 for entry in entries if statuses.get(entry["run_id"], {}).get("status") == "completed")
     failed = sum(1 for entry in entries if statuses.get(entry["run_id"], {}).get("status") in {"failed", "worker_error"})
+    finalized = sum(1 for entry in entries if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_completed")
+    finalize_failed = sum(1 for entry in entries if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_failed")
     payload = {
         "status": "running" if active else "idle",
         "updated_at": utc_now(),
@@ -607,6 +659,10 @@ def write_current(
         "total_runs": len(entries),
         "completed_runs": completed,
         "failed_runs": failed,
+        "finalized_runs": finalized,
+        "finalize_failed_runs": finalize_failed,
+        "finalizer": finalizer_state,
+        "last_summary_write_at": last_summary_write_at,
         "active_runs": {
             str(gpu): {
                 "run_id": run.entry["run_id"],
@@ -637,12 +693,6 @@ def write_current(
     write_json(path, payload)
 
 
-def tail_file(path: Path, num_lines: int = 30) -> list[str]:
-    if not path.exists():
-        return []
-    return path.read_text(encoding="utf-8", errors="replace").splitlines()[-num_lines:]
-
-
 def parse_result_path_from_console_log(path: Path) -> Path | None:
     if not path.exists():
         return None
@@ -656,51 +706,6 @@ def parse_result_path_from_console_log(path: Path) -> Path | None:
 def infer_tb_path(result_path: Path, entry: dict[str, Any]) -> Path:
     timestamp = result_path.name
     return repo_path(entry["tb_dir"]) / entry["runner_type"] / entry["target"] / timestamp
-
-
-def run_extractor(
-    tb_path: Path,
-    debug_path: Path | None = None,
-    run_id: str | None = None,
-    gpu: int | None = None,
-) -> subprocess.CompletedProcess[str]:
-    started = time.perf_counter()
-    append_debug_event(
-        debug_path,
-        "extractor_started",
-        {
-            "run_id": run_id,
-            "gpu": gpu,
-            "tb_path": relpath(tb_path),
-        },
-    )
-    result = subprocess.run(
-        [
-            sys.executable,
-            "utils/extract_tensorboard_run.py",
-            str(tb_path),
-            "--out-dir",
-            str(tb_path / "extracted"),
-        ],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    append_debug_event(
-        debug_path,
-        "extractor_finished",
-        {
-            "run_id": run_id,
-            "gpu": gpu,
-            "tb_path": relpath(tb_path),
-            "exit_code": result.returncode,
-            "duration_sec": time.perf_counter() - started,
-            "stdout_tail": result.stdout.splitlines()[-10:],
-            "stderr_tail": result.stderr.splitlines()[-10:],
-        },
-    )
-    return result
 
 
 def read_metrics_csv(path: Path) -> dict[str, list[dict[str, float]]]:
@@ -821,55 +826,77 @@ def summarize_completed_run(
     return row
 
 
-def write_summary(report_dir: Path, entries: list[dict[str, Any]], events: list[dict[str, Any]]) -> None:
+def write_summary(
+    report_dir: Path,
+    entries: list[dict[str, Any]],
+    events: list[dict[str, Any]],
+    finalize_statuses: dict[str, dict[str, Any]] | None = None,
+) -> None:
     ensure_dir(report_dir)
-    event_by_run: dict[str, dict[str, Any]] = {}
+    event_by_run = latest_terminal_status(events)
     entry_by_run = {entry["run_id"]: entry for entry in entries}
-    for event in events:
-        if event.get("status") in {"completed", "failed", "worker_error"} and event.get("run_id"):
-            event_by_run[event["run_id"]] = event
+    finalize_statuses = finalize_statuses or {}
 
     rows: list[dict[str, Any]] = []
     for run_id, event in sorted(event_by_run.items()):
         entry = entry_by_run.get(run_id)
         if entry is None:
             continue
+        finalize_event = finalize_statuses.get(run_id, {})
+        summary_event = dict(event)
+        if finalize_event:
+            for key in (
+                "artifact_config_hash",
+                "tb_path",
+                "run_log_tail",
+                "console_log_tail",
+                "extractor_stdout",
+                "extractor_stderr",
+            ):
+                if finalize_event.get(key) not in (None, ""):
+                    summary_event[key] = finalize_event.get(key)
         result_path = repo_path(event["result_path"]) if event.get("result_path") else None
-        tb_path = repo_path(event["tb_path"]) if event.get("tb_path") else None
+        tb_path_value = finalize_event.get("tb_path") or event.get("tb_path")
+        tb_path = repo_path(tb_path_value) if tb_path_value else None
         console_log = repo_path(event["console_log"]) if event.get("console_log") else report_dir / "missing.log"
         if event.get("status") == "completed":
-            rows.append(summarize_completed_run(event, entry, console_log, result_path, tb_path))
+            row = summarize_completed_run(summary_event, entry, console_log, result_path, tb_path)
         else:
-            rows.append(
-                {
-                    "run_id": run_id,
-                    "status": event.get("status", ""),
-                    "method": entry["method"],
-                    "method_slug": entry["method_slug"],
-                    "target": entry["target"],
-                    "target_slug": entry["target_slug"],
-                    "seed": entry["seed"],
-                    "gpu": event.get("gpu", ""),
-                    "config_path": entry["config_path"],
-                    "config_hash": entry.get("config_hash", ""),
-                    "config_hash_version": entry.get("config_hash_version", ""),
-                    "artifact_config_hash": event.get("artifact_config_hash", ""),
-                    "config_staleness": classify_config_staleness(entry, event),
-                    "wall_clock_sec": event.get("duration_sec", ""),
-                    "failure_reason": event.get("failure_reason", ""),
-                    "console_log": event.get("console_log", ""),
-                    "result_path": event.get("result_path", ""),
-                    "tb_path": event.get("tb_path", ""),
-                }
-            )
+            row = {
+                "run_id": run_id,
+                "status": event.get("status", ""),
+                "method": entry["method"],
+                "method_slug": entry["method_slug"],
+                "target": entry["target"],
+                "target_slug": entry["target_slug"],
+                "seed": entry["seed"],
+                "gpu": event.get("gpu", ""),
+                "config_path": entry["config_path"],
+                "config_hash": entry.get("config_hash", ""),
+                "config_hash_version": entry.get("config_hash_version", ""),
+                "artifact_config_hash": finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", "")),
+                "config_staleness": classify_config_staleness(entry, event),
+                "wall_clock_sec": event.get("duration_sec", ""),
+                "failure_reason": event.get("failure_reason", ""),
+                "console_log": event.get("console_log", ""),
+                "result_path": event.get("result_path", ""),
+                "tb_path": tb_path_value or "",
+            }
+        row["finalize_status"] = finalize_event.get("status", "pending")
+        row["finalize_attempts"] = finalize_event.get("attempt", "")
+        row["finalize_failure_reason"] = finalize_event.get("finalize_failure_reason", "")
+        rows.append(row)
 
     write_json(report_dir / "summary.json", rows)
     if rows:
         fieldnames = sorted({key for row in rows for key in row})
-        with (report_dir / "summary.csv").open("w", newline="", encoding="utf-8") as fh:
+        csv_path = report_dir / "summary.csv"
+        tmp_csv_path = csv_path.with_name(f"{csv_path.name}.tmp")
+        with tmp_csv_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+        tmp_csv_path.replace(csv_path)
 
     completed = sum(1 for row in rows if row.get("status") == "completed")
     failed = sum(1 for row in rows if row.get("status") in {"failed", "worker_error"})
@@ -890,7 +917,7 @@ def write_summary(report_dir: Path, entries: list[dict[str, Any]], events: list[
         md_lines.append(
             f"| {row.get('run_id', '')} | {row.get('status', '')} | {row.get('gpu', '')} | {wall} | {row.get('iterations', '')} | {row.get('result_path', '')} |"
         )
-    (report_dir / "summary.md").write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    atomic_write_text(report_dir / "summary.md", "\n".join(md_lines) + "\n")
 
 
 def poll_process_output(active_run: ActiveRun, debug_path: Path | None = None) -> None:
@@ -947,25 +974,8 @@ def launch_run(entry: dict[str, Any], gpu: int, console_root: Path) -> ActiveRun
     )
 
 
-def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[str, Any]:
+def complete_process(active_run: ActiveRun) -> dict[str, Any]:
     entry = active_run.entry
-    active_run.phase = "finalizing"
-    active_run.returncode = active_run.process.poll()
-    active_run.finalize_started_at = active_run.finalize_started_at or utc_now()
-    active_run.finalize_start_perf_time = active_run.finalize_start_perf_time or time.perf_counter()
-    append_debug_event(
-        debug_path,
-        "finalize_started",
-        {
-            "run_id": entry["run_id"],
-            "gpu": active_run.gpu,
-            "pid": active_run.process_pid,
-            "returncode": active_run.returncode,
-            "result_path": relpath(active_run.result_path),
-            "console_log": relpath(active_run.console_log),
-            "elapsed_sec": time.perf_counter() - active_run.start_perf_time,
-        },
-    )
     active_run.process.wait()
     drain_remaining_output(active_run)
     active_run.console_fh.close()
@@ -975,11 +985,7 @@ def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[
     active_run.returncode = exit_code
     result_path = active_run.result_path
     tb_path: Path | None = None
-    run_log_path: Path | None = None
-    extractor_stdout = ""
-    extractor_stderr = ""
     failure_reason: str | None = None
-    artifact_hash = ""
 
     if exit_code != 0:
         failure_reason = f"training exit code {exit_code}"
@@ -987,55 +993,11 @@ def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[
         failure_reason = "missing result path marker in console log"
     else:
         tb_path = infer_tb_path(result_path, entry)
-        run_log_path = result_path / "run.log"
-        if not result_path.exists():
-            failure_reason = f"result path not found: {result_path}"
-        elif not tb_path.exists():
-            failure_reason = f"tb path not found: {tb_path}"
-        elif not run_log_path.exists():
-            failure_reason = f"run log not found: {run_log_path}"
-        else:
-            extractor = run_extractor(
-                tb_path,
-                debug_path=debug_path,
-                run_id=entry["run_id"],
-                gpu=active_run.gpu,
-            )
-            extractor_stdout = extractor.stdout
-            extractor_stderr = extractor.stderr
-            if extractor.returncode != 0:
-                failure_reason = f"extractor failed with exit code {extractor.returncode}"
-        full_config_path = result_path / "full_config.yaml"
-        if full_config_path.exists():
-            try:
-                artifact_hash = artifact_config_hash(full_config_path)
-            except Exception:
-                artifact_hash = ""
 
-    status = "completed" if failure_reason is None else "failed"
-    active_run.finalize_finished_at = utc_now()
-    append_debug_event(
-        debug_path,
-        "finalize_finished",
-        {
-            "run_id": entry["run_id"],
-            "gpu": active_run.gpu,
-            "pid": active_run.process_pid,
-            "run_status": status,
-            "exit_code": exit_code,
-            "failure_reason": failure_reason,
-            "result_path": relpath(result_path),
-            "tb_path": relpath(tb_path),
-            "duration_sec": duration_sec,
-            "finalize_duration_sec": (
-                None
-                if active_run.finalize_start_perf_time is None
-                else time.perf_counter() - active_run.finalize_start_perf_time
-            ),
-        },
-    )
+    run_status = "completed" if failure_reason is None else "failed"
     return {
-        "status": status,
+        "status": "process_finished",
+        "run_status": run_status,
         "run_id": entry["run_id"],
         "seed": entry["seed"],
         "method": entry["method"],
@@ -1047,7 +1009,6 @@ def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[
         "config_hash": entry.get("config_hash", ""),
         "config_hash_version": entry.get("config_hash_version", CONFIG_HASH_VERSION),
         "config_hash_basis": entry.get("config_hash_basis", ""),
-        "artifact_config_hash": artifact_hash,
         "command": build_command(
             entry,
             gpu=active_run.gpu,
@@ -1064,10 +1025,6 @@ def finalize_run(active_run: ActiveRun, debug_path: Path | None = None) -> dict[
         "result_path": relpath(result_path),
         "tb_path": relpath(tb_path),
         "console_log": relpath(active_run.console_log),
-        "run_log_tail": [] if run_log_path is None else tail_file(run_log_path),
-        "console_log_tail": tail_file(active_run.console_log),
-        "extractor_stdout": extractor_stdout,
-        "extractor_stderr": extractor_stderr,
         "failure_reason": failure_reason,
     }
 
@@ -1112,6 +1069,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--extra-override", action="append", default=[])
+    parser.add_argument("--finalize-mode", choices=["async", "sync"], default="async")
+    parser.add_argument("--finalize-workers", type=int, default=1)
+    parser.add_argument("--summary-interval-sec", type=float, default=120.0)
+    parser.add_argument("--finalize-retries", type=int, default=3)
     return parser.parse_args()
 
 
@@ -1121,10 +1082,14 @@ def write_all_state(
     current_path: Path,
     report_dir: Path,
     events_path: Path,
+    finalize_events_path: Path,
     entries: list[dict[str, Any]],
     active: dict[int, ActiveRun],
     gpus: list[int],
     debug_path: Path | None = None,
+    finalizer_state: dict[str, Any] | None = None,
+    last_summary_write_at: str | None = None,
+    include_summary: bool = False,
 ) -> dict[str, dict[str, Any]]:
     started = time.perf_counter()
     checkpoints: dict[str, float] = {}
@@ -1132,20 +1097,36 @@ def write_all_state(
     checkpoints["load_events_sec"] = time.perf_counter() - started
     statuses = latest_terminal_status(events)
     checkpoints["latest_status_sec"] = time.perf_counter() - started - sum(checkpoints.values())
-    write_manifest(manifest_path, entries, statuses)
+    finalize_events = finalization.load_jsonl(finalize_events_path)
+    finalize_statuses = finalization.latest_finalize_statuses(finalize_events)
+    checkpoints["load_finalize_events_sec"] = time.perf_counter() - started - sum(checkpoints.values())
+    write_manifest(manifest_path, entries, statuses, finalize_statuses)
     checkpoints["write_manifest_sec"] = time.perf_counter() - started - sum(checkpoints.values())
-    write_manifest_csv(manifest_csv_path, entries, statuses)
+    write_manifest_csv(manifest_csv_path, entries, statuses, finalize_statuses)
     checkpoints["write_manifest_csv_sec"] = time.perf_counter() - started - sum(checkpoints.values())
-    write_current(current_path, entries, active, statuses, gpus)
+    write_current(
+        current_path,
+        entries,
+        active,
+        statuses,
+        gpus,
+        finalize_statuses=finalize_statuses,
+        finalizer_state=finalizer_state,
+        last_summary_write_at=last_summary_write_at,
+    )
     checkpoints["write_current_sec"] = time.perf_counter() - started - sum(checkpoints.values())
-    write_summary(report_dir, entries, events)
-    checkpoints["write_summary_sec"] = time.perf_counter() - started - sum(checkpoints.values())
+    if include_summary:
+        write_summary(report_dir, entries, events, finalize_statuses)
+        checkpoints["write_summary_sec"] = time.perf_counter() - started - sum(checkpoints.values())
+    else:
+        checkpoints["write_summary_sec"] = 0.0
     append_debug_event(
         debug_path,
         "state_write_finished",
         {
             "active_runs": len(active),
             "events": len(events),
+            "finalize_events": len(finalize_events),
             "completed_runs": sum(
                 1
                 for entry in entries
@@ -1156,11 +1137,110 @@ def write_all_state(
                 for entry in entries
                 if statuses.get(entry["run_id"], {}).get("status") in {"failed", "worker_error"}
             ),
+            "finalized_runs": sum(
+                1
+                for entry in entries
+                if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_completed"
+            ),
+            "finalize_failed_runs": sum(
+                1
+                for entry in entries
+                if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_failed"
+            ),
+            "include_summary": include_summary,
             "total_duration_sec": time.perf_counter() - started,
             **checkpoints,
         },
     )
     return statuses
+
+
+def finalizer_state_payload(
+    finalizer_futures: dict[Future[finalization.FinalizeResult], finalization.FinalizationJob],
+    pending_finalization_run_ids: set[str],
+    finalize_mode: str,
+    finalize_workers: int,
+) -> dict[str, Any]:
+    running_jobs = [
+        {
+            "run_id": job.run_id,
+            "attempt": job.attempt,
+            "gpu": job.gpu,
+            "run_status": job.run_status,
+        }
+        for future, job in finalizer_futures.items()
+        if not future.done()
+    ]
+    return {
+        "mode": finalize_mode,
+        "workers": finalize_workers,
+        "inflight": len(finalizer_futures),
+        "queued_or_running": len(pending_finalization_run_ids),
+        "running_jobs": running_jobs,
+    }
+
+
+def submit_finalization_job(
+    job: finalization.FinalizationJob,
+    executor: ThreadPoolExecutor | None,
+    finalizer_futures: dict[Future[finalization.FinalizeResult], finalization.FinalizationJob],
+    pending_finalization_run_ids: set[str],
+    finalize_mode: str,
+) -> None:
+    pending_finalization_run_ids.add(job.run_id)
+    if finalize_mode == "sync" or executor is None:
+        try:
+            finalization.finalize_job(job)
+        finally:
+            pending_finalization_run_ids.discard(job.run_id)
+        return
+    future = executor.submit(finalization.finalize_job, job)
+    finalizer_futures[future] = job
+
+
+def drain_finalizer_futures(
+    finalizer_futures: dict[Future[finalization.FinalizeResult], finalization.FinalizationJob],
+    pending_finalization_run_ids: set[str],
+    debug_events_path: Path,
+) -> None:
+    for future, job in list(finalizer_futures.items()):
+        if not future.done():
+            continue
+        finalizer_futures.pop(future, None)
+        pending_finalization_run_ids.discard(job.run_id)
+        try:
+            result = future.result()
+            append_debug_event(
+                debug_events_path,
+                "finalizer_future_finished",
+                {
+                    "run_id": result.run_id,
+                    "finalize_status": result.status,
+                    "attempt": result.attempt,
+                    "run_status": result.run_status,
+                    "duration_sec": result.finalize_duration_sec,
+                    "failure_reason": result.failure_reason,
+                },
+            )
+        except Exception as exc:
+            append_debug_event(
+                debug_events_path,
+                "finalizer_future_error",
+                {
+                    "run_id": job.run_id,
+                    "attempt": job.attempt,
+                    "failure_reason": repr(exc),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+
+
+def should_write_summary(last_summary_write_perf: float | None, interval_sec: float) -> bool:
+    if last_summary_write_perf is None:
+        return True
+    if interval_sec <= 0:
+        return False
+    return (time.perf_counter() - last_summary_write_perf) >= interval_sec
 
 
 def main() -> None:
@@ -1172,8 +1252,13 @@ def main() -> None:
     manifest_path = campaign_dir / "manifest.json"
     manifest_csv_path = campaign_dir / "manifest.csv"
     events_path = runtime_dir / "events.jsonl"
+    finalize_events_path = runtime_dir / "finalize_events.jsonl"
     debug_events_path = runtime_dir / "debug_events.jsonl"
     current_path = runtime_dir / "current.json"
+    finalize_mode = getattr(args, "finalize_mode", "async")
+    finalize_workers = max(1, int(getattr(args, "finalize_workers", 1)))
+    finalize_retries = max(1, int(getattr(args, "finalize_retries", 3)))
+    summary_interval_sec = max(0.0, float(getattr(args, "summary_interval_sec", 120.0)))
 
     entries = build_manifest_entries(args)
 
@@ -1198,14 +1283,18 @@ def main() -> None:
     ensure_dir(console_root)
     ensure_dir(report_dir)
 
-    if not args.resume and events_path.exists():
-        events_path.unlink()
+    if not args.resume:
+        for path in (events_path, finalize_events_path, debug_events_path):
+            if path.exists():
+                path.unlink()
 
     events = load_events(events_path) if args.resume else []
     statuses = latest_terminal_status(events)
+    finalize_events = finalization.load_jsonl(finalize_events_path) if args.resume else []
+    finalize_statuses = finalization.latest_finalize_statuses(finalize_events)
 
-    write_manifest(manifest_path, entries, statuses)
-    write_manifest_csv(manifest_csv_path, entries, statuses)
+    write_manifest(manifest_path, entries, statuses, finalize_statuses)
+    write_manifest_csv(manifest_csv_path, entries, statuses, finalize_statuses)
 
     gpus = args.gpus if args.gpus is not None else discover_gpus()
     if not gpus:
@@ -1224,6 +1313,16 @@ def main() -> None:
 
     active: dict[int, ActiveRun] = {}
     free_gpus = list(gpus)
+    finalizer_futures: dict[Future[finalization.FinalizeResult], finalization.FinalizationJob] = {}
+    pending_finalization_run_ids: set[str] = set()
+    finalizer_executor: ThreadPoolExecutor | None = None
+    if finalize_mode == "async":
+        finalizer_executor = ThreadPoolExecutor(
+            max_workers=finalize_workers,
+            thread_name_prefix="grid-finalizer",
+        )
+    last_summary_write_perf: float | None = None
+    last_summary_write_at: str | None = None
     scheduler_started_at = utc_now()
     append_event(
         events_path,
@@ -1240,8 +1339,60 @@ def main() -> None:
         },
     )
 
+    for job in finalization.pending_finalization_jobs(
+        entries,
+        statuses,
+        finalize_events,
+        REPO_ROOT,
+        finalize_events_path,
+        debug_events_path,
+        finalize_retries,
+    ):
+        submit_finalization_job(
+            job,
+            finalizer_executor,
+            finalizer_futures,
+            pending_finalization_run_ids,
+            finalize_mode,
+        )
+    if finalizer_futures or pending_finalization_run_ids:
+        append_debug_event(
+            debug_events_path,
+            "resume_finalization_jobs_submitted",
+            {
+                "jobs": len(pending_finalization_run_ids),
+                "mode": finalize_mode,
+                "workers": finalize_workers,
+            },
+        )
+
+    state_payload = finalizer_state_payload(
+        finalizer_futures,
+        pending_finalization_run_ids,
+        finalize_mode,
+        finalize_workers,
+    )
+    last_summary_write_at = utc_now()
+    write_all_state(
+        manifest_path,
+        manifest_csv_path,
+        current_path,
+        report_dir,
+        events_path,
+        finalize_events_path,
+        entries,
+        active,
+        gpus,
+        debug_events_path,
+        finalizer_state=state_payload,
+        last_summary_write_at=last_summary_write_at,
+        include_summary=True,
+    )
+    last_summary_write_perf = time.perf_counter()
+
     try:
-        while not pending.empty() or active:
+        while not pending.empty() or active or finalizer_futures:
+            drain_finalizer_futures(finalizer_futures, pending_finalization_run_ids, debug_events_path)
             while free_gpus and not pending.empty():
                 gpu = free_gpus.pop(0)
                 entry = pending.get()
@@ -1291,10 +1442,19 @@ def main() -> None:
                     current_path,
                     report_dir,
                     events_path,
+                    finalize_events_path,
                     entries,
                     active,
                     gpus,
                     debug_events_path,
+                    finalizer_state=finalizer_state_payload(
+                        finalizer_futures,
+                        pending_finalization_run_ids,
+                        finalize_mode,
+                        finalize_workers,
+                    ),
+                    last_summary_write_at=last_summary_write_at,
+                    include_summary=False,
                 )
 
             finished_gpus: list[int] = []
@@ -1320,18 +1480,54 @@ def main() -> None:
                     finished_gpus.append(gpu)
 
             if not finished_gpus:
-                write_current(current_path, entries, active, latest_terminal_status(load_events(events_path)), gpus)
+                events_now = load_events(events_path)
+                finalize_events_now = finalization.load_jsonl(finalize_events_path)
+                statuses_now = latest_terminal_status(events_now)
+                finalize_statuses_now = finalization.latest_finalize_statuses(finalize_events_now)
+                state_payload = finalizer_state_payload(
+                    finalizer_futures,
+                    pending_finalization_run_ids,
+                    finalize_mode,
+                    finalize_workers,
+                )
+                include_summary = should_write_summary(last_summary_write_perf, summary_interval_sec)
+                if include_summary:
+                    next_summary_write_at = utc_now()
+                    write_all_state(
+                        manifest_path,
+                        manifest_csv_path,
+                        current_path,
+                        report_dir,
+                        events_path,
+                        finalize_events_path,
+                        entries,
+                        active,
+                        gpus,
+                        debug_events_path,
+                        finalizer_state=state_payload,
+                        last_summary_write_at=next_summary_write_at,
+                        include_summary=True,
+                    )
+                    last_summary_write_perf = time.perf_counter()
+                    last_summary_write_at = next_summary_write_at
+                else:
+                    write_current(
+                        current_path,
+                        entries,
+                        active,
+                        statuses_now,
+                        gpus,
+                        finalize_statuses=finalize_statuses_now,
+                        finalizer_state=state_payload,
+                        last_summary_write_at=last_summary_write_at,
+                    )
                 time.sleep(args.poll_interval)
                 continue
 
             for gpu in finished_gpus:
                 active_run = active[gpu]
-                active_run.phase = "finalizing"
-                active_run.finalize_started_at = utc_now()
-                active_run.finalize_start_perf_time = time.perf_counter()
-                write_current(current_path, entries, active, latest_terminal_status(load_events(events_path)), gpus)
                 try:
-                    event = finalize_run(active_run, debug_path=debug_events_path)
+                    event = complete_process(active_run)
                 except Exception as exc:
                     if active_run.process.poll() is None:
                         active_run.process.kill()
@@ -1340,7 +1536,8 @@ def main() -> None:
                     except Exception:
                         pass
                     event = {
-                        "status": "worker_error",
+                        "status": "process_finished",
+                        "run_status": "worker_error",
                         "run_id": active_run.entry["run_id"],
                         "gpu": gpu,
                         "config_hash": active_run.entry.get("config_hash", ""),
@@ -1356,7 +1553,7 @@ def main() -> None:
                     }
                     append_debug_event(
                         debug_events_path,
-                        "finalize_worker_error",
+                        "complete_process_worker_error",
                         {
                             "run_id": active_run.entry["run_id"],
                             "gpu": gpu,
@@ -1367,19 +1564,56 @@ def main() -> None:
                     )
                 active.pop(gpu, None)
                 append_event(events_path, event)
+                statuses[event["run_id"]] = dict(event, status=event.get("run_status", "failed"))
+                finalize_events_now = finalization.load_jsonl(finalize_events_path)
+                attempts = finalization.finalize_attempt_counts(finalize_events_now)
+                if event["run_id"] not in pending_finalization_run_ids:
+                    job = finalization.build_finalization_job(
+                        active_run.entry,
+                        event,
+                        REPO_ROOT,
+                        finalize_events_path,
+                        debug_events_path,
+                        attempts.get(event["run_id"], 0) + 1,
+                    )
+                    if job.attempt <= finalize_retries:
+                        submit_finalization_job(
+                            job,
+                            finalizer_executor,
+                            finalizer_futures,
+                            pending_finalization_run_ids,
+                            finalize_mode,
+                        )
+                free_gpus.append(gpu)
+                free_gpus.sort()
+                include_summary = should_write_summary(last_summary_write_perf, summary_interval_sec)
+                if include_summary:
+                    next_summary_write_at = utc_now()
+                else:
+                    next_summary_write_at = last_summary_write_at
                 write_all_state(
                     manifest_path,
                     manifest_csv_path,
                     current_path,
                     report_dir,
                     events_path,
+                    finalize_events_path,
                     entries,
                     active,
                     gpus,
                     debug_events_path,
+                    finalizer_state=finalizer_state_payload(
+                        finalizer_futures,
+                        pending_finalization_run_ids,
+                        finalize_mode,
+                        finalize_workers,
+                    ),
+                    last_summary_write_at=next_summary_write_at,
+                    include_summary=include_summary,
                 )
-                free_gpus.append(gpu)
-                free_gpus.sort()
+                if include_summary:
+                    last_summary_write_perf = time.perf_counter()
+                    last_summary_write_at = next_summary_write_at
 
         append_event(
             events_path,
@@ -1393,6 +1627,7 @@ def main() -> None:
             },
         )
     finally:
+        drain_finalizer_futures(finalizer_futures, pending_finalization_run_ids, debug_events_path)
         for active_run in active.values():
             if active_run.process.poll() is None:
                 active_run.process.kill()
@@ -1400,16 +1635,28 @@ def main() -> None:
                 active_run.console_fh.close()
             except Exception:
                 pass
+        if finalizer_executor is not None:
+            finalizer_executor.shutdown(wait=True)
+            drain_finalizer_futures(finalizer_futures, pending_finalization_run_ids, debug_events_path)
         write_all_state(
             manifest_path,
             manifest_csv_path,
             current_path,
             report_dir,
             events_path,
+            finalize_events_path,
             entries,
             {},
             gpus,
             debug_events_path,
+            finalizer_state=finalizer_state_payload(
+                finalizer_futures,
+                pending_finalization_run_ids,
+                finalize_mode,
+                finalize_workers,
+            ),
+            last_summary_write_at=last_summary_write_at,
+            include_summary=True,
         )
 
 
