@@ -8,7 +8,7 @@ vi_model_type: ConditionalGaussian
 vi_model_config_path: configs/vi_models/ConditionalGaussian-Bnn-ksivi.yaml
 
 train:
-  epochs: 20000
+  epochs: 10000
   batch_size: 128
   reverse_sample_num: 2048
   grad_clip: 1.0
@@ -29,7 +29,7 @@ train:
   annealing:
     enabled: true
     scheme: linear
-    steps: 20000
+    steps: 10000
   log:
     metric_log_freq: 200
     loss_log_freq: 100

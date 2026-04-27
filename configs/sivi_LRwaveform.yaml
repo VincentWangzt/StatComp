@@ -7,7 +7,7 @@ target_type: LRwaveform
 vi_model_type: ConditionalGaussian
 
 train:
-  epochs: 20000
+  epochs: 10000
   batch_size: 128
   reverse_sample_num: 4096
   vi:

@@ -11,7 +11,7 @@ target_type: banana
 vi_model_type: ConditionalGaussian
 
 train:
-  epochs: 20000
+  epochs: 10000
   batch_size: 128
   reverse_sample_num: 4096
   vi:
@@ -23,7 +23,7 @@ train:
   annealing:
     enabled: true
     scheme: linear
-    steps: 10000
+    steps: 5000
   log:
     metric_log_freq: 200
     loss_log_freq: 100
