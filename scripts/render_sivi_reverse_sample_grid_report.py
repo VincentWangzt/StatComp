@@ -50,7 +50,11 @@ def _completed_events(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]
     return {
         str(event["run_id"]): event
         for event in events
-        if event.get("status") == "completed" and event.get("run_id")
+        if (
+            event.get("status") == "completed"
+            or (event.get("status") == "process_finished" and event.get("run_status") == "completed")
+        )
+        and event.get("run_id")
     }
 
 
