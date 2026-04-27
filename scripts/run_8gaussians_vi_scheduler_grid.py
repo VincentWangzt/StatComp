@@ -22,7 +22,6 @@ TB_DIR = f"tb_logs/{CAMPAIGN_SLUG}"
 METHODS: tuple[dict[str, Any], ...] = (
     {"slug": "sivi", "method": "SIVI", "runner_type": "SIVI", "source_method": "sivi"},
     {"slug": "uivi", "method": "UIVI", "runner_type": "UIVI", "source_method": "uivi"},
-    {"slug": "rsivi", "method": "RSIVI", "runner_type": "RSIVI", "source_method": "rsivi"},
     {"slug": "aisivi", "method": "AISIVI", "runner_type": "AISIVI", "source_method": "aisivi"},
     {"slug": "dsivi", "method": "DSIVI", "runner_type": "DSIVI", "source_method": "dsivi"},
 )
