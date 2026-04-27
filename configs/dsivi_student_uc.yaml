@@ -19,7 +19,7 @@ train:
   reverse:
     lr: 0.001
     batch_size: 2048
-    epochs: 10
+    epochs: 5
     update_freq: 1
   annealing:
     enabled: false

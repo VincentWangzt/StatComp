@@ -19,11 +19,11 @@ train:
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.7
+      gamma: 0.9
   reverse:
     lr: 1.0e-3
     batch_size: 2048
-    epochs: 10
+    epochs: 5
     update_freq: 1
   annealing:
     enabled: true

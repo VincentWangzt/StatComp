@@ -19,7 +19,7 @@ train:
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.7
+      gamma: 0.9
   annealing:
     enabled: true
     scheme: linear
