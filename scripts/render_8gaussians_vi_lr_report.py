@@ -51,7 +51,11 @@ def _load_events(path: Path) -> list[dict[str, Any]]:
 def _completed_events(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     completed: dict[str, dict[str, Any]] = {}
     for event in events:
-        if event.get("status") == "completed" and event.get("run_id"):
+        is_completed = event.get("status") == "completed" or (
+            event.get("status") == "process_finished"
+            and event.get("run_status") == "completed"
+        )
+        if is_completed and event.get("run_id"):
             completed[str(event["run_id"])] = event
     return completed
 
