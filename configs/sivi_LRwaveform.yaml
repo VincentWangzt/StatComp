@@ -21,18 +21,18 @@ train:
     scheme: linear
     steps: 5000
   log:
-    metric_log_freq: 200
+    metric_log_freq: 100
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
   checkpoint:
     enabled: true
-    freq: 2000
+    freq: 1000
   sample:
-    freq: 2000
+    freq: 1000
     num: 1000
   plot:
-    freq: 2000
+    freq: 1000
     num: 1000
 
 metric:
