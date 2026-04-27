@@ -180,13 +180,29 @@ def _table(headers: list[str], rows: list[list[str]]) -> list[str]:
     return lines
 
 
-def render_markdown(group_rows: list[dict[str, Any]], run_rows: list[dict[str, Any]]) -> str:
+def _manifest_overrides(manifest: list[dict[str, Any]]) -> list[str]:
+    overrides: list[str] = []
+    seen: set[str] = set()
+    for entry in manifest:
+        for override in entry.get("extra_overrides", []):
+            if override not in seen:
+                seen.add(override)
+                overrides.append(str(override))
+    return overrides
+
+
+def render_markdown(
+    group_rows: list[dict[str, Any]],
+    run_rows: list[dict[str, Any]],
+    overrides: list[str],
+) -> str:
+    override_text = ", ".join(f"`{override}`" for override in overrides)
     lines = [
         "# 8-Gaussians VI Scheduler Grid",
         "",
         f"Completed runs summarized: {len(run_rows)}",
         "",
-        "Overrides: `train.vi.scheduler.step_size=1000`, `train.vi.scheduler.gamma=0.9`. KSIVI excluded.",
+        f"Overrides: {override_text}. KSIVI excluded.",
         "",
         "## Group Means",
         "",
@@ -258,12 +274,13 @@ def main() -> None:
     completed = _completed_events(_load_events(campaign_dir / "runtime" / "events.jsonl"))
     run_rows = build_run_rows(manifest, completed)
     group_rows = build_group_rows(run_rows)
+    overrides = _manifest_overrides(manifest)
 
     out_dir = campaign_dir / "generated_reports"
     _write_csv(out_dir / RUN_CSV.name, run_rows)
     _write_csv(out_dir / SUMMARY_CSV.name, group_rows)
     report_path = out_dir / REPORT_MD.name
-    report_path.write_text(render_markdown(group_rows, run_rows), encoding="utf-8")
+    report_path.write_text(render_markdown(group_rows, run_rows, overrides), encoding="utf-8")
     print(f"Wrote {report_path}")
     print(f"Wrote {out_dir / RUN_CSV.name}")
     print(f"Wrote {out_dir / SUMMARY_CSV.name}")
