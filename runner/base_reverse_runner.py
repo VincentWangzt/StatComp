@@ -256,7 +256,14 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             epoch (int): Current epoch number.
         """
         super().eval_kl_ite(epoch)
-        rev_kl_div = self.calculate_rev_KL()
+        try:
+            rev_kl_div = self.calculate_rev_KL()
+        except RuntimeError as exc:
+            logger.warning(
+                f"Reverse model KL ITE failed at epoch {epoch}: {exc}. "
+                "Logging NaN and continuing."
+            )
+            rev_kl_div = float("nan")
         self.writer.add_scalar("metric/reverse_model/kl_ite", rev_kl_div, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model KL ITE: {rev_kl_div:.4f}")
 
@@ -267,7 +274,14 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             epoch (int): Current epoch number.
         """
         super().eval_w2(epoch)
-        rev_w2 = self.calculate_rev_W2()
+        try:
+            rev_w2 = self.calculate_rev_W2()
+        except RuntimeError as exc:
+            logger.warning(
+                f"Reverse model W2 failed at epoch {epoch}: {exc}. "
+                "Logging NaN and continuing."
+            )
+            rev_w2 = float("nan")
         self.writer.add_scalar("metric/reverse_model/w2", rev_w2, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model W2: {rev_w2:.4f}")
 
