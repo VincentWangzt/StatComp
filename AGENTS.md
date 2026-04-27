@@ -28,7 +28,7 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 
 ### Remote GPU Environment
 
-- Host: `ssh -p 18321 root@connect.bjb2.seetacloud.com`
+- Host: `ssh -p 48236 root@connect.nmb1.seetacloud.com`
 - Repo path: `~/ruivi/`
 - Branch: typically `vince-dev`
 - Conda env: `ruivi`
