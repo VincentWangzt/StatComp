@@ -41,6 +41,22 @@ def _take_points(samples: torch.Tensor, count: int) -> np.ndarray:
     return samples.detach().cpu().numpy()
 
 
+def _draw_toy_contours(ax: plt.Axes, target: str, bbox: list[float]) -> None:
+    target_model = target_distribution[target](device="cpu")
+    xx, yy = np.mgrid[bbox[0]:bbox[1]:100j, bbox[2]:bbox[3]:100j]
+    positions = np.vstack([xx.ravel(), yy.ravel()])
+    with torch.no_grad():
+        logp = target_model.logp(torch.as_tensor(positions.T, dtype=torch.float32))
+    logp_grid = logp.detach().cpu().numpy().reshape(xx.shape)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        density_surface = -np.log(-logp_grid)
+    if not np.isfinite(density_surface).any():
+        density_surface = logp_grid
+    ax.contourf(xx, yy, density_surface, cmap="Blues", alpha=0.8, levels=11)
+    ax.axis(bbox)
+    ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
+
+
 def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     root = repo_path(str(cfg.campaign.output_dir))
     assert root is not None
@@ -71,6 +87,8 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
             if col_idx == 0:
                 ax.set_ylabel(target, fontsize=10)
             try:
+                if bbox is not None:
+                    _draw_toy_contours(ax, target, bbox)
                 if column == "Truth":
                     samples = load_baseline_samples(target)
                 else:
@@ -78,19 +96,19 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                     sample_path, _ = find_final_samples(rec.result_path)
                     samples = load_sample_z(sample_path)
                 points = _take_points(samples[:, :2], num_points)
-                ax.scatter(
+                ax.plot(
                     points[:, 0],
                     points[:, 1],
-                    s=float(cfg.plots.scatter.point_size),
+                    ".",
+                    markersize=float(cfg.plots.scatter.point_size),
+                    color="#ff7f0e",
                     alpha=float(cfg.plots.scatter.alpha),
-                    linewidths=0,
                 )
             except Exception as exc:  # noqa: BLE001
                 ax.text(0.5, 0.5, f"missing\n{type(exc).__name__}", ha="center", va="center", fontsize=7)
             if bbox is not None:
                 ax.set_xlim(bbox[0], bbox[1])
                 ax.set_ylim(bbox[2], bbox[3])
-            ax.set_aspect("equal", adjustable="box")
     fig.tight_layout(pad=0.25)
     png_path = out_dir / "toy_scatter_grid.png"
     pdf_path = out_dir / "toy_scatter_grid.pdf"
