@@ -104,13 +104,13 @@ def _sample_target(runner, count: int, batch_size: int) -> torch.Tensor:
 def constrained_w2(runner, width: float, cfg: Any) -> float:
     needed = int(cfg.accepted_samples)
     batch_size = int(cfg.sample_batch_size)
-    max_draws = int(cfg.max_draws)
+    max_draws = int(cfg.max_draws or 0)
 
     def collect(source: str) -> torch.Tensor:
         accepted: list[torch.Tensor] = []
         total = 0
         while sum(x.shape[0] for x in accepted) < needed:
-            if total >= max_draws:
+            if max_draws > 0 and total >= max_draws:
                 raise RuntimeError(f"Reached max_draws={max_draws} for {source} width={width}")
             if source == "vi":
                 samples = _sample_vi(runner, batch_size, batch_size)
