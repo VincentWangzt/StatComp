@@ -128,7 +128,8 @@ def find_final_checkpoint(result_dir: Path) -> tuple[Path, int]:
             candidates.append((epoch, epoch_dir))
     if not candidates:
         raise FileNotFoundError(f"No VI checkpoint under {ckpt_root}")
-    return max(candidates, key=lambda item: item[0])
+    epoch, ckpt_dir = max(candidates, key=lambda item: item[0])
+    return ckpt_dir, epoch
 
 
 _SAMPLE_RE = re.compile(r"samples_epoch_(?P<epoch>\d+)\.pt$")
@@ -143,7 +144,8 @@ def find_final_samples(result_dir: Path) -> tuple[Path, int]:
             candidates.append((int(match.group("epoch")), sample_path))
     if not candidates:
         raise FileNotFoundError(f"No sample files under {sample_root}")
-    return max(candidates, key=lambda item: item[0])
+    epoch, sample_path = max(candidates, key=lambda item: item[0])
+    return sample_path, epoch
 
 
 def load_sample_z(path: Path, *, map_location: str = "cpu") -> torch.Tensor:
@@ -165,4 +167,3 @@ def load_baseline_samples(target: str) -> torch.Tensor:
                 payload = payload["samples"]
             return torch.as_tensor(payload, dtype=torch.float32, device="cpu")
     raise FileNotFoundError(f"No baseline samples found for {target}")
-
