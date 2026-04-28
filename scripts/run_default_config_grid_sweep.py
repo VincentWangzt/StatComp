@@ -454,8 +454,17 @@ def build_command(
     return cmd
 
 
+def selected_methods_from_args(args: argparse.Namespace) -> tuple[str, ...]:
+    methods = tuple(str(method) for method in getattr(args, "methods", DEFAULT_METHODS))
+    excluded = set(str(method) for method in getattr(args, "exclude_methods", []))
+    selected = tuple(method for method in methods if method not in excluded)
+    if not selected:
+        raise ValueError("No methods selected after applying --exclude-methods.")
+    return selected
+
+
 def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
-    base_entries = discover_default_configs()
+    base_entries = discover_default_configs(selected_methods_from_args(args))
     entries: list[dict[str, Any]] = []
     for seed in args.seeds:
         for base in base_entries:
@@ -1032,6 +1041,7 @@ def complete_process(active_run: ActiveRun) -> dict[str, Any]:
 def print_dry_run(entries: list[dict[str, Any]], gpus: list[int], args: argparse.Namespace) -> None:
     print(f"campaign_slug: {args.campaign_slug}")
     print(f"discovered_gpus: {gpus if gpus else 'none'}")
+    print(f"methods: {', '.join(selected_methods_from_args(args))}")
     print(f"runs: {len(entries)}")
     for entry in entries:
         command = build_command(
@@ -1052,6 +1062,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", default=f"results/{DEFAULT_CAMPAIGN_SLUG}")
     parser.add_argument("--tb-dir", default=f"tb_logs/{DEFAULT_CAMPAIGN_SLUG}")
     parser.add_argument("--seeds", nargs="+", type=int, default=[42])
+    parser.add_argument("--methods", nargs="+", choices=DEFAULT_METHODS, default=list(DEFAULT_METHODS))
+    parser.add_argument("--exclude-methods", nargs="+", choices=DEFAULT_METHODS, default=[])
     parser.add_argument("--gpus", nargs="+", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
