@@ -55,6 +55,22 @@ def _resolve_dtype(dtype_name: str) -> torch.dtype:
     raise ValueError(f"Unsupported dtype: {dtype_name!r}.")
 
 
+def load_baseline_sample_store(path: Path) -> torch.Tensor:
+    samples = torch.load(path, map_location="cpu")
+    if isinstance(samples, dict):
+        if "samples" not in samples:
+            raise KeyError(f"Sample store {path} does not contain a 'samples' key.")
+        samples = samples["samples"]
+    samples = torch.as_tensor(samples, dtype=torch.float32)
+    if samples.ndim != 2:
+        raise ValueError(
+            f"Baseline samples must have shape [num_samples, z_dim], got {tuple(samples.shape)}."
+        )
+    if samples.shape[0] < 1:
+        raise ValueError("Baseline sample store is empty.")
+    return samples
+
+
 def _sync_if_cuda(device: torch.device) -> None:
     if device.type == "cuda" and torch.cuda.is_available():
         torch.cuda.synchronize(device)
@@ -264,6 +280,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
+        "--baseline-samples",
+        type=Path,
+        default=None,
+        help="Optional saved baseline sample store to use for reference samples.",
+    )
+    parser.add_argument(
         "--sample-budgets",
         type=int,
         nargs="+",
@@ -308,6 +330,15 @@ def main() -> None:
         output_dir=output_dir,
         force_device=args.device,
     )
+    if args.baseline_samples is not None:
+        runner.baseline_samples = load_baseline_sample_store(
+            args.baseline_samples.resolve()
+        ).numpy()
+        logger.info(
+            "Loaded explicit KDE reference samples from %s, shape=%s",
+            args.baseline_samples,
+            runner.baseline_samples.shape,
+        )
     if runner.baseline_samples is None:
         raise RuntimeError("This target has no baseline samples; KDE ELM cannot be evaluated.")
 
@@ -387,6 +418,9 @@ def main() -> None:
         metadata = {
             "config": str(args.config.resolve()),
             "checkpoint_dir": str(args.checkpoint_dir.resolve()),
+            "baseline_samples": (
+                None if args.baseline_samples is None else str(args.baseline_samples.resolve())
+            ),
             "seed": int(args.seed),
             "sample_budgets": budgets,
             "num_ref_samples": int(reference_samples.shape[0]),

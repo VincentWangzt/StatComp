@@ -28,6 +28,115 @@ class HMCConfig:
     device: Optional[torch.device] = None
 
 
+@dataclass
+class SGLDConfig:
+    step_size: float = 1.0e-4
+    num_samples: int = 1000
+    burn_in: int = 1000
+    thinning: int = 1
+    num_chains: int = 1
+    seed: int = 42
+    device: Optional[torch.device] = None
+    max_grad_norm: Optional[float] = None
+
+
+class SGLDSampler:
+    """
+    Batched stochastic-gradient Langevin dynamics sampler.
+
+    Args:
+        score_fn: Function returning grad log p(z) for a batch of z.
+        dim: Dimensionality of z.
+        cfg: SGLDConfig with hyperparameters.
+    """
+
+    def __init__(
+        self,
+        score_fn: Callable[[torch.Tensor], torch.Tensor],
+        dim: int,
+        cfg: SGLDConfig,
+    ):
+        if cfg.step_size <= 0.0:
+            raise ValueError("step_size must be positive.")
+        if cfg.num_samples < 1:
+            raise ValueError("num_samples must be positive.")
+        if cfg.burn_in < 0:
+            raise ValueError("burn_in must be non-negative.")
+        if cfg.thinning < 1:
+            raise ValueError("thinning must be positive.")
+        if cfg.num_chains < 1:
+            raise ValueError("num_chains must be positive.")
+        if cfg.max_grad_norm is not None and cfg.max_grad_norm <= 0.0:
+            raise ValueError("max_grad_norm must be positive when set.")
+
+        self.score_fn = score_fn
+        self.dim = dim
+        self.cfg = cfg
+        self.device = cfg.device or torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+        self.generator = torch.Generator(device=self.device).manual_seed(cfg.seed)
+
+    def _score(self, z: torch.Tensor) -> torch.Tensor:
+        score = self.score_fn(z)
+        if score.shape != z.shape:
+            raise RuntimeError(
+                f"score_fn returned shape {tuple(score.shape)}, expected {tuple(z.shape)}."
+            )
+        if self.cfg.max_grad_norm is None:
+            return score
+        norms = score.norm(dim=1, keepdim=True).clamp_min(1.0e-12)
+        scale = (float(self.cfg.max_grad_norm) / norms).clamp(max=1.0)
+        return score * scale
+
+    def sample(
+        self,
+        z0: Optional[torch.Tensor] = None,
+        progress_bar: bool = False,
+    ) -> torch.Tensor:
+        cfg = self.cfg
+        if z0 is None:
+            z = torch.zeros(cfg.num_chains, self.dim, device=self.device)
+        else:
+            z = z0.to(self.device)
+            if z.ndim == 1:
+                z = z.view(1, -1).expand(cfg.num_chains, -1).clone()
+            if z.shape != (cfg.num_chains, self.dim):
+                raise ValueError(
+                    "z0 must have shape [dim] or [num_chains, dim], "
+                    f"got {tuple(z.shape)}."
+                )
+
+        total_record_steps = math.ceil(cfg.num_samples / cfg.num_chains)
+        total_steps = cfg.burn_in + total_record_steps * cfg.thinning
+        step_size = float(cfg.step_size)
+        noise_scale = math.sqrt(step_size)
+        samples: list[torch.Tensor] = []
+
+        iterator = range(total_steps)
+        if progress_bar:
+            try:
+                from tqdm import tqdm
+
+                iterator = tqdm(iterator, desc="SGLD Sampling")
+            except Exception:
+                pass
+
+        for it in iterator:
+            score = self._score(z)
+            noise = torch.randn(
+                z.shape,
+                generator=self.generator,
+                device=self.device,
+                dtype=z.dtype,
+            )
+            z = z + 0.5 * step_size * score + noise_scale * noise
+            if it >= cfg.burn_in and ((it - cfg.burn_in) % cfg.thinning == 0):
+                samples.append(z.detach().cpu())
+
+        return torch.cat(samples, dim=0)[: cfg.num_samples].contiguous()
+
+
 class HMCSampler:
     """
     Simple Hamiltonian Monte Carlo (HMC) sampler.
