@@ -465,6 +465,19 @@ def selected_methods_from_args(args: argparse.Namespace) -> tuple[str, ...]:
 
 def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
     base_entries = discover_default_configs(selected_methods_from_args(args))
+    selected_targets = set(str(target) for target in getattr(args, "targets", []) or [])
+    if selected_targets:
+        base_entries = [
+            entry
+            for entry in base_entries
+            if str(entry["target"]) in selected_targets
+            or str(entry["target_slug"]) in selected_targets
+        ]
+        if not base_entries:
+            raise ValueError(
+                "No default configs matched --targets: "
+                + ", ".join(sorted(selected_targets))
+            )
     entries: list[dict[str, Any]] = []
     for seed in args.seeds:
         for base in base_entries:
@@ -1042,6 +1055,9 @@ def print_dry_run(entries: list[dict[str, Any]], gpus: list[int], args: argparse
     print(f"campaign_slug: {args.campaign_slug}")
     print(f"discovered_gpus: {gpus if gpus else 'none'}")
     print(f"methods: {', '.join(selected_methods_from_args(args))}")
+    selected_targets = getattr(args, "targets", []) or []
+    if selected_targets:
+        print(f"targets: {', '.join(str(target) for target in selected_targets)}")
     print(f"runs: {len(entries)}")
     for entry in entries:
         command = build_command(
@@ -1064,6 +1080,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds", nargs="+", type=int, default=[42])
     parser.add_argument("--methods", nargs="+", choices=DEFAULT_METHODS, default=list(DEFAULT_METHODS))
     parser.add_argument("--exclude-methods", nargs="+", choices=DEFAULT_METHODS, default=[])
+    parser.add_argument(
+        "--targets",
+        nargs="+",
+        default=[],
+        help=(
+            "Optional target_type or config-stem target slugs to include, "
+            "for example Bnn_boston Bnn_concrete."
+        ),
+    )
     parser.add_argument("--gpus", nargs="+", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
