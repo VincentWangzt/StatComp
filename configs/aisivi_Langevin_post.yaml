@@ -8,8 +8,8 @@ use_cuda: true
 
 runner_type: AISIVI
 target_type: Langevin_post
-vi_model_type: ConditionalGaussianGlobal
-vi_model_config_path: configs/vi_models/ConditionalGaussianGlobal-Langevin.yaml
+vi_model_type: ConditionalGaussianGlobalUniform
+vi_model_config_path: configs/vi_models/ConditionalGaussianGlobalUniform-AISIVI.yaml
 reverse_model_type: ConditionalRealNVP
 reverse_model_config_path: configs/reverse_models/ConditionalRealNVP-AISIVI-Langevin.yaml
 
