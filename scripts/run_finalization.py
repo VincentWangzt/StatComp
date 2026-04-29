@@ -13,7 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 from finalization.artifacts import completed_runs, load_manifest, select_runs  # noqa: E402
 from finalization.config import load_config, repo_path  # noqa: E402
 from finalization.plots import render_langevin_trace_grid, render_scatter_grid  # noqa: E402
-from finalization.runner_eval import evaluate_runs  # noqa: E402
+from finalization.runner_eval import augment_run_rows_with_campaign_timing, evaluate_runs, summarize, write_csv  # noqa: E402
 from finalization.tables import render_tables  # noqa: E402
 
 
@@ -89,7 +89,11 @@ def main() -> None:
         run_rows, summary_rows = evaluate_runs(eval_records, cfg)
     else:
         run_rows = _read_csv(out_dir / "reevaluation_runs.csv")
-        summary_rows = _read_csv(out_dir / "reevaluation_summary.csv")
+        run_rows = augment_run_rows_with_campaign_timing(run_rows, cfg)
+        summary_rows = summarize(run_rows) if run_rows else _read_csv(out_dir / "reevaluation_summary.csv")
+        if run_rows:
+            write_csv(out_dir / "reevaluation_runs.csv", run_rows)
+            write_csv(out_dir / "reevaluation_summary.csv", summary_rows)
 
     figure_records = select_runs(
         all_records,
@@ -131,4 +135,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

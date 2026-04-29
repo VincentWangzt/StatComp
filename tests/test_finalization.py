@@ -49,7 +49,32 @@ class FinalizationTests(unittest.TestCase):
         self.assertAlmostEqual(summary["duration_sec_mean"], 12.0)
         self.assertAlmostEqual(summary["duration_sec_se"], 2.0)
 
+    def test_summarize_accepts_csv_string_numbers_and_wall_clock(self) -> None:
+        rows = [
+            {
+                "target": "banana",
+                "method": "UIVI",
+                "seed": "42",
+                "elbo": "1.0",
+                "duration_sec": "",
+                "wall_clock_sec": "20.0",
+                "checkpoint_epoch": "100",
+            },
+            {
+                "target": "banana",
+                "method": "UIVI",
+                "seed": "43",
+                "elbo": "3.0",
+                "duration_sec": "",
+                "wall_clock_sec": "24.0",
+                "checkpoint_epoch": "100",
+            },
+        ]
+        [summary] = summarize(rows)
+        self.assertAlmostEqual(summary["elbo_mean"], 2.0)
+        self.assertAlmostEqual(summary["wall_clock_sec_mean"], 22.0)
+        self.assertAlmostEqual(summary["duration_sec_mean"], 22.0)
+
 
 if __name__ == "__main__":
     unittest.main()
-

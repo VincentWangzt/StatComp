@@ -63,12 +63,14 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     out_dir = root / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
     targets = [normalize_target(str(target)) for target in cfg.selection.scatter_targets]
-    methods = [str(method).upper() for method in cfg.selection.scatter_methods]
-    columns = methods + ["Truth"]
+    configured_columns = [str(method) for method in cfg.selection.scatter_methods]
+    columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
     seed = int(cfg.selection.seed_for_figures)
     idx = run_index(records)
     num_points = int(cfg.plots.scatter.num_points)
     panel_w, panel_h = [float(x) for x in cfg.plots.scatter.figsize_per_panel]
+    title_fontsize = int(cfg.plots.scatter.get("title_fontsize", 12))
+    label_fontsize = int(cfg.plots.scatter.get("label_fontsize", 12))
 
     fig, axes = plt.subplots(
         len(targets),
@@ -83,16 +85,16 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
             ax.set_xticks([])
             ax.set_yticks([])
             if row_idx == 0:
-                ax.set_title(column, fontsize=10)
+                ax.set_title(_scatter_column_label(column), fontsize=title_fontsize)
             if col_idx == 0:
-                ax.set_ylabel(target, fontsize=10)
+                ax.set_ylabel(target, fontsize=label_fontsize)
             try:
                 if bbox is not None:
                     _draw_toy_contours(ax, target, bbox)
-                if column == "Truth":
+                if _is_truth_column(column):
                     samples = load_baseline_samples(target)
                 else:
-                    rec = idx[(seed, column, target)]
+                    rec = idx[(seed, column.upper(), target)]
                     sample_path, _ = find_final_samples(rec.result_path)
                     samples = load_sample_z(sample_path)
                 points = _take_points(samples[:, :2], num_points)
@@ -116,6 +118,15 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.savefig(pdf_path)
     plt.close(fig)
     return png_path
+
+
+def _is_truth_column(column: str) -> bool:
+    normalized = column.replace("_", "").replace(" ", "").lower()
+    return normalized in {"truth", "groundtruth", "groundtruthdistribution"}
+
+
+def _scatter_column_label(column: str) -> str:
+    return "GroundTruth" if _is_truth_column(column) else column.upper()
 
 
 def _langevin_target(device: str = "cpu"):

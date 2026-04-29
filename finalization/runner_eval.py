@@ -24,6 +24,76 @@ from .config import repo_path
 logger = get_logger()
 
 
+def _finite_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
+def _first_finite(*values: Any) -> float | None:
+    for value in values:
+        parsed = _finite_float(value)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _campaign_summary_path(cfg: Any) -> Path:
+    manifest_path = repo_path(str(cfg.campaign.manifest_path))
+    assert manifest_path is not None
+    return manifest_path.parent / "generated_reports" / "summary.csv"
+
+
+def load_campaign_timing(cfg: Any) -> dict[str, dict[str, float]]:
+    summary_path = _campaign_summary_path(cfg)
+    if not summary_path.exists():
+        return {}
+    timing: dict[str, dict[str, float]] = {}
+    with summary_path.open("r", encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            run_id = row.get("run_id")
+            if not run_id:
+                continue
+            values: dict[str, float] = {}
+            for key in ("wall_clock_sec", "training_time_sec", "iterations"):
+                parsed = _finite_float(row.get(key))
+                if parsed is not None:
+                    values[key] = parsed
+            if values:
+                timing[run_id] = values
+    return timing
+
+
+def augment_run_rows_with_campaign_timing(rows: list[dict[str, Any]], cfg: Any) -> list[dict[str, Any]]:
+    timing = load_campaign_timing(cfg)
+    if not timing:
+        return rows
+    augmented: list[dict[str, Any]] = []
+    for row in rows:
+        next_row = dict(row)
+        run_id = str(next_row.get("run_id", ""))
+        values = timing.get(run_id)
+        if values is not None:
+            wall_clock = values.get("wall_clock_sec")
+            if wall_clock is not None:
+                next_row["wall_clock_sec"] = wall_clock
+                next_row["duration_sec"] = wall_clock
+            training_time = values.get("training_time_sec")
+            if training_time is not None:
+                next_row["training_time_sec"] = training_time
+            iterations = values.get("iterations")
+            if iterations is not None:
+                next_row["summary_iterations"] = iterations
+                if next_row.get("checkpoint_epoch") in (None, ""):
+                    next_row["checkpoint_epoch"] = iterations
+        augmented.append(next_row)
+    return augmented
+
+
 def set_seed(seed: int, use_cuda: bool) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -261,12 +331,20 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows:
         grouped.setdefault((row["target"], row["method"]), []).append(row)
     out: list[dict[str, Any]] = []
+    excluded = {
+        "seed",
+        "duration_sec",
+        "wall_clock_sec",
+        "training_time_sec",
+        "checkpoint_epoch",
+        "summary_iterations",
+    }
     metric_names = sorted(
         {
             key
             for row in rows
             for key, value in row.items()
-            if isinstance(value, (int, float)) and key not in {"seed", "duration_sec", "checkpoint_epoch"}
+            if key not in excluded and _finite_float(value) is not None
         }
     )
     for (target, method), items in sorted(grouped.items()):
@@ -275,15 +353,36 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "method": method,
             "seed_count": len({int(item["seed"]) for item in items}),
         }
-        durations = [float(item["duration_sec"]) for item in items if item.get("duration_sec") not in (None, "")]
-        epochs = [float(item["checkpoint_epoch"]) for item in items if item.get("checkpoint_epoch") not in (None, "")]
+        durations = [
+            value
+            for item in items
+            for value in [_first_finite(item.get("wall_clock_sec"), item.get("duration_sec"))]
+            if value is not None
+        ]
+        training_times = [
+            value
+            for item in items
+            for value in [_finite_float(item.get("training_time_sec"))]
+            if value is not None
+        ]
+        epochs = [
+            value
+            for item in items
+            for value in [_first_finite(item.get("checkpoint_epoch"), item.get("summary_iterations"))]
+            if value is not None
+        ]
         if durations:
             summary["duration_sec_mean"] = float(np.mean(durations))
             summary["duration_sec_se"] = float(np.std(durations, ddof=1) / math.sqrt(len(durations))) if len(durations) > 1 else 0.0
+            summary["wall_clock_sec_mean"] = summary["duration_sec_mean"]
+            summary["wall_clock_sec_se"] = summary["duration_sec_se"]
+        if training_times:
+            summary["training_time_sec_mean"] = float(np.mean(training_times))
+            summary["training_time_sec_se"] = float(np.std(training_times, ddof=1) / math.sqrt(len(training_times))) if len(training_times) > 1 else 0.0
         if epochs:
             summary["training_iterations_mean"] = float(np.mean(epochs))
         for metric in metric_names:
-            values = [float(item[metric]) for item in items if item.get(metric) not in (None, "")]
+            values = [value for item in items for value in [_finite_float(item.get(metric))] if value is not None]
             if not values:
                 continue
             summary[f"{metric}_mean"] = float(np.mean(values))
@@ -321,8 +420,10 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
     if run_csv.exists() and summary_csv.exists() and not bool(cfg.evaluation.overwrite):
         with run_csv.open("r", encoding="utf-8", newline="") as fh:
             run_rows = list(csv.DictReader(fh))
-        with summary_csv.open("r", encoding="utf-8", newline="") as fh:
-            summary_rows = list(csv.DictReader(fh))
+        run_rows = augment_run_rows_with_campaign_timing(run_rows, cfg)
+        summary_rows = summarize(run_rows)
+        write_csv(run_csv, run_rows)
+        write_csv(summary_csv, summary_rows)
         return run_rows, summary_rows
 
     run_rows: list[dict[str, Any]] = []
@@ -331,6 +432,7 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
         logger.info(f"Re-evaluating {rec.run_id}")
         summary, raw = evaluate_one_run(rec, cfg)
         run_rows.append(summary)
+        run_rows = augment_run_rows_with_campaign_timing(run_rows, cfg)
         raw_rows.extend(raw)
         write_csv(run_csv, run_rows)
         write_jsonl(raw_jsonl, raw_rows)

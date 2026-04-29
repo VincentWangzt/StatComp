@@ -9,8 +9,8 @@ selection:
   seeds: auto
   methods: [SIVI, UIVI, AISIVI, DSIVI, KSIVI]
   evaluation_targets: [banana, multimodal, x_shaped, student_uc, 8_gaussians, Langevin_post]
-  scatter_targets: [banana, multimodal, x_shaped, student_uc, 8_gaussians]
-  scatter_methods: [SIVI, AISIVI, UIVI, DSIVI]
+  scatter_targets: [x_shaped, student_uc, 8_gaussians]
+  scatter_methods: [GroundTruth, AISIVI, UIVI, DSIVI]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
   seed_for_figures: 42
 
@@ -58,6 +58,8 @@ plots:
     figsize_per_panel: [2.1, 2.1]
     alpha: 0.45
     point_size: 3
+    title_fontsize: 13
+    label_fontsize: 13
   langevin_trace:
     num_samples: 10000
     figsize_per_panel: [3.2, 2.4]
