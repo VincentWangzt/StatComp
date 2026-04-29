@@ -1,4 +1,118 @@
 \section{Experiments}
 \label{sec:experiments}
 
-TODO: Fill in the experiment section after the final experiment results, figures, tables, and paper-level style files are available.
+We evaluate DSIVI on the benchmark suite used throughout recent work on semi-implicit variational inference (SIVI): two-dimensional synthetic targets, a conditioned diffusion posterior, and Bayesian neural-network (BNN) regression posteriors.  The main comparisons are against UIVI and AISIVI, with SIVI and KSIVI included as contextual baselines where their objectives and implementations are applicable \citep{yin2018semi,uivi2019,pielok2025revisiting,cheng2024kernel,pielok2025kernel}.  Unless stated otherwise, tables report the mean and standard error over five seeds from the final evaluation pipeline.  The generated figures and tables used below are taken directly from the finalization artifacts under \texttt{campaigns/default\_config\_grid/generated\_reports/finalization/}.
+
+All reported runs were executed on a Linux x86\_64 server with four NVIDIA GeForce RTX 4090 GPUs, each with 24,564 MiB of VRAM, NVIDIA driver 580.76.05, a dual-socket Intel(R) Xeon(R) Gold 6430 CPU with 128 logical CPU threads, and approximately 1.0 TiB of system memory.  The software environment used Python 3.14.2 and PyTorch 2.9.0+cu126, with CUDA available on all four GPUs.
+
+\subsection{Toy two-dimensional targets}
+\label{subsec:toy-experiments}
+
+We first use low-dimensional targets as a qualitative sanity check.  These examples are intentionally visual: they make it easy to see whether the learned variational family places mass on the correct geometry before moving to higher-dimensional settings where only aggregate metrics are available.  We focus the main text on the three plotted targets in \cref{fig:toy-scatter-grid}: \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The first two probe curved or heavy-tailed structure, while \texttt{8\_gaussians} probes multi-modal coverage.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{toy_scatter_grid.png}
+  \caption{Qualitative comparison on two-dimensional targets.  Orange points are samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density.  DSIVI recovers the main support of the plotted targets without the severe mode-spreading seen in some baselines on \texttt{8\_gaussians}.}
+  \label{fig:toy-scatter-grid}
+\end{figure}
+
+Across the plotted targets, DSIVI gives visually faithful samples while retaining the simple semi-implicit sampler structure.  On \texttt{x\_shaped}, DSIVI preserves the four-arm geometry and reaches farther into the low-density arms than UIVI.  On \texttt{student\_uc}, all three methods capture the main diagonal ridge, but DSIVI better preserves the long tail visible in the ground-truth samples.  On \texttt{8\_gaussians}, DSIVI assigns mass to all eight modes, whereas AISIVI and UIVI show more visible between-mode leakage in this finalized run.  We therefore treat the toy suite as a qualitative check rather than as the main evidence for the method.
+
+\subsection{Conditioned diffusion process}
+\label{subsec:langevin-experiments}
+
+The conditioned diffusion benchmark is a 100-dimensional posterior over a discretized latent path.  Following the established SIVI setup, the latent process is generated from a double-well Langevin SDE and observed at 20 equally spaced time points with Gaussian noise.  The target is challenging because posterior quality must be judged jointly by the mean path and the uncertainty band, not merely by matching a few marginal coordinates.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{langevin_trace_grid.png}
+  \caption{Posterior path approximations on the conditioned diffusion benchmark.  The magenta curve is the true latent path, red points are observations, blue curves are posterior mean paths, and shaded regions are marginal 95\% posterior intervals.}
+  \label{fig:langevin-trace-grid}
+\end{figure}
+
+\input{\finalizationtabledir/langevin_metrics.tex}
+
+\Cref{fig:langevin-trace-grid} shows that DSIVI tracks the latent path and maintains a posterior band comparable to the strongest baselines.  \Cref{tab:langevin-final-eval} reports KDE ELM, a kernel-density estimate of the expected log marginal score against reference samples.  Larger values are better.  DSIVI is close to UIVI and KSIVI on this metric while requiring the same 10,000 main VI iterations as UIVI and AISIVI; KSIVI is reported after 50,000 iterations in the finalized evaluation.  The important qualitative conclusion is that DSIVI does not collapse the uncertainty band on this high-dimensional path posterior, which is the main failure mode this benchmark is designed to expose.
+
+\subsection{Bayesian neural-network regression}
+\label{subsec:bnn-experiments}
+
+We next evaluate posterior inference for Bayesian neural networks on six UCI regression targets: Boston Housing, Concrete, Power Plant, Protein, Wine Red, and Yacht.  Each target uses a single-hidden-layer ReLU network with 50 hidden units.  The latent variable is the flattened vector of weights, biases, and precision parameters, giving dimensions 751, 501, 301, 551, 651, and 401 respectively.  Data are split into 90\% train and 10\% test partitions with a small development split carved from the training data for VI pretraining where enabled.  Because the BNN posterior is high-dimensional and data-dependent, we report predictive metrics: test RMSE and negative test log-likelihood (NLL), both lower being better.
+
+\begingroup
+\tiny
+\setlength{\tabcolsep}{2pt}
+\let\oldtabular\tabular
+\let\endoldtabular\endtabular
+\renewenvironment{tabular}[1]{\begin{adjustbox}{max width=\textwidth}\oldtabular{#1}}{\endoldtabular\end{adjustbox}}
+\input{\finalizationtabledir/bnn_rmse_nll.tex}
+\endgroup
+
+\Cref{tab:bnn-rmse-nll} gives the full comparison across SIVI, UIVI, AISIVI, KSIVI, and DSIVI.  DSIVI is the strongest method on Boston, Power, and Protein by both RMSE and NLL, and it is also best on Concrete RMSE while matching KSIVI closely on Concrete NLL.  KSIVI remains competitive and is best on Yacht in this finalized table, while SIVI/UIVI are strongest on Wine Red.  This mixed picture is useful: DSIVI is not merely winning against weakened baselines, but is competitive against a repaired KSIVI configuration with BNN-specific regularization and pretraining.  Overall, DSIVI improves the main high-dimensional predictive benchmarks while retaining stable behavior across all six BNN targets.
+
+\clearpage
+\appendix
+
+\section{Experimental Details}
+\label{app:experiment-details}
+
+\subsection{Targets}
+\label{app:targets}
+
+\paragraph{Toy targets.}
+The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text only displays the qualitative figure for \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Ground-truth samples are loaded from the exact or HMC baseline files used by the finalization pipeline, and visual panels use 2,000 samples per method.
+
+\paragraph{Conditioned diffusion process.}
+The Langevin posterior follows the common conditioned-diffusion SIVI benchmark.  The latent path is discretized at 100 time steps over $[0,1]$ with step size $\Delta t=0.01$.  The prior dynamics are
+\begin{equation}
+  dx_t = 10x_t(1 - x_t^2)\,dt + dw_t,
+  \qquad x_0 = 0,
+\end{equation}
+where $w_t$ is one-dimensional Brownian motion.  Observations are taken every five discretization steps, giving 20 observations, and are corrupted by Gaussian noise with standard deviation $\sigma=0.1$.  The posterior is proportional to the product of the discretized diffusion prior and the observation likelihood.
+
+\paragraph{BNN targets.}
+For each BNN target, the model is a one-hidden-layer ReLU network with 50 hidden units.  The input dimensions are 13 for Boston, 8 for Concrete, 4 for Power, 9 for Protein, 11 for Wine Red, and 6 for Yacht.  Including weights, biases, and two precision variables, the corresponding posterior dimensions are 751, 501, 301, 551, 651, and 401.  The UCI datasets contain 506, 1,030, 9,568, 45,730, 1,599, and 308 observations respectively.  Data preparation uses a fixed random seed, a 90/10 train-test split, input standardization based on the training split, and target standardization for training labels.  Test labels are evaluated on their original scale.
+
+\subsection{Metrics}
+\label{app:metrics}
+
+\paragraph{Qualitative plots.}
+For the toy targets, the scatter-grid figure overlays variational samples on target-density contours.  For the diffusion target, the trace grid plots the posterior mean path and marginal 95\% confidence interval against the true latent path and observations.
+
+\paragraph{Sliced Wasserstein distance.}
+The finalization workflow computes sliced Wasserstein-2 distances between variational samples and baseline samples for toy targets and the Langevin target using 10,000 samples and 5,000 random projections.  These values are used for diagnostics and appendix-level checks, but the main toy section is qualitative by design.
+
+\paragraph{KDE ELM.}
+For the conditioned diffusion benchmark, KDE ELM estimates an expected log marginal score by evaluating coordinate-wise kernel-density estimates from model samples at reference samples.  The finalized evaluation uses 1,000 reference samples, 100,000 model samples, and chunked evaluation to keep memory bounded.  Larger KDE ELM values indicate better agreement with the reference posterior under this estimator.
+
+\paragraph{BNN RMSE and NLL.}
+BNN evaluation draws 2,000 posterior samples from the learned variational distribution.  RMSE is computed from the posterior predictive mean on the test set.  Test log-likelihood is estimated by Monte Carlo marginalization over posterior samples; the reported NLL is its negative.  We do not emphasize ELBO or KL for BNNs because density and baseline estimates are less reliable for these concentrated high-dimensional posteriors than predictive RMSE and NLL.
+
+\subsection{Training and configuration details}
+\label{app:config-details}
+
+\paragraph{Shared setup.}
+The finalization campaign evaluates five seeds for each selected method and target.  Main VI training uses Adam-based optimization with the target-specific learning-rate schedules encoded in the repository configs.  Annealing is enabled or disabled according to the selected finalized configuration; the reported finalization artifacts should be treated as authoritative when older campaign notes disagree.
+
+\paragraph{DSIVI.}
+DSIVI uses the standard semi-implicit variational sampler together with a denoising reverse model.  On BNN targets, the finalized DSIVI configuration uses VI pretraining on the development split, EMA for evaluation, 10,000 main training epochs, training batch size 128, reverse batch size 2,048, reverse learning rate $10^{-3}$, and two reverse-model updates per main epoch.  The BNN reverse model is the MLP denoising model configured in \texttt{configs/reverse\_models/MLPDenoiseModel-Bnn-v3.yaml}.
+
+\paragraph{UIVI and AISIVI.}
+UIVI is the unbiased implicit variational inference baseline.  AISIVI is the annealed/importance-sampling refinement used in the cited revisiting-UIVI work and in the generated artifacts.  We use the acronym AISIVI consistently throughout the paper and tables.
+
+\paragraph{KSIVI.}
+KSIVI optimizes a kernel Stein discrepancy objective rather than an ELBO-style density-ratio objective.  The repaired BNN configurations use Gaussian kernels, a positive log-density regularizer with \texttt{log\_p\_reg=1.0}, \texttt{log\_p\_reg\_mode=always}, VI pretraining where enabled, and EMA for evaluation.  The finalized BNN table therefore compares DSIVI against a deliberately strong KSIVI baseline rather than an unstable default.
+
+\paragraph{Reproducibility.}
+The final tables and figures are generated by
+\begin{verbatim}
+python scripts/run_finalization.py
+\end{verbatim}
+with default configuration \texttt{configs/finalization/default\_config\_grid.yaml}.  The generated assets used in this section are:
+\begin{itemize}
+  \item \texttt{figures/toy\_scatter\_grid.png} for this standalone draft, with a PDF counterpart available for final integration;
+  \item \texttt{figures/langevin\_trace\_grid.png} for this standalone draft, with a PDF counterpart available for final integration;
+  \item \texttt{tables/langevin\_metrics.tex};
+  \item \texttt{tables/bnn\_rmse\_nll.tex}.
+\end{itemize}

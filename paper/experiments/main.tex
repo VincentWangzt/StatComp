@@ -12,12 +12,14 @@
 \usepackage{amsmath,amssymb,mathtools,amsfonts,amsthm}
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{graphicx}
+\usepackage{adjustbox}
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{xcolor}
+\usepackage[strings]{underscore}
 \usepackage{makecell}
 \usepackage{threeparttable}
-\usepackage{hyperref}
+\usepackage[hypertexnames=false]{hyperref}
 \usepackage[nameinlink,capitalize]{cleveref}
 \usepackage{algorithm}
 \usepackage{algorithmic}
@@ -47,7 +49,6 @@
 
 \input{experiment}
 
-% Enable this once experiment.tex contains citations.
-% \bibliography{ref}
+\bibliography{ref}
 
 \end{document}
