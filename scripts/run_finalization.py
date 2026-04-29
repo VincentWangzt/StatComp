@@ -52,6 +52,7 @@ def main() -> None:
             "evaluate",
             "scatter_grid",
             "toy_tables",
+            "toy_method_grid",
             "langevin_table",
             "student_edge_table",
             "langevin_trace_grid",
@@ -109,7 +110,7 @@ def main() -> None:
         generated.append(render_langevin_trace_grid(figure_records, cfg).as_posix())
     if any(
         _enabled(cfg, name)
-        for name in ("toy_tables", "langevin_table", "student_edge_table", "bnn_table")
+        for name in ("toy_tables", "toy_method_grid", "langevin_table", "student_edge_table", "bnn_table")
     ):
         table_paths = render_tables(summary_rows, cfg)
         for name, path in table_paths.items():

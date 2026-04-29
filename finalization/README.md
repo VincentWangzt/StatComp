@@ -6,6 +6,12 @@ Run the default one-pass workflow on the remote repo after syncing code:
 python scripts/run_finalization.py
 ```
 
+Full finalization reevaluation should be run in the remote GPU environment
+(`~/ruivi/`, conda env `ruivi`) after syncing the branch with git. The local
+Windows workspace usually does not contain the full `results/default_config_grid`
+checkpoint tree required by `--only evaluate --set evaluation.overwrite=true`;
+use local runs only for unit tests or lightweight table/plot wiring checks.
+
 Useful overrides:
 
 ```bash

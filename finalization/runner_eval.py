@@ -42,6 +42,15 @@ def _first_finite(*values: Any) -> float | None:
     return None
 
 
+def truncated_w2_metric_name(width: float) -> str:
+    width_float = float(width)
+    if width_float.is_integer():
+        width_text = str(int(width_float))
+    else:
+        width_text = f"{width_float:g}".replace(".", "_")
+    return f"w2_trunc_abs_{width_text}"
+
+
 def _campaign_summary_path(cfg: Any) -> Path:
     manifest_path = repo_path(str(cfg.campaign.manifest_path))
     assert manifest_path is not None
@@ -255,6 +264,21 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
             metric_plan.append(("elbo", lambda: runner.evaluate_elbo()[0]))
         if rec.target in {"banana", "multimodal", "x_shaped", "student_uc", "8_gaussians", "Langevin_post"}:
             metric_plan.append(("w2", lambda: evaluate_w2_budgeted(runner, rec.target, eval_cfg.w2)))
+        if bool(eval_cfg.get("truncated_w2", {}).get("enabled", False)):
+            target_widths = eval_cfg.truncated_w2.get("target_widths", {})
+            if rec.target in target_widths:
+                width = float(target_widths[rec.target])
+                metric_plan.append((
+                    truncated_w2_metric_name(width),
+                    lambda w=width: constrained_w2(
+                        runner,
+                        w,
+                        OmegaConf.merge(
+                            eval_cfg.truncated_w2,
+                            {"num_projections": int(eval_cfg.w2.num_projections)},
+                        ),
+                    ),
+                ))
         if rec.target == "student_uc" and bool(eval_cfg.student_uc_constrained_w2.enabled):
             for width in eval_cfg.student_uc_constrained_w2.widths:
                 metric_plan.append((

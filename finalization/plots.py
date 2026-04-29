@@ -82,8 +82,6 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
         bbox = _target_bbox(target)
         for col_idx, column in enumerate(columns):
             ax = axes[row_idx][col_idx]
-            ax.set_xticks([])
-            ax.set_yticks([])
             if row_idx == 0:
                 ax.set_title(_scatter_column_label(column), fontsize=title_fontsize)
             if col_idx == 0:
@@ -111,6 +109,11 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
             if bbox is not None:
                 ax.set_xlim(bbox[0], bbox[1])
                 ax.set_ylim(bbox[2], bbox[3])
+            ax.tick_params(axis="both", labelsize=7, length=2, width=0.5)
+            if col_idx != 0:
+                ax.tick_params(labelleft=False)
+            if row_idx != len(targets) - 1:
+                ax.tick_params(labelbottom=False)
     fig.tight_layout(pad=0.25)
     png_path = out_dir / "toy_scatter_grid.png"
     pdf_path = out_dir / "toy_scatter_grid.pdf"
@@ -146,9 +149,12 @@ def _trace_stats(samples: torch.Tensor, target_model: Any) -> tuple[np.ndarray, 
 
 def langevin_panel_labels(methods: list[str], available_methods: set[str] | None = None) -> list[str]:
     available = None if available_methods is None else {method.upper() for method in available_methods}
-    labels = [method.upper() for method in methods if available is None or method.upper() in available]
-    if len(labels) % 2 == 1:
-        labels.append("SGLD")
+    method_labels = [method.upper() for method in methods if available is None or method.upper() in available]
+    labels = ["SGLD"] + [method for method in method_labels if method != "DSIVI"]
+    if "DSIVI" not in method_labels:
+        return labels
+    cols = math.ceil((len(labels) + 1) / 2)
+    labels.insert(cols, "DSIVI")
     return labels
 
 

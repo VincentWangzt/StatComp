@@ -9,6 +9,8 @@ from .config import repo_path
 
 LOWER_IS_BETTER = {
     "w2",
+    "w2_trunc_abs_6",
+    "w2_trunc_abs_8",
     "w2_edge_5",
     "w2_edge_8",
     "w2_edge_10",
@@ -23,6 +25,8 @@ NO_BOLD_METRICS = {"training_iterations"}
 METRIC_LABELS = {
     "elbo": "ELBO",
     "w2": "W2",
+    "w2_trunc_abs_6": "W2 $|x|<6$",
+    "w2_trunc_abs_8": "W2 $|x|<8$",
     "w2_edge_5": "edge width 5",
     "w2_edge_8": "edge width 8",
     "w2_edge_10": "edge width 10",
@@ -225,6 +229,111 @@ def _method_metric_table(
     return "\n".join(lines)
 
 
+TOY_METHOD_GRID_METHODS = ["UIVI", "AISIVI", "DSIVI"]
+TOY_METHOD_GRID_TARGETS = ["student_uc", "8_gaussians", "x_shaped"]
+TOY_METHOD_GRID_W2_METRICS = {
+    "student_uc": "w2_trunc_abs_8",
+    "8_gaussians": "w2_trunc_abs_6",
+    "x_shaped": "w2",
+}
+
+
+def _mean_and_se(values: list[float]) -> tuple[float | None, float | None]:
+    if not values:
+        return None, None
+    mean = sum(values) / len(values)
+    if len(values) == 1:
+        return mean, 0.0
+    variance = sum((value - mean) ** 2 for value in values) / (len(values) - 1)
+    return mean, math.sqrt(variance) / math.sqrt(len(values))
+
+
+def _value_se_cell(
+    mean: float | None,
+    se: float | None,
+    *,
+    value_precision: int,
+    se_precision: int,
+    bold: bool = False,
+) -> str:
+    if mean is None:
+        return "--"
+    text = _fmt(mean, value_precision)
+    if se is not None:
+        text = f"{text} $\\pm$ {_fmt(se, se_precision)}"
+    return f"\\textbf{{{text}}}" if bold else text
+
+
+def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
+    vp = int(cfg.tables.value_precision)
+    sp = int(cfg.tables.se_precision)
+    by_target_method = {(row["target"], row["method"]): row for row in summary_rows}
+    lines = [
+        "\\begin{table}[t]",
+        "\\centering",
+        "\\caption{Selected toy target final evaluation metrics by method.}",
+        "\\label{tab:toy-method-grid}",
+        "\\begin{tabular}{lccccccc}",
+        "\\toprule",
+        "Method & \\multicolumn{3}{c}{ELBO} & \\multicolumn{3}{c}{W2} & Avg. training time (s) \\\\",
+        " & " + " & ".join(TOY_METHOD_GRID_TARGETS + TOY_METHOD_GRID_TARGETS + [""]) + " \\\\",
+        "\\midrule",
+    ]
+    best_elbo: dict[str, set[str]] = {}
+    best_w2: dict[str, set[str]] = {}
+    for target in TOY_METHOD_GRID_TARGETS:
+        target_rows = [
+            row
+            for row in summary_rows
+            if row["target"] == target and str(row["method"]) in TOY_METHOD_GRID_METHODS
+        ]
+        best_elbo[target] = _best_methods(target_rows, "elbo")
+        best_w2[target] = _best_methods(target_rows, TOY_METHOD_GRID_W2_METRICS[target])
+
+    for method in TOY_METHOD_GRID_METHODS:
+        cells = [method]
+        for target in TOY_METHOD_GRID_TARGETS:
+            row = by_target_method.get((target, method))
+            cells.append(
+                "--"
+                if row is None
+                else _cell(
+                    row,
+                    "elbo",
+                    bold=method in best_elbo[target],
+                    value_precision=vp,
+                    se_precision=sp,
+                )
+            )
+        for target in TOY_METHOD_GRID_TARGETS:
+            row = by_target_method.get((target, method))
+            metric = TOY_METHOD_GRID_W2_METRICS[target]
+            cells.append(
+                "--"
+                if row is None
+                else _cell(
+                    row,
+                    metric,
+                    bold=method in best_w2[target],
+                    value_precision=vp,
+                    se_precision=sp,
+                )
+            )
+        training_times = [
+            value
+            for target in TOY_METHOD_GRID_TARGETS
+            for row in [by_target_method.get((target, method))]
+            for value in [_metric_value(row, "training_time_sec") if row is not None else None]
+            if value is not None
+        ]
+        mean, se = _mean_and_se(training_times)
+        cells.append(_value_se_cell(mean, se, value_precision=vp, se_precision=sp))
+        lines.append(" & ".join(cells) + " \\\\")
+
+    lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
+    return "\n".join(lines)
+
+
 def render_tables(summary_rows: list[dict[str, Any]], cfg: Any) -> dict[str, Path]:
     root = repo_path(str(cfg.campaign.output_dir))
     assert root is not None
@@ -250,6 +359,11 @@ def render_tables(summary_rows: list[dict[str, Any]], cfg: Any) -> dict[str, Pat
         )
         outputs["toy"] = out_dir / "toy_metrics.tex"
         outputs["toy"].write_text(toy_text, encoding="utf-8")
+
+    if bool(cfg.modules.get("toy_method_grid", False)):
+        toy_method_grid_text = render_toy_method_grid(summary_rows, cfg)
+        outputs["toy_method_grid"] = out_dir / "toy_method_grid.tex"
+        outputs["toy_method_grid"].write_text(toy_method_grid_text, encoding="utf-8")
 
     if bool(cfg.modules.get("langevin_table", False)):
         langevin_methods = _ordered_methods(methods, last=["DSIVI"])
