@@ -30,6 +30,74 @@ Use these scripts for the current workflow:
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
 | `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime/result artifacts from the configured remote server. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
+## Examples
+
+Preview the current default grid without launching jobs:
+
+```
+python scripts\run_default_config_grid_sweep.py \
+  --dry-run
+```
+
+Run the main default-config sweep with five seeds while excluding RSIVI. This
+uses all discovered GPUs unless `--gpus` is provided, writes run artifacts under
+`results/default_config_grid/` and TensorBoard logs under
+`tb_logs/default_config_grid/`, and resumes already-completed fresh runs by
+default:
+
+```
+python scripts\run_default_config_grid_sweep.py \
+  --seeds 42 43 44 45 46 \
+  --exclude-methods rsivi \
+  --finalize-mode async \
+  --finalize-workers 1
+```
+
+If configs changed and completed artifacts need to be checked against the new
+effective configs, generate the hash inventory first, then rerun stale entries.
+The inventory command only writes hash files under campaign runtime and exits:
+
+```
+python scripts\run_default_config_grid_sweep.py \
+  --seeds 42 43 44 45 46 \
+  --exclude-methods rsivi \
+  --hash-existing-artifacts
+
+python scripts\run_default_config_grid_sweep.py \
+  --seeds 42 43 44 45 46 \
+  --exclude-methods rsivi \
+  --rerun-stale
+```
+
+Run the full default finalization pass after the campaign manifest has completed.
+The default finalization config already selects `[SIVI, UIVI, AISIVI, DSIVI,
+KSIVI]`, matching the RSIVI-excluded sweep:
+
+```
+python scripts\run_finalization.py
+```
+
+Run only evaluation, overwriting existing reevaluation outputs:
+
+```powershell
+python scripts\run_finalization.py \
+  --only evaluate \
+  --set evaluation.overwrite=true
+```
+
+Regenerate only the tables and figure grids from existing reevaluation outputs:
+
+```
+python scripts\run_finalization.py \
+  --only scatter_grid \
+  --only toy_tables \
+  --only toy_method_grid \
+  --only langevin_table \
+  --only student_edge_table \
+  --only langevin_trace_grid \
+  --only bnn_table
+```
+
 ## Utility Scripts
 
 | Script | Purpose | Main arguments |
