@@ -71,6 +71,8 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     panel_w, panel_h = [float(x) for x in cfg.plots.scatter.figsize_per_panel]
     title_fontsize = int(cfg.plots.scatter.get("title_fontsize", 12))
     label_fontsize = int(cfg.plots.scatter.get("label_fontsize", 12))
+    w_pad = float(cfg.plots.scatter.get("w_pad", 0.8))
+    h_pad = float(cfg.plots.scatter.get("h_pad", 0.35))
 
     fig, axes = plt.subplots(
         len(targets),
@@ -112,9 +114,7 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
             ax.tick_params(axis="both", labelsize=7, length=2, width=0.5)
             if col_idx != 0:
                 ax.tick_params(labelleft=False)
-            if row_idx != len(targets) - 1:
-                ax.tick_params(labelbottom=False)
-    fig.tight_layout(pad=0.25)
+    fig.tight_layout(pad=0.35, w_pad=w_pad, h_pad=h_pad)
     png_path = out_dir / "toy_scatter_grid.png"
     pdf_path = out_dir / "toy_scatter_grid.pdf"
     fig.savefig(png_path, dpi=300)

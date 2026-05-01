@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 
 from finalization.plots import langevin_panel_labels
 from finalization.runner_eval import summarize, truncated_w2_metric_name
-from finalization.tables import render_toy_method_grid
+from finalization.tables import render_bnn_table, render_langevin_table, render_toy_method_grid
 
 
 class FinalizationTests(unittest.TestCase):
@@ -83,7 +83,7 @@ class FinalizationTests(unittest.TestCase):
         self.assertAlmostEqual(summary["wall_clock_sec_mean"], 22.0)
         self.assertAlmostEqual(summary["duration_sec_mean"], 22.0)
 
-    def test_toy_method_grid_filters_targets_methods_and_averages_training_time(self) -> None:
+    def test_toy_method_grid_filters_targets_methods_and_pools_training_time(self) -> None:
         rows = [
             {
                 "target": "student_uc",
@@ -173,14 +173,68 @@ class FinalizationTests(unittest.TestCase):
 
         table = render_toy_method_grid(rows, cfg)
 
-        self.assertIn("Method & \\multicolumn{3}{c}{ELBO} & \\multicolumn{3}{c}{W2} & Avg. training time (s)", table)
+        self.assertIn("Target & Metric & UIVI & AISIVI & DSIVI", table)
         self.assertIn("UIVI", table)
         self.assertIn("AISIVI", table)
         self.assertIn("DSIVI", table)
-        self.assertNotRegex(table, r"(?m)^SIVI\s*&")
+        self.assertIn("$D_{\\mathrm{KL}}$", table)
         self.assertNotIn("banana", table)
-        self.assertIn("60.0 $\\pm$ 17.32", table)
-        self.assertIn("24.0 $\\pm$ 6.93", table)
+        self.assertIn("Training time (s)", table)
+        self.assertIn("60.0 $\\pm$ {\\footnotesize 17.32}", table)
+        self.assertIn("24.0 $\\pm$ {\\footnotesize 6.93}", table)
+
+    def test_langevin_table_renders_sgld_separator_and_compact_iterations(self) -> None:
+        rows = [
+            {"target": "Langevin_post", "method": "SGLD", "kde_elm_mean": "80.0", "kde_elm_se": "0"},
+            {
+                "target": "Langevin_post",
+                "method": "UIVI",
+                "kde_elm_mean": "70.0",
+                "kde_elm_se": "0.1",
+                "wall_clock_sec_mean": "12",
+                "wall_clock_sec_se": "1",
+                "training_iterations_mean": "10000",
+            },
+        ]
+        cfg = OmegaConf.create({"tables": {"value_precision": 1, "se_precision": 2}})
+
+        table = render_langevin_table(rows, ["UIVI"], cfg)
+
+        self.assertIn("SGLD & 80.0 $\\pm$ 0.00 & -- & --", table)
+        self.assertIn("\\midrule\nUIVI", table)
+        self.assertIn("10K", table)
+        self.assertNotIn("1.000e+04", table)
+
+    def test_bnn_table_formats_dataset_headers_and_small_standard_errors(self) -> None:
+        rows = [
+            {
+                "target": "Bnn_boston",
+                "method": "SIVI",
+                "rmse_mean": "3.0",
+                "rmse_se": "0.1",
+                "nll_mean": "2.0",
+                "nll_se": "0.01",
+            },
+            {
+                "target": "Bnn_boston",
+                "method": "DSIVI",
+                "rmse_mean": "2.5",
+                "rmse_se": "0.2",
+                "nll_mean": "1.9",
+                "nll_se": "0.02",
+            },
+        ]
+        cfg = OmegaConf.create({"tables": {"value_precision": 1, "se_precision": 2}})
+
+        table = render_bnn_table(rows, ["Bnn_boston"], ["SIVI", "DSIVI"], cfg)
+
+        self.assertIn("\\multirow{2}{*}{Dataset}", table)
+        self.assertIn("Test RMSE", table)
+        self.assertIn("Test NLL", table)
+        self.assertIn("\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}", table)
+        self.assertIn("Boston", table)
+        self.assertNotIn("Bnn_boston", table)
+        self.assertIn("{\\footnotesize", table)
 
 
 if __name__ == "__main__":

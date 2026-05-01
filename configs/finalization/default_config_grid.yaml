@@ -58,17 +58,24 @@ evaluation:
     ref_chunk: 500
     model_chunk: 20000
     dtype: float32
+    sgld:
+      enabled: true
+      reference_path: baselines/hmc/Langevin_post.pt
+      model_path: baselines/hmc/Langevin_post_sgld_100k.pt
+      seed: 0
   bnn:
     num_samples: 2000
 
 plots:
   scatter:
     num_points: 2000
-    figsize_per_panel: [2.1, 2.1]
+    figsize_per_panel: [2.25, 2.1]
     alpha: 0.45
     point_size: 3
     title_fontsize: 13
     label_fontsize: 13
+    w_pad: 0.9
+    h_pad: 0.35
   langevin_trace:
     num_samples: 10000
     figsize_per_panel: [3.2, 2.4]

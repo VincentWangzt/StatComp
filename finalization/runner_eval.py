@@ -14,6 +14,7 @@ import torch
 from omegaconf import OmegaConf
 
 from runner.runners import Runners
+from utils.elm import kde_expected_log_marginal, load_baseline_sample_store
 from utils.logging import get_logger
 from utils.metrics import compute_sliced_wasserstein
 
@@ -403,6 +404,7 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if training_times:
             summary["training_time_sec_mean"] = float(np.mean(training_times))
             summary["training_time_sec_se"] = float(np.std(training_times, ddof=1) / math.sqrt(len(training_times))) if len(training_times) > 1 else 0.0
+            summary["training_time_sec_count"] = len(training_times)
         if epochs:
             summary["training_iterations_mean"] = float(np.mean(epochs))
         for metric in metric_names:
@@ -414,6 +416,90 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             summary[f"{metric}_count"] = len(values)
         out.append(summary)
     return out
+
+
+def _sgld_kde_cfg(cfg: Any) -> Any:
+    return cfg.evaluation.langevin_kde_elm.get("sgld", {})
+
+
+def _sgld_enabled(cfg: Any) -> bool:
+    sgld_cfg = _sgld_kde_cfg(cfg)
+    return bool(sgld_cfg.get("enabled", True)) and bool(cfg.evaluation.langevin_kde_elm.enabled)
+
+
+def evaluate_langevin_sgld_baseline(cfg: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    eval_cfg = cfg.evaluation.langevin_kde_elm
+    sgld_cfg = _sgld_kde_cfg(cfg)
+    reference_path = repo_path(str(sgld_cfg.get("reference_path", "baselines/hmc/Langevin_post.pt")))
+    model_path = repo_path(str(sgld_cfg.get("model_path", "baselines/hmc/Langevin_post_sgld_100k.pt")))
+    if reference_path is None or model_path is None:
+        raise FileNotFoundError("SGLD KDE reference/model paths must be configured.")
+    reference_samples = load_baseline_sample_store(reference_path)
+    model_samples = load_baseline_sample_store(model_path)
+    if reference_samples.shape[0] > int(eval_cfg.num_ref_samples):
+        reference_samples = reference_samples[: int(eval_cfg.num_ref_samples)]
+    if model_samples.shape[0] > int(eval_cfg.num_model_samples):
+        model_samples = model_samples[: int(eval_cfg.num_model_samples)]
+
+    start = time.perf_counter()
+    kde_device = str(cfg.evaluation.device)
+    if kde_device == "auto":
+        kde_device = "cuda" if torch.cuda.is_available() else "cpu"
+    estimate = kde_expected_log_marginal(
+        reference_samples,
+        model_samples,
+        dim_chunk=int(eval_cfg.dim_chunk),
+        ref_chunk=int(eval_cfg.ref_chunk),
+        model_chunk=int(eval_cfg.model_chunk),
+        dtype=str(eval_cfg.dtype),
+        device=kde_device,
+    )
+    runtime_sec = time.perf_counter() - start
+    summary = {
+        "run_id": "langevin_sgld_kde_baseline",
+        "seed": int(sgld_cfg.get("seed", 0)),
+        "method": "SGLD",
+        "target": "Langevin_post",
+        "checkpoint_epoch": "",
+        "checkpoint_dir": model_path.as_posix(),
+        "duration_sec": "",
+        "errors": "{}",
+        "kde_elm": float(estimate.value),
+        "kde_elm_runtime_sec": float(runtime_sec),
+    }
+    raw = [
+        {
+            "run_id": summary["run_id"],
+            "seed": summary["seed"],
+            "method": "SGLD",
+            "target": "Langevin_post",
+            "metric": "kde_elm",
+            "value": float(estimate.value),
+            "checkpoint_epoch": "",
+            "duration_sec": "",
+        }
+    ]
+    return summary, raw
+
+
+def _append_langevin_sgld_if_needed(
+    run_rows: list[dict[str, Any]],
+    raw_rows: list[dict[str, Any]],
+    cfg: Any,
+) -> list[dict[str, Any]]:
+    if not _sgld_enabled(cfg):
+        return run_rows
+    if any(row.get("target") == "Langevin_post" and str(row.get("method")).upper() == "SGLD" for row in run_rows):
+        return run_rows
+    try:
+        summary, raw = evaluate_langevin_sgld_baseline(cfg)
+    except Exception:
+        if bool(cfg.evaluation.fail_fast):
+            raise
+        logger.warning("Skipping Langevin_post SGLD KDE baseline.", exc_info=True)
+        return run_rows
+    raw_rows.extend(raw)
+    return [summary, *run_rows]
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -444,6 +530,8 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
     if run_csv.exists() and summary_csv.exists() and not bool(cfg.evaluation.overwrite):
         with run_csv.open("r", encoding="utf-8", newline="") as fh:
             run_rows = list(csv.DictReader(fh))
+        raw_rows: list[dict[str, Any]] = []
+        run_rows = _append_langevin_sgld_if_needed(run_rows, raw_rows, cfg)
         run_rows = augment_run_rows_with_campaign_timing(run_rows, cfg)
         summary_rows = summarize(run_rows)
         write_csv(run_csv, run_rows)
@@ -461,6 +549,7 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
         write_csv(run_csv, run_rows)
         write_jsonl(raw_jsonl, raw_rows)
         write_csv(summary_csv, summarize(run_rows))
+    run_rows = _append_langevin_sgld_if_needed(run_rows, raw_rows, cfg)
     summary_rows = summarize(run_rows)
     write_csv(run_csv, run_rows)
     write_jsonl(raw_jsonl, raw_rows)

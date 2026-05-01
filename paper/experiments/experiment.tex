@@ -86,10 +86,10 @@ We finally evaluate posterior inference for Bayesian neural networks on six UCI 
 \label{app:toy-details}
 
 \paragraph{Setup.}
-The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text displays \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}; the remaining targets are included in the quantitative summary below.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
+The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
 
 \paragraph{Metrics.}
-For quantitative diagnostics, we report ELBO estimates, sliced Wasserstein-2 distances, and wall-clock time.  Sliced Wasserstein distances are computed between variational samples and reference samples using 10,000 samples and 5,000 random projections.
+For quantitative diagnostics, we report the negated ELBO as $D_{\mathrm{KL}}$, sliced Wasserstein-2 distances, and aggregate training time.  Sliced Wasserstein distances are computed between variational samples and reference samples using 10,000 samples and 5,000 random projections.
 
 \begingroup
 \tiny
@@ -100,7 +100,7 @@ For quantitative diagnostics, we report ELBO estimates, sliced Wasserstein-2 dis
 \let\oldtabular\tabular
 \let\endoldtabular\endtabular
 \renewenvironment{tabular}[1]{\begin{adjustbox}{max width=\textwidth}\oldtabular{#1}}{\endoldtabular\end{adjustbox}}
-\input{\finalizationtabledir/toy_metrics.tex}
+\input{\finalizationtabledir/toy_method_grid.tex}
 \endgroup
 
 \paragraph{Training.}
