@@ -84,7 +84,7 @@ plots:
     contour_grid_size: 180
     contour_levels: 5
     contour_linewidth: 0.8
-    hist_alpha: 0.78
+    hist_alpha: 0.95
     figsize_per_panel: [2.25, 2.1]
     title_fontsize: 13
     label_fontsize: 13
