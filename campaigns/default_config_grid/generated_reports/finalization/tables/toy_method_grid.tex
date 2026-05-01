@@ -2,14 +2,18 @@
 \centering
 \caption{Selected toy target final evaluation metrics by method.}
 \label{tab:toy-method-grid}
-\begin{tabular}{lccccccc}
+\begin{tabular}{llccc}
 \toprule
-Method & \multicolumn{3}{c}{ELBO} & \multicolumn{3}{c}{W2} & Avg. training time (s) \\
- & student_uc & 8_gaussians & x_shaped & student_uc & 8_gaussians & x_shaped &  \\
+Target & Metric & UIVI & AISIVI & DSIVI \\
 \midrule
-UIVI & -2.683 $\pm$ 0.00 & -0.804 $\pm$ 0.01 & -0.063 $\pm$ 0.03 & 0.141 $\pm$ 0.01 & 0.328 $\pm$ 0.05 & 0.207 $\pm$ 0.06 & 752.539 $\pm$ 6.23 \\
-AISIVI & -2.681 $\pm$ 0.00 & -17.685 $\pm$ 10.89 & -0.076 $\pm$ 0.03 & 0.125 $\pm$ 0.01 & 0.672 $\pm$ 0.17 & 0.196 $\pm$ 0.06 & 335.754 $\pm$ 5.53 \\
-DSIVI & \textbf{-2.677 $\pm$ 0.00} & \textbf{-0.389 $\pm$ 0.15} & \textbf{-0.008 $\pm$ 7.99e-04} & \textbf{0.083 $\pm$ 0.00} & \textbf{0.318 $\pm$ 0.11} & \textbf{0.075 $\pm$ 0.01} & 182.031 $\pm$ 1.10 \\
+\multirow{2}{*}{x\_shaped} & $D_{\mathrm{KL}}$ & 0.063 $\pm$ {\footnotesize 0.03} & 0.076 $\pm$ {\footnotesize 0.03} & \textbf{0.008} $\pm$ {\footnotesize \textbf{7.99e-04}} \\
+ & W2 & 0.207 $\pm$ {\footnotesize 0.06} & 0.196 $\pm$ {\footnotesize 0.06} & \textbf{0.075} $\pm$ {\footnotesize \textbf{0.01}} \\
+\multirow{2}{*}{student\_uc} & $D_{\mathrm{KL}}$ & 2.683 $\pm$ {\footnotesize 0.00} & 2.681 $\pm$ {\footnotesize 0.00} & \textbf{2.677} $\pm$ {\footnotesize \textbf{0.00}} \\
+ & W2 $|x|<8$ & 0.141 $\pm$ {\footnotesize 0.01} & 0.125 $\pm$ {\footnotesize 0.01} & \textbf{0.083} $\pm$ {\footnotesize \textbf{0.00}} \\
+\multirow{2}{*}{8\_gaussians} & $D_{\mathrm{KL}}$ & 0.804 $\pm$ {\footnotesize 0.01} & 17.685 $\pm$ {\footnotesize 10.89} & \textbf{0.389} $\pm$ {\footnotesize \textbf{0.15}} \\
+ & W2 $|x|<6$ & 0.328 $\pm$ {\footnotesize 0.05} & 0.672 $\pm$ {\footnotesize 0.17} & \textbf{0.318} $\pm$ {\footnotesize \textbf{0.11}} \\
+\midrule
+\multicolumn{2}{l}{Training time (s)} & 752.539 $\pm$ {\footnotesize 4.20} & 335.754 $\pm$ {\footnotesize 2.96} & 182.031 $\pm$ {\footnotesize 0.94} \\
 \bottomrule
 \end{tabular}
 \end{table}

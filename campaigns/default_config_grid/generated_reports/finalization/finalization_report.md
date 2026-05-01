@@ -2,8 +2,8 @@
 
 Completed manifest runs discovered: 325
 Evaluation runs selected: 300
-Per-run rows: 300
-Aggregate rows: 60
+Per-run rows: 301
+Aggregate rows: 61
 
 ## Generated
 

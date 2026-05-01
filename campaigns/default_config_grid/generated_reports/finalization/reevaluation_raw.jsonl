@@ -748,3 +748,4 @@
 {"checkpoint_epoch": 50000, "duration_sec": null, "method": "KSIVI", "metric": "w2_edge_10", "run_id": "seed46_ksivi_student_uc", "seed": 46, "target": "student_uc", "value": 5.318218231201172}
 {"checkpoint_epoch": 50000, "duration_sec": null, "method": "KSIVI", "metric": "elbo", "run_id": "seed46_ksivi_x_shaped", "seed": 46, "target": "x_shaped", "value": -0.49611130356788635}
 {"checkpoint_epoch": 50000, "duration_sec": null, "method": "KSIVI", "metric": "w2", "run_id": "seed46_ksivi_x_shaped", "seed": 46, "target": "x_shaped", "value": 0.8152154684066772}
+{"checkpoint_epoch": "", "duration_sec": "", "method": "SGLD", "metric": "kde_elm", "run_id": "langevin_sgld_kde_baseline", "seed": 0, "target": "Langevin_post", "value": 75.16053009033203}
