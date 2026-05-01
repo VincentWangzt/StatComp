@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import Normalize
 import scipy.stats as st
 import torch
 from omegaconf import OmegaConf
@@ -41,13 +42,18 @@ def _take_points(samples: torch.Tensor, count: int) -> np.ndarray:
     return samples.detach().cpu().numpy()
 
 
-def _draw_toy_contours(ax: plt.Axes, target: str, bbox: list[float]) -> None:
+def _toy_logp_grid(target: str, bbox: list[float], grid_size: int = 100) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     target_model = target_distribution[target](device="cpu")
-    xx, yy = np.mgrid[bbox[0]:bbox[1]:100j, bbox[2]:bbox[3]:100j]
+    xx, yy = np.mgrid[bbox[0]:bbox[1]:complex(grid_size), bbox[2]:bbox[3]:complex(grid_size)]
     positions = np.vstack([xx.ravel(), yy.ravel()])
     with torch.no_grad():
         logp = target_model.logp(torch.as_tensor(positions.T, dtype=torch.float32))
     logp_grid = logp.detach().cpu().numpy().reshape(xx.shape)
+    return xx, yy, logp_grid
+
+
+def _draw_toy_contours(ax: plt.Axes, target: str, bbox: list[float]) -> None:
+    xx, yy, logp_grid = _toy_logp_grid(target, bbox)
     with np.errstate(divide="ignore", invalid="ignore"):
         density_surface = -np.log(-logp_grid)
     if not np.isfinite(density_surface).any():
@@ -55,6 +61,95 @@ def _draw_toy_contours(ax: plt.Axes, target: str, bbox: list[float]) -> None:
     ax.contourf(xx, yy, density_surface, cmap="Blues", alpha=0.8, levels=11)
     ax.axis(bbox)
     ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
+
+
+def _draw_target_line_contours(
+    ax: plt.Axes,
+    target: str,
+    bbox: list[float],
+    *,
+    grid_size: int,
+    num_levels: int,
+    linewidth: float,
+) -> None:
+    xx, yy, logp_grid = _toy_logp_grid(target, bbox, grid_size)
+    finite = logp_grid[np.isfinite(logp_grid)]
+    if finite.size == 0:
+        return
+    levels = np.unique(np.quantile(finite, np.linspace(0.28, 0.94, num_levels)))
+    if levels.size < 2:
+        return
+    ax.contour(
+        xx,
+        yy,
+        logp_grid,
+        levels=levels,
+        colors="#2f2f2f",
+        linewidths=linewidth,
+        linestyles="solid",
+    )
+
+
+def _draw_sample_hist2d(
+    ax: plt.Axes,
+    points: np.ndarray,
+    bbox: list[float],
+    *,
+    bins: int,
+    alpha: float,
+) -> None:
+    hist, x_edges, y_edges = np.histogram2d(
+        points[:, 0],
+        points[:, 1],
+        bins=bins,
+        range=[[bbox[0], bbox[1]], [bbox[2], bbox[3]]],
+        density=True,
+    )
+    hist = np.ma.masked_where(hist <= 0, hist)
+    vmax = float(hist.max()) if hist.count() else 1.0
+    ax.pcolormesh(
+        x_edges,
+        y_edges,
+        hist.T,
+        cmap="Blues",
+        norm=Normalize(vmin=0.0, vmax=vmax),
+        alpha=alpha,
+        shading="auto",
+        rasterized=True,
+    )
+
+
+def _load_plot_samples(column: str, target: str, seed: int, idx: dict[tuple[int, str, str], RunRecord], count: int, cfg: Any, plot_cfg: Any) -> torch.Tensor:
+    if _is_truth_column(column):
+        return load_baseline_samples(target)
+
+    rec = idx[(seed, column.upper(), target)]
+    sample_path, _ = find_final_samples(rec.result_path)
+    samples = load_sample_z(sample_path)
+    if samples.shape[0] >= count:
+        return samples
+
+    try:
+        from .runner_eval import _sample_vi, build_runner, prepare_config, remove_file_handlers
+
+        runner_cfg = prepare_config(
+            rec,
+            device=str(cfg.evaluation.device),
+            scratch_results=str(cfg.campaign.scratch_results_dir),
+            scratch_tb=str(cfg.campaign.scratch_tb_dir),
+        )
+        runner, _ckpt_dir, _epoch = build_runner(rec, runner_cfg)
+        try:
+            return _sample_vi(runner, count, int(plot_cfg.get("sample_batch_size", 10000)))
+        finally:
+            if hasattr(runner, "writer"):
+                runner.writer.close()
+            remove_file_handlers()
+            del runner
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+    except Exception:
+        return samples
 
 
 def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
@@ -117,6 +212,75 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(pad=0.35, w_pad=w_pad, h_pad=h_pad)
     png_path = out_dir / "toy_scatter_grid.png"
     pdf_path = out_dir / "toy_scatter_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+def render_scatter_hist_grid(records: list[RunRecord], cfg: Any) -> Path:
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    targets = [normalize_target(str(target)) for target in cfg.selection.scatter_targets]
+    configured_columns = [str(method) for method in cfg.selection.scatter_methods]
+    columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
+    seed = int(cfg.selection.seed_for_figures)
+    idx = run_index(records)
+    plot_cfg = cfg.plots.get("scatter_hist", cfg.plots.scatter)
+    num_points = int(plot_cfg.get("num_points", cfg.plots.scatter.num_points))
+    bins = int(plot_cfg.get("bins", 70))
+    contour_grid_size = int(plot_cfg.get("contour_grid_size", 160))
+    contour_levels = int(plot_cfg.get("contour_levels", 5))
+    contour_linewidth = float(plot_cfg.get("contour_linewidth", 0.75))
+    hist_alpha = float(plot_cfg.get("hist_alpha", 0.78))
+    panel_w, panel_h = [float(x) for x in plot_cfg.get("figsize_per_panel", cfg.plots.scatter.figsize_per_panel)]
+    title_fontsize = int(plot_cfg.get("title_fontsize", cfg.plots.scatter.get("title_fontsize", 12)))
+    label_fontsize = int(plot_cfg.get("label_fontsize", cfg.plots.scatter.get("label_fontsize", 12)))
+    w_pad = float(plot_cfg.get("w_pad", cfg.plots.scatter.get("w_pad", 0.8)))
+    h_pad = float(plot_cfg.get("h_pad", cfg.plots.scatter.get("h_pad", 0.35)))
+
+    fig, axes = plt.subplots(
+        len(targets),
+        len(columns),
+        figsize=(panel_w * len(columns), panel_h * len(targets)),
+        squeeze=False,
+    )
+    for row_idx, target in enumerate(targets):
+        bbox = _target_bbox(target)
+        for col_idx, column in enumerate(columns):
+            ax = axes[row_idx][col_idx]
+            if row_idx == 0:
+                ax.set_title(_scatter_column_label(column), fontsize=title_fontsize)
+            if col_idx == 0:
+                ax.set_ylabel(target, fontsize=label_fontsize)
+            try:
+                if bbox is None:
+                    raise ValueError(f"No bbox configured for {target}")
+                samples = _load_plot_samples(column, target, seed, idx, num_points, cfg, plot_cfg)
+                points = _take_points(samples[:, :2], num_points)
+                _draw_sample_hist2d(ax, points, bbox, bins=bins, alpha=hist_alpha)
+                _draw_target_line_contours(
+                    ax,
+                    target,
+                    bbox,
+                    grid_size=contour_grid_size,
+                    num_levels=contour_levels,
+                    linewidth=contour_linewidth,
+                )
+            except Exception as exc:  # noqa: BLE001
+                ax.text(0.5, 0.5, f"missing\n{type(exc).__name__}", ha="center", va="center", fontsize=7)
+            if bbox is not None:
+                ax.set_xlim(bbox[0], bbox[1])
+                ax.set_ylim(bbox[2], bbox[3])
+                ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
+            ax.tick_params(axis="both", labelsize=7, length=2, width=0.5)
+            if col_idx != 0:
+                ax.tick_params(labelleft=False)
+    fig.tight_layout(pad=0.35, w_pad=w_pad, h_pad=h_pad)
+    png_path = out_dir / "toy_scatter_hist_grid.png"
+    pdf_path = out_dir / "toy_scatter_hist_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)

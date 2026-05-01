@@ -21,7 +21,7 @@ LOWER_IS_BETTER = {
     "nll",
 }
 HIGHER_IS_BETTER = {"elbo", "kde_elm"}
-NO_BOLD_METRICS = {"training_iterations", "duration_sec", "wall_clock_sec", "training_time_sec"}
+NO_BOLD_METRICS = {"training_iterations", "training_time_sec"}
 
 METRIC_LABELS = {
     "elbo": "ELBO",
@@ -36,7 +36,7 @@ METRIC_LABELS = {
     "wall_clock_sec": "wall-clock (s)",
     "training_time_sec": "training time (s)",
     "training_iterations": "iterations",
-    "kde_elm": "KDE ELM",
+    "kde_elm": "ELM",
     "rmse": "Test RMSE",
     "nll": "Test NLL",
 }
@@ -52,10 +52,10 @@ def _float(value: Any) -> float | None:
     return parsed if math.isfinite(parsed) else None
 
 
-def _fmt(value: float | None, precision: int) -> str:
+def _fmt(value: float | None, precision: int, *, scientific: bool = True) -> str:
     if value is None:
         return "--"
-    if abs(value) >= 1.0e4 or (0 < abs(value) < 1.0e-3):
+    if scientific and (abs(value) >= 1.0e4 or (0 < abs(value) < 1.0e-3)):
         return f"{value:.{precision}e}"
     return f"{value:.{precision}f}"
 
@@ -131,17 +131,22 @@ def _value_se_text(
     value_precision: int,
     se_precision: int,
     bold: bool = False,
+    bold_se: bool | None = None,
     se_footnotesize: bool = False,
+    value_scientific: bool = True,
+    se_scientific: bool = True,
 ) -> str:
     if mean is None:
         return "--"
-    value_text = _fmt(mean, value_precision)
+    value_text = _fmt(mean, value_precision, scientific=value_scientific)
     if bold:
         value_text = f"\\textbf{{{value_text}}}"
     if se is None:
         return value_text
-    se_text = _fmt(se, se_precision)
-    if bold:
+    se_text = _fmt(se, se_precision, scientific=se_scientific)
+    if bold_se is None:
+        bold_se = bold
+    if bold_se:
         se_text = f"\\textbf{{{se_text}}}"
     if se_footnotesize:
         se_text = f"{{\\footnotesize {se_text}}}"
@@ -155,6 +160,8 @@ def _cell_small_se(
     bold: bool,
     value_precision: int,
     se_precision: int,
+    se_scientific: bool = True,
+    bold_se: bool | None = None,
 ) -> str:
     return _value_se_text(
         _metric_value(row, metric),
@@ -163,7 +170,16 @@ def _cell_small_se(
         se_precision=se_precision,
         bold=bold and metric not in NO_BOLD_METRICS,
         se_footnotesize=True,
+        bold_se=bold_se,
+        se_scientific=se_scientific,
     )
+
+
+def _integer_cell(value: float | None, *, bold: bool = False) -> str:
+    if value is None:
+        return "--"
+    text = f"{int(round(value))}"
+    return f"\\textbf{{{text}}}" if bold else text
 
 
 def _best_methods(rows: list[dict[str, Any]], metric: str) -> set[str]:
@@ -379,18 +395,25 @@ def render_langevin_table(summary_rows: list[dict[str, Any]], methods: list[str]
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{Langevin_post final evaluation metrics.}",
+        "\\caption{Conditioned diffusion process results for expected log marginal likelihood and wall-clock time.}",
         "\\label{tab:langevin-final-eval}",
         "\\begin{tabular}{lccc}",
         "\\toprule",
-        "Method & KDE ELM & wall-clock (s) & iterations \\\\",
+        "Method & ELM & wall-clock time (s) & iterations \\\\",
         "\\midrule",
     ]
     sgld_row = by_method.get("SGLD")
     if sgld_row is not None:
         lines.append(
             "SGLD & "
-            + _cell(sgld_row, "kde_elm", bold=False, value_precision=vp, se_precision=sp)
+            + _cell_small_se(
+                sgld_row,
+                "kde_elm",
+                bold=False,
+                bold_se=False,
+                value_precision=vp,
+                se_precision=sp,
+            )
             + " & -- & -- \\\\"
         )
         lines.append("\\midrule")
@@ -401,8 +424,18 @@ def render_langevin_table(summary_rows: list[dict[str, Any]], methods: list[str]
         else:
             cells = [
                 method,
-                _cell(row, "kde_elm", bold=method in best_by_metric["kde_elm"], value_precision=vp, se_precision=sp),
-                _cell(row, "duration_sec", bold=method in best_by_metric["duration_sec"], value_precision=vp, se_precision=sp),
+                _cell_small_se(
+                    row,
+                    "kde_elm",
+                    bold=method in best_by_metric["kde_elm"],
+                    bold_se=False,
+                    value_precision=vp,
+                    se_precision=sp,
+                ),
+                _integer_cell(
+                    _metric_value(row, "duration_sec"),
+                    bold=method in best_by_metric["duration_sec"],
+                ),
                 _cell(row, "training_iterations", bold=False, value_precision=vp, se_precision=sp),
             ]
         lines.append(" & ".join(cells) + " \\\\")
@@ -414,24 +447,26 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
     vp = int(cfg.tables.value_precision)
     sp = int(cfg.tables.se_precision)
     by_target_method = {(row["target"], row["method"]): row for row in summary_rows}
-    colspec = "l" + "c" * (len(methods) * 2)
+    colspec = "ll" + "c" * len(methods)
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{BNN test RMSE and test NLL.}",
+        "\\caption{BNN test performance and computational cost. RMSE and NLL are reported as mean $\\pm$ standard error. Lower is better.}",
         "\\label{tab:bnn-rmse-nll}",
+        "\\small",
+        "\\setlength{\\tabcolsep}{4.5pt}",
+        "\\renewcommand{\\arraystretch}{1.08}",
         f"\\begin{{tabular}}{{{colspec}}}",
         "\\toprule",
-        f"\\multirow{{2}}{{*}}{{Dataset}} & \\multicolumn{{{len(methods)}}}{{c}}{{Test RMSE}} & \\multicolumn{{{len(methods)}}}{{c}}{{Test NLL}} \\\\",
-        f"\\cmidrule(lr){{2-{len(methods) + 1}}}\\cmidrule(lr){{{len(methods) + 2}-{len(methods) * 2 + 1}}}",
-        " & " + " & ".join(methods + methods) + " \\\\",
+        "Dataset & Metric & " + " & ".join(methods) + " \\\\",
         "\\midrule",
     ]
-    for target in targets:
+    for target_idx, target in enumerate(targets):
         target_rows = [row for row in summary_rows if row["target"] == target and str(row["method"]) in methods]
         best_by_metric = {metric: _best_methods(target_rows, metric) for metric in ["rmse", "nll"]}
-        cells = [_display_bnn_dataset(target)]
-        for metric in ["rmse", "nll"]:
+        dataset_label = f"\\multirow{{2}}{{*}}{{{_display_bnn_dataset(target)}}}"
+        for metric_idx, metric in enumerate(["rmse", "nll"]):
+            cells = [dataset_label if metric_idx == 0 else "", metric.upper()]
             for method in methods:
                 row = by_target_method.get((target, method))
                 cells.append(
@@ -441,11 +476,28 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
                         row,
                         metric,
                         bold=method in best_by_metric[metric],
+                        bold_se=False,
                         value_precision=vp,
                         se_precision=sp,
+                        se_scientific=False,
                     )
                 )
-        lines.append(" & ".join(cells) + " \\\\")
+            lines.append(" & ".join(cells) + " \\\\")
+        if target_idx < len(targets) - 1:
+            lines.append("\\addlinespace[2pt]")
+    lines.append("\\midrule")
+    time_values: dict[str, float | None] = {}
+    for method in methods:
+        method_rows = [row for row in summary_rows if row["target"] in targets and str(row["method"]) == method]
+        mean, _se = _pooled_mean_se_from_summaries(method_rows, "duration_sec")
+        time_values[method] = mean
+    finite_times = [value for value in time_values.values() if value is not None]
+    best_time = min(finite_times) if finite_times else None
+    time_cells = ["\\multicolumn{2}{l}{Avg. wall-clock time}"]
+    for method in methods:
+        mean = time_values[method]
+        time_cells.append(_integer_cell(mean, bold=mean is not None and mean == best_time))
+    lines.append(" & ".join(time_cells) + " \\\\")
     lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
     return "\n".join(lines)
 
@@ -480,7 +532,7 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
         for row_idx, (metric_label, metric_key, best_by_target) in enumerate(
             [
                 ("$D_{\\mathrm{KL}}$", "d_kl", best_d_kl),
-                (_label(TOY_METHOD_GRID_W2_METRICS[target]), TOY_METHOD_GRID_W2_METRICS[target], best_w2),
+                ("W2", TOY_METHOD_GRID_W2_METRICS[target], best_w2),
             ]
         ):
             cells = [target_label if row_idx == 0 else "", metric_label]
@@ -495,19 +547,28 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
                         bold=method in best_by_target[target],
                         value_precision=vp,
                         se_precision=sp,
+                        se_scientific=False,
                     )
                 )
             lines.append(" & ".join(cells) + " \\\\")
+        if target != TOY_METHOD_GRID_TARGETS[-1]:
+            lines.append("\\addlinespace[2pt]")
     lines.append("\\midrule")
-    cells = ["\\multicolumn{2}{l}{Training time (s)}"]
+    time_values: dict[str, float | None] = {}
     for method in TOY_METHOD_GRID_METHODS:
         method_rows = [
             row
             for row in summary_rows
             if row["target"] in TOY_METHOD_GRID_TARGETS and str(row["method"]) == method
         ]
-        mean, se = _pooled_mean_se_from_summaries(method_rows, "training_time_sec")
-        cells.append(_value_se_cell(mean, se, value_precision=vp, se_precision=sp))
+        mean, _se = _pooled_mean_se_from_summaries(method_rows, "duration_sec")
+        time_values[method] = mean
+    finite_times = [value for value in time_values.values() if value is not None]
+    best_time = min(finite_times) if finite_times else None
+    cells = ["\\multicolumn{2}{l}{Wall-clock time (s)}"]
+    for method in TOY_METHOD_GRID_METHODS:
+        mean = time_values[method]
+        cells.append(_integer_cell(mean, bold=mean is not None and mean == best_time))
     lines.append(" & ".join(cells) + " \\\\")
 
     lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])

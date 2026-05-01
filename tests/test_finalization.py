@@ -92,7 +92,7 @@ class FinalizationTests(unittest.TestCase):
                 "elbo_se": "0.1",
                 "w2_trunc_abs_8_mean": "0.8",
                 "w2_trunc_abs_8_se": "0.01",
-                "training_time_sec_mean": "30",
+                "wall_clock_sec_mean": "30",
             },
             {
                 "target": "8_gaussians",
@@ -101,7 +101,7 @@ class FinalizationTests(unittest.TestCase):
                 "elbo_se": "0.2",
                 "w2_trunc_abs_6_mean": "0.6",
                 "w2_trunc_abs_6_se": "0.02",
-                "training_time_sec_mean": "60",
+                "wall_clock_sec_mean": "60",
             },
             {
                 "target": "x_shaped",
@@ -110,63 +110,65 @@ class FinalizationTests(unittest.TestCase):
                 "elbo_se": "0.3",
                 "w2_mean": "0.4",
                 "w2_se": "0.03",
-                "training_time_sec_mean": "90",
+                "wall_clock_sec_mean": "90",
             },
             {
                 "target": "student_uc",
                 "method": "AISIVI",
                 "elbo_mean": "-3.0",
                 "w2_trunc_abs_8_mean": "0.9",
-                "training_time_sec_mean": "15",
+                "wall_clock_sec_mean": "15",
             },
             {
                 "target": "8_gaussians",
                 "method": "AISIVI",
                 "elbo_mean": "-1.8",
                 "w2_trunc_abs_6_mean": "0.7",
-                "training_time_sec_mean": "30",
+                "wall_clock_sec_mean": "30",
             },
             {
                 "target": "x_shaped",
                 "method": "AISIVI",
                 "elbo_mean": "-1.1",
                 "w2_mean": "0.5",
-                "training_time_sec_mean": "45",
+                "wall_clock_sec_mean": "45",
             },
             {
                 "target": "student_uc",
                 "method": "DSIVI",
                 "elbo_mean": "-1.0",
+                "elbo_se": "0.001",
                 "w2_trunc_abs_8_mean": "0.3",
-                "training_time_sec_mean": "12",
+                "wall_clock_sec_mean": "12",
             },
             {
                 "target": "8_gaussians",
                 "method": "DSIVI",
                 "elbo_mean": "-0.4",
                 "w2_trunc_abs_6_mean": "0.2",
-                "training_time_sec_mean": "24",
+                "wall_clock_sec_mean": "24",
             },
             {
                 "target": "x_shaped",
                 "method": "DSIVI",
                 "elbo_mean": "-0.05",
+                "elbo_se": "0.000799",
                 "w2_mean": "0.1",
-                "training_time_sec_mean": "36",
+                "wall_clock_sec_mean": "36",
             },
             {
                 "target": "banana",
                 "method": "UIVI",
                 "elbo_mean": "99",
                 "w2_mean": "99",
-                "training_time_sec_mean": "99",
+                "wall_clock_sec_mean": "99",
             },
             {
                 "target": "student_uc",
                 "method": "SIVI",
                 "elbo_mean": "99",
                 "w2_trunc_abs_8_mean": "99",
-                "training_time_sec_mean": "99",
+                "wall_clock_sec_mean": "99",
             },
         ]
         cfg = OmegaConf.create({"tables": {"value_precision": 1, "se_precision": 2}})
@@ -179,9 +181,13 @@ class FinalizationTests(unittest.TestCase):
         self.assertIn("DSIVI", table)
         self.assertIn("$D_{\\mathrm{KL}}$", table)
         self.assertNotIn("banana", table)
-        self.assertIn("Training time (s)", table)
-        self.assertIn("60.0 $\\pm$ {\\footnotesize 17.32}", table)
-        self.assertIn("24.0 $\\pm$ {\\footnotesize 6.93}", table)
+        self.assertIn("Wall-clock time (s)", table)
+        self.assertIn("& W2 &", table)
+        self.assertNotIn("W2 $|x|<8$", table)
+        self.assertNotIn("W2 $|x|<6$", table)
+        self.assertIn("\\addlinespace[2pt]", table)
+        self.assertIn("\\textbf{0.1} $\\pm$ {\\footnotesize \\textbf{0.00}}", table)
+        self.assertIn("\\multicolumn{2}{l}{Wall-clock time (s)} & 60 & 30 & \\textbf{24}", table)
 
     def test_langevin_table_renders_sgld_separator_and_compact_iterations(self) -> None:
         rows = [
@@ -200,12 +206,15 @@ class FinalizationTests(unittest.TestCase):
 
         table = render_langevin_table(rows, ["UIVI"], cfg)
 
-        self.assertIn("SGLD & 80.0 $\\pm$ 0.00 & -- & --", table)
+        self.assertIn("Conditioned diffusion process results for expected log marginal likelihood and wall-clock time.", table)
+        self.assertIn("Method & ELM & wall-clock time (s) & iterations", table)
+        self.assertIn("SGLD & 80.0 $\\pm$ {\\footnotesize 0.00} & -- & --", table)
         self.assertIn("\\midrule\nUIVI", table)
+        self.assertIn("UIVI & \\textbf{70.0} $\\pm$ {\\footnotesize 0.10} & \\textbf{12} & 10K", table)
         self.assertIn("10K", table)
         self.assertNotIn("1.000e+04", table)
 
-    def test_bnn_table_formats_dataset_headers_and_small_standard_errors(self) -> None:
+    def test_bnn_table_uses_vertical_layout_and_wall_clock_summary(self) -> None:
         rows = [
             {
                 "target": "Bnn_boston",
@@ -214,6 +223,7 @@ class FinalizationTests(unittest.TestCase):
                 "rmse_se": "0.1",
                 "nll_mean": "2.0",
                 "nll_se": "0.01",
+                "wall_clock_sec_mean": "101.0",
             },
             {
                 "target": "Bnn_boston",
@@ -222,16 +232,37 @@ class FinalizationTests(unittest.TestCase):
                 "rmse_se": "0.2",
                 "nll_mean": "1.9",
                 "nll_se": "0.02",
+                "wall_clock_sec_mean": "51.0",
+            },
+            {
+                "target": "Bnn_yacht",
+                "method": "SIVI",
+                "rmse_mean": "4.0",
+                "rmse_se": "0.3",
+                "nll_mean": "3.0",
+                "nll_se": "0.03",
+                "wall_clock_sec_mean": "201.0",
+            },
+            {
+                "target": "Bnn_yacht",
+                "method": "DSIVI",
+                "rmse_mean": "3.5",
+                "rmse_se": "0.4",
+                "nll_mean": "2.9",
+                "nll_se": "0.04",
+                "wall_clock_sec_mean": "61.0",
             },
         ]
         cfg = OmegaConf.create({"tables": {"value_precision": 1, "se_precision": 2}})
 
-        table = render_bnn_table(rows, ["Bnn_boston"], ["SIVI", "DSIVI"], cfg)
+        table = render_bnn_table(rows, ["Bnn_boston", "Bnn_yacht"], ["SIVI", "DSIVI"], cfg)
 
-        self.assertIn("\\multirow{2}{*}{Dataset}", table)
-        self.assertIn("Test RMSE", table)
-        self.assertIn("Test NLL", table)
-        self.assertIn("\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}", table)
+        self.assertIn("Dataset & Metric & SIVI & DSIVI", table)
+        self.assertIn("\\multirow{2}{*}{Boston}", table)
+        self.assertIn("& RMSE & 3.0 $\\pm$ {\\footnotesize 0.10} & \\textbf{2.5} $\\pm$ {\\footnotesize 0.20}", table)
+        self.assertIn("& NLL & 2.0 $\\pm$ {\\footnotesize 0.01} & \\textbf{1.9} $\\pm$ {\\footnotesize 0.02}", table)
+        self.assertIn("\\addlinespace[2pt]", table)
+        self.assertIn("\\multicolumn{2}{l}{Avg. wall-clock time} & 151 & \\textbf{56}", table)
         self.assertIn("Boston", table)
         self.assertNotIn("Bnn_boston", table)
         self.assertIn("{\\footnotesize", table)

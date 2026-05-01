@@ -13,7 +13,12 @@ DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch compact benchmark artifacts from the remote server.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Fetch compact runtime metadata from the remote server for inspection. "
+            "Final figures and tables should be generated, committed, pushed, and pulled through git."
+        )
+    )
     parser.add_argument("--host", default="root@connect.nmb1.seetacloud.com")
     parser.add_argument("--port", type=int, default=48236)
     parser.add_argument("--remote-repo", default="~/ruivi")

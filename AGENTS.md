@@ -37,7 +37,8 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 - PyTorch: 2.9.0+cu126
 - Use `tmux` for long-running remote experiments
 - Required remote workflow for code/config/script changes: make the change locally, test locally when feasible, commit locally, push the branch, then sync the remote repo with git (`git pull`/`git fetch` + checkout) before running remote jobs. Do not copy code/config/script files directly to the remote server as the primary workflow.
-- Keep direct changes made on the remote server minimal. Remote-only actions should be limited to running experiments, inspecting logs/results, and managing runtime artifacts under `results/`, `tb_logs/`, or `campaigns/*/runtime`.
+- Generated report artifacts such as finalization figures and tables should be produced on the remote server from the pushed code, then committed and pushed from the remote repo so the local checkout pulls them back through git. Do not sync final generated images/tables by ad hoc `scp`, tar extraction, or direct copy as the primary workflow.
+- Keep direct changes made on the remote server minimal. Remote-only actions should be limited to running experiments, inspecting logs/results, generating report artifacts from committed code, committing those generated artifacts, and managing runtime artifacts under `results/`, `tb_logs/`, or `campaigns/*/runtime`.
 
 ## Core Commands
 

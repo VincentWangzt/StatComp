@@ -14,6 +14,12 @@ Remote experiment runs should follow `AGENTS.md`: make code/config changes
 locally, test when feasible, commit, push, pull on the remote host, then run
 under the remote environment.
 
+Final report artifacts follow the same git-backed remote workflow. Generate
+figures and tables on the remote host from committed code, commit those generated
+artifacts on the remote branch, push, then pull the artifact commit locally.
+Avoid using direct copy, tar extraction, or `scp` as the primary path for final
+generated images and tables.
+
 ## Current Workflow
 
 The only local campaign directory kept in this checkout is:
@@ -28,7 +34,7 @@ Use these scripts for the current workflow:
 | --- | --- | --- |
 | `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
-| `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime/result artifacts from the configured remote server. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
+| `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
 ## Examples
 
@@ -90,6 +96,7 @@ Regenerate only the tables and figure grids from existing reevaluation outputs:
 ```
 python scripts\run_finalization.py \
   --only scatter_grid \
+  --only scatter_hist_grid \
   --only toy_tables \
   --only toy_method_grid \
   --only langevin_table \

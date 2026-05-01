@@ -17,6 +17,7 @@ selection:
 modules:
   evaluate: true
   scatter_grid: true
+  scatter_hist_grid: true
   toy_tables: true
   toy_method_grid: true
   langevin_table: true
@@ -72,6 +73,19 @@ plots:
     figsize_per_panel: [2.25, 2.1]
     alpha: 0.45
     point_size: 3
+    title_fontsize: 13
+    label_fontsize: 13
+    w_pad: 0.9
+    h_pad: 0.35
+  scatter_hist:
+    num_points: 100000
+    sample_batch_size: 10000
+    bins: 72
+    contour_grid_size: 180
+    contour_levels: 5
+    contour_linewidth: 0.8
+    hist_alpha: 0.78
+    figsize_per_panel: [2.25, 2.1]
     title_fontsize: 13
     label_fontsize: 13
     w_pad: 0.9

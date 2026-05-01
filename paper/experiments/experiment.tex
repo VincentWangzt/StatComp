@@ -13,7 +13,7 @@ We first use low-dimensional targets to check whether the learned semi-implicit 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{toy_scatter_grid.png}
-  \caption{Qualitative comparison on two-dimensional targets.  Orange points are samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density.  DSIVI recovers the main support of the plotted targets without the severe mode-spreading seen in some baselines on \texttt{8\_gaussians}.}
+  \caption{Qualitative comparison on two-dimensional targets.  Each panel is generated from 2,000 samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density.}
   \label{fig:toy-scatter-grid}
 \end{figure}
 
@@ -58,21 +58,14 @@ This benchmark is useful because posterior quality is visible not only through t
 
 \input{\finalizationtabledir/langevin_metrics.tex}
 
-\Cref{fig:langevin-trace-grid} shows that DSIVI tracks the latent trajectory while maintaining a posterior band comparable to the strongest baselines.  \Cref{tab:langevin-final-eval} reports KDE ELM, a kernel-density estimate of the expected log marginal score against reference samples; larger values indicate better agreement with the reference posterior.  DSIVI reaches essentially the same KDE ELM as UIVI and KSIVI while using the same 10,000 main VI iterations as UIVI and AISIVI.  Further metric and training details are in Appendix~\ref{app:diffusion-details}.
+\Cref{fig:langevin-trace-grid} shows that DSIVI tracks the latent trajectory while maintaining a posterior band comparable to the strongest baselines.  \Cref{tab:langevin-final-eval} reports ELM, a kernel-density estimate of the expected log marginal likelihood against reference samples; larger values indicate better agreement with the reference posterior.  DSIVI reaches essentially the same ELM as UIVI and KSIVI while using the same 10,000 main VI iterations as UIVI and AISIVI.  Further metric and training details are in Appendix~\ref{app:diffusion-details}.
 
 \subsection{Bayesian neural-network regression}
 \label{subsec:bnn-experiments}
 
 We finally evaluate posterior inference for Bayesian neural networks on six UCI regression targets: Boston Housing, Concrete, Power Plant, Protein, Wine Red, and Yacht.  Following the BNN settings used for KSIVI and SIVI-SM \citep{cheng2024kernel,yu2023semi}, each target uses a single-hidden-layer ReLU network with 50 hidden units.  The latent variable is the flattened vector of weights, biases, and precision parameters, giving dimensions 751, 501, 301, 551, 651, and 401 respectively.  Because these posteriors are high-dimensional and data-dependent, we evaluate posterior predictive performance through test RMSE and negative test log-likelihood (NLL), both lower being better.  Dataset and evaluation details are in Appendix~\ref{app:bnn-details}.
 
-\begingroup
-\tiny
-\setlength{\tabcolsep}{2pt}
-\let\oldtabular\tabular
-\let\endoldtabular\endtabular
-\renewenvironment{tabular}[1]{\begin{adjustbox}{max width=\textwidth}\oldtabular{#1}}{\endoldtabular\end{adjustbox}}
 \input{\finalizationtabledir/bnn_rmse_nll.tex}
-\endgroup
 
 \Cref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, UIVI, AISIVI, KSIVI, and DSIVI.  DSIVI obtains the best RMSE and NLL on Boston, Power, and Protein, and the best RMSE on Concrete while matching KSIVI closely in NLL.  KSIVI remains strongest on Yacht, and SIVI/UIVI perform best on Wine Red.  Overall, DSIVI is competitive with the strongest baselines across the high-dimensional BNN suite and improves several of the main predictive benchmarks.
 
@@ -89,10 +82,10 @@ We finally evaluate posterior inference for Bayesian neural networks on six UCI 
 The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
 
 \paragraph{Metrics.}
-For quantitative diagnostics, we report the negated ELBO as $D_{\mathrm{KL}}$, sliced Wasserstein-2 distances, and aggregate training time.  Sliced Wasserstein distances are computed between variational samples and reference samples using 10,000 samples and 5,000 random projections.
+For quantitative diagnostics, we report the negated ELBO as $D_{\mathrm{KL}}$, sliced Wasserstein-2 distances, and aggregate wall-clock time.  Sliced Wasserstein distances are computed between variational samples and reference samples using 10,000 samples and 5,000 random projections.
 
 \begingroup
-\tiny
+\small
 \setlength{\tabcolsep}{2pt}
 \makeatletter
 \renewenvironment{table}[1][]{\par\medskip\noindent\begin{minipage}{\textwidth}\def\@captype{table}\centering}{\end{minipage}\par\medskip}
@@ -113,7 +106,7 @@ All reported toy runs use the same seed set as the rest of the evaluation.  Main
 The diffusion posterior is the 100-dimensional discretized path posterior described in Section~\ref{subsec:langevin-experiments}.  Reference samples are produced by the long-run sampler used for the comparison figures and metrics.  The trace plots show posterior mean paths and marginal 95\% posterior intervals against the true latent path and the noisy observations.
 
 \paragraph{Metrics.}
-KDE ELM evaluates coordinate-wise kernel-density estimates from model samples at reference samples.  The reported evaluation uses 1,000 reference samples and 100,000 model samples, with chunked evaluation to keep memory use bounded.  Sliced Wasserstein diagnostics are computed with the same sample and projection counts as in the two-dimensional experiments.
+ELM evaluates coordinate-wise kernel-density estimates from model samples at reference samples.  The reported evaluation uses 1,000 reference samples and 100,000 model samples, with chunked evaluation to keep memory use bounded.  Sliced Wasserstein diagnostics are computed with the same sample and projection counts as in the two-dimensional experiments.
 
 \paragraph{Training.}
 SIVI, UIVI, AISIVI, and DSIVI are reported after 10,000 main VI iterations.  KSIVI is reported after 50,000 iterations, matching the selected comparison setting for this benchmark.  DSIVI uses the standard semi-implicit variational sampler together with a denoising reverse model.

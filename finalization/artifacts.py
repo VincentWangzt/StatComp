@@ -151,7 +151,9 @@ def find_final_samples(result_dir: Path) -> tuple[Path, int]:
 def load_sample_z(path: Path, *, map_location: str = "cpu") -> torch.Tensor:
     payload = torch.load(path, map_location=map_location)
     if isinstance(payload, dict):
-        payload = payload["z"]
+        payload = payload.get("z", payload.get("samples"))
+        if payload is None:
+            raise KeyError(f"No 'z' or 'samples' tensor found in {path}")
     return torch.as_tensor(payload, dtype=torch.float32, device="cpu")
 
 
