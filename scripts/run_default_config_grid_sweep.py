@@ -233,6 +233,25 @@ def classify_config_staleness(entry: dict[str, Any], previous: dict[str, Any] | 
     return "stale"
 
 
+def is_fresh_completed(
+    entry: dict[str, Any],
+    statuses: dict[str, dict[str, Any]],
+) -> bool:
+    event = statuses.get(entry["run_id"])
+    return classify_config_staleness(entry, event) == "fresh"
+
+
+def is_fresh_finalized(
+    entry: dict[str, Any],
+    statuses: dict[str, dict[str, Any]],
+    finalize_statuses: dict[str, dict[str, Any]],
+) -> bool:
+    return (
+        is_fresh_completed(entry, statuses)
+        and finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_completed"
+    )
+
+
 def enqueue_pending_entries(
     entries: list[dict[str, Any]],
     statuses: dict[str, dict[str, Any]],
@@ -674,9 +693,9 @@ def write_current(
 ) -> None:
     finalize_statuses = finalize_statuses or {}
     finalizer_state = finalizer_state or {}
-    completed = sum(1 for entry in entries if statuses.get(entry["run_id"], {}).get("status") == "completed")
+    completed = sum(1 for entry in entries if is_fresh_completed(entry, statuses))
     failed = sum(1 for entry in entries if statuses.get(entry["run_id"], {}).get("status") in {"failed", "worker_error"})
-    finalized = sum(1 for entry in entries if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_completed")
+    finalized = sum(1 for entry in entries if is_fresh_finalized(entry, statuses, finalize_statuses))
     finalize_failed = sum(1 for entry in entries if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_failed")
     payload = {
         "status": "running" if active else "idle",
@@ -924,7 +943,11 @@ def write_summary(
             writer.writerows(rows)
         tmp_csv_path.replace(csv_path)
 
-    completed = sum(1 for row in rows if row.get("status") == "completed")
+    completed = sum(
+        1
+        for row in rows
+        if row.get("status") == "completed" and row.get("config_staleness") == "fresh"
+    )
     failed = sum(1 for row in rows if row.get("status") in {"failed", "worker_error"})
     md_lines = [
         "# Default Config Grid Summary",
@@ -1168,11 +1191,7 @@ def write_all_state(
             "active_runs": len(active),
             "events": len(events),
             "finalize_events": len(finalize_events),
-            "completed_runs": sum(
-                1
-                for entry in entries
-                if statuses.get(entry["run_id"], {}).get("status") == "completed"
-            ),
+            "completed_runs": sum(1 for entry in entries if is_fresh_completed(entry, statuses)),
             "failed_runs": sum(
                 1
                 for entry in entries
@@ -1181,7 +1200,7 @@ def write_all_state(
             "finalized_runs": sum(
                 1
                 for entry in entries
-                if finalize_statuses.get(entry["run_id"], {}).get("status") == "finalize_completed"
+                if is_fresh_finalized(entry, statuses, finalize_statuses)
             ),
             "finalize_failed_runs": sum(
                 1

@@ -81,6 +81,87 @@ class DefaultConfigGridStalenessTests(unittest.TestCase):
         )
         self.assertEqual([entry["run_id"] for entry in pending], ["stale", "failed", "new"])
 
+    def test_current_counts_only_fresh_completed_and_finalized_runs(self) -> None:
+        entries = [
+            {"run_id": "fresh", "config_hash": "aaa"},
+            {"run_id": "stale", "config_hash": "bbb"},
+            {"run_id": "new", "config_hash": "ccc"},
+        ]
+        statuses = {
+            "fresh": {"status": "completed", "config_hash": "aaa"},
+            "stale": {"status": "completed", "config_hash": "old"},
+        }
+        finalize_statuses = {
+            "fresh": {"status": "finalize_completed"},
+            "stale": {"status": "finalize_completed"},
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            current_path = Path(tmp) / "current.json"
+
+            sweep.write_current(
+                current_path,
+                entries,
+                active={},
+                statuses=statuses,
+                gpus=[0],
+                finalize_statuses=finalize_statuses,
+            )
+
+            current = json.loads(current_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(current["total_runs"], 3)
+        self.assertEqual(current["completed_runs"], 1)
+        self.assertEqual(current["finalized_runs"], 1)
+
+    def test_summary_markdown_counts_only_fresh_completed_runs(self) -> None:
+        entries = [
+            {
+                "run_id": "fresh",
+                "method": "SIVI",
+                "method_slug": "sivi",
+                "target": "banana",
+                "target_slug": "banana",
+                "seed": 42,
+                "config_path": "configs/sivi_banana.yaml",
+                "config_hash": "aaa",
+                "config_hash_version": sweep.CONFIG_HASH_VERSION,
+            },
+            {
+                "run_id": "stale",
+                "method": "SIVI",
+                "method_slug": "sivi",
+                "target": "banana",
+                "target_slug": "banana",
+                "seed": 42,
+                "config_path": "configs/sivi_banana.yaml",
+                "config_hash": "bbb",
+                "config_hash_version": sweep.CONFIG_HASH_VERSION,
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            events = [
+                {
+                    "run_id": "fresh",
+                    "status": "completed",
+                    "config_hash": "aaa",
+                    "tb_path": str(root / "tb" / "fresh"),
+                },
+                {
+                    "run_id": "stale",
+                    "status": "completed",
+                    "config_hash": "old",
+                    "tb_path": str(root / "tb" / "stale"),
+                },
+            ]
+            report_dir = Path(tmp) / "reports"
+            sweep.write_summary(report_dir, entries, events)
+            summary_md = (report_dir / "summary.md").read_text(encoding="utf-8")
+
+        self.assertIn("- Total manifest runs: 2", summary_md)
+        self.assertIn("- Recorded completed runs: 1", summary_md)
+
     def test_artifact_config_hash_inventory_hashes_full_config_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
