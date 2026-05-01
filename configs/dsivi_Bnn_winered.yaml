@@ -22,8 +22,8 @@ train:
     enabled: true
     beta: 0.999
   vi:
-    lr: 1.0e-3
-    var_lr: 1.0e-3
+    lr: 1.0e-4
+    var_lr: 1.0e-4
     scheduler:
       type: StepLR
       step_size: 1000

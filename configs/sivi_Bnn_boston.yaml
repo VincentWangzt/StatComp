@@ -21,7 +21,7 @@ train:
     enabled: true
     beta: 0.999
   vi:
-    lr: 1.0e-3
+    lr: 1.0e-5
     scheduler:
       type: StepLR
       step_size: 1000
