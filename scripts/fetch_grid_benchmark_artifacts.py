@@ -3,16 +3,13 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-import sys
 import tarfile
 import tempfile
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
 
-from grid_benchmark_common import CAMPAIGN_SLUG, REPO_ROOT  # noqa: E402
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
 
 
 def main() -> None:
@@ -20,7 +17,7 @@ def main() -> None:
     parser.add_argument("--host", default="root@connect.nmb1.seetacloud.com")
     parser.add_argument("--port", type=int, default=48236)
     parser.add_argument("--remote-repo", default="~/ruivi")
-    parser.add_argument("--campaign-slug", default=CAMPAIGN_SLUG)
+    parser.add_argument("--campaign-slug", default=DEFAULT_CAMPAIGN_SLUG)
     parser.add_argument(
         "--remote-artifact-root",
         default=None,
