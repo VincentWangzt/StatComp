@@ -1,19 +1,33 @@
 \begin{table}[t]
 \centering
-\caption{BNN test RMSE and test NLL.}
+\caption{BNN test performance and computational cost. RMSE and NLL are reported as mean $\pm$ standard error. Lower is better.}
 \label{tab:bnn-rmse-nll}
-\begin{tabular}{lcccccccccc}
+\small
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabular}{llccccc}
 \toprule
-\multirow{2}{*}{Dataset} & \multicolumn{5}{c}{Test RMSE} & \multicolumn{5}{c}{Test NLL} \\
-\cmidrule(lr){2-6}\cmidrule(lr){7-11}
- & SIVI & UIVI & AISIVI & KSIVI & DSIVI & SIVI & UIVI & AISIVI & KSIVI & DSIVI \\
+Dataset & Metric & SIVI & UIVI & AISIVI & KSIVI & DSIVI \\
 \midrule
-Boston & 2.888 $\pm$ {\footnotesize 0.08} & 3.164 $\pm$ {\footnotesize 0.17} & 3.169 $\pm$ {\footnotesize 0.14} & 2.688 $\pm$ {\footnotesize 0.02} & \textbf{2.548} $\pm$ {\footnotesize \textbf{0.04}} & 2.527 $\pm$ {\footnotesize 0.01} & 2.585 $\pm$ {\footnotesize 0.03} & 2.590 $\pm$ {\footnotesize 0.02} & 2.491 $\pm$ {\footnotesize 0.00} & \textbf{2.449} $\pm$ {\footnotesize \textbf{0.01}} \\
-Concrete & 6.961 $\pm$ {\footnotesize 0.08} & 7.633 $\pm$ {\footnotesize 0.06} & 8.254 $\pm$ {\footnotesize 0.36} & 6.365 $\pm$ {\footnotesize 0.02} & \textbf{6.281} $\pm$ {\footnotesize \textbf{0.05}} & 3.379 $\pm$ {\footnotesize 0.01} & 3.498 $\pm$ {\footnotesize 0.01} & 3.557 $\pm$ {\footnotesize 0.06} & \textbf{3.266} $\pm$ {\footnotesize \textbf{0.00}} & 3.270 $\pm$ {\footnotesize 0.01} \\
-Power & 3.935 $\pm$ {\footnotesize 0.01} & 3.972 $\pm$ {\footnotesize 0.02} & 4.010 $\pm$ {\footnotesize 0.02} & 4.042 $\pm$ {\footnotesize 0.08} & \textbf{3.886} $\pm$ {\footnotesize \textbf{0.02}} & 2.802 $\pm$ {\footnotesize 0.00} & 2.813 $\pm$ {\footnotesize 0.00} & 2.826 $\pm$ {\footnotesize 0.00} & 2.853 $\pm$ {\footnotesize 0.03} & \textbf{2.783} $\pm$ {\footnotesize \textbf{0.01}} \\
-Protein & 4.878 $\pm$ {\footnotesize 0.04} & 5.018 $\pm$ {\footnotesize 0.01} & 4.940 $\pm$ {\footnotesize 0.03} & 4.972 $\pm$ {\footnotesize 0.00} & \textbf{4.499} $\pm$ {\footnotesize \textbf{0.01}} & 3.017 $\pm$ {\footnotesize 0.01} & 3.027 $\pm$ {\footnotesize 0.00} & 3.029 $\pm$ {\footnotesize 0.00} & 3.022 $\pm$ {\footnotesize 7.51e-04} & \textbf{2.929} $\pm$ {\footnotesize \textbf{0.00}} \\
-Winered & 0.619 $\pm$ {\footnotesize 0.01} & 0.628 $\pm$ {\footnotesize 0.01} & 0.610 $\pm$ {\footnotesize 0.00} & \textbf{0.601} $\pm$ {\footnotesize \textbf{0.00}} & 0.614 $\pm$ {\footnotesize 0.00} & 0.934 $\pm$ {\footnotesize 0.02} & 0.950 $\pm$ {\footnotesize 0.01} & 0.921 $\pm$ {\footnotesize 0.01} & \textbf{0.910} $\pm$ {\footnotesize \textbf{0.00}} & 0.932 $\pm$ {\footnotesize 0.01} \\
-Yacht & 1.837 $\pm$ {\footnotesize 0.18} & 2.592 $\pm$ {\footnotesize 0.14} & 2.508 $\pm$ {\footnotesize 0.17} & \textbf{1.255} $\pm$ {\footnotesize \textbf{0.07}} & 1.366 $\pm$ {\footnotesize 0.08} & 1.804 $\pm$ {\footnotesize 0.06} & 2.158 $\pm$ {\footnotesize 0.07} & 2.113 $\pm$ {\footnotesize 0.09} & 1.595 $\pm$ {\footnotesize 0.04} & \textbf{1.570} $\pm$ {\footnotesize \textbf{0.12}} \\
+\multirow{2}{*}{Boston} & RMSE & 2.888 $\pm$ {\footnotesize 0.08} & 3.164 $\pm$ {\footnotesize 0.17} & 3.169 $\pm$ {\footnotesize 0.14} & 2.688 $\pm$ {\footnotesize 0.02} & \textbf{2.548} $\pm$ {\footnotesize 0.04} \\
+ & NLL & 2.527 $\pm$ {\footnotesize 0.01} & 2.585 $\pm$ {\footnotesize 0.03} & 2.590 $\pm$ {\footnotesize 0.02} & 2.491 $\pm$ {\footnotesize 0.00} & \textbf{2.449} $\pm$ {\footnotesize 0.01} \\
+\addlinespace[2pt]
+\multirow{2}{*}{Concrete} & RMSE & 6.961 $\pm$ {\footnotesize 0.08} & 7.633 $\pm$ {\footnotesize 0.06} & 8.254 $\pm$ {\footnotesize 0.36} & 6.365 $\pm$ {\footnotesize 0.02} & \textbf{6.281} $\pm$ {\footnotesize 0.05} \\
+ & NLL & 3.379 $\pm$ {\footnotesize 0.01} & 3.498 $\pm$ {\footnotesize 0.01} & 3.557 $\pm$ {\footnotesize 0.06} & \textbf{3.266} $\pm$ {\footnotesize 0.00} & 3.270 $\pm$ {\footnotesize 0.01} \\
+\addlinespace[2pt]
+\multirow{2}{*}{Power} & RMSE & 3.935 $\pm$ {\footnotesize 0.01} & 3.972 $\pm$ {\footnotesize 0.02} & 4.010 $\pm$ {\footnotesize 0.02} & 4.042 $\pm$ {\footnotesize 0.08} & \textbf{3.886} $\pm$ {\footnotesize 0.02} \\
+ & NLL & 2.802 $\pm$ {\footnotesize 0.00} & 2.813 $\pm$ {\footnotesize 0.00} & 2.826 $\pm$ {\footnotesize 0.00} & 2.853 $\pm$ {\footnotesize 0.03} & \textbf{2.783} $\pm$ {\footnotesize 0.01} \\
+\addlinespace[2pt]
+\multirow{2}{*}{Protein} & RMSE & 4.878 $\pm$ {\footnotesize 0.04} & 5.018 $\pm$ {\footnotesize 0.01} & 4.940 $\pm$ {\footnotesize 0.03} & 4.972 $\pm$ {\footnotesize 0.00} & \textbf{4.499} $\pm$ {\footnotesize 0.01} \\
+ & NLL & 3.017 $\pm$ {\footnotesize 0.01} & 3.027 $\pm$ {\footnotesize 0.00} & 3.029 $\pm$ {\footnotesize 0.00} & 3.022 $\pm$ {\footnotesize 0.00} & \textbf{2.929} $\pm$ {\footnotesize 0.00} \\
+\addlinespace[2pt]
+\multirow{2}{*}{Winered} & RMSE & 0.619 $\pm$ {\footnotesize 0.01} & 0.628 $\pm$ {\footnotesize 0.01} & 0.610 $\pm$ {\footnotesize 0.00} & \textbf{0.601} $\pm$ {\footnotesize 0.00} & 0.614 $\pm$ {\footnotesize 0.00} \\
+ & NLL & 0.934 $\pm$ {\footnotesize 0.02} & 0.950 $\pm$ {\footnotesize 0.01} & 0.921 $\pm$ {\footnotesize 0.01} & \textbf{0.910} $\pm$ {\footnotesize 0.00} & 0.932 $\pm$ {\footnotesize 0.01} \\
+\addlinespace[2pt]
+\multirow{2}{*}{Yacht} & RMSE & 1.837 $\pm$ {\footnotesize 0.18} & 2.592 $\pm$ {\footnotesize 0.14} & 2.508 $\pm$ {\footnotesize 0.17} & \textbf{1.255} $\pm$ {\footnotesize 0.07} & 1.366 $\pm$ {\footnotesize 0.08} \\
+ & NLL & 1.804 $\pm$ {\footnotesize 0.06} & 2.158 $\pm$ {\footnotesize 0.07} & 2.113 $\pm$ {\footnotesize 0.09} & 1.595 $\pm$ {\footnotesize 0.04} & \textbf{1.570} $\pm$ {\footnotesize 0.12} \\
+\midrule
+\multicolumn{2}{l}{Avg. wall-clock time} & 451 & 863 & 672 & 1074 & \textbf{223} \\
 \bottomrule
 \end{tabular}
 \end{table}
