@@ -1,9 +1,9 @@
 \section{Experiments}
 \label{sec:experiments}
 
-We evaluate DSIVI across posterior inference problems that increase in dimension and structure.  We begin with two-dimensional synthetic targets, where the geometry of the approximation can be inspected directly.  We then move to a 100-dimensional conditioned diffusion posterior, where a useful approximation must recover both the mean path and posterior uncertainty.  Finally, we consider Bayesian neural-network (BNN) regression posteriors with several hundred latent variables, where performance is measured through posterior predictive accuracy.  Unless stated otherwise, tables report the mean and standard error over five random seeds.
+We evaluate DSIVI across posterior inference problems that increase in dimension and structure.  We begin with two-dimensional synthetic targets, where the geometry of the approximation can be inspected directly.  We then move to a 100-dimensional conditioned diffusion posterior, where a useful approximation must recover both the mean path and posterior uncertainty.  Finally, we consider Bayesian neural-network (BNN) regression posteriors with several hundred latent variables, where performance is measured through posterior predictive accuracy.  In line with prior SIVI evaluations, we incorporate annealing techniques where appropriate to stabilize the early optimization trajectory.  Unless stated otherwise, tables report the mean and standard error over five random seeds.
 
-Our main comparisons are against UIVI and AISIVI \citep{uivi2019,pielok2025revisiting}.  We also include SIVI \citep{yin2018semi} and KSIVI \citep{cheng2024kernel} where their objectives and implementations apply.  Additional target definitions, metrics, and training details are collected in Appendix~\ref{app:experiment-details}.
+Our main comparisons are against UIVI and AISIVI \citep{uivi2019,pielok2025revisiting}.  We also include SIVI \citep{yin2018semi} and KSIVI \citep{cheng2024kernel} where their objectives and implementations apply.  DSIVI keeps the standard semi-implicit sampler but replaces explicit marginal-density estimation with an MLP proxy score estimator, which is warm-started before joint training.  Additional target definitions, metrics, and training details are collected in Appendix~\ref{app:experiment-details}.
 
 \subsection{Toy two-dimensional targets}
 \label{subsec:toy-experiments}
@@ -58,16 +58,16 @@ This benchmark is useful because posterior quality is visible not only through t
 
 \input{\finalizationtabledir/langevin_metrics.tex}
 
-\Cref{fig:langevin-trace-grid} shows that DSIVI tracks the latent trajectory while maintaining a posterior band comparable to the strongest baselines.  \Cref{tab:langevin-final-eval} reports ELM, a kernel-density estimate of the expected log marginal likelihood against reference samples; larger values indicate better agreement with the reference posterior.  DSIVI reaches essentially the same ELM as UIVI and KSIVI while using the same 10,000 main VI iterations as UIVI and AISIVI.  Further metric and training details are in Appendix~\ref{app:diffusion-details}.
+\Cref{fig:langevin-trace-grid} shows that DSIVI tracks the latent trajectory while maintaining a posterior band comparable to the strongest baselines.  Following the setup in \citet{pielok2025revisiting}, \cref{tab:langevin-final-eval} reports the expected log marginal likelihood of 1,000 high-quality reference samples obtained from SGLD, using 100,000 samples taken from each trained variational inference model; 100,000 SGLD samples serve as the gold standard.  Larger values indicate better agreement with the reference posterior.  DSIVI reaches the SGLD reference level while using the same 10,000 main VI iterations as UIVI and AISIVI.  Further metric and training details are in Appendix~\ref{app:diffusion-details}.
 
 \subsection{Bayesian neural-network regression}
 \label{subsec:bnn-experiments}
 
-We finally evaluate posterior inference for Bayesian neural networks on six UCI regression targets: Boston Housing, Concrete, Power Plant, Protein, Wine Red, and Yacht.  Following the BNN settings used for KSIVI and SIVI-SM \citep{cheng2024kernel,yu2023semi}, each target uses a single-hidden-layer ReLU network with 50 hidden units.  The latent variable is the flattened vector of weights, biases, and precision parameters, giving dimensions 751, 501, 301, 551, 651, and 401 respectively.  Because these posteriors are high-dimensional and data-dependent, we evaluate posterior predictive performance through test RMSE and negative test log-likelihood (NLL), both lower being better.  Dataset and evaluation details are in Appendix~\ref{app:bnn-details}.
+We finally evaluate posterior inference for Bayesian neural networks on six UCI regression targets: Boston Housing, Concrete, Power Plant, Protein, Wine Red, and Yacht.  Following the BNN settings used for KSIVI and SIVI-SM \citep{cheng2024kernel,yu2023semi}, each target uses a single-hidden-layer ReLU network with 50 hidden units.  These targets provide a diverse high-dimensional suite, with posterior dimensionality ranging from 301 to 751.  Because these posteriors are data-dependent, we evaluate posterior predictive performance through test RMSE and negative test log-likelihood (NLL), both lower being better.  Dataset and evaluation details are in Appendix~\ref{app:bnn-details}.
 
 \input{\finalizationtabledir/bnn_rmse_nll.tex}
 
-\Cref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, UIVI, AISIVI, KSIVI, and DSIVI.  DSIVI obtains the best RMSE and NLL on Boston, Power, and Protein, and the best RMSE on Concrete while matching KSIVI closely in NLL.  KSIVI remains strongest on Yacht, and SIVI/UIVI perform best on Wine Red.  Overall, DSIVI is competitive with the strongest baselines across the high-dimensional BNN suite and improves several of the main predictive benchmarks.
+\Cref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, UIVI, AISIVI, KSIVI, and DSIVI.  Across this high-dimensional BNN suite, DSIVI remains competitive with the strongest baselines on both RMSE and NLL while requiring the lowest average wall-clock training time.  This supports the central empirical pattern: the denoising score proxy can preserve predictive quality while reducing the training cost of semi-implicit inference.
 
 \clearpage
 \appendix
@@ -75,14 +75,87 @@ We finally evaluate posterior inference for Bayesian neural networks on six UCI 
 \section{Experimental Details}
 \label{app:experiment-details}
 
+\subsection{Variational family}
+\label{app:vi-family}
+
+All SIVI variants use a conditional Gaussian semi-implicit variational family.  We write the mixing variable as $\epsilon$ and the latent variable as $z$, with
+\begin{equation}
+  q_\phi(z)
+  =
+  \int q_\phi(z \mid \epsilon) q(\epsilon)\,d\epsilon,
+  \qquad
+  q_\phi(z \mid \epsilon)
+  =
+  \mathcal{N}\!\left(z;\mu_\phi(\epsilon),\Sigma_\phi\right).
+\end{equation}
+For two-dimensional targets, $\epsilon \in \mathbb{R}^{4}$ is drawn from a standard Gaussian prior, and $\mu_\phi$ and the diagonal variance are produced by a two-hidden-layer MLP with hidden width 128.  For the conditioned diffusion task, $\epsilon \in [0,1]^{100}$ uses a uniform prior, $\mu_\phi$ is a two-hidden-layer ReLU MLP with hidden width 128, and the conditional covariance is a learned global diagonal variance initialized near $0.01725$.  For BNN regression, $\epsilon \in \mathbb{R}^{3}$ uses a standard Gaussian prior, $\mu_\phi$ and the diagonal log variance are produced by a two-hidden-layer ReLU MLP with hidden width 10, and the log variance is initialized at $-8$ with a lower clamp at $-20$.  These BNN choices follow the compact semi-implicit architecture used in the KSIVI and SIVI-SM comparisons.
+
+\subsection{Method configurations}
+\label{app:method-configs}
+
+Unless otherwise specified, SIVI, UIVI, AISIVI, and DSIVI use 10,000 main VI iterations, batch size 128, Adam optimization, VI learning rate $10^{-3}$ on the toy and diffusion targets, and a step scheduler.  We apply linear annealing where enabled by the target configuration: 5,000 warmup steps for toy and diffusion runs and 10,000 warmup steps for BNN runs.  The \texttt{student\_uc} target is evaluated without annealing, following the selected final configuration.
+
+SIVI uses Monte Carlo auxiliary samples to approximate the semi-implicit marginal term, with 4,096 reverse samples on toy and diffusion targets and 2,048 on BNN targets.  UIVI uses the unbiased implicit variational inference setup with $K=5$ auxiliary samples, matching the default comparison setting from \citet{titsias2019unbiased}.  AISIVI uses a conditional RealNVP reverse model: 16 coupling layers with hidden width 256 for diffusion and BNN targets, reverse learning rate $2 \times 10^{-4}$ on diffusion and $5 \times 10^{-5}$ on BNN targets, and one reverse update per main VI step.  On the two-dimensional targets, AISIVI uses 1,024 reverse samples and a reverse learning rate of $10^{-3}$.
+
+DSIVI estimates the marginal score with an MLP denoising model $\psi_\eta(z) \approx \nabla_z \log q_\phi(z)$.  The proxy is trained by regressing against conditional Gaussian scores from current VI samples.  On toy and diffusion targets, the proxy has hidden width 128, three hidden layers, warmup learning rate $10^{-3}$, warmup batch size 8,192, and 2,000 warmup epochs; during main training it uses reverse batch size 2,048, reverse learning rate $10^{-3}$, and five reverse updates per main epoch.  On BNN targets, the proxy has hidden width 512, four hidden layers, warmup learning rate $2 \times 10^{-3}$, warmup batch size 2,048, and 5,000 warmup epochs; during main training it uses two reverse updates per main epoch.
+
+KSIVI optimizes the kernel Stein discrepancy objective.  We use 50,000 iterations for toy and diffusion targets and 100,000 iterations for BNN targets.  KSIVI uses the selected kernel for each final configuration: Gaussian kernels for most targets, an IMQ kernel on \texttt{multimodal}, and a Riesz-style configuration on \texttt{student\_uc}.  The BNN configuration follows the strengthened KSIVI setup with \texttt{log\_p\_reg} set to 1 throughout training; non-BNN runs use no log-density regularization except for the \texttt{student\_uc} warmup regularization selected for that target.
+
+\subsection{Training protocol}
+\label{app:training-protocol}
+
+All reported runs use five random seeds.  Checkpoints, samples, and TensorBoard logs are produced by the same finalization workflow, and final metrics are recomputed from the selected checkpoints.  Toy and diffusion runs use VI batch size 128.  BNN runs use VI batch size 128, target-data minibatches from the BNN target configuration, gradient clipping at norm 1, and a 100-step VI pretraining stage with standard MSE loss on the development split.  For BNN evaluation we use exponential moving averages of the VI parameters with decay $0.999$, following the stabilized BNN evaluation protocol used by KSIVI and SIVI-SM.
+
+For BNN targets, the VI learning rate is selected separately for each method and target from $\{10^{-3},10^{-4},10^{-5}\}$ by cross-validation.  This selection is necessary because we observe divergence under some high-learning-rate schemes, and the divergence behavior depends on both the method and the target posterior.
+
+\subsection{Metrics}
+\label{app:metric-details}
+
+For toy and diffusion targets, we report a KL-style objective through the negated Monte Carlo ELBO,
+\begin{equation}
+  D_{\mathrm{KL}}
+  =
+  -\widehat{\mathcal{L}}(q_\phi)
+  =
+  -\frac{1}{N}
+  \sum_{i=1}^{N}
+  \left[
+    \log p(z_i) - \widehat{\log q_\phi(z_i)}
+  \right],
+  \qquad
+  z_i \sim q_\phi .
+\end{equation}
+The estimate uses $N=5{,}000$ VI samples.  For each $z_i$, $\widehat{\log q_\phi(z_i)}$ is approximated with 20 batches of 2,048 auxiliary $\epsilon$ samples, plus the generating $\epsilon$ sample.
+
+Sliced Wasserstein-2 is computed by averaging one-dimensional Wasserstein distances over random unit projections,
+\begin{equation}
+  \mathrm{SW}_2^2(q,r)
+  =
+  \mathbb{E}_{\theta \sim \mathrm{Unif}(\mathbb{S}^{d-1})}
+  \left[
+    W_2^2\!\left(\theta^\top q,\theta^\top r\right)
+  \right],
+\end{equation}
+and we report its Monte Carlo estimate using 10,000 samples and 5,000 random projections.  For heavy-tailed or unstable-tail comparisons, we additionally use a truncated sliced Wasserstein metric: both variational and reference samples are retained only if every coordinate lies inside a fixed box, and sliced Wasserstein-2 is then computed on the accepted samples.  This follows the common convention of reporting a stable central-region transport diagnostic when tail draws can dominate finite-sample Wasserstein estimates.  The final evaluation uses 10,000 accepted samples, width 6 for \texttt{8\_gaussians}, width 8 for \texttt{student\_uc}, and auxiliary \texttt{student\_uc} widths 5, 8, and 10 for edge diagnostics.
+
+For the conditioned diffusion benchmark, we also report expected log marginal likelihood,
+\begin{equation}
+  \mathrm{ELM}
+  =
+  \mathbb{E}_{z \sim r}
+  \left[
+    \sum_{j=1}^{d}
+    \log \widehat{q}_{\phi,j}(z_j)
+  \right],
+\end{equation}
+where $r$ is represented by SGLD reference samples and $\widehat{q}_{\phi,j}$ is a one-dimensional Gaussian KDE fit to coordinate $j$ of model samples.  We follow \citet{pielok2025revisiting} in using this metric for the diffusion benchmark.  Direct Monte Carlo approximation of the full semi-implicit marginal likelihood is difficult here because the marginal integrates over a 100-dimensional mixing distribution, so the coordinate-wise KDE estimate provides a stable comparison to the SGLD reference.  The reported evaluation uses 1,000 reference samples and 100,000 model samples; the SGLD baseline uses 100,000 SGLD samples as the model sample set.
+
+For BNN targets, evaluation draws 2,000 posterior samples from the learned variational distribution.  RMSE is computed from the posterior predictive mean on the test set.  Test log-likelihood is estimated by Monte Carlo marginalization over posterior samples, and the reported NLL is its negative.
+
 \subsection{Two-dimensional targets}
 \label{app:toy-details}
 
-\paragraph{Setup.}
 The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
-
-\paragraph{Metrics.}
-For quantitative diagnostics, we report the negated ELBO as $D_{\mathrm{KL}}$, sliced Wasserstein-2 distances, and aggregate wall-clock time.  Sliced Wasserstein distances are computed between variational samples and reference samples using 10,000 samples and 5,000 random projections.
 
 \begingroup
 \small
@@ -96,32 +169,18 @@ For quantitative diagnostics, we report the negated ELBO as $D_{\mathrm{KL}}$, s
 \input{\finalizationtabledir/toy_method_grid.tex}
 \endgroup
 
-\paragraph{Training.}
-All reported toy runs use the same seed set as the rest of the evaluation.  Main VI training uses Adam-based optimization with the target-specific learning-rate schedules and annealing settings selected for the reported evaluation.
-
 \subsection{Conditioned diffusion process}
 \label{app:diffusion-details}
 
-\paragraph{Setup.}
 The diffusion posterior is the 100-dimensional discretized path posterior described in Section~\ref{subsec:langevin-experiments}.  Reference samples are produced by the long-run sampler used for the comparison figures and metrics.  The trace plots show posterior mean paths and marginal 95\% posterior intervals against the true latent path and the noisy observations.
-
-\paragraph{Metrics.}
-ELM evaluates coordinate-wise kernel-density estimates from model samples at reference samples.  The reported evaluation uses 1,000 reference samples and 100,000 model samples, with chunked evaluation to keep memory use bounded.  Sliced Wasserstein diagnostics are computed with the same sample and projection counts as in the two-dimensional experiments.
-
-\paragraph{Training.}
-SIVI, UIVI, AISIVI, and DSIVI are reported after 10,000 main VI iterations.  KSIVI is reported after 50,000 iterations, matching the selected comparison setting for this benchmark.  DSIVI uses the standard semi-implicit variational sampler together with a denoising reverse model.
+SIVI, UIVI, AISIVI, and DSIVI are reported after 10,000 main VI iterations.  KSIVI is reported after 50,000 iterations, matching the selected comparison setting for this benchmark.
 
 \subsection{Bayesian neural-network regression}
 \label{app:bnn-details}
 
-\paragraph{Setup.}
 Each BNN target uses a one-hidden-layer ReLU network with 50 hidden units.  The input dimensions are 13 for Boston, 8 for Concrete, 4 for Power, 9 for Protein, 11 for Wine Red, and 6 for Yacht.  Including weights, biases, and two precision variables, the corresponding posterior dimensions are 751, 501, 301, 551, 651, and 401.  The datasets contain 506, 1,030, 9,568, 45,730, 1,599, and 308 observations respectively.  Data preparation uses a fixed random seed, a 90/10 train-test split, input standardization based on the training split, and target standardization for training labels.  Test labels are evaluated on their original scale.
 
-\paragraph{Metrics.}
-BNN evaluation draws 2,000 posterior samples from the learned variational distribution.  RMSE is computed from the posterior predictive mean on the test set.  Test log-likelihood is estimated by Monte Carlo marginalization over posterior samples, and the reported NLL is its negative.  These predictive metrics are the primary evaluation criteria for the BNN regression setting.
-
-\paragraph{Training.}
-The reported BNN evaluation uses five seeds for each method and target.  DSIVI uses VI pretraining on the development split, EMA for evaluation, 10,000 main training epochs, training batch size 128, reverse batch size 2,048, reverse learning rate $10^{-3}$, and two reverse-model updates per main epoch.  UIVI is the unbiased implicit variational inference baseline, AISIVI is the annealed importance-sampling refinement, and KSIVI optimizes a kernel Stein discrepancy objective with the strengthened BNN configuration used for this comparison.
+We follow the KSIVI and SIVI-SM BNN protocol as closely as possible while using the shared finalization workflow for all methods.  The 100-step MSE pretraining stage initializes the variational sampler toward predictive weights before posterior training begins.  EMA parameters are used only for sampling and evaluation, not as separate trainable parameters.  KSIVI additionally includes the log-density regularization term from the strengthened BNN configuration, with \texttt{log\_p\_reg} set to 1 and mode \texttt{always}.  These predictive metrics are the primary evaluation criteria for the BNN regression setting because direct posterior-density comparisons are not available for these data-dependent targets.
 
 \subsection{Reproducibility}
 \label{app:reproducibility-details}
