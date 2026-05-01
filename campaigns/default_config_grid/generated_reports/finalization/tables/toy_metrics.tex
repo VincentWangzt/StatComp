@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\caption{Toy target final evaluation metrics.}
+\label{tab:toy-final-eval}
+\begin{tabular}{lcccccccccccc}
+\toprule
+Target & \multicolumn{4}{c}{ELBO} & \multicolumn{4}{c}{W2} & \multicolumn{4}{c}{wall-clock (s)} \\
+ & UIVI & AISIVI & KSIVI & DSIVI & UIVI & AISIVI & KSIVI & DSIVI & UIVI & AISIVI & KSIVI & DSIVI \\
+\midrule
+banana & -0.027 $\pm$ 0.00 & -8666.922 $\pm$ 8600.52 & -0.055 $\pm$ 0.01 & \textbf{-0.004 $\pm$ 0.00} & 0.376 $\pm$ 0.01 & 67.921 $\pm$ 49.30 & 0.591 $\pm$ 0.04 & \textbf{0.084 $\pm$ 0.02} & 836.461 $\pm$ 43.05 & 391.909 $\pm$ 40.89 & 384.234 $\pm$ 26.56 & \textbf{251.603 $\pm$ 20.51} \\
+multimodal & -0.035 $\pm$ 0.00 & -4.903e-04 $\pm$ 3.29e-04 & -0.007 $\pm$ 0.00 & \textbf{-1.545e-04 $\pm$ 1.19e-04} & 0.114 $\pm$ 0.01 & \textbf{0.034 $\pm$ 0.00} & 0.068 $\pm$ 0.01 & 0.046 $\pm$ 0.01 & 794.124 $\pm$ 15.69 & 416.307 $\pm$ 33.48 & 428.883 $\pm$ 31.69 & \textbf{213.536 $\pm$ 18.01} \\
+x_shaped & -0.063 $\pm$ 0.03 & -0.076 $\pm$ 0.03 & -0.411 $\pm$ 0.19 & \textbf{-0.008 $\pm$ 7.99e-04} & 0.207 $\pm$ 0.06 & 0.196 $\pm$ 0.06 & 0.737 $\pm$ 0.21 & \textbf{0.075 $\pm$ 0.01} & 793.649 $\pm$ 15.69 & 403.166 $\pm$ 24.45 & 450.111 $\pm$ 31.99 & \textbf{220.388 $\pm$ 12.02} \\
+student_uc & -2.683 $\pm$ 0.00 & -2.681 $\pm$ 0.00 & -14.270 $\pm$ 0.80 & \textbf{-2.677 $\pm$ 0.00} & 0.808 $\pm$ 0.14 & \textbf{0.617 $\pm$ 0.15} & 30.934 $\pm$ 4.59 & 0.736 $\pm$ 0.15 & 783.467 $\pm$ 16.75 & 404.363 $\pm$ 34.82 & 373.246 $\pm$ 29.33 & \textbf{214.436 $\pm$ 17.66} \\
+8_gaussians & -0.804 $\pm$ 0.01 & -17.685 $\pm$ 10.89 & -0.811 $\pm$ 0.12 & \textbf{-0.389 $\pm$ 0.15} & \textbf{0.312 $\pm$ 0.04} & 1.515 $\pm$ 0.67 & 0.526 $\pm$ 0.24 & 0.317 $\pm$ 0.09 & 774.272 $\pm$ 13.68 & 392.168 $\pm$ 36.07 & 368.029 $\pm$ 29.41 & \textbf{219.084 $\pm$ 18.45} \\
+\bottomrule
+\end{tabular}
+\end{table}

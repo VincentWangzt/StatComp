@@ -34,3 +34,18 @@ tmp*
 # Campaign runtime artifacts
 campaigns/*/runtime/
 campaigns/*/generated_reports/
+!campaigns/default_config_grid/generated_reports/
+campaigns/default_config_grid/generated_reports/*
+!campaigns/default_config_grid/generated_reports/summary.csv
+!campaigns/default_config_grid/generated_reports/finalization/
+campaigns/default_config_grid/generated_reports/finalization/**
+!campaigns/default_config_grid/generated_reports/finalization/finalization_report.md
+!campaigns/default_config_grid/generated_reports/finalization/reevaluation_*.csv
+!campaigns/default_config_grid/generated_reports/finalization/reevaluation_*.jsonl
+!campaigns/default_config_grid/generated_reports/finalization/figures/
+!campaigns/default_config_grid/generated_reports/finalization/figures/*.png
+!campaigns/default_config_grid/generated_reports/finalization/figures/*.pdf
+!campaigns/default_config_grid/generated_reports/finalization/tables/
+!campaigns/default_config_grid/generated_reports/finalization/tables/*.tex
+campaigns/**/.ipynb_checkpoints/
+campaigns/**/.ipynb_checkpoints/**

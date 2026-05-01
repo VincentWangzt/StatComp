@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{BNN test RMSE and test NLL.}
+\label{tab:bnn-rmse-nll}
+\begin{tabular}{lcccccccccc}
+\toprule
+Target & \multicolumn{5}{c}{RMSE} & \multicolumn{5}{c}{NLL} \\
+ & SIVI & UIVI & AISIVI & KSIVI & DSIVI & SIVI & UIVI & AISIVI & KSIVI & DSIVI \\
+\midrule
+Bnn_boston & 2.888 $\pm$ 0.08 & 3.164 $\pm$ 0.17 & 3.169 $\pm$ 0.14 & 2.688 $\pm$ 0.02 & \textbf{2.548 $\pm$ 0.04} & 2.527 $\pm$ 0.01 & 2.585 $\pm$ 0.03 & 2.590 $\pm$ 0.02 & 2.491 $\pm$ 0.00 & \textbf{2.449 $\pm$ 0.01} \\
+Bnn_concrete & 6.961 $\pm$ 0.08 & 7.633 $\pm$ 0.06 & 8.254 $\pm$ 0.36 & 6.365 $\pm$ 0.02 & \textbf{6.281 $\pm$ 0.05} & 3.379 $\pm$ 0.01 & 3.498 $\pm$ 0.01 & 3.557 $\pm$ 0.06 & \textbf{3.266 $\pm$ 0.00} & 3.270 $\pm$ 0.01 \\
+Bnn_power & 3.935 $\pm$ 0.01 & 3.972 $\pm$ 0.02 & 4.010 $\pm$ 0.02 & 4.042 $\pm$ 0.08 & \textbf{3.886 $\pm$ 0.02} & 2.802 $\pm$ 0.00 & 2.813 $\pm$ 0.00 & 2.826 $\pm$ 0.00 & 2.853 $\pm$ 0.03 & \textbf{2.783 $\pm$ 0.01} \\
+Bnn_protein & 4.878 $\pm$ 0.04 & 5.018 $\pm$ 0.01 & 4.940 $\pm$ 0.03 & 4.972 $\pm$ 0.00 & \textbf{4.499 $\pm$ 0.01} & 3.017 $\pm$ 0.01 & 3.027 $\pm$ 0.00 & 3.029 $\pm$ 0.00 & 3.022 $\pm$ 7.51e-04 & \textbf{2.929 $\pm$ 0.00} \\
+Bnn_winered & 0.619 $\pm$ 0.01 & 0.628 $\pm$ 0.01 & 0.610 $\pm$ 0.00 & \textbf{0.601 $\pm$ 0.00} & 0.614 $\pm$ 0.00 & 0.934 $\pm$ 0.02 & 0.950 $\pm$ 0.01 & 0.921 $\pm$ 0.01 & \textbf{0.910 $\pm$ 0.00} & 0.932 $\pm$ 0.01 \\
+Bnn_yacht & 1.837 $\pm$ 0.18 & 2.592 $\pm$ 0.14 & 2.508 $\pm$ 0.17 & \textbf{1.255 $\pm$ 0.07} & 1.366 $\pm$ 0.08 & 1.804 $\pm$ 0.06 & 2.158 $\pm$ 0.07 & 2.113 $\pm$ 0.09 & 1.595 $\pm$ 0.04 & \textbf{1.570 $\pm$ 0.12} \\
+\bottomrule
+\end{tabular}
+\end{table}

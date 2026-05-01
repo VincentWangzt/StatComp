@@ -1,0 +1,15 @@
+\begin{table}[t]
+\centering
+\caption{Selected toy target final evaluation metrics by method.}
+\label{tab:toy-method-grid}
+\begin{tabular}{lccccccc}
+\toprule
+Method & \multicolumn{3}{c}{ELBO} & \multicolumn{3}{c}{W2} & Avg. training time (s) \\
+ & student_uc & 8_gaussians & x_shaped & student_uc & 8_gaussians & x_shaped &  \\
+\midrule
+UIVI & -2.683 $\pm$ 0.00 & -0.804 $\pm$ 0.01 & -0.063 $\pm$ 0.03 & 0.141 $\pm$ 0.01 & 0.328 $\pm$ 0.05 & 0.207 $\pm$ 0.06 & 752.539 $\pm$ 6.23 \\
+AISIVI & -2.681 $\pm$ 0.00 & -17.685 $\pm$ 10.89 & -0.076 $\pm$ 0.03 & 0.125 $\pm$ 0.01 & 0.672 $\pm$ 0.17 & 0.196 $\pm$ 0.06 & 335.754 $\pm$ 5.53 \\
+DSIVI & \textbf{-2.677 $\pm$ 0.00} & \textbf{-0.389 $\pm$ 0.15} & \textbf{-0.008 $\pm$ 7.99e-04} & \textbf{0.083 $\pm$ 0.00} & \textbf{0.318 $\pm$ 0.11} & \textbf{0.075 $\pm$ 0.01} & 182.031 $\pm$ 1.10 \\
+\bottomrule
+\end{tabular}
+\end{table}
