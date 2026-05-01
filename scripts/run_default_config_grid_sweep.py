@@ -20,10 +20,14 @@ from typing import Any
 
 from omegaconf import OmegaConf
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 import grid_finalization as finalization
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
 DEFAULT_METHODS = ("sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi")
 

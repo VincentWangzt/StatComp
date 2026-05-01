@@ -2,6 +2,7 @@ from .estimators import (
     estimate_log_q_prior,
     estimate_log_q_reverse_is,
     kde_expected_log_marginal,
+    load_baseline_sample_store,
     sample_reference_samples,
     summarize_elm,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "estimate_log_q_reverse_is",
     "fit_reverse_proposal",
     "kde_expected_log_marginal",
+    "load_baseline_sample_store",
     "sample_reference_samples",
     "save_reverse_proposal_fit",
     "summarize_elm",

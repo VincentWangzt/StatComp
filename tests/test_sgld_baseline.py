@@ -6,7 +6,7 @@ from pathlib import Path
 
 import torch
 
-from scripts.evaluate_kde_expected_log_marginal import load_baseline_sample_store
+from utils.elm import load_baseline_sample_store
 from utils.mcmc import SGLDConfig, SGLDSampler
 
 

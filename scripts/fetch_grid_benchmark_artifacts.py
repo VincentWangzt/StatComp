@@ -17,8 +17,8 @@ from grid_benchmark_common import CAMPAIGN_SLUG, REPO_ROOT  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch compact benchmark artifacts from the remote server.")
-    parser.add_argument("--host", default="root@region-41.seetacloud.com")
-    parser.add_argument("--port", type=int, default=44817)
+    parser.add_argument("--host", default="root@connect.nmb1.seetacloud.com")
+    parser.add_argument("--port", type=int, default=48236)
     parser.add_argument("--remote-repo", default="~/ruivi")
     parser.add_argument("--campaign-slug", default=CAMPAIGN_SLUG)
     parser.add_argument(

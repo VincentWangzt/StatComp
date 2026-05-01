@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -21,6 +22,23 @@ from .types import ELMEstimate, KDEELMEstimate, LogQEstimate
 
 LOG_ZERO = float("-inf")
 HALF_LOG_2PI = 0.5 * math.log(2.0 * math.pi)
+
+
+def load_baseline_sample_store(path: Path) -> torch.Tensor:
+    """Load a saved baseline sample tensor from either a raw tensor or dict store."""
+    samples = torch.load(path, map_location="cpu")
+    if isinstance(samples, dict):
+        if "samples" not in samples:
+            raise KeyError(f"Sample store {path} does not contain a 'samples' key.")
+        samples = samples["samples"]
+    samples = torch.as_tensor(samples, dtype=torch.float32)
+    if samples.ndim != 2:
+        raise ValueError(
+            f"Baseline samples must have shape [num_samples, z_dim], got {tuple(samples.shape)}."
+        )
+    if samples.shape[0] < 1:
+        raise ValueError("Baseline sample store is empty.")
+    return samples
 
 
 def sample_reference_samples(
