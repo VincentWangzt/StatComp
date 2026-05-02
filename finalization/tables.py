@@ -131,7 +131,9 @@ def _value_se_text(
     value_precision: int,
     se_precision: int,
     bold: bool = False,
+    underline: bool = False,
     bold_se: bool | None = None,
+    underline_se: bool | None = None,
     se_footnotesize: bool = False,
     value_scientific: bool = True,
     se_scientific: bool = True,
@@ -141,13 +143,19 @@ def _value_se_text(
     value_text = _fmt(mean, value_precision, scientific=value_scientific)
     if bold:
         value_text = f"\\textbf{{{value_text}}}"
+    elif underline:
+        value_text = f"\\underline{{{value_text}}}"
     if se is None:
         return value_text
     se_text = _fmt(se, se_precision, scientific=se_scientific)
     if bold_se is None:
         bold_se = bold
+    if underline_se is None:
+        underline_se = underline
     if bold_se:
         se_text = f"\\textbf{{{se_text}}}"
+    elif underline_se:
+        se_text = f"\\underline{{{se_text}}}"
     if se_footnotesize:
         se_text = f"{{\\footnotesize {se_text}}}"
     return f"{value_text} $\\pm$ {se_text}"
@@ -158,10 +166,12 @@ def _cell_small_se(
     metric: str,
     *,
     bold: bool,
+    underline: bool = False,
     value_precision: int,
     se_precision: int,
     se_scientific: bool = True,
     bold_se: bool | None = None,
+    underline_se: bool | None = None,
 ) -> str:
     return _value_se_text(
         _metric_value(row, metric),
@@ -169,17 +179,23 @@ def _cell_small_se(
         value_precision=value_precision,
         se_precision=se_precision,
         bold=bold and metric not in NO_BOLD_METRICS,
+        underline=underline and metric not in NO_BOLD_METRICS,
         se_footnotesize=True,
         bold_se=bold_se,
+        underline_se=underline_se,
         se_scientific=se_scientific,
     )
 
 
-def _integer_cell(value: float | None, *, bold: bool = False) -> str:
+def _integer_cell(value: float | None, *, bold: bool = False, underline: bool = False) -> str:
     if value is None:
         return "--"
     text = f"{int(round(value))}"
-    return f"\\textbf{{{text}}}" if bold else text
+    if bold:
+        return f"\\textbf{{{text}}}"
+    if underline:
+        return f"\\underline{{{text}}}"
+    return text
 
 
 def _best_methods(rows: list[dict[str, Any]], metric: str) -> set[str]:
@@ -194,6 +210,24 @@ def _best_methods(rows: list[dict[str, Any]], metric: str) -> set[str]:
         return set()
     best = max(value for _, value in values) if metric in HIGHER_IS_BETTER else min(value for _, value in values)
     return {method for method, value in values if math.isclose(value, best) or value == best}
+
+
+def _second_best_methods(rows: list[dict[str, Any]], metric: str) -> set[str]:
+    if metric in NO_BOLD_METRICS:
+        return set()
+    values: list[tuple[str, float]] = []
+    for row in rows:
+        value = _metric_value(row, metric)
+        if value is not None:
+            values.append((str(row["method"]), value))
+    if len(values) < 2:
+        return set()
+    best_set = _best_methods(rows, metric)
+    remaining = [(method, value) for method, value in values if method not in best_set]
+    if not remaining:
+        return set()
+    second = max(value for _, value in remaining) if metric in HIGHER_IS_BETTER else min(value for _, value in remaining)
+    return {method for method, value in remaining if math.isclose(value, second) or value == second}
 
 
 def _ordered_methods(
@@ -451,7 +485,7 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{BNN test performance and computational cost. RMSE and NLL are reported as mean $\\pm$ standard error. Lower is better.}",
+        "\\caption{BNN test performance and computational cost. RMSE and NLL are reported as mean $\\pm$ standard error. Lower is better. \\textbf{Bold} indicates the best result; \\underline{underline} indicates the second best.}",
         "\\label{tab:bnn-rmse-nll}",
         "\\small",
         "\\setlength{\\tabcolsep}{4.5pt}",
@@ -464,19 +498,24 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
     for target_idx, target in enumerate(targets):
         target_rows = [row for row in summary_rows if row["target"] == target and str(row["method"]) in methods]
         best_by_metric = {metric: _best_methods(target_rows, metric) for metric in ["rmse", "nll"]}
+        second_by_metric = {metric: _second_best_methods(target_rows, metric) for metric in ["rmse", "nll"]}
         dataset_label = f"\\multirow{{2}}{{*}}{{{_display_bnn_dataset(target)}}}"
         for metric_idx, metric in enumerate(["rmse", "nll"]):
             cells = [dataset_label if metric_idx == 0 else "", metric.upper()]
             for method in methods:
                 row = by_target_method.get((target, method))
+                is_best = method in best_by_metric[metric]
+                is_second = method in second_by_metric[metric]
                 cells.append(
                     "--"
                     if row is None
                     else _cell_small_se(
                         row,
                         metric,
-                        bold=method in best_by_metric[metric],
+                        bold=is_best,
+                        underline=is_second,
                         bold_se=False,
+                        underline_se=False,
                         value_precision=vp,
                         se_precision=sp,
                         se_scientific=False,
@@ -493,10 +532,14 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
         time_values[method] = mean
     finite_times = [value for value in time_values.values() if value is not None]
     best_time = min(finite_times) if finite_times else None
+    remaining_times = [value for value in finite_times if value != best_time]
+    second_best_time = min(remaining_times) if remaining_times else None
     time_cells = ["\\multicolumn{2}{l}{Avg. wall-clock time}"]
     for method in methods:
         mean = time_values[method]
-        time_cells.append(_integer_cell(mean, bold=mean is not None and mean == best_time))
+        is_best = mean is not None and mean == best_time
+        is_second = not is_best and mean is not None and second_best_time is not None and mean == second_best_time
+        time_cells.append(_integer_cell(mean, bold=is_best, underline=is_second))
     lines.append(" & ".join(time_cells) + " \\\\")
     lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
     return "\n".join(lines)
