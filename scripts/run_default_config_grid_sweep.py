@@ -1673,6 +1673,8 @@ def main() -> None:
                     last_summary_write_at=last_summary_write_at,
                     include_summary=False,
                 )
+                # brief pause between launches to prevent race conditions
+                time.sleep(2)
 
             finished_gpus: list[int] = []
             for gpu, active_run in list(active.items()):
