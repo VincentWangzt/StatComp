@@ -162,6 +162,78 @@ class DefaultConfigGridStalenessTests(unittest.TestCase):
         self.assertIn("- Total manifest runs: 2", summary_md)
         self.assertIn("- Recorded completed runs: 1", summary_md)
 
+    def test_summary_reuses_existing_compatible_rows(self) -> None:
+        entry = {
+            "run_id": "fresh",
+            "method": "SIVI",
+            "method_slug": "sivi",
+            "target": "banana",
+            "target_slug": "banana",
+            "seed": 42,
+            "config_path": "configs/sivi_banana.yaml",
+            "config_hash": "aaa",
+            "config_hash_version": sweep.CONFIG_HASH_VERSION,
+        }
+        event = {
+            "run_id": "fresh",
+            "status": "completed",
+            "config_hash": "aaa",
+            "duration_sec": 12.5,
+            "result_path": "results/fresh",
+            "tb_path": "tb_logs/fresh",
+            "console_log": "campaigns/default_config_grid/runtime/console_logs/fresh.log",
+        }
+        cached_row = {
+            "run_id": "fresh",
+            "status": "completed",
+            "method": "SIVI",
+            "method_slug": "sivi",
+            "target": "banana",
+            "target_slug": "banana",
+            "seed": 42,
+            "gpu": "",
+            "config_path": "configs/sivi_banana.yaml",
+            "config_hash": "aaa",
+            "config_hash_version": sweep.CONFIG_HASH_VERSION,
+            "artifact_config_hash": "",
+            "config_staleness": "fresh",
+            "wall_clock_sec": 12.5,
+            "training_time_sec": 10.0,
+            "iterations": 100,
+            "avg_iteration_time_sec": 0.1,
+            "result_path": "results/fresh",
+            "tb_path": "tb_logs/fresh",
+            "extracted_metrics_path": "tb_logs/fresh/extracted",
+            "console_log": "campaigns/default_config_grid/runtime/console_logs/fresh.log",
+            "run_log": "results/fresh/run.log",
+            "checkpoints_path": "",
+            "samples_path": "",
+            "plots_path": "",
+            "finalize_status": "pending",
+            "finalize_attempts": "",
+            "finalize_failure_reason": "",
+        }
+
+        original_read_metrics_csv = sweep.read_metrics_csv
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                report_dir = Path(tmp) / "reports"
+                report_dir.mkdir()
+                (report_dir / "summary.json").write_text(json.dumps([cached_row]), encoding="utf-8")
+
+                def fail_read_metrics_csv(path: Path) -> dict[str, list[dict[str, float]]]:
+                    raise AssertionError(f"metrics should not be reread for cached rows: {path}")
+
+                sweep.read_metrics_csv = fail_read_metrics_csv
+                sweep.write_summary(report_dir, [entry], [event])
+                rows = json.loads((report_dir / "summary.json").read_text(encoding="utf-8"))
+                cache_exists = (report_dir / "summary_cache.json").exists()
+        finally:
+            sweep.read_metrics_csv = original_read_metrics_csv
+
+        self.assertEqual(rows, [cached_row])
+        self.assertTrue(cache_exists)
+
     def test_artifact_config_hash_inventory_hashes_full_config_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

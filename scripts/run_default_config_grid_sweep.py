@@ -55,6 +55,7 @@ CONFIG_HASH_IGNORED_KEYS = {
     "output",
 }
 REVERSE_RUNNERS = {"RSIVI", "AISIVI", "DSIVI"}
+SUMMARY_CACHE_VERSION = "summary-row-cache-v1"
 
 
 @dataclass
@@ -596,6 +597,15 @@ def write_json(path: Path, payload: Any) -> None:
     tmp_path.replace(path)
 
 
+def read_json_or_default(path: Path, default: Any) -> Any:
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return default
+
+
 def atomic_write_text(path: Path, text: str) -> None:
     ensure_dir(path.parent)
     tmp_path = path.with_name(f"{path.name}.tmp")
@@ -871,6 +881,114 @@ def summarize_completed_run(
     return row
 
 
+def path_fingerprint(path: Path | None) -> dict[str, Any]:
+    if path is None or not path.exists():
+        return {"exists": False}
+    try:
+        stat = path.stat()
+    except OSError:
+        return {"exists": False}
+    return {
+        "exists": True,
+        "path": relpath(path),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+    }
+
+
+def summary_cache_key(
+    run_id: str,
+    event: dict[str, Any],
+    entry: dict[str, Any],
+    finalize_event: dict[str, Any],
+    result_path: Path | None,
+    tb_path: Path | None,
+    console_log: Path,
+) -> str:
+    metrics_path = tb_path / "extracted" / "metrics.csv" if tb_path is not None else None
+    payload = {
+        "version": SUMMARY_CACHE_VERSION,
+        "run_id": run_id,
+        "status": event.get("status", ""),
+        "run_status": event.get("run_status", ""),
+        "duration_sec": event.get("duration_sec", ""),
+        "result_path": relpath(result_path),
+        "tb_path": relpath(tb_path),
+        "console_log": relpath(console_log),
+        "entry_config_hash": entry.get("config_hash", ""),
+        "event_config_hash": event.get("config_hash", ""),
+        "artifact_config_hash": finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", "")),
+        "finalize_status": finalize_event.get("status", "pending"),
+        "finalize_attempt": finalize_event.get("attempt", ""),
+        "finalize_failure_reason": finalize_event.get("finalize_failure_reason", ""),
+        "metrics": path_fingerprint(metrics_path),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def load_summary_row_cache(cache_path: Path, summary_path: Path) -> dict[str, dict[str, Any]]:
+    cache = read_json_or_default(cache_path, {})
+    if isinstance(cache, dict) and cache.get("version") == SUMMARY_CACHE_VERSION:
+        rows = cache.get("rows", {})
+        if isinstance(rows, dict):
+            return rows
+
+    rows = read_json_or_default(summary_path, [])
+    if not isinstance(rows, list):
+        return {}
+    bootstrapped: dict[str, dict[str, Any]] = {}
+    try:
+        summary_mtime_ns = summary_path.stat().st_mtime_ns
+    except OSError:
+        summary_mtime_ns = 0
+    for row in rows:
+        if isinstance(row, dict) and row.get("run_id"):
+            bootstrapped[str(row["run_id"])] = {
+                "bootstrapped_summary_mtime_ns": summary_mtime_ns,
+                "row": row,
+            }
+    return bootstrapped
+
+
+def metrics_not_newer_than_summary(tb_path: Path | None, summary_mtime_ns: int) -> bool:
+    if tb_path is None or summary_mtime_ns <= 0:
+        return False
+    metrics_path = tb_path / "extracted" / "metrics.csv"
+    if not metrics_path.exists():
+        return True
+    try:
+        return metrics_path.stat().st_mtime_ns <= summary_mtime_ns
+    except OSError:
+        return False
+
+
+def cached_row_is_compatible(
+    cached_row: dict[str, Any],
+    event: dict[str, Any],
+    entry: dict[str, Any],
+    finalize_event: dict[str, Any],
+    result_path: Path | None,
+    tb_path: Path | None,
+    console_log: Path,
+) -> bool:
+    finalize_status = finalize_event.get("status", "pending")
+    artifact_hash = finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", ""))
+    duration = event.get("duration_sec", "")
+    return (
+        cached_row.get("status") == event.get("status", "")
+        and cached_row.get("config_hash", "") == entry.get("config_hash", "")
+        and cached_row.get("config_hash_version", "") == entry.get("config_hash_version", "")
+        and cached_row.get("artifact_config_hash", "") == artifact_hash
+        and cached_row.get("finalize_status", "pending") == finalize_status
+        and cached_row.get("finalize_attempts", "") == finalize_event.get("attempt", "")
+        and cached_row.get("finalize_failure_reason", "") == finalize_event.get("finalize_failure_reason", "")
+        and cached_row.get("wall_clock_sec", "") == duration
+        and cached_row.get("result_path", "") == (relpath(result_path) or "")
+        and cached_row.get("tb_path", "") == (relpath(tb_path) or "")
+        and cached_row.get("console_log", "") == (relpath(console_log) or "")
+    )
+
+
 def write_summary(
     report_dir: Path,
     entries: list[dict[str, Any]],
@@ -878,6 +996,10 @@ def write_summary(
     finalize_statuses: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     ensure_dir(report_dir)
+    summary_path = report_dir / "summary.json"
+    cache_path = report_dir / "summary_cache.json"
+    row_cache = load_summary_row_cache(cache_path, summary_path)
+    next_cache: dict[str, dict[str, Any]] = {}
     event_by_run = latest_terminal_status(events)
     entry_by_run = {entry["run_id"]: entry for entry in entries}
     finalize_statuses = finalize_statuses or {}
@@ -904,35 +1026,70 @@ def write_summary(
         tb_path_value = finalize_event.get("tb_path") or event.get("tb_path")
         tb_path = repo_path(tb_path_value) if tb_path_value else None
         console_log = repo_path(event["console_log"]) if event.get("console_log") else report_dir / "missing.log"
-        if event.get("status") == "completed":
-            row = summarize_completed_run(summary_event, entry, console_log, result_path, tb_path)
+        cache_key = summary_cache_key(run_id, event, entry, finalize_event, result_path, tb_path, console_log)
+        cached = row_cache.get(run_id, {})
+        cached_row = cached.get("row") if isinstance(cached, dict) else None
+        if (
+            isinstance(cached_row, dict)
+            and (
+                cached.get("key") == cache_key
+                or (
+                    metrics_not_newer_than_summary(
+                        tb_path,
+                        int(cached.get("bootstrapped_summary_mtime_ns", 0)),
+                    )
+                    and cached_row_is_compatible(
+                        cached_row,
+                        event,
+                        entry,
+                        finalize_event,
+                        result_path,
+                        tb_path,
+                        console_log,
+                    )
+                )
+            )
+        ):
+            row = dict(cached_row)
         else:
-            row = {
-                "run_id": run_id,
-                "status": event.get("status", ""),
-                "method": entry["method"],
-                "method_slug": entry["method_slug"],
-                "target": entry["target"],
-                "target_slug": entry["target_slug"],
-                "seed": entry["seed"],
-                "gpu": event.get("gpu", ""),
-                "config_path": entry["config_path"],
-                "config_hash": entry.get("config_hash", ""),
-                "config_hash_version": entry.get("config_hash_version", ""),
-                "artifact_config_hash": finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", "")),
-                "config_staleness": classify_config_staleness(entry, event),
-                "wall_clock_sec": event.get("duration_sec", ""),
-                "failure_reason": event.get("failure_reason", ""),
-                "console_log": event.get("console_log", ""),
-                "result_path": event.get("result_path", ""),
-                "tb_path": tb_path_value or "",
-            }
-        row["finalize_status"] = finalize_event.get("status", "pending")
-        row["finalize_attempts"] = finalize_event.get("attempt", "")
-        row["finalize_failure_reason"] = finalize_event.get("finalize_failure_reason", "")
+            if event.get("status") == "completed":
+                row = summarize_completed_run(summary_event, entry, console_log, result_path, tb_path)
+            else:
+                row = {
+                    "run_id": run_id,
+                    "status": event.get("status", ""),
+                    "method": entry["method"],
+                    "method_slug": entry["method_slug"],
+                    "target": entry["target"],
+                    "target_slug": entry["target_slug"],
+                    "seed": entry["seed"],
+                    "gpu": event.get("gpu", ""),
+                    "config_path": entry["config_path"],
+                    "config_hash": entry.get("config_hash", ""),
+                    "config_hash_version": entry.get("config_hash_version", ""),
+                    "artifact_config_hash": finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", "")),
+                    "config_staleness": classify_config_staleness(entry, event),
+                    "wall_clock_sec": event.get("duration_sec", ""),
+                    "failure_reason": event.get("failure_reason", ""),
+                    "console_log": event.get("console_log", ""),
+                    "result_path": event.get("result_path", ""),
+                    "tb_path": tb_path_value or "",
+                }
+            row["finalize_status"] = finalize_event.get("status", "pending")
+            row["finalize_attempts"] = finalize_event.get("attempt", "")
+            row["finalize_failure_reason"] = finalize_event.get("finalize_failure_reason", "")
+        next_cache[run_id] = {"key": cache_key, "row": row}
         rows.append(row)
 
-    write_json(report_dir / "summary.json", rows)
+    write_json(summary_path, rows)
+    write_json(
+        cache_path,
+        {
+            "version": SUMMARY_CACHE_VERSION,
+            "updated_at": utc_now(),
+            "rows": next_cache,
+        },
+    )
     if rows:
         fieldnames = sorted({key for row in rows for key in row})
         csv_path = report_dir / "summary.csv"
