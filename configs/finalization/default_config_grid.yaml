@@ -11,6 +11,8 @@ selection:
   evaluation_targets: [banana, multimodal, x_shaped, student_uc, 8_gaussians, Langevin_post]
   scatter_targets: [x_shaped, student_uc, 8_gaussians]
   scatter_methods: [GroundTruth, AISIVI, UIVI, DSIVI]
+  kl_curve_targets: [x_shaped, student_uc, 8_gaussians]
+  kl_curve_methods: [UIVI, AISIVI, DSIVI]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
   seed_for_figures: 42
 
@@ -24,6 +26,8 @@ modules:
   student_edge_table: true
   langevin_trace_grid: true
   bnn_table: true
+  kl_iteration_grid: true
+  kl_time_grid: true
 
 evaluation:
   device: auto
@@ -93,6 +97,20 @@ plots:
   langevin_trace:
     num_samples: 10000
     figsize_per_panel: [3.2, 2.4]
+  kl_iteration:
+    figsize_per_panel: [3.5, 2.5]
+    n_grid: 200
+    linewidth: 1.5
+    band_alpha: 0.25
+    title_fontsize: 13
+    label_fontsize: 12
+  kl_time:
+    figsize_per_panel: [3.5, 2.5]
+    n_grid: 200
+    linewidth: 1.5
+    band_alpha: 0.25
+    title_fontsize: 13
+    label_fontsize: 12
 
 tables:
   best_bold: true

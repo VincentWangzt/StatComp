@@ -169,3 +169,65 @@ def load_baseline_samples(target: str) -> torch.Tensor:
                 payload = payload["samples"]
             return torch.as_tensor(payload, dtype=torch.float32, device="cpu")
     raise FileNotFoundError(f"No baseline samples found for {target}")
+
+
+# ---------------------------------------------------------------------------
+# TensorBoard metric series helpers
+# ---------------------------------------------------------------------------
+
+def resolve_tb_metrics_csv(rec: RunRecord) -> Path | None:
+    """Derive the path to the extracted metrics.csv for a run.
+
+    Path pattern:
+        {REPO_ROOT}/{tb_dir}/{runner_type}/{target}/{timestamp}/extracted/metrics.csv
+    where timestamp = basename of result_path.
+    """
+    tb_dir = rec.entry.get("tb_dir")
+    if not tb_dir:
+        return None
+    timestamp = Path(str(rec.result_path)).name
+    relative = Path(tb_dir) / rec.runner_type / rec.target / timestamp / "extracted" / "metrics.csv"
+    resolved = resolve_repo_path(relative)
+    if resolved is not None and resolved.is_file():
+        return resolved
+    return None
+
+
+def load_kl_ite_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.ndarray] | None":
+    """Load the KL_ITE time-series from a run's extracted metrics.csv.
+
+    Returns:
+        (steps, wall_times, values) — 1-D float64 arrays sorted by step.
+        None if the file doesn't exist or contains fewer than 2 valid kl_ite rows.
+    """
+    import csv as _csv
+    import numpy as np
+
+    csv_path = resolve_tb_metrics_csv(rec)
+    if csv_path is None:
+        return None
+    steps: list[int] = []
+    wall_times: list[float] = []
+    values: list[float] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            if row["tag"] != "metric/vi_model/kl_ite":
+                continue
+            steps.append(int(row["step"]))
+            wall_times.append(float(row["wall_time"]))
+            values.append(float(row["value"]))
+    if len(steps) < 2:
+        return None
+    steps_arr = np.array(steps, dtype=np.float64)
+    wall_times_arr = np.array(wall_times, dtype=np.float64)
+    values_arr = np.array(values, dtype=np.float64)
+    # Sort by step
+    order = np.argsort(steps_arr)
+    steps_arr, wall_times_arr, values_arr = steps_arr[order], wall_times_arr[order], values_arr[order]
+    # Drop non-finite values
+    mask = np.isfinite(values_arr)
+    if not mask.all():
+        steps_arr, wall_times_arr, values_arr = steps_arr[mask], wall_times_arr[mask], values_arr[mask]
+    if len(steps_arr) < 2:
+        return None
+    return steps_arr, wall_times_arr, values_arr

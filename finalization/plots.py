@@ -20,6 +20,7 @@ from .artifacts import (
     RunRecord,
     find_final_samples,
     load_baseline_samples,
+    load_kl_ite_series,
     load_sample_z,
     normalize_target,
     run_index,
@@ -378,6 +379,195 @@ def render_langevin_trace_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     png_path = out_dir / "langevin_trace_grid.png"
     pdf_path = out_dir / "langevin_trace_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+# ---------------------------------------------------------------------------
+# KL convergence curve plots
+# ---------------------------------------------------------------------------
+
+_KL_METHOD_COLORS: dict[str, str] = {
+    "UIVI": "#1f77b4",   # blue
+    "AISIVI": "#ff7f0e", # orange
+    "DSIVI": "#2ca02c",  # green
+    "KSIVI": "#d62728",  # red
+    "SIVI": "#9467bd",   # purple
+}
+
+
+def _method_color(method: str, idx: int = 0) -> str:
+    """Return a stable color for *method*, falling back to the tab10 cycle."""
+    key = method.upper()
+    if key in _KL_METHOD_COLORS:
+        return _KL_METHOD_COLORS[key]
+    tab10 = plt.cm.tab10.colors  # type: ignore[attr-defined]
+    return tab10[idx % len(tab10)]
+
+
+def _aggregate_curves(
+    seed_curves: list[tuple[np.ndarray, np.ndarray]],
+    n_grid: int = 200,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Interpolate seed curves to a common grid, return (grid, mean, se).
+
+    The common x-range is the intersection of all seeds' [min, max] ranges
+    so that ``np.interp`` never extrapolates.
+    """
+    if not seed_curves:
+        return None
+    global_min = max(float(xs.min()) for xs, _ in seed_curves)
+    global_max = min(float(xs.max()) for xs, _ in seed_curves)
+    if global_min >= global_max:
+        return None
+    grid = np.linspace(global_min, global_max, n_grid)
+    interpolated = np.empty((len(seed_curves), n_grid), dtype=np.float64)
+    for i, (xs, ys) in enumerate(seed_curves):
+        interpolated[i] = np.interp(grid, xs, ys)
+    mean = interpolated.mean(axis=0)
+    se = (
+        interpolated.std(axis=0, ddof=1) / np.sqrt(len(seed_curves))
+        if len(seed_curves) > 1
+        else np.zeros_like(mean)
+    )
+    return grid, mean, se
+
+
+def _collect_kl_curves(
+    records: list[RunRecord],
+    targets: list[str],
+    methods: list[str],
+    x_mode: str,
+) -> dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]]:
+    """Load KL_ITE series for all (method, target) pairs grouped by seed.
+
+    Args:
+        x_mode: ``"step"`` uses iteration number; ``"time"`` uses seconds elapsed.
+
+    Returns:
+        Mapping of ``(method_upper, target)`` to list of ``(x, y)`` seed curves.
+    """
+    method_set = {m.upper() for m in methods}
+    target_set = set(targets)
+
+    curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    for rec in records:
+        mu = rec.method.upper()
+        if mu not in method_set or rec.target not in target_set:
+            continue
+        loaded = load_kl_ite_series(rec)
+        if loaded is None:
+            continue
+        steps, wall_times, values = loaded
+        if x_mode == "step":
+            x = steps
+        else:
+            x = wall_times - wall_times[0]
+        key = (mu, rec.target)
+        curves.setdefault(key, []).append((x, values))
+    return curves
+
+
+def render_kl_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render KL(p, q_theta) vs iteration — one subplot per target, methods overlaid."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.kl_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.kl_curve_targets]
+    methods = [str(m) for m in cfg.selection.kl_curve_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    all_curves = _collect_kl_curves(records, targets, methods, x_mode="step")
+
+    n_cols = len(targets)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(r"$\mathrm{KL}(p,\, q_\theta)$", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = all_curves.get((mu, target), [])
+            agg = _aggregate_curves(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, se = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
+            ax.fill_between(grid, mean - se, mean + se, color=color, alpha=band_alpha)
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "kl_iteration_grid.png"
+    pdf_path = out_dir / "kl_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+def render_kl_time_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render KL(p, q_theta) vs wall-clock time — one subplot per target, methods overlaid."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.kl_time
+    targets = [normalize_target(str(t)) for t in cfg.selection.kl_curve_targets]
+    methods = [str(m) for m in cfg.selection.kl_curve_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    all_curves = _collect_kl_curves(records, targets, methods, x_mode="time")
+
+    n_cols = len(targets)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_xlabel("Time (s)", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(r"$\mathrm{KL}(p,\, q_\theta)$", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = all_curves.get((mu, target), [])
+            agg = _aggregate_curves(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, se = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
+            ax.fill_between(grid, mean - se, mean + se, color=color, alpha=band_alpha)
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "kl_time_grid.png"
+    pdf_path = out_dir / "kl_time_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)
