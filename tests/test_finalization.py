@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import unittest
 
+import torch
 from finalization.artifacts import normalize_target
 from omegaconf import OmegaConf
 
 from finalization.plots import langevin_panel_labels
-from finalization.runner_eval import summarize, truncated_w2_metric_name
+from finalization.runner_eval import constrained_w2, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
 from finalization.tables import render_bnn_table, render_langevin_table, render_toy_method_grid
 
 
@@ -30,6 +31,62 @@ class FinalizationTests(unittest.TestCase):
         self.assertEqual(truncated_w2_metric_name(6), "w2_trunc_abs_6")
         self.assertEqual(truncated_w2_metric_name(8.0), "w2_trunc_abs_8")
         self.assertEqual(truncated_w2_metric_name(6.5), "w2_trunc_abs_6_5")
+
+    def test_constrained_w2_falls_back_to_edge_length_when_max_draws_is_reached(self) -> None:
+        class FakeVI:
+            def sampling(self, num: int):
+                return None, torch.full((num, 2), 2.0)
+
+        class FakeTarget:
+            def sample(self, num: int):
+                return torch.zeros((num, 2))
+
+        class FakeRunner:
+            vi_model = FakeVI()
+            target_model = FakeTarget()
+            target_type = "fake"
+            device = "cpu"
+
+        warnings: list[str] = []
+        cfg = OmegaConf.create(
+            {
+                "accepted_samples": 2,
+                "sample_batch_size": 3,
+                "max_draws": 5,
+                "num_projections": 1,
+            }
+        )
+
+        value = constrained_w2(
+            FakeRunner(),
+            1.0,
+            cfg,
+            warning_callback=warnings.append,
+            warning_context={"run_id": "run-a", "metric": "w2_trunc_abs_1"},
+        )
+
+        self.assertEqual(value, 1.0)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("sampling process failed", warnings[0])
+        self.assertIn("using fallback W2=edge length 1", warnings[0])
+
+    def test_warning_rows_from_run_rows_expands_warning_json(self) -> None:
+        rows = [
+            {
+                "run_id": "run-a",
+                "seed": 42,
+                "method": "UIVI",
+                "target": "student_uc",
+                "checkpoint_epoch": 100,
+                "warnings": '{"w2_trunc_abs_8": "sampling process failed"}',
+            }
+        ]
+
+        [warning] = warning_rows_from_run_rows(rows)
+
+        self.assertEqual(warning["run_id"], "run-a")
+        self.assertEqual(warning["metric"], "w2_trunc_abs_8")
+        self.assertEqual(warning["warning"], "sampling process failed")
 
     def test_summarize_computes_mean_and_standard_error(self) -> None:
         rows = [

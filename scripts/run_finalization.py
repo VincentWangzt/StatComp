@@ -120,6 +120,8 @@ def main() -> None:
             if _enabled(cfg, "bnn_table") or name != "bnn":
                 generated.append(path.as_posix())
 
+    warning_summary = _read_csv(out_dir / "reevaluation_warning_summary.csv")
+
     report_path = out_dir / "finalization_report.md"
     lines = [
         "# Finalization Report",
@@ -133,6 +135,16 @@ def main() -> None:
         "",
     ]
     lines.extend(f"- `{path}`" for path in generated)
+    if warning_summary:
+        lines.extend(["", "## Warnings", ""])
+        total_warnings = sum(int(row.get("count") or 0) for row in warning_summary)
+        lines.append(f"Constrained W2 sampling process failed for {total_warnings} metric(s); edge-length fallbacks were used.")
+        for row in warning_summary:
+            lines.append(
+                "- "
+                f"{row.get('target', '')}/{row.get('method', '')}/{row.get('metric', '')}: "
+                f"{row.get('count', '')}"
+            )
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {report_path}")
 

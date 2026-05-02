@@ -7,7 +7,8 @@ import math
 import random
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -50,6 +51,20 @@ def truncated_w2_metric_name(width: float) -> str:
     else:
         width_text = f"{width_float:g}".replace(".", "_")
     return f"w2_trunc_abs_{width_text}"
+
+
+class ConstrainedW2SamplingFailure(RuntimeError):
+    def __init__(self, *, source: str, width: float, max_draws: int, draws: int, accepted: int, needed: int):
+        super().__init__(
+            f"{source} sampling reached max_draws={max_draws} before collecting "
+            f"{needed} accepted samples for width={width}; accepted={accepted}, draws={draws}"
+        )
+        self.source = source
+        self.width = float(width)
+        self.max_draws = int(max_draws)
+        self.draws = int(draws)
+        self.accepted = int(accepted)
+        self.needed = int(needed)
 
 
 def _campaign_summary_path(cfg: Any) -> Path:
@@ -181,29 +196,93 @@ def _sample_target(runner, count: int, batch_size: int) -> torch.Tensor:
     return baseline[torch.randperm(baseline.shape[0])[:count]]
 
 
-def constrained_w2(runner, width: float, cfg: Any) -> float:
+def _sampling_failure_warning(
+    *,
+    failure: ConstrainedW2SamplingFailure,
+    fallback_value: float,
+    context: dict[str, Any] | None,
+) -> str:
+    prefix = ""
+    if context:
+        labels = [
+            f"{key}={value}"
+            for key, value in context.items()
+            if value not in (None, "")
+        ]
+        if labels:
+            prefix = ", ".join(labels) + ": "
+    return (
+        f"{prefix}sampling process failed for constrained W2 "
+        f"(source={failure.source}, width={failure.width:g}, accepted={failure.accepted}/"
+        f"{failure.needed}, draws={failure.draws}, max_draws={failure.max_draws}); "
+        f"using fallback W2=edge length {fallback_value:g}."
+    )
+
+
+def constrained_w2(
+    runner,
+    width: float,
+    cfg: Any,
+    *,
+    warning_callback: Callable[[str], None] | None = None,
+    warning_context: dict[str, Any] | None = None,
+) -> float:
     needed = int(cfg.accepted_samples)
     batch_size = int(cfg.sample_batch_size)
     max_draws = int(cfg.max_draws or 0)
 
     def collect(source: str) -> torch.Tensor:
         accepted: list[torch.Tensor] = []
+        accepted_count = 0
         total = 0
-        while sum(x.shape[0] for x in accepted) < needed:
+        while accepted_count < needed:
             if max_draws > 0 and total >= max_draws:
-                raise RuntimeError(f"Reached max_draws={max_draws} for {source} width={width}")
+                raise ConstrainedW2SamplingFailure(
+                    source=source,
+                    width=float(width),
+                    max_draws=max_draws,
+                    draws=total,
+                    accepted=accepted_count,
+                    needed=needed,
+                )
+            current_batch = batch_size
+            if max_draws > 0:
+                current_batch = min(current_batch, max_draws - total)
+            if current_batch <= 0:
+                raise ConstrainedW2SamplingFailure(
+                    source=source,
+                    width=float(width),
+                    max_draws=max_draws,
+                    draws=total,
+                    accepted=accepted_count,
+                    needed=needed,
+                )
             if source == "vi":
-                samples = _sample_vi(runner, batch_size, batch_size)
+                samples = _sample_vi(runner, current_batch, current_batch)
             else:
-                samples = _sample_target(runner, batch_size, batch_size)
+                samples = _sample_target(runner, current_batch, current_batch)
             total += samples.shape[0]
             mask = (samples.abs() < float(width)).all(dim=1)
             if mask.any():
-                accepted.append(samples[mask].cpu())
+                selected = samples[mask].cpu()
+                accepted.append(selected)
+                accepted_count += int(selected.shape[0])
         return torch.cat(accepted, dim=0)[:needed]
 
-    vi = collect("vi")
-    truth = collect("truth")
+    try:
+        vi = collect("vi")
+        truth = collect("truth")
+    except ConstrainedW2SamplingFailure as exc:
+        fallback_value = abs(float(width))
+        message = _sampling_failure_warning(
+            failure=exc,
+            fallback_value=fallback_value,
+            context=warning_context,
+        )
+        logger.warning(message)
+        if warning_callback is not None:
+            warning_callback(message)
+        return fallback_value
     return compute_sliced_wasserstein(
         vi,
         truth,
@@ -241,6 +320,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
     runner, ckpt_dir, ckpt_epoch = build_runner(rec, runner_cfg)
     metrics: dict[str, float] = {}
     errors: dict[str, str] = {}
+    warnings: dict[str, str] = {}
     runtimes: dict[str, float] = {}
     raw_rows: list[dict[str, Any]] = []
 
@@ -260,6 +340,9 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
         runner.expected_log_marginal_dtype = str(eval_cfg.langevin_kde_elm.dtype)
         runner._expected_log_marginal_reference_samples = None
 
+        def record_metric_warning(metric_name: str) -> Callable[[str], None]:
+            return lambda msg: warnings.__setitem__(metric_name, msg)
+
         metric_plan: list[tuple[str, Any]] = []
         if rec.target in {"banana", "multimodal", "x_shaped", "student_uc", "8_gaussians", "Langevin_post"}:
             metric_plan.append(("elbo", lambda: runner.evaluate_elbo()[0]))
@@ -269,28 +352,46 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
             target_widths = eval_cfg.truncated_w2.get("target_widths", {})
             if rec.target in target_widths:
                 width = float(target_widths[rec.target])
+                metric_name = truncated_w2_metric_name(width)
                 metric_plan.append((
-                    truncated_w2_metric_name(width),
-                    lambda w=width: constrained_w2(
+                    metric_name,
+                    lambda w=width, name=metric_name: constrained_w2(
                         runner,
                         w,
                         OmegaConf.merge(
                             eval_cfg.truncated_w2,
                             {"num_projections": int(eval_cfg.w2.num_projections)},
                         ),
+                        warning_callback=record_metric_warning(name),
+                        warning_context={
+                            "run_id": rec.run_id,
+                            "method": rec.method,
+                            "target": rec.target,
+                            "metric": name,
+                            "checkpoint_epoch": ckpt_epoch,
+                        },
                     ),
                 ))
         if rec.target == "student_uc" and bool(eval_cfg.student_uc_constrained_w2.enabled):
             for width in eval_cfg.student_uc_constrained_w2.widths:
+                metric_name = f"w2_edge_{int(width)}"
                 metric_plan.append((
-                    f"w2_edge_{int(width)}",
-                    lambda w=float(width): constrained_w2(
+                    metric_name,
+                    lambda w=float(width), name=metric_name: constrained_w2(
                         runner,
                         w,
                         OmegaConf.merge(
                             eval_cfg.student_uc_constrained_w2,
                             {"num_projections": int(eval_cfg.w2.num_projections)},
                         ),
+                        warning_callback=record_metric_warning(name),
+                        warning_context={
+                            "run_id": rec.run_id,
+                            "method": rec.method,
+                            "target": rec.target,
+                            "metric": name,
+                            "checkpoint_epoch": ckpt_epoch,
+                        },
                     ),
                 ))
         if rec.target == "Langevin_post" and bool(eval_cfg.langevin_kde_elm.enabled):
@@ -326,6 +427,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
                     "value": value,
                     "checkpoint_epoch": ckpt_epoch,
                     "duration_sec": rec.duration_sec,
+                    "warning": warnings.get(name, ""),
                 }
             )
 
@@ -338,6 +440,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
             "checkpoint_dir": ckpt_dir.as_posix(),
             "duration_sec": rec.duration_sec,
             "errors": json.dumps(errors, sort_keys=True),
+            "warnings": json.dumps(warnings, sort_keys=True),
             **metrics,
             **runtimes,
         }
@@ -521,6 +624,87 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def warning_rows_from_run_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    warning_rows: list[dict[str, Any]] = []
+    for row in rows:
+        raw_warnings = row.get("warnings", "")
+        if not raw_warnings:
+            continue
+        if isinstance(raw_warnings, dict):
+            parsed = raw_warnings
+        else:
+            try:
+                parsed = json.loads(str(raw_warnings))
+            except json.JSONDecodeError:
+                continue
+        if not isinstance(parsed, dict):
+            continue
+        for metric, message in parsed.items():
+            if not message:
+                continue
+            warning_rows.append(
+                {
+                    "run_id": row.get("run_id", ""),
+                    "seed": row.get("seed", ""),
+                    "method": row.get("method", ""),
+                    "target": row.get("target", ""),
+                    "metric": metric,
+                    "checkpoint_epoch": row.get("checkpoint_epoch", ""),
+                    "warning": message,
+                }
+            )
+    return warning_rows
+
+
+def summarize_warning_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(
+            (
+                str(row.get("target", "")),
+                str(row.get("method", "")),
+                str(row.get("metric", "")),
+            ),
+            [],
+        ).append(row)
+    out: list[dict[str, Any]] = []
+    for (target, method, metric), items in sorted(grouped.items()):
+        out.append(
+            {
+                "target": target,
+                "method": method,
+                "metric": metric,
+                "warning": "sampling process failed; edge-length fallback used",
+                "count": len(items),
+                "run_ids": ";".join(str(item.get("run_id", "")) for item in items),
+            }
+        )
+    return out
+
+
+def write_warning_outputs(out_dir: Path, run_rows: list[dict[str, Any]]) -> None:
+    warning_rows = warning_rows_from_run_rows(run_rows)
+    summary_rows = summarize_warning_rows(warning_rows)
+    write_csv(out_dir / "reevaluation_warnings.csv", warning_rows)
+    write_csv(out_dir / "reevaluation_warning_summary.csv", summary_rows)
+
+
+def log_warning_summary(run_rows: list[dict[str, Any]]) -> None:
+    warning_rows = warning_rows_from_run_rows(run_rows)
+    if not warning_rows:
+        return
+    summary_rows = summarize_warning_rows(warning_rows)
+    logger.warning("Sampling process failed for %d constrained W2 metric(s).", len(warning_rows))
+    for row in summary_rows:
+        logger.warning(
+            "Sampling failure summary: target=%s method=%s metric=%s count=%s",
+            row["target"],
+            row["method"],
+            row["metric"],
+            row["count"],
+        )
+
+
 def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     out_dir = repo_path(str(cfg.campaign.output_dir))
     assert out_dir is not None
@@ -536,11 +720,13 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
         summary_rows = summarize(run_rows)
         write_csv(run_csv, run_rows)
         write_csv(summary_csv, summary_rows)
+        write_warning_outputs(out_dir, run_rows)
+        log_warning_summary(run_rows)
         return run_rows, summary_rows
 
     run_rows: list[dict[str, Any]] = []
     raw_rows: list[dict[str, Any]] = []
-    for rec in records:
+    for rec in tqdm(records, desc="Evaluating runs"):
         logger.info(f"Re-evaluating {rec.run_id}")
         summary, raw = evaluate_one_run(rec, cfg)
         run_rows.append(summary)
@@ -549,9 +735,12 @@ def evaluate_runs(records: list[RunRecord], cfg: Any) -> tuple[list[dict[str, An
         write_csv(run_csv, run_rows)
         write_jsonl(raw_jsonl, raw_rows)
         write_csv(summary_csv, summarize(run_rows))
+        write_warning_outputs(out_dir, run_rows)
     run_rows = _append_langevin_sgld_if_needed(run_rows, raw_rows, cfg)
     summary_rows = summarize(run_rows)
     write_csv(run_csv, run_rows)
     write_jsonl(raw_jsonl, raw_rows)
     write_csv(summary_csv, summary_rows)
+    write_warning_outputs(out_dir, run_rows)
+    log_warning_summary(run_rows)
     return run_rows, summary_rows
