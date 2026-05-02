@@ -41,7 +41,7 @@ Use these scripts for the current workflow:
 Preview the current default grid without launching jobs:
 
 ```
-python scripts\run_default_config_grid_sweep.py \
+python scripts/run_default_config_grid_sweep.py \
   --dry-run
 ```
 
@@ -52,7 +52,7 @@ uses all discovered GPUs unless `--gpus` is provided, writes run artifacts under
 default:
 
 ```
-python scripts\run_default_config_grid_sweep.py \
+python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
   --exclude-methods rsivi \
   --finalize-mode async \
@@ -64,12 +64,12 @@ effective configs, generate the hash inventory first, then rerun stale entries.
 The inventory command only writes hash files under campaign runtime and exits:
 
 ```
-python scripts\run_default_config_grid_sweep.py \
+python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
   --exclude-methods rsivi \
   --hash-existing-artifacts
 
-python scripts\run_default_config_grid_sweep.py \
+python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
   --exclude-methods rsivi \
   --rerun-stale
@@ -80,13 +80,13 @@ The default finalization config already selects `[SIVI, UIVI, AISIVI, DSIVI,
 KSIVI]`, matching the RSIVI-excluded sweep:
 
 ```
-python scripts\run_finalization.py
+python scripts/run_finalization.py
 ```
 
 Run only evaluation, overwriting existing reevaluation outputs:
 
-```powershell
-python scripts\run_finalization.py \
+```
+python scripts/run_finalization.py \
   --only evaluate \
   --set evaluation.overwrite=true
 ```
@@ -94,7 +94,7 @@ python scripts\run_finalization.py \
 Regenerate only the tables and figure grids from existing reevaluation outputs:
 
 ```
-python scripts\run_finalization.py \
+python scripts/run_finalization.py \
   --only scatter_grid \
   --only scatter_hist_grid \
   --only toy_tables \
