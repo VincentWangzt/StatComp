@@ -199,6 +199,13 @@ class BaseSIVIRunner():
         self.n_bnn_samples = self.config['metric']['bnn'].setdefault(
             'num_samples', 500)
 
+        # Jacobian spectral norm (Assumption 1 validation)
+        self.config.metric.setdefault('jacobian_spectral', {})
+        self.metric_jacobian_spectral_enabled = self.config['metric'][
+            'jacobian_spectral'].setdefault('enabled', False)
+        self.n_jacobian_spectral_samples = self.config['metric'][
+            'jacobian_spectral'].setdefault('num_samples', 128)
+
         # vi model config
         self.vi_model_type: str = self.config.vi_model_type
         logger.info(f"VI model type: {self.vi_model_type}")
@@ -942,6 +949,42 @@ class BaseSIVIRunner():
         self.writer.add_scalar("metric/vi_model/fisher_div", fisher_val, epoch)
         logger.debug(f"Epoch {epoch}, Fisher Divergence: {fisher_val:.4f}")
 
+    def eval_jacobian_spectral(self, epoch: int):
+        '''
+        Evaluate Jacobian spectral norms (Assumption 1) and log to TensorBoard.
+
+        Computes E_ε[‖∇_φ μ_φ(ε)‖₂²] and E_ε[‖∇_φ σ_φ(ε)‖₂²] where the
+        norm is the matrix 2-norm (spectral norm) of the d_z × d_φ Jacobian.
+
+        Args:
+            epoch (int): Current epoch number.
+        '''
+        from utils.jacobian_spectral import evaluate_assumption_bound
+
+        was_training = self.vi_model.training
+        self.vi_model.eval()
+
+        epsilon = self.vi_model.sample_epsilon(
+            num=self.n_jacobian_spectral_samples)
+        bound = evaluate_assumption_bound(self.vi_model, epsilon)
+
+        self.writer.add_scalar(
+            "metric/vi_model/jacobian_spectral_mu",
+            bound.mean_sq_spectral_mu, epoch)
+        self.writer.add_scalar(
+            "metric/vi_model/jacobian_spectral_std",
+            bound.mean_sq_spectral_std, epoch)
+        self.writer.add_scalar(
+            "metric/vi_model/M_eps",
+            bound.M_eps, epoch)
+        logger.debug(
+            f"Epoch {epoch}, M_eps: {bound.M_eps:.4f} "
+            f"(mu: {bound.mean_sq_spectral_mu:.4f}, "
+            f"std: {bound.mean_sq_spectral_std:.4f})")
+
+        if was_training:
+            self.vi_model.train()
+
     def log_reverse_score_l2_to_target(
         self,
         score_eval: torch.Tensor,
@@ -1496,6 +1539,14 @@ class BaseSIVIRunner():
                     t_fisher1 = time.perf_counter()
 
                     time_scalars['fisher_estimation'] = t_fisher1 - t_fisher0
+
+                if self.metric_jacobian_spectral_enabled:
+                    t_jspec0 = time.perf_counter()
+                    self.eval_jacobian_spectral(epoch)
+                    t_jspec1 = time.perf_counter()
+
+                    time_scalars['jacobian_spectral_estimation'] = (
+                        t_jspec1 - t_jspec0)
 
                 t_metric1 = time.perf_counter()
                 time_metric_step = t_metric1 - t_metric0

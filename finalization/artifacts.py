@@ -132,6 +132,23 @@ def find_final_checkpoint(result_dir: Path) -> tuple[Path, int]:
     return ckpt_dir, epoch
 
 
+def find_all_checkpoints(result_dir: Path) -> list[tuple[int, Path]]:
+    """Return all checkpoint (epoch, vi_model_path) pairs, sorted by epoch."""
+    ckpt_root = result_dir / "checkpoints"
+    candidates: list[tuple[int, Path]] = []
+    for epoch_dir in ckpt_root.glob("epoch_*"):
+        if not epoch_dir.is_dir():
+            continue
+        try:
+            epoch = int(epoch_dir.name.split("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        model_path = epoch_dir / "vi_model.pt"
+        if model_path.is_file():
+            candidates.append((epoch, model_path))
+    return sorted(candidates, key=lambda item: item[0])
+
+
 _SAMPLE_RE = re.compile(r"samples_epoch_(?P<epoch>\d+)\.pt$")
 
 
