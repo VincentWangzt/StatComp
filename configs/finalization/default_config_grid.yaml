@@ -78,6 +78,8 @@ evaluation:
     num_samples: 2000
   m_eps:
     n_samples: 1024
+    n_samples_override:
+      Bnn_boston: 128
     checkpoint_stride: 1
     overwrite: false
 

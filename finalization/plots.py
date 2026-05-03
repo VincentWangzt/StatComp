@@ -721,7 +721,8 @@ def _evaluate_m_eps(
     if csv_path.exists() and not overwrite:
         return csv_path
 
-    n_samples = int(m_eps_cfg.get("n_samples", 1024))
+    n_samples_default = int(m_eps_cfg.get("n_samples", 1024))
+    n_samples_override = dict(m_eps_cfg.get("n_samples_override", {}))
     checkpoint_stride = int(m_eps_cfg.get("checkpoint_stride", 1))
     device = str(cfg.evaluation.get("device", "auto"))
 
@@ -734,6 +735,7 @@ def _evaluate_m_eps(
     all_results: list[dict[str, Any]] = []
     for rec in dsivi_records:
         try:
+            n_samples = int(n_samples_override.get(rec.target, n_samples_default))
             run_results = evaluate_m_eps_run(
                 rec,
                 device=device,
