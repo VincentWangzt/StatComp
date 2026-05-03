@@ -364,18 +364,19 @@ def render_langevin_trace_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig, axes = plt.subplots(2, cols, figsize=(panel_w * cols, panel_h * 2), squeeze=False, sharey=True)
     for ax in axes.ravel()[len(panels):]:
         ax.axis("off")
-    for ax, (label, (t, true_path, mean, low, high, obs_points)) in zip(axes.ravel(), stats):
-        ax.plot(t, true_path, color="magenta", linewidth=1.0, label="true path")
-        ax.plot(t, mean, color="blue", linewidth=1.0, label="sample path")
+    for i, (ax, (label, (t, true_path, mean, low, high, obs_points))) in enumerate(zip(axes.ravel(), stats)):
+        first = i == 0
+        ax.plot(t, true_path, color="magenta", linewidth=1.0, label="true path" if first else None)
+        ax.plot(t, mean, color="blue", linewidth=1.0, label="sample path" if first else None)
         ax.plot(t, low, color="black", linewidth=0.6)
         ax.plot(t, high, color="black", linewidth=0.6)
-        ax.fill_between(t, low, high, facecolor="aqua", alpha=0.3)
-        ax.scatter(obs_points[:, 0], obs_points[:, 1], color="red", marker=".", linewidth=0.5, s=10)
+        ax.fill_between(t, low, high, facecolor="aqua", alpha=0.3, label="confidence interval" if first else None)
+        ax.scatter(obs_points[:, 0], obs_points[:, 1], color="red", marker=".", linewidth=0.5, s=10, label="observation" if first else None)
         ax.set_title(label, fontsize=10)
         ax.grid(True, linewidth=0.3)
         ax.set_ylim(y_min - margin, y_max + margin)
     handles, labels = axes[0][0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, fontsize=8)
+    fig.legend(handles, labels, loc="upper center", ncol=4, fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     png_path = out_dir / "langevin_trace_grid.png"
     pdf_path = out_dir / "langevin_trace_grid.pdf"
