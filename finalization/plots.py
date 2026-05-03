@@ -376,7 +376,7 @@ def render_langevin_trace_grid(records: list[RunRecord], cfg: Any) -> Path:
         ax.grid(True, linewidth=0.3)
         ax.set_ylim(y_min - margin, y_max + margin)
     handles, labels = axes[0][0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=4, fontsize=9)
+    fig.legend(handles, labels, loc="upper center", ncol=4, fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     png_path = out_dir / "langevin_trace_grid.png"
     pdf_path = out_dir / "langevin_trace_grid.pdf"
