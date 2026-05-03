@@ -95,7 +95,11 @@ def compute_param_jacobian(
     for d in range(d_z):
         model.zero_grad()
         output[d].backward(retain_graph=(d < d_z - 1))
-        row = torch.cat([p.grad.flatten() for p in model.parameters()])
+        row = torch.cat([
+            p.grad.flatten() if p.grad is not None
+            else torch.zeros(p.numel(), device=p.device)
+            for p in model.parameters()
+        ])
         rows.append(row)
 
     return torch.stack(rows)  # (d_z, d_phi)
