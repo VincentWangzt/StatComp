@@ -13,7 +13,7 @@ selection:
   scatter_methods: [GroundTruth, AISIVI, UIVI, DSIVI]
   kl_curve_targets: [x_shaped, student_uc, 8_gaussians]
   kl_curve_methods: [UIVI, AISIVI, DSIVI]
-  grad_norm_targets: [x_shaped]
+  grad_norm_targets: [x_shaped, Langevin_post, Bnn_power]
   grad_norm_methods: [DSIVI]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
   seed_for_figures: 42

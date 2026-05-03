@@ -665,10 +665,14 @@ def render_grad_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
                 continue
             grid, mean, min_vals, max_vals = agg
             color = _method_color(mu, m_idx)
-            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
-            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="Mean")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha, label="Min/Max")
         if log_scale:
             ax.set_yscale("log")
+            ax.yaxis.set_major_formatter(plt.ScalarFormatter())
+            ax.yaxis.get_major_formatter().set_scientific(False)
+            ax.yaxis.set_minor_formatter(plt.ScalarFormatter())
+            ax.yaxis.get_minor_formatter().set_scientific(False)
         ax.grid(True, linewidth=0.3)
         ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
         if col_idx == 0:
