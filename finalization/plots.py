@@ -20,6 +20,7 @@ from .artifacts import (
     RunRecord,
     find_final_samples,
     load_baseline_samples,
+    load_grad_norm_series,
     load_kl_ite_series,
     load_sample_z,
     normalize_target,
@@ -436,6 +437,31 @@ def _aggregate_curves(
     return grid, mean, se
 
 
+def _aggregate_curves_minmax(
+    seed_curves: list[tuple[np.ndarray, np.ndarray]],
+    n_grid: int = 200,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+    """Interpolate seed curves to a common grid, return (grid, mean, min, max).
+
+    The common x-range is the intersection of all seeds' [min, max] ranges
+    so that ``np.interp`` never extrapolates.
+    """
+    if not seed_curves:
+        return None
+    global_min = max(float(xs.min()) for xs, _ in seed_curves)
+    global_max = min(float(xs.max()) for xs, _ in seed_curves)
+    if global_min >= global_max:
+        return None
+    grid = np.linspace(global_min, global_max, n_grid)
+    interpolated = np.empty((len(seed_curves), n_grid), dtype=np.float64)
+    for i, (xs, ys) in enumerate(seed_curves):
+        interpolated[i] = np.interp(grid, xs, ys)
+    mean = interpolated.mean(axis=0)
+    min_vals = interpolated.min(axis=0)
+    max_vals = interpolated.max(axis=0)
+    return grid, mean, min_vals, max_vals
+
+
 def _collect_kl_curves(
     records: list[RunRecord],
     targets: list[str],
@@ -468,6 +494,33 @@ def _collect_kl_curves(
             x = wall_times - wall_times[0]
         key = (mu, rec.target)
         curves.setdefault(key, []).append((x, values))
+    return curves
+
+
+def _collect_grad_norm_curves(
+    records: list[RunRecord],
+    targets: list[str],
+    methods: list[str],
+) -> dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]]:
+    """Load gradient-norm series for all (method, target) pairs grouped by seed.
+
+    Returns:
+        Mapping of ``(method_upper, target)`` to list of ``(steps, values)`` seed curves.
+    """
+    method_set = {m.upper() for m in methods}
+    target_set = set(targets)
+
+    curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    for rec in records:
+        mu = rec.method.upper()
+        if mu not in method_set or rec.target not in target_set:
+            continue
+        loaded = load_grad_norm_series(rec)
+        if loaded is None:
+            continue
+        steps, _wall_times, values = loaded
+        key = (mu, rec.target)
+        curves.setdefault(key, []).append((steps, values))
     return curves
 
 
@@ -569,6 +622,61 @@ def render_kl_time_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "kl_time_grid.png"
     pdf_path = out_dir / "kl_time_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+def render_grad_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render gradient norm vs iteration -- one subplot per target, methods overlaid."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.grad_norm_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.grad_norm_targets]
+    methods = [str(m) for m in cfg.selection.grad_norm_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+    log_scale = bool(plot_cfg.get("log_scale", True))
+
+    all_curves = _collect_grad_norm_curves(records, targets, methods)
+
+    n_cols = len(targets)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel("Gradient Norm", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = all_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha)
+        if log_scale:
+            ax.set_yscale("log")
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "grad_norm_iteration_grid.png"
+    pdf_path = out_dir / "grad_norm_iteration_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)
