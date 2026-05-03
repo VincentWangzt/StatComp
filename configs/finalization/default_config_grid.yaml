@@ -121,7 +121,7 @@ plots:
     band_alpha: 0.25
     title_fontsize: 13
     label_fontsize: 12
-    log_scale: true
+    log_scale: false
 
 tables:
   best_bold: true
