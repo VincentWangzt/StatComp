@@ -1300,7 +1300,7 @@ class BaseSIVIRunner():
                     self.vi_model.parameters(), max_norm=self.grad_clip)
             else:
                 grad_norm = torch.nn.utils.get_total_norm(
-                    self.vi_model.parameters())
+                    [p.grad for p in self.vi_model.parameters() if p.grad is not None])
             self.optimizer_vi.step()
             self.scheduler_vi.step()
             if self.ema_enabled:
