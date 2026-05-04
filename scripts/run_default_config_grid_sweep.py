@@ -220,7 +220,9 @@ def artifact_config_hash(full_config_path: Path | str) -> str:
     return _hash_normalized_payload(load_config(repo_path(full_config_path)))
 
 
-def classify_config_staleness(entry: dict[str, Any], previous: dict[str, Any] | None) -> str:
+def classify_config_staleness(
+    entry: dict[str, Any], previous: dict[str, Any] | None, *, force_rerun: bool = False
+) -> str:
     if previous is None:
         return "new"
     status = previous.get("status")
@@ -230,7 +232,7 @@ def classify_config_staleness(entry: dict[str, Any], previous: dict[str, Any] | 
     if not previous_hash:
         return "unverified"
     if previous_hash == entry.get("config_hash"):
-        return "fresh"
+        return "stale" if force_rerun else "fresh"
     return "stale"
 
 
@@ -258,13 +260,14 @@ def enqueue_pending_entries(
     statuses: dict[str, dict[str, Any]],
     retry_failed: bool,
     rerun_stale: bool,
+    force_rerun: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     pending: list[dict[str, Any]] = []
     stale_completed: list[dict[str, Any]] = []
     unverified_completed: list[dict[str, Any]] = []
     for entry in entries:
         previous = statuses.get(entry["run_id"])
-        staleness = classify_config_staleness(entry, previous)
+        staleness = classify_config_staleness(entry, previous, force_rerun=force_rerun)
         if previous is None:
             pending.append(entry)
         elif previous.get("status") in {"failed", "worker_error"} and retry_failed:
@@ -1284,6 +1287,11 @@ def parse_args() -> argparse.Namespace:
         help="Rerun completed runs whose saved config hash differs from the current effective config hash.",
     )
     parser.add_argument(
+        "--force-rerun",
+        action="store_true",
+        help="Treat all matching completed runs as stale and rerun them (implies --rerun-stale).",
+    )
+    parser.add_argument(
         "--hash-existing-artifacts",
         action="store_true",
         help="Hash completed runs' result_path/full_config.yaml files and write an inventory under campaign runtime.",
@@ -1462,6 +1470,8 @@ def should_write_summary(last_summary_write_perf: float | None, interval_sec: fl
 
 def main() -> None:
     args = parse_args()
+    if args.force_rerun:
+        args.rerun_stale = True
     campaign_dir = REPO_ROOT / "campaigns" / args.campaign_slug
     runtime_dir = campaign_dir / "runtime"
     console_root = runtime_dir / "console_logs"
@@ -1523,6 +1533,7 @@ def main() -> None:
         statuses,
         retry_failed=args.retry_failed,
         rerun_stale=args.rerun_stale,
+        force_rerun=args.force_rerun,
     )
     warn_about_staleness(stale_completed, unverified_completed, args.rerun_stale)
     for entry in pending_entries:
@@ -1553,6 +1564,7 @@ def main() -> None:
             "extra_overrides": args.extra_override,
             "config_hash_version": CONFIG_HASH_VERSION,
             "rerun_stale": args.rerun_stale,
+            "force_rerun": args.force_rerun,
         },
     )
 
