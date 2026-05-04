@@ -1389,6 +1389,13 @@ class BaseSIVIRunner():
                     grad_norm.item(),
                     epoch,
                 )
+            weight_norm = torch.nn.utils.get_total_norm(
+                self.vi_model.parameters())
+            self.writer.add_scalar(
+                "diagnostic/vi_model/weight_norm",
+                weight_norm.item(),
+                epoch,
+            )
             z_norm = torch.norm(z, dim=1)
             self.writer.add_scalar(
                 "diagnostic/vi_model/z_norm_avg",
