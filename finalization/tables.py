@@ -7,6 +7,13 @@ from typing import Any
 from .config import repo_path
 
 
+def _display_method(name: str) -> str:
+    """Map internal method name to display name for table headers/legends."""
+    if name.upper() == "DSIVI":
+        return "DIVI"
+    return name
+
+
 LOWER_IS_BETTER = {
     "d_kl",
     "w2",
@@ -270,7 +277,7 @@ def _target_metric_table(
     ]
     metric_header = " & ".join(f"\\multicolumn{{{len(methods)}}}{{c}}{{{_label(metric)}}}" for metric in metrics)
     lines.append(f"Target & {metric_header} \\\\")
-    method_header = " & ".join(method for _metric in metrics for method in methods)
+    method_header = " & ".join(_display_method(method) for _metric in metrics for method in methods)
     lines.append(f" & {method_header} \\\\")
     lines.append("\\midrule")
 
@@ -325,7 +332,7 @@ def _method_metric_table(
     ]
     for method in methods:
         row = by_method.get(method)
-        cells = [method]
+        cells = [_display_method(method)]
         for metric in metrics:
             cells.append(
                 "--"
@@ -454,10 +461,10 @@ def render_langevin_table(summary_rows: list[dict[str, Any]], methods: list[str]
     for method in methods:
         row = by_method.get(method)
         if row is None:
-            cells = [method, "--", "--", "--"]
+            cells = [_display_method(method), "--", "--", "--"]
         else:
             cells = [
-                method,
+                _display_method(method),
                 _cell_small_se(
                     row,
                     "kde_elm",
@@ -492,7 +499,7 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
         "\\renewcommand{\\arraystretch}{1.08}",
         f"\\begin{{tabular}}{{{colspec}}}",
         "\\toprule",
-        "Dataset & Metric & " + " & ".join(methods) + " \\\\",
+        "Dataset & Metric & " + " & ".join(_display_method(m) for m in methods) + " \\\\",
         "\\midrule",
     ]
     for target_idx, target in enumerate(targets):
@@ -556,7 +563,7 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
         "\\label{tab:toy-method-grid}",
         "\\begin{tabular}{llccc}",
         "\\toprule",
-        "Target & Metric & " + " & ".join(TOY_METHOD_GRID_METHODS) + " \\\\",
+        "Target & Metric & " + " & ".join(_display_method(m) for m in TOY_METHOD_GRID_METHODS) + " \\\\",
         "\\midrule",
     ]
     best_d_kl: dict[str, set[str]] = {}

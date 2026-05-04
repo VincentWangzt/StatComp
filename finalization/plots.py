@@ -34,6 +34,13 @@ from .eval_assumption_jacobian import (
 )
 
 
+def _display_method(name: str) -> str:
+    """Map internal method name to display name for legends/titles."""
+    if name.upper() == "DSIVI":
+        return "DIVI"
+    return name
+
+
 def _target_bbox(target: str) -> list[float] | None:
     path = REPO_ROOT / "configs" / "targets" / f"{target}.yaml"
     if not path.exists():
@@ -307,7 +314,7 @@ def _is_truth_column(column: str) -> bool:
 
 
 def _scatter_column_label(column: str) -> str:
-    return "GroundTruth" if _is_truth_column(column) else column.upper()
+    return "GroundTruth" if _is_truth_column(column) else _display_method(column.upper())
 
 
 def _langevin_target(device: str = "cpu"):
@@ -385,7 +392,7 @@ def render_langevin_trace_grid(records: list[RunRecord], cfg: Any) -> Path:
         ax.plot(t, high, color="black", linewidth=0.6)
         ax.fill_between(t, low, high, facecolor="aqua", alpha=0.3, label="confidence interval" if first else None)
         ax.scatter(obs_points[:, 0], obs_points[:, 1], color="red", marker=".", linewidth=0.5, s=10, label="observation" if first else None)
-        ax.set_title(label, fontsize=10)
+        ax.set_title(_display_method(label), fontsize=10)
         ax.grid(True, linewidth=0.3)
         ax.set_ylim(y_min - margin, y_max + margin)
     handles, labels = axes[0][0].get_legend_handles_labels()
@@ -416,7 +423,8 @@ def _target_display_name(target: str) -> str:
 _KL_METHOD_COLORS: dict[str, str] = {
     "UIVI": "#1f77b4",   # blue
     "AISIVI": "#ff7f0e", # orange
-    "DSIVI": "#2ca02c",  # green
+    "DIVI": "#2ca02c",   # green
+    "DSIVI": "#2ca02c",  # green (internal name)
     "KSIVI": "#d62728",  # red
     "SIVI": "#9467bd",   # purple
 }
@@ -427,6 +435,9 @@ def _method_color(method: str, idx: int = 0) -> str:
     key = method.upper()
     if key in _KL_METHOD_COLORS:
         return _KL_METHOD_COLORS[key]
+    display = _display_method(key)
+    if display in _KL_METHOD_COLORS:
+        return _KL_METHOD_COLORS[display]
     tab10 = plt.cm.tab10.colors  # type: ignore[attr-defined]
     return tab10[idx % len(tab10)]
 
@@ -582,7 +593,7 @@ def render_kl_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
                 continue
             grid, mean, se = agg
             color = _method_color(mu, m_idx)
-            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label=_display_method(mu))
             ax.fill_between(grid, mean - se, mean + se, color=color, alpha=band_alpha)
         ax.grid(True, linewidth=0.3)
         ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
@@ -634,7 +645,7 @@ def render_kl_time_grid(records: list[RunRecord], cfg: Any) -> Path:
                 continue
             grid, mean, se = agg
             color = _method_color(mu, m_idx)
-            ax.plot(grid, mean, color=color, linewidth=linewidth, label=mu)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label=_display_method(mu))
             ax.fill_between(grid, mean - se, mean + se, color=color, alpha=band_alpha)
         ax.grid(True, linewidth=0.3)
         ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
