@@ -15,6 +15,8 @@ selection:
   kl_curve_methods: [UIVI, AISIVI, DSIVI]
   grad_norm_targets: [x_shaped, Langevin_post, Bnn_boston]
   grad_norm_methods: [DSIVI]
+  weight_norm_targets: [x_shaped, Langevin_post, Bnn_boston]
+  weight_norm_methods: [DSIVI]
   m_eps_targets: [x_shaped, Langevin_post, Bnn_boston]
   m_eps_methods: [DSIVI]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
@@ -33,6 +35,7 @@ modules:
   kl_iteration_grid: true
   kl_time_grid: true
   grad_norm_iteration_grid: true
+  weight_norm_iteration_grid: true
   m_eps_iteration_grid: true
 
 evaluation:
@@ -124,6 +127,14 @@ plots:
     title_fontsize: 13
     label_fontsize: 12
   grad_norm_iteration:
+    figsize_per_panel: [3.5, 2.5]
+    n_grid: 200
+    linewidth: 1.5
+    band_alpha: 0.25
+    title_fontsize: 13
+    label_fontsize: 12
+    log_scale: false
+  weight_norm_iteration:
     figsize_per_panel: [3.5, 2.5]
     n_grid: 200
     linewidth: 1.5

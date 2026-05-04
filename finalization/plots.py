@@ -23,6 +23,7 @@ from .artifacts import (
     load_grad_norm_series,
     load_kl_ite_series,
     load_sample_z,
+    load_weight_norm_series,
     normalize_target,
     run_index,
 )
@@ -685,6 +686,97 @@ def render_grad_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "grad_norm_iteration_grid.png"
     pdf_path = out_dir / "grad_norm_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+# ---------------------------------------------------------------------------
+# Weight-norm convergence curve plot
+# ---------------------------------------------------------------------------
+
+
+def _collect_weight_norm_curves(
+    records: list[RunRecord],
+    targets: list[str],
+    methods: list[str],
+) -> dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]]:
+    """Load weight-norm series for all (method, target) pairs grouped by seed.
+
+    Returns:
+        Mapping of ``(method_upper, target)`` to list of ``(steps, values)`` seed curves.
+    """
+    method_set = {m.upper() for m in methods}
+    target_set = set(targets)
+
+    curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    for rec in records:
+        mu = rec.method.upper()
+        if mu not in method_set or rec.target not in target_set:
+            continue
+        loaded = load_weight_norm_series(rec)
+        if loaded is None:
+            continue
+        steps, _wall_times, values = loaded
+        key = (mu, rec.target)
+        curves.setdefault(key, []).append((steps, values))
+    return curves
+
+
+def render_weight_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render weight norm vs iteration -- one subplot per target, methods overlaid."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.weight_norm_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.weight_norm_targets]
+    methods = [str(m) for m in cfg.selection.weight_norm_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+    log_scale = bool(plot_cfg.get("log_scale", False))
+
+    all_curves = _collect_weight_norm_curves(records, targets, methods)
+
+    n_cols = len(targets)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel("Weight Norm", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = all_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="Mean")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha, label="Min/Max")
+        if log_scale:
+            ax.set_yscale("log")
+            ax.yaxis.set_major_formatter(plt.ScalarFormatter())
+            ax.yaxis.get_major_formatter().set_scientific(False)
+            ax.yaxis.set_minor_formatter(plt.ScalarFormatter())
+            ax.yaxis.get_minor_formatter().set_scientific(False)
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "weight_norm_iteration_grid.png"
+    pdf_path = out_dir / "weight_norm_iteration_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)

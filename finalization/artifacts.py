@@ -288,3 +288,43 @@ def load_grad_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.n
     if len(steps_arr) < 2:
         return None
     return steps_arr, wall_times_arr, values_arr
+
+
+def load_weight_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.ndarray] | None":
+    """Load the weight-norm time-series from a run's extracted metrics.csv.
+
+    Returns:
+        (steps, wall_times, values) -- 1-D float64 arrays sorted by step.
+        None if the file doesn't exist or contains fewer than 2 valid rows.
+    """
+    import csv as _csv
+    import numpy as np
+
+    csv_path = resolve_tb_metrics_csv(rec)
+    if csv_path is None:
+        return None
+    steps: list[int] = []
+    wall_times: list[float] = []
+    values: list[float] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            if row["tag"] != "diagnostic/vi_model/weight_norm":
+                continue
+            steps.append(int(row["step"]))
+            wall_times.append(float(row["wall_time"]))
+            values.append(float(row["value"]))
+    if len(steps) < 2:
+        return None
+    steps_arr = np.array(steps, dtype=np.float64)
+    wall_times_arr = np.array(wall_times, dtype=np.float64)
+    values_arr = np.array(values, dtype=np.float64)
+    # Sort by step
+    order = np.argsort(steps_arr)
+    steps_arr, wall_times_arr, values_arr = steps_arr[order], wall_times_arr[order], values_arr[order]
+    # Drop non-finite values
+    mask = np.isfinite(values_arr)
+    if not mask.all():
+        steps_arr, wall_times_arr, values_arr = steps_arr[mask], wall_times_arr[mask], values_arr[mask]
+    if len(steps_arr) < 2:
+        return None
+    return steps_arr, wall_times_arr, values_arr
