@@ -7,8 +7,7 @@ Aggregate rows: 61
 
 ## Generated
 
-- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/grad_norm_iteration_grid.png`
-- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/weight_norm_iteration_grid.png`
+- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/m_eps_iteration_grid.png`
 
 ## Warnings
 
