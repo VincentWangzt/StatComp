@@ -29,7 +29,7 @@ import grid_finalization as finalization
 
 REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
-DEFAULT_METHODS = ("sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi")
+DEFAULT_METHODS = ("sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi", "kpg")
 
 METRIC_MODES = {
     "metric/vi_model/elbo": "max",
