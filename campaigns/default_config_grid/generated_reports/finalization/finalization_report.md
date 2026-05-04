@@ -7,7 +7,8 @@ Aggregate rows: 61
 
 ## Generated
 
-- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/m_eps_iteration_grid.png`
+- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/toy_scatter_grid.png`
+- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/toy_scatter_hist_grid.png`
 
 ## Warnings
 
