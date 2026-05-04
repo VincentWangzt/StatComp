@@ -102,11 +102,14 @@ def main() -> None:
             write_csv(out_dir / "reevaluation_runs.csv", run_rows)
             write_csv(out_dir / "reevaluation_summary.csv", summary_rows)
 
+    figure_seeds = {int(cfg.selection.seed_for_figures)}
+    for _method, override_seed in cfg.selection.get("seed_overrides", {}).items():
+        figure_seeds.add(int(override_seed))
     figure_records = select_runs(
         all_records,
         methods=sorted(set(methods) | {str(method) for method in cfg.selection.scatter_methods}),
         targets=sorted(set(str(target) for target in cfg.selection.scatter_targets) | {"Langevin_post"}),
-        seeds=[int(cfg.selection.seed_for_figures)],
+        seeds=sorted(figure_seeds),
     )
 
     generated: list[str] = []

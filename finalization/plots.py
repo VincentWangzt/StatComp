@@ -159,6 +159,13 @@ def _load_plot_samples(column: str, target: str, seed: int, idx: dict[tuple[int,
         return samples
 
 
+def _method_seed(cfg: Any, method: str) -> int:
+    """Return the seed for *method*, applying any per-method override."""
+    default = int(cfg.selection.seed_for_figures)
+    overrides = cfg.selection.get("seed_overrides", {})
+    return int(overrides.get(method.upper(), default))
+
+
 def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     root = repo_path(str(cfg.campaign.output_dir))
     assert root is not None
@@ -167,7 +174,6 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     targets = [normalize_target(str(target)) for target in cfg.selection.scatter_targets]
     configured_columns = [str(method) for method in cfg.selection.scatter_methods]
     columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
-    seed = int(cfg.selection.seed_for_figures)
     idx = run_index(records)
     num_points = int(cfg.plots.scatter.num_points)
     panel_w, panel_h = [float(x) for x in cfg.plots.scatter.figsize_per_panel]
@@ -196,6 +202,7 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                 if _is_truth_column(column):
                     samples = load_baseline_samples(target)
                 else:
+                    seed = _method_seed(cfg, column)
                     rec = idx[(seed, column.upper(), target)]
                     sample_path, _ = find_final_samples(rec.result_path)
                     samples = load_sample_z(sample_path)
@@ -233,7 +240,6 @@ def render_scatter_hist_grid(records: list[RunRecord], cfg: Any) -> Path:
     targets = [normalize_target(str(target)) for target in cfg.selection.scatter_targets]
     configured_columns = [str(method) for method in cfg.selection.scatter_methods]
     columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
-    seed = int(cfg.selection.seed_for_figures)
     idx = run_index(records)
     plot_cfg = cfg.plots.get("scatter_hist", cfg.plots.scatter)
     num_points = int(plot_cfg.get("num_points", cfg.plots.scatter.num_points))
@@ -265,6 +271,7 @@ def render_scatter_hist_grid(records: list[RunRecord], cfg: Any) -> Path:
             try:
                 if bbox is None:
                     raise ValueError(f"No bbox configured for {target}")
+                seed = _method_seed(cfg, column)
                 samples = _load_plot_samples(column, target, seed, idx, num_points, cfg, plot_cfg)
                 points = _take_points(samples[:, :2], num_points)
                 _draw_sample_hist2d(ax, points, bbox, bins=bins, alpha=hist_alpha)
