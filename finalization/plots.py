@@ -915,7 +915,7 @@ def render_m_eps_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
 
     for col_idx, target in enumerate(targets):
         ax = axes[0][col_idx]
-        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
             ax.set_ylabel(r"$M_\varepsilon$", fontsize=label_fontsize)
