@@ -1,13 +1,14 @@
 # Finalization Report
 
-Completed manifest runs discovered: 650
-Evaluation runs selected: 300
+Completed manifest runs discovered: 30
+Evaluation runs selected: 20
 Per-run rows: 601
 Aggregate rows: 61
 
 ## Generated
 
-- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/m_eps_iteration_grid.png`
+- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/grad_norm_iteration_grid.png`
+- `/root/ruivi/campaigns/default_config_grid/generated_reports/finalization/figures/weight_norm_iteration_grid.png`
 
 ## Warnings
 
