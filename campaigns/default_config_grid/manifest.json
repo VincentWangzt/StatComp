@@ -1640,7 +1640,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260428_055736"
   },
   {
-    "artifact_config_hash": "fe19c6b7415bd1a476fe3d4cd8cacd6d14dea2ca550e347615a335431dc56722",
+    "artifact_config_hash": "fe59fca387572575b8c70d9caf172940531306f373f1b2684907b53fd6e997f6",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -1661,23 +1661,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "562d67a4657edf1105b95b460b55bf2a4cf040deb0e1e88065d1cbd7b3adcb8e",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260428_055956",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_125714",
     "results_dir": "results/default_config_grid",
     "run_id": "seed42_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 0,
     "seed": 42,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260428_055956"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_125714"
   },
   {
     "artifact_config_hash": "430ecc25f069dee4dcb39f35d9d646b77ba20b1ae762adb83e773cd2c9a96cb6",
@@ -1880,7 +1880,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260501_145259"
   },
   {
-    "artifact_config_hash": "c689728a952f6a9caa26b3fe9f14d82e6f69ae6d92b554c8390e5d5746208356",
+    "artifact_config_hash": "5ec72f665df15ca8567dc85699e45667dc6d31a446ef971448f2429f18ea31df",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -1901,23 +1901,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 2,
+    "finalize_attempts": 3,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "90f734208ed532b8e2623199b8af6be03c5990f9a1220b88f0eb50322e72944c",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260429_220135",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_125717",
     "results_dir": "results/default_config_grid",
     "run_id": "seed42_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 1,
     "seed": 42,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260429_220135"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_125717"
   },
   {
     "artifact_config_hash": "841b889bfdd44e2d22890e677e3fe48513607f8597ea7593172b7feb9da54fc7",
@@ -2040,7 +2040,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260428_060434"
   },
   {
-    "artifact_config_hash": "5bbc47f634cebc9b7b7463bf3517b6df77225342e4a6095dbc9b52320edc77e2",
+    "artifact_config_hash": "bbeaf6bbafddc6b39bd067f33a0a5c161408cb70011d1f34b69aa968ab5ddc66",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -2061,23 +2061,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "d92c69f4bb2f3c4248525afa7e2496e344dcd3a626f13778e541a2c60673bb50",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260428_060620",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_125719",
     "results_dir": "results/default_config_grid",
     "run_id": "seed42_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 2,
     "seed": 42,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260428_060620"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_125719"
   },
   {
     "artifact_config_hash": "ef989a07ec956c80ce0a4cea3148b55f636174a591823df6a4882100ce628176",
@@ -4240,7 +4240,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260428_082337"
   },
   {
-    "artifact_config_hash": "04037d974bbcd19366210be24d88c9c099198c4cb829540820b41f438ca04b45",
+    "artifact_config_hash": "a7feac85caa4254cca81e5e4d32e4769c749e48d52e816f3188a8a01fc8a9f85",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -4261,23 +4261,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "c2981acc9e19df571addc8af4f9976de1cbf7b05ec5f4e6fc45511def435701e",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260428_082548",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_125940",
     "results_dir": "results/default_config_grid",
     "run_id": "seed43_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 0,
     "seed": 43,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260428_082548"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_125940"
   },
   {
     "artifact_config_hash": "57303b4c7263a6eb6f6489c8998f3a51da66cafc7a8b4d0aa854c43d3b15311d",
@@ -4480,7 +4480,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260501_155652"
   },
   {
-    "artifact_config_hash": "e7bf7306e4bbbc791165491cd55af179b8cb2452e83f80795270a03650facf45",
+    "artifact_config_hash": "ea7f49be48fc1a490dda36432cfa4db800f9aea30a056d005e19bc82e7bc7724",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -4501,23 +4501,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 2,
+    "finalize_attempts": 3,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "c3f0703f0f535e27d9e3e0219a1d29900e39c7a3e586b16336d04b4b76d6fbe7",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260429_221335",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_130041",
     "results_dir": "results/default_config_grid",
     "run_id": "seed43_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 2,
     "seed": 43,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260429_221335"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_130041"
   },
   {
     "artifact_config_hash": "b0df748e06cce715ac8595415813070c3aa68e5d745b5272d2811a3dc306d1e9",
@@ -4640,7 +4640,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260428_083235"
   },
   {
-    "artifact_config_hash": "1c35902bc2eaa13951fd6dea890bca0a724ada0d4f4e3c646061e29e775e333c",
+    "artifact_config_hash": "05bfa110b54c94d245cf9ca31bf4420732de886cef61e8f3c0fcf88d5711649b",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -4661,13 +4661,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "ebed1df452df4c84722b75160c875201c049b9886043bee5a98bd09a46839a7c",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260428_083321",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_130200",
     "results_dir": "results/default_config_grid",
     "run_id": "seed43_dsivi_x_shaped",
     "runner_type": "DSIVI",
@@ -4677,7 +4677,7 @@
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260428_083321"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_130200"
   },
   {
     "artifact_config_hash": "43d5dc75d324f691fc9e5ede92a74d5fc1a4a14f25a5afb5f46079cacf19a391",
@@ -6840,7 +6840,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260428_105219"
   },
   {
-    "artifact_config_hash": "6e74be23317e7c864664f1aeb17708a23917d024185f810a34312055f5606998",
+    "artifact_config_hash": "16e33bd4a9767a948faf6acf0848a835e74be2aa6510f6434eb71efcdf51fc82",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -6861,13 +6861,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "618527f8880eeb195cf37b34d73ad748c185a92f484b0f98a1328e99c6c375dc",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260428_105428",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_130251",
     "results_dir": "results/default_config_grid",
     "run_id": "seed44_dsivi_bnn_boston",
     "runner_type": "DSIVI",
@@ -6877,7 +6877,7 @@
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260428_105428"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_130251"
   },
   {
     "artifact_config_hash": "d1dcc4acfc80739ee8c692519e64ba52bea1cb499252cce9033df6ac4e11afb5",
@@ -7080,7 +7080,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260501_165635"
   },
   {
-    "artifact_config_hash": "763e28bcb9a6c3e4555fa1d6b7fcf981a4c2092caa4e2198e5f266482a879d36",
+    "artifact_config_hash": "01f842e7fd8b2575ce88ebe1931505ef7f7a7787cad54ca0f90bf9f9879ec214",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -7101,13 +7101,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 2,
+    "finalize_attempts": 3,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "fcb1f1fafd4c964e4878a2acf8641c916879cfcbdf63afc624065ca8080b093c",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260429_222451",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_130509",
     "results_dir": "results/default_config_grid",
     "run_id": "seed44_dsivi_langevin_post",
     "runner_type": "DSIVI",
@@ -7117,7 +7117,7 @@
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260429_222451"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_130509"
   },
   {
     "artifact_config_hash": "0341fd5f245a3ba3abfbd4cce2a847916d6769335131ef3a234673b3842e37d4",
@@ -7240,7 +7240,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260428_110033"
   },
   {
-    "artifact_config_hash": "9956b375e973681c2766fe9c27c405d1a346af2e19c6f45ca7545534b082f336",
+    "artifact_config_hash": "bd99de276a27a25382322d22e566ba510a91cecc8817ab0f9fd419364330de35",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -7261,23 +7261,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "8bbbd45e77a4deee92679794fa29a396e9b86eee6cb18b483cc55e3a3cb601ac",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260428_110339",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_130518",
     "results_dir": "results/default_config_grid",
     "run_id": "seed44_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 0,
     "seed": 44,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260428_110339"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_130518"
   },
   {
     "artifact_config_hash": "1e65b31fbb9600d29fd9ec80fc1e2ed5bfabfeaad74d8ae1431d062faec443e8",
@@ -9440,7 +9440,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260428_133346"
   },
   {
-    "artifact_config_hash": "a74c0f3c8a288e6415814ce7d1eac619f22a5df7a623a695fdbea20568a13628",
+    "artifact_config_hash": "65b6ac8c60aef8ceae9e8169319bfa861138506a5ce2997ecae3c44f6cbbf1bd",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -9461,13 +9461,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "076fa33f4e40e665c093e6cec294955040df669fc01978dbc0db2c8c955e3391",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260428_133345",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_130608",
     "results_dir": "results/default_config_grid",
     "run_id": "seed45_dsivi_bnn_boston",
     "runner_type": "DSIVI",
@@ -9477,7 +9477,7 @@
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260428_133345"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_130608"
   },
   {
     "artifact_config_hash": "1099a52c251642e6cb8a89c47b78ac5e671ef1cd33b2e3b2c4d271a308ac18cf",
@@ -9680,7 +9680,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260501_175655"
   },
   {
-    "artifact_config_hash": "5d4df84a1c13c8b776f8684760e65d5960877ddbf2608b01a6c3a8ccce86b36d",
+    "artifact_config_hash": "eb4cba1f3eabf047022f5f4969424f6dcf5289c551f5a397187ce5334cf8c908",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -9701,23 +9701,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 2,
+    "finalize_attempts": 3,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "edfb662c041912bbdf94be50a82860d879875e95d9607bdd4d4cffff392def99",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260429_230724",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_130828",
     "results_dir": "results/default_config_grid",
     "run_id": "seed45_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 2,
     "seed": 45,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260429_230724"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_130828"
   },
   {
     "artifact_config_hash": "b5830af2234867d7f4bfbfa1c9f43ccf16443889abb346f3d84620916cfdcd03",
@@ -9840,7 +9840,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260428_134120"
   },
   {
-    "artifact_config_hash": "68985924b76a6738eb0e38ffb2f587ee552b9bcd8c7aa42f0863416ea3fbce96",
+    "artifact_config_hash": "53c141b7ed81a0f0c17f05eab9e5b04466f443748faca171f8bf0ab892fb3cfa",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -9861,13 +9861,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "a656dd9108f2a44fda571510398cd6bccf0d7af6c5bbfc950ff79a3f3d9ae7ad",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260428_134512",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_130839",
     "results_dir": "results/default_config_grid",
     "run_id": "seed45_dsivi_x_shaped",
     "runner_type": "DSIVI",
@@ -9877,7 +9877,7 @@
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260428_134512"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_130839"
   },
   {
     "artifact_config_hash": "4202dd2d6e80b774e14a3d385e03e6612ee4d8164883498ba4c3668319f0f2a9",
@@ -12040,7 +12040,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260428_161940"
   },
   {
-    "artifact_config_hash": "fc646f21f6d1de9b62b8cd493fdbdb2b282145fa2abc9e7c988b268745c8dcea",
+    "artifact_config_hash": "7220ace5c19eb92c580e58867109cf3c622f22f2d563d341bd768fb0130302c1",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -12061,13 +12061,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "b70267544b19c994ca655199cc8c21721851ab72a4b09e14421351113ef14424",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260428_161940",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_131032",
     "results_dir": "results/default_config_grid",
     "run_id": "seed46_dsivi_bnn_boston",
     "runner_type": "DSIVI",
@@ -12077,7 +12077,7 @@
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260428_161940"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_131032"
   },
   {
     "artifact_config_hash": "ad8e6ed9a84d68ae34ac8a7d307c666edeaa30904d58e6f15909c0b8a004889c",
@@ -12280,7 +12280,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260501_190008"
   },
   {
-    "artifact_config_hash": "657a535224e2063abe4c68183014d64d8037a64dbddb88210d97d093a4a499c2",
+    "artifact_config_hash": "358bcc76a464c4aab811cf1e242ecc03722081bae6944544b90634c0d0a47cc3",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -12301,23 +12301,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 2,
+    "finalize_attempts": 3,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "f7c3f37337223fff662044ec955d871b847f917bf4c8a58e5720b0ed57ccb422",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260429_231940",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_131156",
     "results_dir": "results/default_config_grid",
     "run_id": "seed46_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 0,
     "seed": 46,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260429_231940"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_131156"
   },
   {
     "artifact_config_hash": "d9b2d1f2164301609691d4e270d87dd463055d20fb7499021bd6cff06a400349",
@@ -12440,7 +12440,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260428_162844"
   },
   {
-    "artifact_config_hash": "66829e3d406b3fe938477ee4c7a4c4ac38885d45b1c7ca0c0e9d7b38e2fee006",
+    "artifact_config_hash": "9ec99d8eba3f655ef9387bb0560c7d4b93074310ce109b1b7222d26d971185f1",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -12461,23 +12461,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "5966f98380e821dbce9414573d84f1dbd6f68b93836252c03a4caa011434658c",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260428_162914",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_131250",
     "results_dir": "results/default_config_grid",
     "run_id": "seed46_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 1,
     "seed": 46,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260428_162914"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_131250"
   },
   {
     "artifact_config_hash": "d9afa18423130b0779089d250d6b7a5a42df5a453a291438cd0c07cbbfc55848",
@@ -14640,7 +14640,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260502_045656"
   },
   {
-    "artifact_config_hash": "78f3bf84431d2e578e1594f9604bfb9e8a6a64e755895d86022eab3c5195cf17",
+    "artifact_config_hash": "4d0a75a941311441a64327eb0b52004da8c3308b30a7a6321ed2118061dcfe3d",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -14661,23 +14661,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "ce6f15a74f96e1ae8019cfe28ce0d130c498507f2e9e97fd07788a1e36c9d160",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260502_045656",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_131353",
     "results_dir": "results/default_config_grid",
     "run_id": "seed47_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 2,
     "seed": 47,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260502_045656"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_131353"
   },
   {
     "artifact_config_hash": "1fe3ea16d82da9e4dfce9a6e2b755e87c7bd4ac5ce85b0ca177cc863ab601d61",
@@ -14880,7 +14880,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260502_050143"
   },
   {
-    "artifact_config_hash": "5561300dcdcadfc5a4547b5ee7a7fbe2be8cf6c687d0679e8e0bec9c87cbd21a",
+    "artifact_config_hash": "bc8fe1f05c2100b8509a7cd6f4fa860822c0321a55229385210edb8137ebf8c0",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -14901,23 +14901,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "75f209af6160b872ad6d280f0e5f1f6ef96681e958acc76e3dd8e96ce15b0a4a",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260502_050633",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_131606",
     "results_dir": "results/default_config_grid",
     "run_id": "seed47_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 0,
+    "runtime_gpu": 1,
     "seed": 47,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260502_050633"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_131606"
   },
   {
     "artifact_config_hash": "fb3bd42ae042b6339c658e69a60b233e8de5227f856e4e62a6fa68a652fc6cb3",
@@ -15040,7 +15040,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260502_050633"
   },
   {
-    "artifact_config_hash": "fa1934a0452720f5eda7fdf896fdfdd97a290f163dc35d5080c45ff06917bd78",
+    "artifact_config_hash": "4db2489b8ef531366c656a5f548ffef502492b8cc2deebdb0a1db0ee0bbc2126",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -15061,23 +15061,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "6035e26691955273b6084b70e985016eacb255d2c9f6ee823a655f16e422a87f",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260502_051125",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_131613",
     "results_dir": "results/default_config_grid",
     "run_id": "seed47_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 2,
     "seed": 47,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260502_051125"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_131613"
   },
   {
     "artifact_config_hash": "5023a10d6151ea269b2f52fff996b159b59c6c5b257d7a2b6c26da6727523fca",
@@ -17240,7 +17240,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260502_073706"
   },
   {
-    "artifact_config_hash": "8c8454b901254bc4508c828dbcc0b1730518886b5c3efb9f8f963040f6ee57cc",
+    "artifact_config_hash": "ee1fb374d9db037a84580496facb68ba17c0ec97bbd704a46dea4667f40ad1a3",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -17261,23 +17261,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "ec8a41f677be90e3f50e431c550f03797b76170c119dd6fc8c5193c00ba616d4",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260502_073715",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_131718",
     "results_dir": "results/default_config_grid",
     "run_id": "seed48_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 0,
     "seed": 48,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260502_073715"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_131718"
   },
   {
     "artifact_config_hash": "99875b1cf66be018b27da6f18ca294bd14aff18978ffe058a82c513923916190",
@@ -17480,7 +17480,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260502_074737"
   },
   {
-    "artifact_config_hash": "07fc5b2960dc92bac05fcb83a89c0a47f7209d2085c739818376f9ec03887731",
+    "artifact_config_hash": "32d409712317089aa7f692d980cb82c81fb492417b90cbee1aa6719fe243cc7b",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -17501,23 +17501,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "9cf8e54ef7fdde50098c5a47074b11bbc9a9d44c130139ee4a57f842eec76cd5",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260502_074737",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_131929",
     "results_dir": "results/default_config_grid",
     "run_id": "seed48_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 2,
     "seed": 48,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260502_074737"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_131929"
   },
   {
     "artifact_config_hash": "aceef658915b4d45d7430b5b5eaca1408725e086f37f874581fdaaa1eee25eba",
@@ -17640,7 +17640,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260502_075312"
   },
   {
-    "artifact_config_hash": "d97f7d75bfdfec77fa1f96b6c7253bfcebb0ed2f8b03bd4c04459c01eb630a7b",
+    "artifact_config_hash": "f00c65d5eb23127f11f7aea79ba39840abc300f82e01c96e33143cd75387f5d2",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -17661,23 +17661,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "5355476962e3dbd018e6badecfc2c7383784b1bd973479eb0e2a709089bdd17d",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260502_075312",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_131935",
     "results_dir": "results/default_config_grid",
     "run_id": "seed48_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 0,
     "seed": 48,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260502_075312"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_131935"
   },
   {
     "artifact_config_hash": "aa28698153fd6cfe2bfcd4f729faa4f3d4ba651fdd6e68e2e1257a191d73889a",
@@ -19840,7 +19840,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260502_100806"
   },
   {
-    "artifact_config_hash": "c9bb4cab468e70ddca423df5768ecc431c8690c2ae4f972af835c7b7e5e8faa6",
+    "artifact_config_hash": "a29389945af41e7e5c77f9d3b393e2380e9f7a6b1146854c40d3d6eb7ce48a0b",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -19861,23 +19861,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "3500eac955d17f0c099148b64c8661a9d5c71aabb0e033e33a57d06a9ba65b8e",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260502_101418",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_132128",
     "results_dir": "results/default_config_grid",
     "run_id": "seed49_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 0,
+    "runtime_gpu": 1,
     "seed": 49,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260502_101418"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_132128"
   },
   {
     "artifact_config_hash": "9bf8700540233ed811ac313580ccde81e3b741f88099e106a431e004480bffdb",
@@ -20080,7 +20080,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260502_102030"
   },
   {
-    "artifact_config_hash": "f43d612f44b125e42fcf4542ccd953c2137a6031dee4670c2ff8002043c59cbb",
+    "artifact_config_hash": "e0c236a1a080ef32fd38702ea55ad2f029e3c70288b82a6e43c161bab29b85b6",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -20101,23 +20101,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "0fc61e5e5b2f5065de8d296a4aba94317d25b13eac305fbcb0358500dc67c5e3",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260502_102031",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_132300",
     "results_dir": "results/default_config_grid",
     "run_id": "seed49_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 2,
+    "runtime_gpu": 0,
     "seed": 49,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260502_102031"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_132300"
   },
   {
     "artifact_config_hash": "68aadf83503aceb5424e68bf0c636edec16a93aae9f24e08b568389ef371defe",
@@ -20240,7 +20240,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260502_102646"
   },
   {
-    "artifact_config_hash": "1fe513c3380e331e529cb75b3afc775ec16c9ff99b39b65b799f6c2ff91ef1ef",
+    "artifact_config_hash": "07db941efa9d9cc22fb601edd62f5972838e724dc16555e873f6b510ed259e68",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -20261,23 +20261,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "3e038ca51ec1275865f631e97dc7e4f4c8f1d706e4b140b3251304ec19ea4211",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260502_102646",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_132344",
     "results_dir": "results/default_config_grid",
     "run_id": "seed49_dsivi_x_shaped",
     "runner_type": "DSIVI",
-    "runtime_gpu": 2,
+    "runtime_gpu": 1,
     "seed": 49,
     "status": "completed",
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260502_102646"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_132344"
   },
   {
     "artifact_config_hash": "673edee57c094ce66717e75ecf4b9ed944b3685acb1baf0b3980a3b952968f9a",
@@ -22440,7 +22440,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260502_125219"
   },
   {
-    "artifact_config_hash": "953c57a1f54526cd3df1a775057f45863d3918db14d025a611ee98b3c3ca770f",
+    "artifact_config_hash": "b4a3cf7a43baf25af483523e953c4214902468ba3ed66ac46d2f2e00101a8503",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -22461,23 +22461,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "26c4092c36e98c1f1b67ba05c3d5cdd26ddc67dc3526babb7afb8d827891043e",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260502_125911",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_132454",
     "results_dir": "results/default_config_grid",
     "run_id": "seed50_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 0,
+    "runtime_gpu": 2,
     "seed": 50,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260502_125911"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_132454"
   },
   {
     "artifact_config_hash": "94d766566bf46d37f3a4fd6810bc6e7942239b71986e973025e6c66c5ae326bb",
@@ -22680,7 +22680,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260502_130610"
   },
   {
-    "artifact_config_hash": "f152201386db71b2505e062bf7440914c3e61a34abcba74f7b5b0d9d4b403c78",
+    "artifact_config_hash": "a6dd0f09ddf36a9b970883bf198ebb7a670dd7bab532c70ad4cb68f648d3ae5a",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -22701,23 +22701,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "9601944ab8b5259a4853576abbe4c4cf6c226acb951fac6069052112ce1ceb60",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260502_130610",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_132659",
     "results_dir": "results/default_config_grid",
     "run_id": "seed50_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 2,
+    "runtime_gpu": 1,
     "seed": 50,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260502_130610"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_132659"
   },
   {
     "artifact_config_hash": "74d69b09419b2def2f5132164bcc8fff3c871e3dcea2d1e1995652036cfba536",
@@ -22840,7 +22840,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260502_131311"
   },
   {
-    "artifact_config_hash": "c85ef186c4c55667d0d280918284bfaf096aec4c42898a9e69ad0e76dd960183",
+    "artifact_config_hash": "d4162ba3f8f0fda0453071453652f71017bc75cf780042a3d8ca55cc41c73786",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -22861,13 +22861,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "f517e0734aedc65d78ece559a07bef5bdea69f074a237efb1e04043a134b655a",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260502_131312",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_132716",
     "results_dir": "results/default_config_grid",
     "run_id": "seed50_dsivi_x_shaped",
     "runner_type": "DSIVI",
@@ -22877,7 +22877,7 @@
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260502_131312"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_132716"
   },
   {
     "artifact_config_hash": "de8357bd0c51b0a2e2918618974ee6584cfee644906f794d35f57aa821b98ea1",
@@ -25040,7 +25040,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/banana/20260502_155626"
   },
   {
-    "artifact_config_hash": "20e624beafe39e1991247b6268c1025d60be57b89d39808236706f3686af4a89",
+    "artifact_config_hash": "a017b052da2ce34a31a269ec3a41a19571b86b3739c7f4103b7edd01c636c552",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -25061,23 +25061,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "d79708efb1754da24eebfa0718eda0f6c6aaf4afbee4ca59273d6d58dc903a69",
-    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260502_155908",
+    "result_path": "results/default_config_grid/DSIVI/Bnn_boston/20260504_132825",
     "results_dir": "results/default_config_grid",
     "run_id": "seed51_dsivi_bnn_boston",
     "runner_type": "DSIVI",
-    "runtime_gpu": 1,
+    "runtime_gpu": 0,
     "seed": 51,
     "status": "completed",
     "target": "Bnn_boston",
     "target_slug": "Bnn_boston",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260502_155908"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_boston/20260504_132825"
   },
   {
     "artifact_config_hash": "1b67bc6a01043a305ad2d0edfd33fcb1ff2b44872e43b133ef87c4e1a84f1bd8",
@@ -25280,7 +25280,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Bnn_yacht/20260502_160117"
   },
   {
-    "artifact_config_hash": "00072f7ec3dde1e45af1e2a9dc5269aed0197fa9296643f3c91ff4c59fd08943",
+    "artifact_config_hash": "24dfaa801ed5f9a07f82415ddf5e4f83272bc621cfc9881129ea1d60a09ecf34",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -25301,23 +25301,23 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "25205f5f422475494fcde970a8cdf99f687375dc199446fd1d9d633178abd02f",
-    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260502_160145",
+    "result_path": "results/default_config_grid/DSIVI/Langevin_post/20260504_133032",
     "results_dir": "results/default_config_grid",
     "run_id": "seed51_dsivi_langevin_post",
     "runner_type": "DSIVI",
-    "runtime_gpu": 3,
+    "runtime_gpu": 2,
     "seed": 51,
     "status": "completed",
     "target": "Langevin_post",
     "target_slug": "Langevin_post",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260502_160145"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/Langevin_post/20260504_133032"
   },
   {
     "artifact_config_hash": "93dafe8f8858b3b453eac428332bba9cc506269c010d2dba64412f5e292a2ddd",
@@ -25440,7 +25440,7 @@
     "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/student_uc/20260502_160326"
   },
   {
-    "artifact_config_hash": "64d6223283c060a6161f346cd90cf2cb45fd4e937ff785c33d562c47c887b511",
+    "artifact_config_hash": "efd46a329e94c67755a144ff0a389e9fc2389153b7570bd734f06d77b405fd34",
     "batch_size": 128,
     "campaign_slug": "default_config_grid",
     "command_template": [
@@ -25461,13 +25461,13 @@
     "expected_epochs": 10000,
     "extra_overrides": [],
     "failure_reason": null,
-    "finalize_attempts": 1,
+    "finalize_attempts": 2,
     "finalize_failure_reason": null,
     "finalize_status": "finalize_completed",
     "method": "DSIVI",
     "method_slug": "dsivi",
     "previous_config_hash": "1299d0ae3f76149672c11abd67b441889a2af914c033cbe36f28378358517a80",
-    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260502_160627",
+    "result_path": "results/default_config_grid/DSIVI/x_shaped/20260504_133045",
     "results_dir": "results/default_config_grid",
     "run_id": "seed51_dsivi_x_shaped",
     "runner_type": "DSIVI",
@@ -25477,7 +25477,7 @@
     "target": "x_shaped",
     "target_slug": "x_shaped",
     "tb_dir": "tb_logs/default_config_grid",
-    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260502_160627"
+    "tb_path": "/root/ruivi/tb_logs/default_config_grid/DSIVI/x_shaped/20260504_133045"
   },
   {
     "artifact_config_hash": "bec1977fe122bb227aeb59f5270bb9ee0b554406d9e4377855e1d7c94cfb993b",
