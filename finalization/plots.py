@@ -396,6 +396,16 @@ def render_langevin_trace_grid(records: list[RunRecord], cfg: Any) -> Path:
 # KL convergence curve plots
 # ---------------------------------------------------------------------------
 
+_TARGET_DISPLAY_NAMES: dict[str, str] = {
+    "Langevin_post": "Conditioned Diffusion",
+}
+
+
+def _target_display_name(target: str) -> str:
+    """Return a human-friendly display name for *target*, falling back to the raw name."""
+    return _TARGET_DISPLAY_NAMES.get(target, target)
+
+
 _KL_METHOD_COLORS: dict[str, str] = {
     "UIVI": "#1f77b4",   # blue
     "AISIVI": "#ff7f0e", # orange
@@ -658,7 +668,7 @@ def render_grad_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
 
     for col_idx, target in enumerate(targets):
         ax = axes[0][col_idx]
-        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
             ax.set_ylabel("Gradient Norm", fontsize=label_fontsize)
@@ -749,7 +759,7 @@ def render_weight_norm_iteration_grid(records: list[RunRecord], cfg: Any) -> Pat
 
     for col_idx, target in enumerate(targets):
         ax = axes[0][col_idx]
-        ax.set_title(target, fontsize=title_fontsize)
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
             ax.set_ylabel("Weight Norm", fontsize=label_fontsize)
