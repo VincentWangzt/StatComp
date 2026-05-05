@@ -1,7 +1,7 @@
 [project]
-name = "statcomp"
+name = "DIVI"
 version = "0.1.0"
-description = "Semi-Implicit Variational Inference research codebase"
+description = "Denoising Implicit Variational Inference research codebase"
 requires-python = ">=3.11"
 dependencies = [
     "torch==2.9.0",

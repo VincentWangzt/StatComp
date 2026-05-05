@@ -5,14 +5,6 @@ from utils.logging import get_logger
 from omegaconf import OmegaConf, DictConfig
 from runner.runners import Runners
 
-# 0112 TODO:
-# 1. implement dsm-uivi [Done]
-# 2. Add typing hints to runners
-# 3. Add Config Documentation
-# 4. Clip the CNF scale outputs to avoid extreme values.
-# 5. [Restructure] Merge HMC code to only support batch processing. Create HMC sampler class.
-# 6. Add logging of configs to hParam
-
 logger = get_logger()
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
