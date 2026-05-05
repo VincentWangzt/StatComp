@@ -1,25 +1,8 @@
 # Config Reviewer
 
-Read-only local UI for reviewing base YAML configs against the current grid
-benchmark generation policy.
+Read-only local UI for comparing base YAML configs across methods and targets.
 
-## Current Status
-
-This tool is currently restored but expected to be broken until it is migrated
-off the removed legacy grid scripts.
-
-Known broken dependencies:
-
-- `tools/config_reviewer/server.py` imports `generate_grid_benchmark`.
-- `tools/config_reviewer/server.py` imports `grid_benchmark_common`.
-- The old generated-grid campaign files under `campaigns/grid_benchmark_20260330`
-  and `configs/generated/grid_benchmark_20260330` are no longer part of the
-  active workflow.
-
-The intended repair is to make the reviewer compare the current
-`default_config_grid` workflow directly, or to move any still-needed generation
-logic into a small reviewer-local helper that does not depend on deleted legacy
-scripts.
+## Usage
 
 Run from the repository root:
 
@@ -33,32 +16,47 @@ Then open:
 http://127.0.0.1:8765/
 ```
 
-The server reloads YAML data on every request and the browser polls for file
-changes, so edits made in an editor appear without restarting the server.
+## Comparison Modes
 
-Comparisons use resolved effective configs. The reviewer expands the same nested
-config layers the runners load at runtime:
+**Methods on target** - Compare all selected methods for a single target.
+Shows how configs differ across SIVI, UIVI, AISIVI, DSIVI, and KSIVI for the
+same target distribution.
+
+**Targets for method** - Compare all selected targets for a single method.
+Shows how configs differ across target distributions for the same method.
+Targets can be filtered by group (toy, LRwaveform, BNN).
+
+## Views
+
+- **Key table** - Flat dot-notation comparison matrix highlighting rows where
+  values differ across configs.
+- **Resolved YAML** - Side-by-side panels showing the fully resolved effective
+  config (with nested target/vi_model/reverse_model configs expanded).
+- **Summary matrix** - High-level statistics (config count, changed rows,
+  missing keys, etc.).
+
+## Config Resolution
+
+The reviewer expands the same nested config layers the runners load at runtime:
 
 - `target_config_path` into `target`
 - `vi_model_config_path` into `vi_model`
-- `reverse_model_config_path` into `reverse_model`
+- `reverse_model_config_path` into `reverse_model` (AISIVI/DSIVI)
+- `reverse_model_config_path` into `hmc` (UIVI)
 
 If a nested path is omitted, the reviewer uses the runner-style default path
 derived from `target_type`, `vi_model_type`, or `reverse_model_type`.
 
-Historically, the reviewer did not edit configs or apply standardization. It
-compared:
+## Live Reload
 
-- base configs under `configs/<method>_<target>.yaml`
-- checked-in generated configs under `configs/generated/grid_benchmark_20260330`
-- in-memory computed generated-policy configs using the current generator helper
-  functions
+The server reloads YAML data on every request and the browser polls for file
+changes every 3 seconds, so edits made in an editor appear without restarting
+the server.
 
-Canonical method mapping:
+## Methods
 
-- `sivi -> sivi`
-- `uivi -> uivi`
-- `rsivi -> rsivi`
-- `aisivi -> aisivi`
-- `dsivi -> dsivi_default`
-- `ksivi -> ksivi_custom`
+- `sivi` (SIVI)
+- `uivi` (UIVI)
+- `aisivi` (AISIVI)
+- `dsivi` (DSIVI)
+- `ksivi` (KSIVI)

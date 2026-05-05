@@ -10,7 +10,7 @@
     <header class="app-header">
       <div>
         <h1>Config Reviewer</h1>
-        <p id="subtitle">Loading campaign metadata...</p>
+        <p id="subtitle">Cross-method and cross-target config comparison</p>
       </div>
       <div class="status-row">
         <span id="liveStatus" class="status-pill">live reload pending</span>
@@ -23,7 +23,6 @@
         <section>
           <label for="modeSelect">Comparison</label>
           <select id="modeSelect">
-            <option value="generated_vs_base">Generated vs base</option>
             <option value="methods_for_target">Methods on target</option>
             <option value="targets_for_method">Targets for method</option>
           </select>
@@ -34,6 +33,11 @@
           <select id="methodSelect"></select>
         </section>
 
+        <section id="methodGroupControl">
+          <label for="methodGroupSelect">Method group</label>
+          <select id="methodGroupSelect"></select>
+        </section>
+
         <section id="targetControl">
           <label for="targetSelect">Target</label>
           <select id="targetSelect"></select>
@@ -42,15 +46,6 @@
         <section id="groupControl">
           <label for="groupSelect">Target group</label>
           <select id="groupSelect"></select>
-        </section>
-
-        <section id="sourceControl">
-          <label for="sourceSelect">Generated source</label>
-          <select id="sourceSelect">
-            <option value="both">Checked-in + computed</option>
-            <option value="checked_in">Checked-in only</option>
-            <option value="computed">Computed only</option>
-          </select>
         </section>
 
         <section class="check-row">

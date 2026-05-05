@@ -10,16 +10,16 @@ const els = {
   refreshButton: document.getElementById("refreshButton"),
   modeSelect: document.getElementById("modeSelect"),
   methodSelect: document.getElementById("methodSelect"),
+  methodGroupSelect: document.getElementById("methodGroupSelect"),
   targetSelect: document.getElementById("targetSelect"),
   groupSelect: document.getElementById("groupSelect"),
-  sourceSelect: document.getElementById("sourceSelect"),
   changedOnly: document.getElementById("changedOnly"),
   viewSelect: document.getElementById("viewSelect"),
   multiPicker: document.getElementById("multiPicker"),
   methodControl: document.getElementById("methodControl"),
+  methodGroupControl: document.getElementById("methodGroupControl"),
   targetControl: document.getElementById("targetControl"),
   groupControl: document.getElementById("groupControl"),
-  sourceControl: document.getElementById("sourceControl"),
   comparisonTitle: document.getElementById("comparisonTitle"),
   comparisonSummary: document.getElementById("comparisonSummary"),
   pathFilter: document.getElementById("pathFilter"),
@@ -75,11 +75,14 @@ function populateControls() {
   const current = {
     method: els.methodSelect.value || metadata.defaults.method,
     target: els.targetSelect.value || metadata.defaults.target,
-    group: els.groupSelect.value || metadata.defaults.group,
-    source: els.sourceSelect.value || metadata.defaults.generated_source,
+    methodGroup: els.methodGroupSelect.value || metadata.defaults.method_group,
+    group: els.groupSelect.value || metadata.defaults.target_group,
   };
   els.methodSelect.replaceChildren(...metadata.methods.map((item) => option(item.name, item.label)));
   els.targetSelect.replaceChildren(...metadata.targets.map((item) => option(item.name, item.label)));
+  els.methodGroupSelect.replaceChildren(
+    ...Object.keys(metadata.method_groups).map((name) => option(name, name))
+  );
   els.groupSelect.replaceChildren(
     ...Object.keys(metadata.target_groups).map((name) => option(name, name))
   );
@@ -89,10 +92,12 @@ function populateControls() {
   els.targetSelect.value = metadata.targets.some((item) => item.name === current.target)
     ? current.target
     : metadata.defaults.target;
+  els.methodGroupSelect.value = Object.hasOwn(metadata.method_groups, current.methodGroup)
+    ? current.methodGroup
+    : metadata.defaults.method_group;
   els.groupSelect.value = Object.hasOwn(metadata.target_groups, current.group)
     ? current.group
-    : metadata.defaults.group;
-  els.sourceSelect.value = current.source;
+    : metadata.defaults.target_group;
   renderMultiPicker();
   updateControlVisibility();
 }
@@ -100,6 +105,11 @@ function populateControls() {
 function selectedGroupTargets() {
   const group = els.groupSelect.value || "all";
   return state.metadata.target_groups[group] || state.metadata.target_groups.all;
+}
+
+function selectedGroupMethods() {
+  const group = els.methodGroupSelect.value || "all";
+  return state.metadata.method_groups[group] || state.metadata.method_groups.all;
 }
 
 function checkItem(name, value, label, checked) {
@@ -125,8 +135,10 @@ function renderMultiPicker() {
     const title = document.createElement("label");
     title.textContent = "Methods";
     els.multiPicker.appendChild(title);
+    const methods = selectedGroupMethods();
     for (const method of state.metadata.methods) {
-      els.multiPicker.appendChild(checkItem("multiMethod", method.name, method.label, true));
+      const checked = methods.includes(method.name);
+      els.multiPicker.appendChild(checkItem("multiMethod", method.name, method.label, checked));
     }
     return;
   }
@@ -149,25 +161,22 @@ function checkedValues(name) {
 
 function updateControlVisibility() {
   const mode = els.modeSelect.value;
+  // In "methods_for_target" mode: show target picker + method group, hide method picker + target group
+  // In "targets_for_method" mode: show method picker + target group, hide target picker + method group
   els.methodControl.classList.toggle("hidden", mode === "methods_for_target");
+  els.methodGroupControl.classList.toggle("hidden", mode !== "methods_for_target");
   els.targetControl.classList.toggle("hidden", mode === "targets_for_method");
   els.groupControl.classList.toggle("hidden", mode !== "targets_for_method");
-  els.sourceControl.classList.toggle("hidden", mode !== "generated_vs_base");
-  els.multiPicker.classList.toggle("hidden", mode === "generated_vs_base");
 }
 
 function compareUrl() {
   const params = new URLSearchParams();
   const mode = els.modeSelect.value;
   params.set("mode", mode);
-  if (mode === "generated_vs_base") {
-    params.set("method", els.methodSelect.value);
-    params.set("target", els.targetSelect.value);
-    params.set("source", els.sourceSelect.value);
-  } else if (mode === "methods_for_target") {
+  if (mode === "methods_for_target") {
     params.set("target", els.targetSelect.value);
     const methods = checkedValues("multiMethod");
-    params.set("methods", methods.length ? methods.join(",") : state.metadata.methods.map((m) => m.name).join(","));
+    params.set("methods", methods.length ? methods.join(",") : selectedGroupMethods().join(","));
   } else if (mode === "targets_for_method") {
     params.set("method", els.methodSelect.value);
     const targets = checkedValues("multiTarget");
@@ -178,7 +187,6 @@ function compareUrl() {
 
 async function loadMetadata() {
   state.metadata = await fetchJson("/api/metadata");
-  els.subtitle.textContent = `${state.metadata.campaign_slug} at ${state.metadata.repo_root}`;
   populateControls();
 }
 
@@ -215,8 +223,7 @@ function render() {
 }
 
 function configTitle(config) {
-  const pieces = [config.method_label, config.target, config.kind.replace("_", "-")];
-  return pieces.join(" / ");
+  return `${config.method_label} / ${config.target}`;
 }
 
 function renderConfigCards(configs) {
@@ -289,7 +296,7 @@ async function renderRaw(comparison) {
   for (const config of comparison.configs) {
     const pre = document.getElementById(`raw-${config.id.replaceAll(":", "-")}`);
     try {
-      const raw = await fetchJson(`/api/raw?kind=${encodeURIComponent(config.kind)}&method=${encodeURIComponent(config.method)}&target=${encodeURIComponent(config.target)}`);
+      const raw = await fetchJson(`/api/raw?method=${encodeURIComponent(config.method)}&target=${encodeURIComponent(config.target)}`);
       pre.textContent = raw.error || raw.text || "missing";
     } catch (error) {
       pre.textContent = error.message || String(error);
@@ -350,7 +357,6 @@ function bindEvents() {
     els.modeSelect,
     els.methodSelect,
     els.targetSelect,
-    els.sourceSelect,
     els.changedOnly,
   ]) {
     el.addEventListener("change", () => {
@@ -362,6 +368,10 @@ function bindEvents() {
     });
   }
   els.groupSelect.addEventListener("change", () => {
+    renderMultiPicker();
+    loadComparison();
+  });
+  els.methodGroupSelect.addEventListener("change", () => {
     renderMultiPicker();
     loadComparison();
   });

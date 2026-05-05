@@ -16,23 +16,6 @@ from omegaconf import OmegaConf
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT_DIR = REPO_ROOT / "scripts"
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-from generate_grid_benchmark import (  # noqa: E402
-    _annotate_config,
-    _apply_variant_overrides,
-    _standardize_common,
-)
-from grid_benchmark_common import (  # noqa: E402
-    CAMPAIGN_SLUG,
-    GENERATED_CONFIG_DIR,
-    REPO_ROOT as COMMON_REPO_ROOT,
-    VARIANT_SPECS,
-    run_id_for,
-)
-
 
 METHODS = ["sivi", "uivi", "aisivi", "dsivi", "ksivi"]
 METHOD_LABELS = {
@@ -42,19 +25,17 @@ METHOD_LABELS = {
     "dsivi": "DSIVI",
     "ksivi": "KSIVI",
 }
-METHOD_TO_VARIANT = {
-    "sivi": "sivi",
-    "uivi": "uivi",
-    "aisivi": "aisivi",
-    "dsivi": "dsivi_default",
-    "ksivi": "ksivi_custom",
+
+CORE_METHODS = ["sivi", "uivi", "aisivi", "dsivi"]
+KERNEL_METHODS = ["ksivi"]
+METHOD_GROUPS = {
+    "all": METHODS,
+    "core": CORE_METHODS,
+    "kernel": KERNEL_METHODS,
 }
-METHOD_TO_BASE_PREFIX = {
-    "sivi": "sivi",
-    "uivi": "uivi",
-    "aisivi": "aisivi",
-    "dsivi": "dsivi",
-    "ksivi": "ksivi",
+METHOD_TO_GROUP = {
+    **{method: "core" for method in CORE_METHODS},
+    **{method: "kernel" for method in KERNEL_METHODS},
 }
 
 TOY_TARGETS = [
@@ -63,8 +44,8 @@ TOY_TARGETS = [
     "x_shaped",
     "student_uc",
     "8_gaussians",
-    "Langevin_post",
 ]
+LANGEVIN_TARGETS = ["Langevin_post"]
 LR_TARGETS = ["LRwaveform"]
 BNN_TARGETS = [
     "Bnn_boston",
@@ -74,18 +55,22 @@ BNN_TARGETS = [
     "Bnn_winered",
     "Bnn_yacht",
 ]
-TARGETS = TOY_TARGETS + LR_TARGETS + BNN_TARGETS
+TARGETS = TOY_TARGETS + LANGEVIN_TARGETS + LR_TARGETS + BNN_TARGETS
 TARGET_GROUPS = {
     "all": TARGETS,
     "toy": TOY_TARGETS,
+    "Langevin": LANGEVIN_TARGETS,
     "LRwaveform": LR_TARGETS,
     "BNN": BNN_TARGETS,
 }
 TARGET_TO_GROUP = {
     **{target: "toy" for target in TOY_TARGETS},
+    **{target: "Langevin" for target in LANGEVIN_TARGETS},
     **{target: "LRwaveform" for target in LR_TARGETS},
     **{target: "BNN" for target in BNN_TARGETS},
 }
+
+REVERSE_RUNNERS = {"AISIVI", "DSIVI"}
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -128,19 +113,7 @@ def _validate_target(target: str) -> str:
 
 
 def _base_path(method: str, target: str) -> Path:
-    return REPO_ROOT / "configs" / f"{METHOD_TO_BASE_PREFIX[method]}_{target}.yaml"
-
-
-def _source_base_path_for_computed(method: str, target: str) -> Path:
-    variant = METHOD_TO_VARIANT[method]
-    source_method = VARIANT_SPECS[variant]["source_method"]
-    return REPO_ROOT / "configs" / f"{source_method}_{target}.yaml"
-
-
-def _checked_in_generated_path(method: str, target: str) -> Path:
-    variant = METHOD_TO_VARIANT[method]
-    run_id = run_id_for(target, variant, "on")
-    return GENERATED_CONFIG_DIR / f"{run_id}.yaml"
+    return REPO_ROOT / "configs" / f"{method}_{target}.yaml"
 
 
 def _read_yaml_config(path: Path) -> tuple[dict[str, Any] | None, str | None]:
@@ -192,17 +165,40 @@ def _resolve_nested_configs(config: dict[str, Any]) -> tuple[dict[str, Any], str
     for args in [
         ("target_config_path", "target_type", "target", "targets"),
         ("vi_model_config_path", "vi_model_type", "vi_model", "vi_models"),
-        (
-            "reverse_model_config_path",
-            "reverse_model_type",
-            "reverse_model",
-            "reverse_models",
-        ),
     ]:
         resolved, error = _merge_nested_config(resolved, *args)
         if error is not None:
             return resolved, error
 
+    # UIVI uses HMC as its reverse model, merged into "hmc" key
+    runner_type = str(resolved.get("runner_type", ""))
+    if runner_type == "UIVI":
+        reverse_path_key = "reverse_model_config_path"
+        if reverse_path_key not in resolved:
+            resolved[reverse_path_key] = "configs/reverse_models/HMC.yaml"
+        nested_path = REPO_ROOT / str(resolved[reverse_path_key])
+        nested_data, error = _read_yaml_config(nested_path)
+        if error is not None:
+            return resolved, f"{reverse_path_key}: {error}"
+        if nested_data is None:
+            return resolved, f"{reverse_path_key}: missing file {resolved[reverse_path_key]}"
+        merged = OmegaConf.merge(
+            {"hmc": OmegaConf.create(nested_data)},
+            OmegaConf.create(resolved),
+        )
+        resolved = OmegaConf.to_container(merged, resolve=True)
+    elif runner_type in REVERSE_RUNNERS:
+        resolved, error = _merge_nested_config(
+            resolved,
+            "reverse_model_config_path",
+            "reverse_model_type",
+            "reverse_model",
+            "reverse_models",
+        )
+        if error is not None:
+            return resolved, error
+
+    # Sync dimensions from vi_model into reverse_model
     reverse_model = resolved.get("reverse_model")
     vi_model = resolved.get("vi_model")
     if isinstance(reverse_model, dict) and isinstance(vi_model, dict):
@@ -230,25 +226,6 @@ def _raw_file(path: Path) -> tuple[str | None, str | None]:
         return None, f"{type(exc).__name__}: {exc}"
 
 
-def _computed_config(method: str, target: str) -> tuple[dict[str, Any] | None, str | None]:
-    source_path = _source_base_path_for_computed(method, target)
-    config, error = _read_yaml_config(source_path)
-    if error is not None:
-        return None, error
-    if config is None:
-        return None, None
-
-    try:
-        variant = METHOD_TO_VARIANT[method]
-        config = deepcopy(config)
-        _standardize_common(config, target, variant, True)
-        _apply_variant_overrides(config, target, variant)
-        _annotate_config(config, run_id_for(target, variant, "on"), target, variant, "on")
-        return _resolve_nested_configs(config)
-    except Exception as exc:  # noqa: BLE001
-        return None, f"{type(exc).__name__}: {exc}"
-
-
 def _yaml_text(data: dict[str, Any] | None) -> str | None:
     if data is None:
         return None
@@ -256,46 +233,34 @@ def _yaml_text(data: dict[str, Any] | None) -> str | None:
 
 
 def _config_payload(
-    kind: str,
     method: str,
     target: str,
     path: Path,
     data: dict[str, Any] | None,
     error: str | None,
 ) -> dict[str, Any]:
-    exists = path.exists() if kind != "computed" else data is not None
     return {
-        "id": f"{kind}:{method}:{target}",
-        "kind": kind,
+        "id": f"{method}:{target}",
         "method": method,
         "method_label": METHOD_LABELS[method],
         "target": target,
         "target_group": TARGET_TO_GROUP[target],
-        "variant": METHOD_TO_VARIANT[method],
         "path": _relpath(path),
         "display_path": _relpath(path),
-        "exists": exists,
+        "exists": data is not None or path.exists(),
         "error": error,
         "data": data,
     }
 
 
-def _config_for_source(kind: str, method: str, target: str) -> dict[str, Any]:
-    if kind == "base":
-        path = _base_path(method, target)
-        data, error = _read_effective_config(path)
-        return _config_payload(kind, method, target, path, data, error)
-    if kind == "checked_in":
-        path = _checked_in_generated_path(method, target)
-        data, error = _read_effective_config(path)
-        return _config_payload(kind, method, target, path, data, error)
-    if kind == "computed":
-        path = _source_base_path_for_computed(method, target)
-        data, error = _computed_config(method, target)
-        payload = _config_payload(kind, method, target, path, data, error)
-        payload["display_path"] = f"computed from {_relpath(path)}"
-        return payload
-    raise ConfigError(f"Unknown source kind {kind!r}.")
+def _load_config(method: str, target: str) -> dict[str, Any]:
+    path = _base_path(method, target)
+    data, error = _read_effective_config(path)
+    return _config_payload(method, target, path, data, error)
+
+
+def _public_config(config: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in config.items() if key != "data"}
 
 
 def _flatten(value: Any, prefix: str = "") -> dict[str, Any]:
@@ -324,10 +289,6 @@ def _display_value(value: Any) -> str:
     if isinstance(value, (int, float, str)):
         return str(value)
     return json.dumps(value, sort_keys=True, separators=(", ", ": "), default=str)
-
-
-def _public_config(config: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in config.items() if key != "data"}
 
 
 def _comparison_summary(configs: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -394,95 +355,58 @@ def _build_comparison(configs: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _metadata() -> dict[str, Any]:
     methods = [
-        {
-            "name": method,
-            "label": METHOD_LABELS[method],
-            "variant": METHOD_TO_VARIANT[method],
-            "base_prefix": METHOD_TO_BASE_PREFIX[method],
-        }
+        {"name": method, "label": METHOD_LABELS[method], "group": METHOD_TO_GROUP[method]}
         for method in METHODS
     ]
     targets = [
-        {
-            "name": target,
-            "label": target,
-            "group": TARGET_TO_GROUP[target],
-        }
+        {"name": target, "label": target, "group": TARGET_TO_GROUP[target]}
         for target in TARGETS
     ]
 
-    availability: dict[str, Any] = {"base": {}, "checked_in": {}, "computed": {}}
+    availability: dict[str, dict[str, Any]] = {}
     for method in METHODS:
-        availability["base"][method] = {}
-        availability["checked_in"][method] = {}
-        availability["computed"][method] = {}
+        availability[method] = {}
         for target in TARGETS:
             base_path = _base_path(method, target)
-            checked_path = _checked_in_generated_path(method, target)
-            source_path = _source_base_path_for_computed(method, target)
-            availability["base"][method][target] = {
+            availability[method][target] = {
                 "exists": base_path.exists(),
                 "path": _relpath(base_path),
             }
-            availability["checked_in"][method][target] = {
-                "exists": checked_path.exists(),
-                "path": _relpath(checked_path),
-            }
-            availability["computed"][method][target] = {
-                "exists": source_path.exists(),
-                "path": f"computed from {_relpath(source_path)}",
-            }
 
     return {
-        "campaign_slug": CAMPAIGN_SLUG,
-        "repo_root": str(COMMON_REPO_ROOT),
         "methods": methods,
         "targets": targets,
+        "method_groups": METHOD_GROUPS,
         "target_groups": TARGET_GROUPS,
-        "availability": availability,
         "defaults": {
             "method": "sivi",
             "target": "banana",
-            "group": "all",
-            "generated_source": "both",
+            "method_group": "all",
+            "target_group": "all",
         },
+        "availability": availability,
     }
 
 
 def _compare(query: dict[str, list[str]]) -> dict[str, Any]:
-    mode = _query_value(query, "mode", "generated_vs_base")
-    if mode == "generated_vs_base":
-        method = _validate_method(_query_value(query, "method", "sivi") or "sivi")
-        target = _validate_target(_query_value(query, "target", "banana") or "banana")
-        source = _query_value(query, "source", "both") or "both"
-        configs = [_config_for_source("base", method, target)]
-        if source in {"checked_in", "both"}:
-            configs.append(_config_for_source("checked_in", method, target))
-        if source in {"computed", "both"}:
-            configs.append(_config_for_source("computed", method, target))
-        if source not in {"checked_in", "computed", "both"}:
-            raise ConfigError(f"Unknown generated source {source!r}.")
-        payload = _build_comparison(configs)
-        payload["mode"] = mode
-        payload["title"] = f"{method} on {target}: base vs generated"
-        return payload
+    mode = _query_value(query, "mode", "methods_for_target")
 
     if mode == "methods_for_target":
         target = _validate_target(_query_value(query, "target", "banana") or "banana")
         methods = [_validate_method(method) for method in _query_list(query, "methods", METHODS)]
-        configs = [_config_for_source("base", method, target) for method in methods]
+        configs = [_load_config(method, target) for method in methods]
         payload = _build_comparison(configs)
         payload["mode"] = mode
-        payload["title"] = f"Base methods on {target}"
+        payload["title"] = f"Methods on {target}"
         return payload
 
     if mode == "targets_for_method":
         method = _validate_method(_query_value(query, "method", "sivi") or "sivi")
         targets = [_validate_target(target) for target in _query_list(query, "targets", TARGETS)]
-        configs = [_config_for_source("base", method, target) for target in targets]
+        configs = [_load_config(method, target) for target in targets]
         payload = _build_comparison(configs)
         payload["mode"] = mode
-        payload["title"] = f"Base targets for {method}"
+        payload["title"] = f"Targets for {METHOD_LABELS[method]}"
         return payload
 
     raise ConfigError(f"Unknown compare mode {mode!r}.")
@@ -491,36 +415,17 @@ def _compare(query: dict[str, list[str]]) -> dict[str, Any]:
 def _raw(query: dict[str, list[str]]) -> dict[str, Any]:
     method = _validate_method(_query_value(query, "method", "sivi") or "sivi")
     target = _validate_target(_query_value(query, "target", "banana") or "banana")
-    kind = _query_value(query, "kind", "base") or "base"
 
-    if kind == "base":
-        path = _base_path(method, target)
-        data, error = _read_effective_config(path)
-        text = _yaml_text(data)
-        exists = data is not None
-        display_path = f"resolved from {_relpath(path)}"
-    elif kind == "checked_in":
-        path = _checked_in_generated_path(method, target)
-        data, error = _read_effective_config(path)
-        text = _yaml_text(data)
-        exists = data is not None
-        display_path = f"resolved from {_relpath(path)}"
-    elif kind == "computed":
-        path = _source_base_path_for_computed(method, target)
-        data, error = _computed_config(method, target)
-        text = _yaml_text(data)
-        exists = data is not None
-        display_path = f"computed from {_relpath(path)}"
-    else:
-        raise ConfigError(f"Unknown raw kind {kind!r}.")
+    path = _base_path(method, target)
+    data, error = _read_effective_config(path)
+    text = _yaml_text(data)
 
     return {
-        "kind": kind,
         "method": method,
         "target": target,
         "path": _relpath(path),
-        "display_path": display_path,
-        "exists": exists,
+        "display_path": f"resolved from {_relpath(path)}",
+        "exists": data is not None,
         "error": error,
         "text": text,
     }
@@ -529,10 +434,8 @@ def _raw(query: dict[str, list[str]]) -> dict[str, Any]:
 def _snapshot() -> dict[str, Any]:
     roots = [
         REPO_ROOT / "configs",
-        GENERATED_CONFIG_DIR,
         STATIC_DIR,
         Path(__file__),
-        REPO_ROOT / "scripts" / "config_review_server.py",
     ]
     files: dict[str, Any] = {}
     for root in roots:
