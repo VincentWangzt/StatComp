@@ -145,7 +145,7 @@ In this section, we provide empirical diagnostics supporting Assumption~\ref{ass
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\linewidth]{figures/m_eps_iteration_grid.pdf}
+    \includegraphics[width=0.8\linewidth]{m_eps_iteration_grid.pdf}
     \caption{The expected $\ell_2$ norm square of the VI model gradient throughout the DIVI training process for \texttt{x_shaped} and Conditioned Diffusion experiments, aggregated across 10 different seeds. This supports Assumption~\ref{assump:bounded_grad} that the VI model gradients are bounded. }
     \label{fig:bounded_m_eps}
 \end{figure}
@@ -154,7 +154,7 @@ For Assumption~\ref{assump:clip}, we provide empirical diagnostics by tracking t
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\linewidth]{figures/weight_norm_iteration_grid.pdf}
+    \includegraphics[width=0.8\linewidth]{weight_norm_iteration_grid.pdf}
     \caption{Norm of the VI model parameters throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
     \label{fig:weight_norm}
 \end{figure}
