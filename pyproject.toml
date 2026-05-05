@@ -1,0 +1,23 @@
+[project]
+name = "statcomp"
+version = "0.1.0"
+description = "Semi-Implicit Variational Inference research codebase"
+requires-python = ">=3.11"
+dependencies = [
+    "torch==2.9.0",
+    "numpy>=2.3",
+    "pandas>=2.3",
+    "scipy>=1.16",
+    "omegaconf>=2.3",
+    "tensorboard>=2.20",
+    "tqdm>=4.67",
+    "matplotlib>=3.10",
+    "seaborn>=0.13",
+    "PyYAML>=6.0",
+    "normflows>=1.7",
+    "protobuf>=6.0",
+    "ipykernel>=7.1",
+]
+
+[tool.uv]
+python = "3.14"
