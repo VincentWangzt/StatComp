@@ -34,11 +34,10 @@ from grid_benchmark_common import (  # noqa: E402
 )
 
 
-METHODS = ["sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi"]
+METHODS = ["sivi", "uivi", "aisivi", "dsivi", "ksivi"]
 METHOD_LABELS = {
     "sivi": "SIVI",
     "uivi": "UIVI",
-    "rsivi": "RSIVI",
     "aisivi": "AISIVI",
     "dsivi": "DSIVI",
     "ksivi": "KSIVI",
@@ -46,7 +45,6 @@ METHOD_LABELS = {
 METHOD_TO_VARIANT = {
     "sivi": "sivi",
     "uivi": "uivi",
-    "rsivi": "rsivi",
     "aisivi": "aisivi",
     "dsivi": "dsivi_default",
     "ksivi": "ksivi_custom",
@@ -54,7 +52,6 @@ METHOD_TO_VARIANT = {
 METHOD_TO_BASE_PREFIX = {
     "sivi": "sivi",
     "uivi": "uivi",
-    "rsivi": "rsivi",
     "aisivi": "aisivi",
     "dsivi": "dsivi",
     "ksivi": "ksivi",

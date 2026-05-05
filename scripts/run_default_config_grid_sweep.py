@@ -29,7 +29,7 @@ import grid_finalization as finalization
 
 REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_CAMPAIGN_SLUG = "default_config_grid"
-DEFAULT_METHODS = ("sivi", "uivi", "rsivi", "aisivi", "dsivi", "ksivi", "kpg")
+DEFAULT_METHODS = ("sivi", "uivi", "aisivi", "dsivi", "ksivi", "kpg")
 
 METRIC_MODES = {
     "metric/vi_model/elbo": "max",
@@ -54,7 +54,7 @@ CONFIG_HASH_IGNORED_KEYS = {
     "device",
     "output",
 }
-REVERSE_RUNNERS = {"RSIVI", "AISIVI", "DSIVI"}
+REVERSE_RUNNERS = {"AISIVI", "DSIVI"}
 SUMMARY_CACHE_VERSION = "summary-row-cache-v1"
 
 
