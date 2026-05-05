@@ -1,7 +1,0 @@
-target,oracle_nll,current_nll,delta_nll,oracle_rmse,current_rmse,delta_rmse,delta_rmse_pct,current_run_id,current_result_path
-Bnn_boston,2.484,2.50843660355,0.02443660354999988,2.5965,2.63341748714,0.036917487140000205,1.421817336414412,official_off_bnn_boston_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_boston/20260401_000958
-Bnn_concrete,3.2617,4.46696793556,1.2052679355599998,6.3709,15.4943322182,9.123432218200001,143.20476256415893,official_off_bnn_concrete_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_concrete/20260404_173808
-Bnn_power,2.804,4.46221219063,1.65821219063,3.9622,16.6442266464,12.6820266464,320.07537848669926,official_off_bnn_power_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_power/20260404_181353
-Bnn_protein,3.0192,3.29887412071,0.27967412070999975,4.9622,6.13538669586,1.1731866958600001,23.64247099794446,official_off_bnn_protein_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_protein/20260404_184815
-Bnn_winered,0.9484,1.24894191742,0.30054191742,0.6247,0.818351112604,0.19365111260399992,30.99905756427084,official_off_bnn_winered_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_winered/20260404_192604
-Bnn_yacht,1.4155,3.71627551079,2.3007755107900003,1.2474,10.8805039215,9.6331039215,772.2546032948533,official_off_bnn_yacht_ksivi_custom,results/grid_benchmark_20260330/official/KSIVI/Bnn_yacht/20260404_200358

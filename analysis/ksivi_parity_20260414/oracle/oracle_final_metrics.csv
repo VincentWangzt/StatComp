@@ -1,7 +1,0 @@
-target,run_dir,optimizer_updates,nll,rmse,source_bundle
-Bnn_boston,Bnn_boston/2026-04-08_16-57-04,100000,2.484,2.5965,bnn_metrics_remote
-Bnn_concrete,Bnn_concrete/2026-04-08_17-12-45,100000,3.2617,6.3709,bnn_metrics_remote
-Bnn_power,Bnn_power/2026-04-08_17-28-04,100000,2.804,3.9622,bnn_metrics_remote
-Bnn_protein,Bnn_protein/2026-04-14_11-03-37,100000,3.0192,4.9622,protein_custom_20260414
-Bnn_winered,Bnn_winered/2026-04-08_18-00-38,100000,0.9484,0.6247,bnn_metrics_remote
-Bnn_yacht,Bnn_yacht/2026-04-08_18-17-24,100000,1.4155,1.2474,bnn_metrics_remote
