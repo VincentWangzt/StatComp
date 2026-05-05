@@ -1,14 +1,11 @@
 # This file is adapted from:
-# https://https://github.com/VincentStimper/normalizing-flows
+# https://github.com/VincentStimper/normalizing-flows
 
 import normflows as nf
 import torch
 import numpy as np
 from torch.nn.functional import softplus
 from torch import nn
-
-# TODO: Experiment exp with clipping
-
 
 class SiLUMLP(nn.Module):
     """

@@ -11,14 +11,12 @@ CONFIG_DIR = os.path.join(os.path.dirname(__file__), 'configs')
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="UIVI Runner")
-    default_cfg = os.path.join(CONFIG_DIR, 'reverse_uivi.yaml')
+    parser = argparse.ArgumentParser(description="VI Runner")
 
     parser.add_argument(
-        '--config',
+        "--config",
         type=str,
-        default=default_cfg,
-        help='Path to main YAML config file',
+        help="Path to main YAML config file",
     )
 
     parser.add_argument(
