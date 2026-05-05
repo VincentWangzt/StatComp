@@ -1,8 +1,9 @@
 \documentclass[11pt]{article}
 
 % Standalone wrapper for drafting only the experiment section.
-% When merging into the remote full paper source, keep experiment.tex as the
-% section body and replace this wrapper with the paper-level main file.
+% When merging into the remote full paper source, keep experiments.tex (main body)
+% and experiment_appendix.tex (appendix details) as section bodies, and replace
+% this wrapper with the paper-level main file.
 
 \usepackage[preprint]{neurips_2026}
 
@@ -47,7 +48,12 @@
 
 \maketitle
 
-\input{experiment}
+\input{experiments}
+
+\clearpage
+\appendix
+
+\input{experiment_appendix}
 
 \bibliography{ref}
 

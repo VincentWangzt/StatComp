@@ -5,12 +5,17 @@ Guidance for Codex and other agents working in `paper/experiments/`.
 ## Purpose
 
 This directory is a section-only LaTeX scaffold for drafting the paper's
-experiment section in isolation. The durable source file is `experiment.tex`;
-`main.tex` is only a local compile wrapper.
+experiment section and appendix in isolation. The durable source files are:
+
+- `experiments.tex`: main experiment section body (results, figures, tables).
+- `experiment_appendix.tex`: appendix with shared setup, metrics, and per-experiment method configurations.
+
+`main.tex` is only a local compile wrapper that inputs both files with
+`\appendix` between them.
 
 ## Workflow
 
-- Keep this directory focused on the experiment section.
+- Keep this directory focused on the experiment section and its appendix.
 - Do not invent final experimental claims, numbers, captions, or conclusions
   before the corresponding generated results are available.
 - Do not create placeholder macro, figure, or table files unless explicitly
@@ -25,7 +30,7 @@ experiment section in isolation. The durable source file is `experiment.tex`;
 
 - Do not copy the remote full paper source into this scaffold unless explicitly
   requested. Once remote assets are available, wire them into `main.tex` or merge
-  `experiment.tex` into the remote source through the project git workflow.
+  the source files into the remote source through the project git workflow.
 - After LaTeX edits, compile locally with:
 
 ```powershell

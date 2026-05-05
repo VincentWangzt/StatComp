@@ -545,8 +545,7 @@ def render_bnn_table(summary_rows: list[dict[str, Any]], targets: list[str], met
     for method in methods:
         mean = time_values[method]
         is_best = mean is not None and mean == best_time
-        is_second = not is_best and mean is not None and second_best_time is not None and mean == second_best_time
-        time_cells.append(_integer_cell(mean, bold=is_best, underline=is_second))
+        time_cells.append(_integer_cell(mean, bold=is_best, underline=False))
     lines.append(" & ".join(time_cells) + " \\\\")
     lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
     return "\n".join(lines)

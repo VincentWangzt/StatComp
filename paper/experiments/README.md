@@ -1,15 +1,18 @@
 # Experiment Section Scaffold
 
-This directory is a standalone LaTeX workspace for drafting only the paper's
-experiment section before it is merged into the remote full paper source.
+This directory is a standalone LaTeX workspace for drafting the paper's
+experiment section and appendix before they are merged into the remote full
+paper source.
 
 ## Files
 
 - `main.tex`: local wrapper for isolated compilation.
-- `experiment.tex`: the experiment-section content to merge later.
+- `experiments.tex`: the main experiment-section body (Section 5 in the paper).
+- `experiment_appendix.tex`: the experiment appendix with detailed configurations, metrics, and per-target settings.
 - `neurips_2026.sty`: local paper style used by the standalone wrapper.
 - `ref.bib`: local bibliography database for experiment-section drafting.
 - `AGENTS.md`: workflow guidance for future agent edits in this directory.
+- `CLAUDE.md`: guidance for Claude Code sessions in this directory.
 
 No fake macro, figure, or table files are included here. Keep `neurips_2026.sty`
 and `ref.bib` aligned with the remote paper source when those assets change.
@@ -38,8 +41,9 @@ When the remote full paper source is available:
    remote paper class, packages, style files, and macros.
 2. Keep bibliography wiring pointed at the real remote `.bib` and bibliography
    style files.
-3. Keep `experiment.tex` focused on the experiment section so it can be merged
-   into the full paper with minimal editing.
+3. Keep `experiments.tex` focused on the main experiment section and
+   `experiment_appendix.tex` focused on the appendix details, so each can be
+   merged into the full paper with minimal editing.
 
 Generated figures and tables should be referenced from campaign/finalization
 outputs rather than copied into this directory. Expected default locations are:
