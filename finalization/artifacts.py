@@ -176,8 +176,8 @@ def load_sample_z(path: Path, *, map_location: str = "cpu") -> torch.Tensor:
 
 def load_baseline_samples(target: str) -> torch.Tensor:
     candidates = [
-        REPO_ROOT / "baselines" / "exact" / f"{target}_exact_100k_20260408.pt",
-        REPO_ROOT / "baselines" / "hmc" / f"{target}.pt",
+        REPO_ROOT / "baselines" / "exact" / f"{target}_exact_100k.pt",
+        REPO_ROOT / "baselines" / "mcmc" / f"{target}.pt",
     ]
     for path in candidates:
         if path.exists():

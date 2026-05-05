@@ -3,16 +3,6 @@
 This directory contains runnable experiment entrypoints for the default-config
 grid campaign and baseline generation.
 
-## Prerequisites
-
-Remote experiment runs should follow `AGENTS.md`: make code/config changes
-locally, test when feasible, commit, push, pull on the remote host, then run
-under the remote environment.
-
-Final report artifacts follow the same git-backed remote workflow. Generate
-figures and tables on the remote host from committed code, commit those generated
-artifacts on the remote branch, push, then pull the artifact commit locally.
-
 ## Quick Start
 
 The two shell scripts provide one-command entrypoints for the most common
