@@ -533,8 +533,8 @@ def _sgld_enabled(cfg: Any) -> bool:
 def evaluate_langevin_sgld_baseline(cfg: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     eval_cfg = cfg.evaluation.langevin_kde_elm
     sgld_cfg = _sgld_kde_cfg(cfg)
-    reference_path = repo_path(str(sgld_cfg.get("reference_path", "baselines/hmc/Langevin_post.pt")))
-    model_path = repo_path(str(sgld_cfg.get("model_path", "baselines/hmc/Langevin_post_sgld_100k.pt")))
+    reference_path = repo_path(str(sgld_cfg.get("reference_path", "baselines/mcmc/Langevin_post.pt")))
+    model_path = repo_path(str(sgld_cfg.get("model_path", "baselines/mcmc/Langevin_post_sgld_100k.pt")))
     if reference_path is None or model_path is None:
         raise FileNotFoundError("SGLD KDE reference/model paths must be configured.")
     reference_samples = load_baseline_sample_store(reference_path)

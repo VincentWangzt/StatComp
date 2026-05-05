@@ -75,4 +75,4 @@ kl:
 
 # Baseline path for KL estimation
 baseline:
-  baseline_path: baselines/hmc/banana.pt
+  baseline_path: baselines/mcmc/banana.pt

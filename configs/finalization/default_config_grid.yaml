@@ -76,8 +76,8 @@ evaluation:
     dtype: float32
     sgld:
       enabled: true
-      reference_path: baselines/hmc/Langevin_post.pt
-      model_path: baselines/hmc/Langevin_post_sgld_100k.pt
+      reference_path: baselines/mcmc/Langevin_post.pt
+      model_path: baselines/mcmc/Langevin_post_sgld_100k.pt
       seed: 0
   bnn:
     num_samples: 2000

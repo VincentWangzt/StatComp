@@ -65,7 +65,7 @@ warmup:
   loss_log_freq: 1
 
 baseline:
-  baseline_path: baselines/hmc/banana.pt
+  baseline_path: baselines/mcmc/banana.pt
 
 kl:
   n_ite_samples: 10000

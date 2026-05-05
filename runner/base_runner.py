@@ -418,7 +418,7 @@ class BaseSIVIRunner():
 
     def _load_baseline_samples(self) -> np.ndarray | None:
         """
-        Load baseline MCMC samples from a configured path (`self.config.target.baseline_path`) for the current target. If not available, use a default path `baselines/hmc/{target_dist}.pt`.
+        Load baseline MCMC samples from a configured path (`self.config.target.baseline_path`) for the current target. If not available, use a default path `baselines/mcmc/{target_dist}.pt`.
 
         Returns:
             samples (np.ndarray | None): Loaded baseline samples on cpu, or None if unavailable.
@@ -427,7 +427,7 @@ class BaseSIVIRunner():
         baseline_path = self.config.target.get('baseline_path', None)
 
         if not baseline_path:
-            baseline_path = f'baselines/hmc/{self.target_type}.pt'
+            baseline_path = f'baselines/mcmc/{self.target_type}.pt'
             logger.warning(
                 f"baseline_path not found, using default: {baseline_path}")
         try:

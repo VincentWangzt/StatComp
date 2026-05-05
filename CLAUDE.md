@@ -93,7 +93,7 @@ This generates pre-processed `.pt` files under `data/` (subdirectories: `wavefor
 | `x_shaped` | Toy 2D | 2 | `configs/targets/x_shaped.yaml` | `baselines/exact/x_shaped_exact_100k_20260408.pt` |
 | `student_uc` | Toy 2D | 2 | `configs/targets/student_uc.yaml` | `baselines/exact/student_uc_exact_100k_20260408.pt` |
 | `8_gaussians` | Toy 2D | 2 | `configs/targets/8_gaussians.yaml` | `baselines/exact/8_gaussians_exact_100k_20260408.pt` |
-| `Langevin_post` | High-dim | 100 | `configs/targets/Langevin_post.yaml` | `baselines/hmc/Langevin_post.pt` |
+| `Langevin_post` | High-dim | 100 | `configs/targets/Langevin_post.yaml` | `baselines/mcmc/Langevin_post.pt` |
 | `LRwaveform` | Data-dep | 22 | `configs/targets/LRwaveform.yaml` | None (ELBO only) |
 | `Bnn_boston` | Data-dep | 751 | `configs/targets/Bnn_boston.yaml` | None (ELBO only) |
 | `Bnn_concrete` | Data-dep | 501 | `configs/targets/Bnn_concrete.yaml` | None (ELBO only) |

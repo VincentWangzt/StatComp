@@ -22,7 +22,7 @@ Thumbs.db
 results*/
 tb_logs*/
 *.pt
-!baselines/hmc/Langevin_post_sgld_100k.pt
+!baselines/mcmc/Langevin_post_sgld_100k.pt
 *.pth
 output.txt
 nogit**
