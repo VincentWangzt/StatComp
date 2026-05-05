@@ -20,7 +20,7 @@ from utils.logging import get_logger
 from utils.metrics import compute_sliced_wasserstein
 
 from .artifacts import RunRecord, find_final_checkpoint, load_baseline_samples
-from .config import repo_path
+from .config import repo_path, REPO_ROOT
 
 
 logger = get_logger()
@@ -437,7 +437,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
             "method": rec.method,
             "target": rec.target,
             "checkpoint_epoch": ckpt_epoch,
-            "checkpoint_dir": ckpt_dir.as_posix(),
+            "checkpoint_dir": ckpt_dir.relative_to(REPO_ROOT).as_posix(),
             "duration_sec": rec.duration_sec,
             "errors": json.dumps(errors, sort_keys=True),
             "warnings": json.dumps(warnings, sort_keys=True),
@@ -564,7 +564,7 @@ def evaluate_langevin_sgld_baseline(cfg: Any) -> tuple[dict[str, Any], list[dict
         "method": "SGLD",
         "target": "Langevin_post",
         "checkpoint_epoch": "",
-        "checkpoint_dir": model_path.as_posix(),
+        "checkpoint_dir": model_path.relative_to(REPO_ROOT).as_posix(),
         "duration_sec": "",
         "errors": "{}",
         "kde_elm": float(estimate.value),

@@ -10,6 +10,14 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _rel(path: Path) -> str:
+    """Return repo-relative POSIX path string."""
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
 from finalization.artifacts import completed_runs, load_manifest, select_runs  # noqa: E402
 from finalization.config import load_config, repo_path  # noqa: E402
 from finalization.plots import render_grad_norm_iteration_grid, render_kl_iteration_grid, render_kl_time_grid, render_langevin_trace_grid, render_m_eps_iteration_grid, render_scatter_grid, render_scatter_hist_grid, render_weight_norm_iteration_grid  # noqa: E402
@@ -114,11 +122,11 @@ def main() -> None:
 
     generated: list[str] = []
     if _enabled(cfg, "scatter_grid"):
-        generated.append(render_scatter_grid(figure_records, cfg).as_posix())
+        generated.append(_rel(render_scatter_grid(figure_records, cfg)))
     if _enabled(cfg, "scatter_hist_grid"):
-        generated.append(render_scatter_hist_grid(figure_records, cfg).as_posix())
+        generated.append(_rel(render_scatter_hist_grid(figure_records, cfg)))
     if _enabled(cfg, "langevin_trace_grid"):
-        generated.append(render_langevin_trace_grid(figure_records, cfg).as_posix())
+        generated.append(_rel(render_langevin_trace_grid(figure_records, cfg)))
     # KL convergence curve plots — use all seeds for aggregation
     if _enabled(cfg, "kl_iteration_grid") or _enabled(cfg, "kl_time_grid"):
         kl_curve_records = select_runs(
@@ -128,9 +136,9 @@ def main() -> None:
             seeds=_selection_seeds(cfg.selection.seeds),
         )
         if _enabled(cfg, "kl_iteration_grid"):
-            generated.append(render_kl_iteration_grid(kl_curve_records, cfg).as_posix())
+            generated.append(_rel(render_kl_iteration_grid(kl_curve_records, cfg)))
         if _enabled(cfg, "kl_time_grid"):
-            generated.append(render_kl_time_grid(kl_curve_records, cfg).as_posix())
+            generated.append(_rel(render_kl_time_grid(kl_curve_records, cfg)))
     if _enabled(cfg, "grad_norm_iteration_grid"):
         grad_norm_records = select_runs(
             all_records,
@@ -138,7 +146,7 @@ def main() -> None:
             targets=[str(t) for t in cfg.selection.grad_norm_targets],
             seeds=_selection_seeds(cfg.selection.seeds),
         )
-        generated.append(render_grad_norm_iteration_grid(grad_norm_records, cfg).as_posix())
+        generated.append(_rel(render_grad_norm_iteration_grid(grad_norm_records, cfg)))
     if _enabled(cfg, "weight_norm_iteration_grid"):
         weight_norm_records = select_runs(
             all_records,
@@ -146,7 +154,7 @@ def main() -> None:
             targets=[str(t) for t in cfg.selection.weight_norm_targets],
             seeds=_selection_seeds(cfg.selection.seeds),
         )
-        generated.append(render_weight_norm_iteration_grid(weight_norm_records, cfg).as_posix())
+        generated.append(_rel(render_weight_norm_iteration_grid(weight_norm_records, cfg)))
     if _enabled(cfg, "m_eps_iteration_grid"):
         m_eps_records = select_runs(
             all_records,
@@ -154,7 +162,7 @@ def main() -> None:
             targets=[str(t) for t in cfg.selection.m_eps_targets],
             seeds=_selection_seeds(cfg.selection.seeds),
         )
-        generated.append(render_m_eps_iteration_grid(m_eps_records, cfg).as_posix())
+        generated.append(_rel(render_m_eps_iteration_grid(m_eps_records, cfg)))
     if any(
         _enabled(cfg, name)
         for name in ("toy_tables", "toy_method_grid", "langevin_table", "student_edge_table", "bnn_table")
@@ -162,7 +170,7 @@ def main() -> None:
         table_paths = render_tables(summary_rows, cfg)
         for name, path in table_paths.items():
             if _enabled(cfg, "bnn_table") or name != "bnn":
-                generated.append(path.as_posix())
+                generated.append(_rel(path))
 
     warning_summary = _read_csv(out_dir / "reevaluation_warning_summary.csv")
 
@@ -190,7 +198,7 @@ def main() -> None:
                 f"{row.get('count', '')}"
             )
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {report_path}")
+    print(f"Wrote {_rel(report_path)}")
 
 
 if __name__ == "__main__":
