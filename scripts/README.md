@@ -1,14 +1,9 @@
 # Scripts
 
-This directory keeps runnable maintenance and experiment entrypoints. Historical
-one-off campaign scripts and generated-grid compatibility utilities have been
-removed; use git history if an old workflow is needed for provenance.
+This directory contains runnable experiment entrypoints for the default-config
+grid campaign and baseline generation.
 
-Use the project virtual environment when running scripts locally:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\<script>.py
-```
+## Prerequisites
 
 Remote experiment runs should follow `AGENTS.md`: make code/config changes
 locally, test when feasible, commit, push, pull on the remote host, then run
@@ -17,101 +12,141 @@ under the remote environment.
 Final report artifacts follow the same git-backed remote workflow. Generate
 figures and tables on the remote host from committed code, commit those generated
 artifacts on the remote branch, push, then pull the artifact commit locally.
-Avoid using direct copy, tar extraction, or `scp` as the primary path for final
-generated images and tables.
 
-## Current Workflow
+## Quick Start
 
-The only local campaign directory kept in this checkout is:
+The two shell scripts provide one-command entrypoints for the most common
+workflows. See each script's header comments for the full option list.
 
-```text
-campaigns/default_config_grid/
+### Reproduce all baselines
+
+```bash
+bash scripts/reproduce_baselines.sh
 ```
 
-Use these scripts for the current workflow:
+This regenerates:
+- Exact toy 2D baselines under `baselines/exact/` (banana, multimodal,
+  8_gaussians, x_shaped, student_uc)
+- SGLD Langevin_post samples under `baselines/mcmc/` (1K-chain and 100K-chain
+  variants)
 
-| Script | Purpose | Main arguments |
-| --- | --- | --- |
-| `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
-| `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
-| `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
+### Run the full default-config grid (sweep + finalization)
 
-## Examples
+```bash
+bash scripts/run_default_config_grid.sh \
+  --seeds "42 43 44 45 46" \
+  --exclude-methods "rsivi" \
+  --finalize-workers 2
+```
+
+This runs the two-phase pipeline end-to-end:
+1. **Phase 1 (sweep):** schedules all `<method> x <target> x <seed>` jobs across
+   available GPUs via `run_default_config_grid_sweep.py`.
+2. **Phase 2 (finalization):** runs evaluation, scatter grids, diagnostic plots,
+   and summary tables via `run_finalization.py`.
+
+Use `--dry-run` to preview the sweep plan without launching jobs. Use
+`--skip-sweep` or `--skip-finalization` to run only one phase.
+
+## Campaign Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the `<method>_<target>` grid. Handles resume, retry, stale-detection, and per-run async finalization. |
+| `run_finalization.py` | Runs final evaluation, figures, and tables for a completed campaign. |
+| `run_default_config_grid.sh` | End-to-end wrapper that runs the sweep then finalization in sequence. |
+
+### Sweep examples
 
 Preview the current default grid without launching jobs:
 
-```
-python scripts/run_default_config_grid_sweep.py \
-  --dry-run
+```bash
+python scripts/run_default_config_grid_sweep.py --dry-run
 ```
 
-Run the main default-config sweep with five seeds while excluding RSIVI. This
-uses all discovered GPUs unless `--gpus` is provided, writes run artifacts under
-`results/default_config_grid/` and TensorBoard logs under
-`tb_logs/default_config_grid/`, and resumes already-completed fresh runs by
-default:
+Run the sweep with five seeds on auto-discovered GPUs:
 
-```
+```bash
 python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
-  --exclude-methods rsivi \
   --finalize-mode async \
   --finalize-workers 1
 ```
 
-If configs changed and completed artifacts need to be checked against the new
-effective configs, generate the hash inventory first, then rerun stale entries.
-The inventory command only writes hash files under campaign runtime and exits:
+Detect stale artifacts after a config change and rerun them:
 
-```
+```bash
 python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
-  --exclude-methods rsivi \
   --hash-existing-artifacts
 
 python scripts/run_default_config_grid_sweep.py \
   --seeds 42 43 44 45 46 \
-  --exclude-methods rsivi \
   --rerun-stale
 ```
 
-Run the full default finalization pass after the campaign manifest has completed.
-The default finalization config already selects `[SIVI, UIVI, AISIVI, DSIVI,
-KSIVI]`, matching the RSIVI-excluded sweep:
+### Finalization examples
 
-```
+Run the full finalization pass (evaluate, plot, tabulate):
+
+```bash
 python scripts/run_finalization.py
 ```
 
-Run only evaluation, overwriting existing reevaluation outputs:
+Run only evaluation with overwrite:
 
-```
+```bash
 python scripts/run_finalization.py \
   --only evaluate \
   --set evaluation.overwrite=true
 ```
 
-Regenerate only the tables and figure grids from existing reevaluation outputs:
+Regenerate specific outputs from existing evaluation data:
 
-```
+```bash
 python scripts/run_finalization.py \
   --only scatter_grid \
-  --only scatter_hist_grid \
   --only toy_tables \
-  --only toy_method_grid \
-  --only langevin_table \
-  --only student_edge_table \
-  --only langevin_trace_grid \
   --only bnn_table
 ```
 
-## Utility Scripts
+## Baseline Scripts
 
-| Script | Purpose | Main arguments |
-| --- | --- | --- |
-| `config_review_server.py` | Launches the config reviewer web tool. Currently known broken until migrated off removed legacy grid modules; see `tools/config_reviewer/README.md`. | `--port`, `--host` |
-| `run_sgld_baseline.py` | Generates saved target samples with SGLD. | `--target`, `--num-samples`, `--burn-in`, `--step-size`, `--thinning`, `--num-chains`, `--seed`, `--device`, `--max-grad-norm`, `--output-dir`, `--overwrite`, `--plot` |
-| `grid_finalization.py` | Shared event/config-hash/finalization helpers used by dynamic sweeps. | library module |
+| Script | Purpose |
+| --- | --- |
+| `reproduce_baselines.sh` | One-command regeneration of all baseline sample files (exact + SGLD). |
+| `generate_exact_baselines.py` | Draws 100K exact samples for each toy 2D target with an analytic sampler. |
+| `run_sgld_baseline.py` | Generates SGLD samples for a given target. Supports multi-chain runs with configurable step size, burn-in, thinning, and gradient clipping. |
+| `grid_finalization.py` | Shared library module providing config-hash computation, event logging, and per-run finalization helpers used by the sweep scheduler. |
 
-The standalone ELM evaluator scripts were removed. The adopted ELM metric is
-the coordinate-wise KDE estimator implemented in `utils/elm/`.
+### Baseline examples
+
+Generate only exact toy baselines:
+
+```bash
+python scripts/generate_exact_baselines.py --seed 42 --num-samples 100000
+```
+
+Generate SGLD samples for Langevin_post with 1K chains:
+
+```bash
+python scripts/run_sgld_baseline.py \
+  --target Langevin_post \
+  --num-samples 100000 \
+  --burn-in 100000 \
+  --step-size 1e-4 \
+  --num-chains 1000 \
+  --max-grad-norm 1000.0 \
+  --seed 42
+```
+
+## Output Locations
+
+| Artifact | Path |
+| --- | --- |
+| Run results | `results/default_config_grid/` |
+| TensorBoard logs | `tb_logs/default_config_grid/` |
+| Campaign manifest | `campaigns/default_config_grid/` |
+| Generated reports | `campaigns/default_config_grid/generated_reports/` |
+| Exact baselines | `baselines/exact/` |
+| MCMC baselines | `baselines/mcmc/` |

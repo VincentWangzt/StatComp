@@ -6,8 +6,8 @@ Read-only local UI for comparing base YAML configs across methods and targets.
 
 Run from the repository root:
 
-```powershell
-.\.venv\Scripts\python.exe scripts\config_review_server.py --port 8765
+```bash
+python tools/config_reviewer/server.py --port 8765
 ```
 
 Then open:
