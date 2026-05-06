@@ -1313,6 +1313,7 @@ def render_score_linearity_grid(records: list[RunRecord], cfg: Any) -> Path:
                 c=color,
                 s=marker_size,
                 alpha=alpha,
+                marker=".",
                 label=f"Epoch {epoch}",
                 edgecolors="none",
                 rasterized=True,
