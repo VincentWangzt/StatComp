@@ -43,6 +43,7 @@ Available `--only` modules:
 | `m_eps_iteration_grid` | Mixing samples (m_eps) vs. iteration curves |
 | `score_4th_moment_iteration_grid` | Score fourth moments vs. iteration curves |
 | `score_diff_l2_fourth_iteration_grid` | E[\\|\\|score_p - score_q\\|\\|^4] vs. iteration curves |
+| `score_linearity_grid` | Score linearity bound scatter: log\\|\\|diff\\|\\| - log(\\|\\|z\\|\\| + 1) vs \\|\\|z\\|\\| |
 | `toy_tables` | Summary metrics table for toy targets |
 | `toy_method_grid` | Per-method breakdown table for toy targets |
 | `langevin_table` | Metrics table for the Langevin target |
