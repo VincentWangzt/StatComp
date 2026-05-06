@@ -1,9 +1,9 @@
 """Spectral-norm utilities for parameter Jacobians of the VI model.
 
-Computes  E_ε[‖∇_φ μ_φ(ε)‖₂²]  and  E_ε[‖∇_φ σ_φ(ε)‖₂²]  where the norm
+Computes  E_ε[‖∇_φ μ_φ(ε)‖₂⁴]  and  E_ε[‖∇_φ σ_φ(ε)‖₂⁴]  where the norm
 is the matrix 2-norm (largest singular value) of the d_z × d_φ Jacobian.
 
-This supports empirical validation of Assumption 1 (bounded gradient norms)
+This supports empirical validation of the Bounded Reparameterization Assumption
 used in the DSIVI convergence theory.
 """
 
@@ -30,7 +30,7 @@ class AssumptionBoundResult:
     mean_sq_spectral_mu: float = 0.0
     mean_sq_spectral_std: float = 0.0
 
-    # max of the two = empirical M_ε
+    # max of the two = empirical VI derivative fourth moment
     M_eps: float = 0.0
 
     # Standard errors of the mean (Monte Carlo)
@@ -133,9 +133,9 @@ def evaluate_assumption_bound(
     model: nn.Module,
     epsilon_batch: Tensor,
 ) -> AssumptionBoundResult:
-    """Evaluate the bounded-gradient assumption for a batch of ε samples.
+    """Evaluate the Bounded Reparameterization Assumption for a batch of ε samples.
 
-    Computes  E_ε[‖∇_φ μ_φ(ε)‖₂²]  and  E_ε[‖∇_φ σ_φ(ε)‖₂²]  via
+    Computes  E_ε[‖∇_φ μ_φ(ε)‖₂⁴]  and  E_ε[‖∇_φ σ_φ(ε)‖₂⁴]  via
     Monte Carlo over the supplied ε batch.
 
     Args:
@@ -153,8 +153,8 @@ def evaluate_assumption_bound(
     norms_mu = compute_jacobian_spectral_norms(model, epsilon_batch, "mu")
     norms_std = compute_jacobian_spectral_norms(model, epsilon_batch, "std")
 
-    sq_mu = norms_mu ** 2
-    sq_std = norms_std ** 2
+    sq_mu = norms_mu ** 4
+    sq_std = norms_std ** 4
 
     mean_sq_mu = sq_mu.mean().item()
     mean_sq_std = sq_std.mean().item()

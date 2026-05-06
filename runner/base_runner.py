@@ -951,9 +951,10 @@ class BaseSIVIRunner():
 
     def eval_jacobian_spectral(self, epoch: int):
         '''
-        Evaluate Jacobian spectral norms (Assumption 1) and log to TensorBoard.
+        Evaluate Jacobian spectral norms (Bounded Reparameterization Assumption)
+        and log to TensorBoard.
 
-        Computes E_ε[‖∇_φ μ_φ(ε)‖₂²] and E_ε[‖∇_φ σ_φ(ε)‖₂²] where the
+        Computes E_ε[‖∇_φ μ_φ(ε)‖₂⁴] and E_ε[‖∇_φ σ_φ(ε)‖₂⁴] where the
         norm is the matrix 2-norm (spectral norm) of the d_z × d_φ Jacobian.
 
         Args:
@@ -975,10 +976,10 @@ class BaseSIVIRunner():
             "metric/vi_model/jacobian_spectral_std",
             bound.mean_sq_spectral_std, epoch)
         self.writer.add_scalar(
-            "metric/vi_model/M_eps",
+            "metric/vi_model/vi_derivative_fourth_moment",
             bound.M_eps, epoch)
         logger.debug(
-            f"Epoch {epoch}, M_eps: {bound.M_eps:.4f} "
+            f"Epoch {epoch}, VI_D4M: {bound.M_eps:.4f} "
             f"(mu: {bound.mean_sq_spectral_mu:.4f}, "
             f"std: {bound.mean_sq_spectral_std:.4f})")
 
