@@ -1094,7 +1094,7 @@ def render_score_p_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any)
         ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
-            ax.set_ylabel(r"$\mathbb{E}[\|\nabla_z \log p(z)\|^4]$", fontsize=label_fontsize)
+            ax.set_ylabel(r"$E[\|\nabla_z \log p(z)\|^4]$", fontsize=label_fontsize)
         for m_idx, method in enumerate(methods):
             mu = method.upper()
             seed_curves = score_p_curves.get((mu, target), [])
@@ -1148,7 +1148,7 @@ def render_score_q_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any)
         ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
-            ax.set_ylabel(r"$\mathbb{E}[\|\psi(z)\|^4]$", fontsize=label_fontsize)
+            ax.set_ylabel(r"$E[\|\psi(z)\|^4]$", fontsize=label_fontsize)
         for m_idx, method in enumerate(methods):
             mu = method.upper()
             seed_curves = score_q_curves.get((mu, target), [])
