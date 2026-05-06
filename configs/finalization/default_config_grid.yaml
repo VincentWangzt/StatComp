@@ -19,6 +19,8 @@ selection:
   weight_norm_methods: [DSIVI]
   m_eps_targets: [x_shaped, Langevin_post]
   m_eps_methods: [DSIVI]
+  score_4th_moment_targets: [x_shaped, Langevin_post]
+  score_4th_moment_methods: [DSIVI]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
   seed_for_figures: 42
   seed_overrides:
@@ -39,6 +41,7 @@ modules:
   grad_norm_iteration_grid: true
   weight_norm_iteration_grid: true
   m_eps_iteration_grid: true
+  score_4th_moment_iteration_grid: true
 
 evaluation:
   device: auto
@@ -85,6 +88,10 @@ evaluation:
     n_samples: 1024
     n_samples_override:
       Bnn_boston: 128
+    checkpoint_stride: 1
+    overwrite: false
+  score_4th_moment:
+    n_samples: 10240
     checkpoint_stride: 1
     overwrite: false
 
@@ -145,6 +152,13 @@ plots:
     label_fontsize: 12
     log_scale: false
   m_eps_iteration:
+    figsize_per_panel: [3.5, 2.5]
+    n_grid: 200
+    linewidth: 1.5
+    band_alpha: 0.25
+    title_fontsize: 13
+    label_fontsize: 12
+  score_4th_moment_iteration:
     figsize_per_panel: [3.5, 2.5]
     n_grid: 200
     linewidth: 1.5

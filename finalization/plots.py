@@ -32,6 +32,10 @@ from .eval_assumption_jacobian import (
     evaluate_run as evaluate_m_eps_run,
     write_csv as write_m_eps_csv,
 )
+from .eval_score_fourth_moment import (
+    evaluate_run as evaluate_score_4th_run,
+    write_csv as write_score_4th_csv,
+)
 
 
 def _display_method(name: str) -> str:
@@ -955,6 +959,214 @@ def render_m_eps_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "m_eps_iteration_grid.png"
     pdf_path = out_dir / "m_eps_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+# ---------------------------------------------------------------------------
+# Score Fourth Moment vs iteration plots
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_score_4th_moment(
+    records: list[RunRecord],
+    targets: list[str],
+    cfg: Any,
+) -> Path:
+    """Compute score fourth moments at every checkpoint for all matching DSIVI runs.
+
+    Writes results to ``{output_dir}/score_4th_moment_results.csv``.  When the CSV
+    already exists and ``evaluation.score_4th_moment.overwrite`` is false the
+    computation is skipped.
+
+    Returns:
+        Path to the results CSV.
+    """
+    import csv as _csv
+
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    csv_path = root / "score_4th_moment_results.csv"
+
+    s4_cfg = cfg.evaluation.get("score_4th_moment", {})
+    overwrite = bool(s4_cfg.get("overwrite", False))
+    if csv_path.exists() and not overwrite:
+        return csv_path
+
+    n_samples = int(s4_cfg.get("n_samples", 10240))
+    checkpoint_stride = int(s4_cfg.get("checkpoint_stride", 1))
+    device = str(cfg.evaluation.get("device", "auto"))
+
+    target_set = {normalize_target(t) for t in targets}
+    dsivi_records = [
+        rec for rec in records
+        if rec.method.upper() == "DSIVI" and rec.target in target_set
+    ]
+
+    all_results: list[dict[str, Any]] = []
+    for rec in dsivi_records:
+        try:
+            run_results = evaluate_score_4th_run(
+                rec,
+                device=device,
+                n_samples=n_samples,
+                checkpoint_stride=checkpoint_stride,
+            )
+            all_results.extend(run_results)
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).warning(
+                "Skipping score 4th moment evaluation for %s: %s", rec.run_id, exc,
+            )
+
+    if all_results:
+        write_score_4th_csv(all_results, csv_path)
+    return csv_path
+
+
+def _collect_score_4th_moment_curves(
+    csv_path: Path,
+) -> tuple[
+    dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]],
+    dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]],
+]:
+    """Load score 4th moment CSV and build per-seed curves.
+
+    Returns:
+        (score_p_curves, score_q_curves) -- each mapping
+        ``("DSIVI", target)`` to list of ``(epochs, values)`` seed curves,
+        matching the shape expected by :func:`_aggregate_curves_minmax`.
+    """
+    import csv as _csv
+
+    if not csv_path.exists():
+        return {}, {}
+
+    # Group rows by (target, seed)
+    grouped: dict[tuple[str, int], list[tuple[int, float, float]]] = {}
+    with csv_path.open("r", encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            key = (str(row["target"]), int(row["seed"]))
+            grouped.setdefault(key, []).append(
+                (int(row["epoch"]), float(row["score_p_4th_moment"]), float(row["score_q_4th_moment"]))
+            )
+
+    score_p_curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    score_q_curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    for (target, _seed), points in grouped.items():
+        points.sort(key=lambda p: p[0])
+        epochs = np.array([p[0] for p in points], dtype=np.float64)
+        p_values = np.array([p[1] for p in points], dtype=np.float64)
+        q_values = np.array([p[2] for p in points], dtype=np.float64)
+        score_p_curves.setdefault(("DSIVI", target), []).append((epochs, p_values))
+        score_q_curves.setdefault(("DSIVI", target), []).append((epochs, q_values))
+    return score_p_curves, score_q_curves
+
+
+def render_score_p_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render E[||score_p||^4] vs iteration -- one subplot per target."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.score_4th_moment_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.score_4th_moment_targets]
+    methods = [str(m) for m in cfg.selection.score_4th_moment_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    # Evaluate (or load cached CSV)
+    csv_path = _evaluate_score_4th_moment(records, targets, cfg)
+    score_p_curves, _ = _collect_score_4th_moment_curves(csv_path)
+
+    n_cols = max(len(targets), 1)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(r"$\mathbb{E}[\|\nabla_z \log p(z)\|^4]$", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = score_p_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="Mean")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha, label="Min/Max")
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "score_p_4th_moment_iteration_grid.png"
+    pdf_path = out_dir / "score_p_4th_moment_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+def render_score_q_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render E[||score_q||^4] vs iteration -- one subplot per target."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.score_4th_moment_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.score_4th_moment_targets]
+    methods = [str(m) for m in cfg.selection.score_4th_moment_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    # Evaluate (or load cached CSV)
+    csv_path = _evaluate_score_4th_moment(records, targets, cfg)
+    _, score_q_curves = _collect_score_4th_moment_curves(csv_path)
+
+    n_cols = max(len(targets), 1)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(r"$\mathbb{E}[\|\psi(z)\|^4]$", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = score_q_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="Mean")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha, label="Min/Max")
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "score_q_4th_moment_iteration_grid.png"
+    pdf_path = out_dir / "score_q_4th_moment_iteration_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)
