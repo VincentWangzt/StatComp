@@ -1,25 +1,13 @@
 # Finalization Report
 
 Completed manifest runs discovered: 650
-Evaluation runs selected: 600
+Evaluation runs selected: 300
 Per-run rows: 601
 Aggregate rows: 61
 
 ## Generated
 
-- `campaigns/default_config_grid/generated_reports/finalization/figures/toy_scatter_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/toy_scatter_hist_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/langevin_trace_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/kl_iteration_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/kl_time_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/grad_norm_iteration_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/weight_norm_iteration_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/figures/m_eps_iteration_grid.png`
-- `campaigns/default_config_grid/generated_reports/finalization/tables/toy_metrics.tex`
-- `campaigns/default_config_grid/generated_reports/finalization/tables/toy_method_grid.tex`
-- `campaigns/default_config_grid/generated_reports/finalization/tables/langevin_metrics.tex`
-- `campaigns/default_config_grid/generated_reports/finalization/tables/student_edge_w2.tex`
-- `campaigns/default_config_grid/generated_reports/finalization/tables/bnn_rmse_nll.tex`
+- `campaigns/default_config_grid/generated_reports/finalization/figures/score_diff_l2_fourth_iteration_grid.png`
 
 ## Warnings
 
