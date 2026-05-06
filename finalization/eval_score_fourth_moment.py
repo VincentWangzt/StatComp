@@ -123,6 +123,8 @@ CSV_FIELDS = [
     "n_samples",
     "score_p_4th_moment",
     "score_q_4th_moment",
+    "score_diff_l2_fourth",
+    "score_diff_l2_second",
     "score_p_mean_norm",
     "score_q_mean_norm",
     "run_id",
@@ -184,6 +186,10 @@ def evaluate_run(
             score_q_4th = torch.mean(norm_q ** 4).item()
             score_p_mean_norm = torch.mean(norm_p).item()
             score_q_mean_norm = torch.mean(norm_q).item()
+            # E[||score_p - score_q||_2^4]
+            diff_sq = torch.sum((score_p - score_q) ** 2, dim=-1)  # ||.||_2^2
+            score_diff_l2_fourth = torch.mean(diff_sq ** 2).item()  # E[||.||_2^4]
+            score_diff_l2_second = torch.mean(diff_sq).item()  # E[||.||_2^2]
 
         duration = time.perf_counter() - t0
 
@@ -195,6 +201,8 @@ def evaluate_run(
             "n_samples": n_samples,
             "score_p_4th_moment": score_p_4th,
             "score_q_4th_moment": score_q_4th,
+            "score_diff_l2_fourth": score_diff_l2_fourth,
+            "score_diff_l2_second": score_diff_l2_second,
             "score_p_mean_norm": score_p_mean_norm,
             "score_q_mean_norm": score_q_mean_norm,
             "run_id": rec.run_id,

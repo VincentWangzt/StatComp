@@ -42,6 +42,7 @@ modules:
   weight_norm_iteration_grid: true
   m_eps_iteration_grid: true
   score_4th_moment_iteration_grid: true
+  score_diff_l2_fourth_iteration_grid: true
 
 evaluation:
   device: auto

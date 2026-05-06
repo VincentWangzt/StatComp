@@ -1031,38 +1031,43 @@ def _collect_score_4th_moment_curves(
 ) -> tuple[
     dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]],
     dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]],
+    dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]],
 ]:
     """Load score 4th moment CSV and build per-seed curves.
 
     Returns:
-        (score_p_curves, score_q_curves) -- each mapping
+        (score_p_curves, score_q_curves, score_diff_curves) -- each mapping
         ``("DSIVI", target)`` to list of ``(epochs, values)`` seed curves,
         matching the shape expected by :func:`_aggregate_curves_minmax`.
     """
     import csv as _csv
 
     if not csv_path.exists():
-        return {}, {}
+        return {}, {}, {}
 
     # Group rows by (target, seed)
-    grouped: dict[tuple[str, int], list[tuple[int, float, float]]] = {}
+    grouped: dict[tuple[str, int], list[tuple[int, float, float, float]]] = {}
     with csv_path.open("r", encoding="utf-8", newline="") as fh:
         for row in _csv.DictReader(fh):
             key = (str(row["target"]), int(row["seed"]))
+            score_diff = float(row["score_diff_l2_fourth"]) if "score_diff_l2_fourth" in row else 0.0
             grouped.setdefault(key, []).append(
-                (int(row["epoch"]), float(row["score_p_4th_moment"]), float(row["score_q_4th_moment"]))
+                (int(row["epoch"]), float(row["score_p_4th_moment"]), float(row["score_q_4th_moment"]), score_diff)
             )
 
     score_p_curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
     score_q_curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    score_diff_curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
     for (target, _seed), points in grouped.items():
         points.sort(key=lambda p: p[0])
         epochs = np.array([p[0] for p in points], dtype=np.float64)
         p_values = np.array([p[1] for p in points], dtype=np.float64)
         q_values = np.array([p[2] for p in points], dtype=np.float64)
+        diff_values = np.array([p[3] for p in points], dtype=np.float64)
         score_p_curves.setdefault(("DSIVI", target), []).append((epochs, p_values))
         score_q_curves.setdefault(("DSIVI", target), []).append((epochs, q_values))
-    return score_p_curves, score_q_curves
+        score_diff_curves.setdefault(("DSIVI", target), []).append((epochs, diff_values))
+    return score_p_curves, score_q_curves, score_diff_curves
 
 
 def render_score_p_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
@@ -1084,7 +1089,7 @@ def render_score_p_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any)
 
     # Evaluate (or load cached CSV)
     csv_path = _evaluate_score_4th_moment(records, targets, cfg)
-    score_p_curves, _ = _collect_score_4th_moment_curves(csv_path)
+    score_p_curves, _, _ = _collect_score_4th_moment_curves(csv_path)
 
     n_cols = max(len(targets), 1)
     fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
@@ -1138,7 +1143,7 @@ def render_score_q_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any)
 
     # Evaluate (or load cached CSV)
     csv_path = _evaluate_score_4th_moment(records, targets, cfg)
-    _, score_q_curves = _collect_score_4th_moment_curves(csv_path)
+    _, score_q_curves, _ = _collect_score_4th_moment_curves(csv_path)
 
     n_cols = max(len(targets), 1)
     fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
@@ -1167,6 +1172,60 @@ def render_score_q_4th_moment_iteration_grid(records: list[RunRecord], cfg: Any)
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "score_q_4th_moment_iteration_grid.png"
     pdf_path = out_dir / "score_q_4th_moment_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+def render_score_diff_l2_fourth_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render E[||score_p - score_q||_2^4] vs iteration -- one subplot per target."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.score_4th_moment_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.score_4th_moment_targets]
+    methods = [str(m) for m in cfg.selection.score_4th_moment_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    # Evaluate (or load cached CSV)
+    csv_path = _evaluate_score_4th_moment(records, targets, cfg)
+    _, _, score_diff_curves = _collect_score_4th_moment_curves(csv_path)
+
+    n_cols = max(len(targets), 1)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(r"$E[\|\nabla_z \log p - \psi(z)\|^4]$", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = score_diff_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="Mean")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha, label="Min/Max")
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "score_diff_l2_fourth_iteration_grid.png"
+    pdf_path = out_dir / "score_diff_l2_fourth_iteration_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)

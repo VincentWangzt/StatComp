@@ -41,6 +41,8 @@ Available `--only` modules:
 | `grad_norm_iteration_grid` | Gradient norm vs. iteration curves |
 | `weight_norm_iteration_grid` | Weight norm vs. iteration curves |
 | `m_eps_iteration_grid` | Mixing samples (m_eps) vs. iteration curves |
+| `score_4th_moment_iteration_grid` | Score fourth moments vs. iteration curves |
+| `score_diff_l2_fourth_iteration_grid` | E[\\|\\|score_p - score_q\\|\\|^4] vs. iteration curves |
 | `toy_tables` | Summary metrics table for toy targets |
 | `toy_method_grid` | Per-method breakdown table for toy targets |
 | `langevin_table` | Metrics table for the Langevin target |
