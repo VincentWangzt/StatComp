@@ -36,6 +36,10 @@ from .eval_score_fourth_moment import (
     evaluate_run as evaluate_score_4th_run,
     write_csv as write_score_4th_csv,
 )
+from .eval_vi_fourth_moment import (
+    evaluate_run as evaluate_vi_4th_run,
+    write_csv as write_vi_4th_csv,
+)
 
 
 def _display_method(name: str) -> str:
@@ -959,6 +963,152 @@ def render_m_eps_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "m_eps_iteration_grid.png"
     pdf_path = out_dir / "m_eps_iteration_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
+
+
+# ---------------------------------------------------------------------------
+# VI Fourth Moment vs iteration plot
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_vi_fourth_moment(
+    records: list[RunRecord],
+    targets: list[str],
+    cfg: Any,
+) -> Path:
+    """Compute VI output fourth moments at every checkpoint for all matching DSIVI runs.
+
+    Writes results to ``{output_dir}/vi_fourth_moment_results.csv``.  When the CSV
+    already exists and ``evaluation.vi_fourth_moment.overwrite`` is false the
+    computation is skipped.
+
+    Returns:
+        Path to the results CSV.
+    """
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    csv_path = root / "vi_fourth_moment_results.csv"
+
+    vi_4th_cfg = cfg.evaluation.get("vi_fourth_moment", {})
+    overwrite = bool(vi_4th_cfg.get("overwrite", False))
+    if csv_path.exists() and not overwrite:
+        return csv_path
+
+    n_samples_default = int(vi_4th_cfg.get("n_samples", 1024))
+    checkpoint_stride = int(vi_4th_cfg.get("checkpoint_stride", 1))
+    device = str(cfg.evaluation.get("device", "auto"))
+
+    target_set = {normalize_target(t) for t in targets}
+    dsivi_records = [
+        rec for rec in records
+        if rec.method.upper() == "DSIVI" and rec.target in target_set
+    ]
+
+    all_results: list[dict[str, Any]] = []
+    for rec in dsivi_records:
+        try:
+            run_results = evaluate_vi_4th_run(
+                rec,
+                device=device,
+                n_samples=n_samples_default,
+                checkpoint_stride=checkpoint_stride,
+            )
+            all_results.extend(run_results)
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).warning(
+                "Skipping VI fourth moment evaluation for %s: %s", rec.run_id, exc,
+            )
+
+    if all_results:
+        write_vi_4th_csv(all_results, csv_path)
+    return csv_path
+
+
+def _collect_vi_fourth_moment_curves(
+    csv_path: Path,
+) -> dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]]:
+    """Load VI fourth moment CSV and build per-seed (epoch, vi_fourth_moment) curves.
+
+    Returns:
+        Mapping of ``("DSIVI", target)`` to list of ``(epochs, values)``
+        seed curves, matching the shape expected by
+        :func:`_aggregate_curves_minmax`.
+    """
+    import csv as _csv
+
+    if not csv_path.exists():
+        return {}
+
+    # Group rows by (target, seed)
+    grouped: dict[tuple[str, int], list[tuple[int, float]]] = {}
+    with csv_path.open("r", encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            key = (str(row["target"]), int(row["seed"]))
+            grouped.setdefault(key, []).append(
+                (int(row["epoch"]), float(row["vi_fourth_moment"]))
+            )
+
+    curves: dict[tuple[str, str], list[tuple[np.ndarray, np.ndarray]]] = {}
+    for (target, _seed), points in grouped.items():
+        points.sort(key=lambda p: p[0])
+        epochs = np.array([p[0] for p in points], dtype=np.float64)
+        values = np.array([p[1] for p in points], dtype=np.float64)
+        curves.setdefault(("DSIVI", target), []).append((epochs, values))
+    return curves
+
+
+def render_vi_fourth_moment_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render VI fourth moment vs iteration -- one subplot per target."""
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.vi_fourth_moment_iteration
+    targets = [normalize_target(str(t)) for t in cfg.selection.vi_fourth_moment_targets]
+    methods = [str(m) for m in cfg.selection.vi_fourth_moment_methods]
+    n_grid = int(plot_cfg.get("n_grid", 200))
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    band_alpha = float(plot_cfg.get("band_alpha", 0.25))
+    linewidth = float(plot_cfg.get("linewidth", 1.5))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    # Evaluate (or load cached CSV)
+    csv_path = _evaluate_vi_fourth_moment(records, targets, cfg)
+    all_curves = _collect_vi_fourth_moment_curves(csv_path)
+
+    n_cols = max(len(targets), 1)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
+        ax.set_xlabel("Iteration", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel("VI Fourth Moment", fontsize=label_fontsize)
+        for m_idx, method in enumerate(methods):
+            mu = method.upper()
+            seed_curves = all_curves.get((mu, target), [])
+            agg = _aggregate_curves_minmax(seed_curves, n_grid=n_grid)
+            if agg is None:
+                continue
+            grid, mean, min_vals, max_vals = agg
+            color = _method_color(mu, m_idx)
+            ax.plot(grid, mean, color=color, linewidth=linewidth, label="VI Fourth Moment")
+            ax.fill_between(grid, min_vals, max_vals, color=color, alpha=band_alpha)
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        if col_idx == 0:
+            ax.legend(fontsize=9)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "vi_fourth_moment_iteration_grid.png"
+    pdf_path = out_dir / "vi_fourth_moment_iteration_grid.pdf"
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)

@@ -20,7 +20,7 @@ def _rel(path: Path) -> str:
 
 from finalization.artifacts import completed_runs, load_manifest, select_runs  # noqa: E402
 from finalization.config import load_config, repo_path  # noqa: E402
-from finalization.plots import render_grad_norm_iteration_grid, render_kl_iteration_grid, render_kl_time_grid, render_langevin_trace_grid, render_m_eps_iteration_grid, render_scatter_grid, render_scatter_hist_grid, render_score_diff_l2_fourth_iteration_grid, render_score_linearity_grid, render_score_norm_linearity_grid, render_score_p_4th_moment_iteration_grid, render_score_q_4th_moment_iteration_grid, render_weight_norm_iteration_grid  # noqa: E402
+from finalization.plots import render_grad_norm_iteration_grid, render_kl_iteration_grid, render_kl_time_grid, render_langevin_trace_grid, render_m_eps_iteration_grid, render_scatter_grid, render_scatter_hist_grid, render_score_diff_l2_fourth_iteration_grid, render_score_linearity_grid, render_score_norm_linearity_grid, render_score_p_4th_moment_iteration_grid, render_score_q_4th_moment_iteration_grid, render_vi_fourth_moment_iteration_grid, render_weight_norm_iteration_grid  # noqa: E402
 from finalization.runner_eval import augment_run_rows_with_campaign_timing, evaluate_runs, summarize, write_csv  # noqa: E402
 from finalization.tables import render_tables  # noqa: E402
 
@@ -71,6 +71,7 @@ def main() -> None:
             "grad_norm_iteration_grid",
             "weight_norm_iteration_grid",
             "m_eps_iteration_grid",
+            "vi_fourth_moment_iteration_grid",
             "score_4th_moment_iteration_grid",
             "score_diff_l2_fourth_iteration_grid",
             "score_linearity_grid",
@@ -167,6 +168,14 @@ def main() -> None:
             seeds=_selection_seeds(cfg.selection.seeds),
         )
         generated.append(_rel(render_m_eps_iteration_grid(m_eps_records, cfg)))
+    if _enabled(cfg, "vi_fourth_moment_iteration_grid"):
+        vi_4th_records = select_runs(
+            all_records,
+            methods=[str(m) for m in cfg.selection.vi_fourth_moment_methods],
+            targets=[str(t) for t in cfg.selection.vi_fourth_moment_targets],
+            seeds=_selection_seeds(cfg.selection.seeds),
+        )
+        generated.append(_rel(render_vi_fourth_moment_iteration_grid(vi_4th_records, cfg)))
     if _enabled(cfg, "score_4th_moment_iteration_grid"):
         score_4th_records = select_runs(
             all_records,
