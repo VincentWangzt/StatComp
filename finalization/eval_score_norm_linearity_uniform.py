@@ -212,8 +212,8 @@ def evaluate_run(
     cfg = prepare_config(rec, device=device)
     runner = build_runner_for_eval(rec, cfg)
 
-    # Determine z_dim from the target model
-    z_dim = int(cfg.target.z_dim)
+    # Determine z_dim from the runner's target model (set during runner __init__)
+    z_dim = int(runner.config.target.z_dim)
 
     results: list[dict[str, Any]] = []
     for epoch, vi_model_path in selected:
