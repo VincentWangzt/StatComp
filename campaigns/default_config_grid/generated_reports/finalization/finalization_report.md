@@ -7,7 +7,7 @@ Aggregate rows: 61
 
 ## Generated
 
-- `campaigns/default_config_grid/generated_reports/finalization/figures/score_linearity_grid.png`
+- `campaigns/default_config_grid/generated_reports/finalization/figures/m_eps_iteration_grid.png`
 
 ## Warnings
 
