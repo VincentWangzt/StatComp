@@ -1684,7 +1684,8 @@ def render_score_norm_linearity_uniform_grid(records: list[RunRecord], cfg: Any)
 
         ax.grid(True, linewidth=0.3)
         ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
-        ax.legend(fontsize=11, loc="upper right", framealpha=0.8, markerscale=4)
+        legend_loc = "lower right" if target == "x_shaped" else "upper right"
+        ax.legend(fontsize=11, loc=legend_loc, framealpha=0.8, markerscale=4)
 
     fig.tight_layout(pad=0.4, w_pad=0.6)
     png_path = out_dir / "score_norm_linearity_uniform_grid.png"
