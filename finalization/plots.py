@@ -940,7 +940,7 @@ def render_m_eps_iteration_grid(records: list[RunRecord], cfg: Any) -> Path:
         ax.set_title(_target_display_name(target), fontsize=title_fontsize)
         ax.set_xlabel("Iteration", fontsize=label_fontsize)
         if col_idx == 0:
-            ax.set_ylabel("VI Derivative Fourth Moment", fontsize=label_fontsize)
+            ax.set_ylabel("Derivative Fourth Moment", fontsize=label_fontsize - 2)
         for m_idx, method in enumerate(methods):
             mu = method.upper()
             seed_curves = all_curves.get((mu, target), [])
