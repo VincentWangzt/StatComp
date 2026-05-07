@@ -29,6 +29,9 @@ selection:
   score_norm_linearity_targets: [x_shaped, Langevin_post]
   score_norm_linearity_methods: [DSIVI]
   score_norm_linearity_seeds: [42]
+  score_norm_linearity_uniform_targets: [x_shaped, Langevin_post]
+  score_norm_linearity_uniform_methods: [DSIVI]
+  score_norm_linearity_uniform_seeds: [42]
   bnn_targets: [Bnn_boston, Bnn_concrete, Bnn_power, Bnn_protein, Bnn_winered, Bnn_yacht]
   seed_for_figures: 42
   seed_overrides:
@@ -54,6 +57,7 @@ modules:
   score_diff_l2_fourth_iteration_grid: true
   score_linearity_grid: true
   score_norm_linearity_grid: true
+  score_norm_linearity_uniform_grid: true
 
 evaluation:
   device: auto
@@ -117,6 +121,13 @@ evaluation:
   score_norm_linearity:
     checkpoints: [2000, 5000, 10000]
     n_samples: 2048
+    overwrite: false
+  score_norm_linearity_uniform:
+    checkpoints: [2000, 5000, 10000]
+    n_samples: 10000
+    max_radius:
+      x_shaped: 10
+      Langevin_post: 20
     overwrite: false
 
 plots:
@@ -203,6 +214,12 @@ plots:
     title_fontsize: 13
     label_fontsize: 12
   score_norm_linearity_grid:
+    figsize_per_panel: [4.5, 3.5]
+    alpha: 1.0
+    marker_size: 6.0
+    title_fontsize: 13
+    label_fontsize: 12
+  score_norm_linearity_uniform_grid:
     figsize_per_panel: [4.5, 3.5]
     alpha: 1.0
     marker_size: 6.0
