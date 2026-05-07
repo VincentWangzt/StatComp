@@ -1337,3 +1337,105 @@ def render_score_linearity_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.savefig(pdf_path)
     plt.close(fig)
     return png_path
+
+
+# ---------------------------------------------------------------------------
+# Score Norm Linearity scatter plot
+# ---------------------------------------------------------------------------
+
+
+def render_score_norm_linearity_grid(records: list[RunRecord], cfg: Any) -> Path:
+    """Render score-norm linearity scatter: log max(||score_gt||,||score_proxy||) - log(||z||+1) vs ||z||.
+
+    One subplot per target, colored by checkpoint epoch.  If both score
+    functions have at most linear growth, the y-values should form a bounded
+    horizontal band.
+    """
+    import csv as _csv
+
+    root = repo_path(str(cfg.campaign.output_dir))
+    assert root is not None
+    out_dir = root / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    plot_cfg = cfg.plots.score_norm_linearity_grid
+    panel_w, panel_h = [float(x) for x in plot_cfg.figsize_per_panel]
+    alpha = float(plot_cfg.get("alpha", 0.2))
+    marker_size = float(plot_cfg.get("marker_size", 6))
+    title_fontsize = int(plot_cfg.get("title_fontsize", 13))
+    label_fontsize = int(plot_cfg.get("label_fontsize", 12))
+
+    # Evaluate if needed
+    from .eval_score_norm_linearity import evaluate_score_norm_linearity
+
+    csv_path = evaluate_score_norm_linearity(records, cfg)
+
+    # Load CSV
+    if not csv_path.exists():
+        raise RuntimeError(f"Score norm linearity CSV not found at {csv_path}")
+
+    rows: list[dict[str, str]] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as fh:
+        rows = list(_csv.DictReader(fh))
+
+    if not rows:
+        raise RuntimeError("Score norm linearity CSV is empty.")
+
+    # Organize data by target
+    targets = sorted({row["target"] for row in rows})
+    epochs = sorted({int(row["epoch"]) for row in rows})
+
+    n_cols = max(len(targets), 1)
+    fig, axes = plt.subplots(1, n_cols, figsize=(panel_w * n_cols, panel_h), squeeze=False)
+
+    for col_idx, target in enumerate(targets):
+        ax = axes[0][col_idx]
+        ax.set_title(_target_display_name(target), fontsize=title_fontsize)
+        ax.set_xlabel(r"$\|z\|$", fontsize=label_fontsize)
+        if col_idx == 0:
+            ax.set_ylabel(
+                r"$\log\max(\|\nabla_z \log p\|, \|s_\psi\|) - \log(\|z\| + 1)$",
+                fontsize=label_fontsize,
+            )
+
+        target_rows = [r for r in rows if r["target"] == target]
+
+        for epoch in epochs:
+            epoch_rows = [r for r in target_rows if int(r["epoch"]) == epoch]
+            if not epoch_rows:
+                continue
+
+            z_norms = np.array([float(r["z_norm"]) for r in epoch_rows])
+            log_ratios = np.array([float(r["log_ratio"]) for r in epoch_rows])
+            color = _SCORE_LINEARITY_EPOCH_COLORS.get(epoch, "gray")
+
+            ax.scatter(
+                z_norms,
+                log_ratios,
+                c=color,
+                s=marker_size,
+                alpha=alpha,
+                marker=".",
+                label=f"Epoch {epoch}",
+                edgecolors="none",
+                rasterized=True,
+            )
+
+            # Median horizontal line
+            median_val = float(np.median(log_ratios))
+            ax.axhline(
+                median_val, color=color, linestyle="--",
+                linewidth=1.0, alpha=0.7,
+            )
+
+        ax.grid(True, linewidth=0.3)
+        ax.tick_params(axis="both", labelsize=9, length=2, width=0.5)
+        ax.legend(fontsize=8, loc="upper right", framealpha=0.8)
+
+    fig.tight_layout(pad=0.4, w_pad=0.6)
+    png_path = out_dir / "score_norm_linearity_grid.png"
+    pdf_path = out_dir / "score_norm_linearity_grid.pdf"
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+    return png_path
