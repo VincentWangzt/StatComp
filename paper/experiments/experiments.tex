@@ -6,17 +6,20 @@ The experiments investigate whether DIVI can capture visible posterior geometry 
 Unless stated otherwise, tables report the mean and standard error over 10 independent runs.
 
 Our main comparisons are against UIVI and AISIVI \citep{titsias2019unbiased,pielok2025revisiting}.  We also include SIVI \citep{yin2018semi} and KSIVI \citep{cheng2024kernel} where their objectives apply. For the instantiation of the DIVI score model $\psi$, we use a multi-layer perceptron (MLP), which is warm-started before joint training. For each experiment, all methods share the same neural-network architecture for the semi-implicit variational family.
-The variational family, evaluation metrics, and per-experiment configurations are collected in Appendix~\ref{app:experiment-details}. We also provide additional arguments to support our theoretical Assumption~\ref{assump:bounded_grad} and Assumption~\ref{assump:clip} in Appendix~\ref{app: numerical-experiments}.
+The variational family, evaluation metrics, and per-experiment configurations are collected in Appendix~\ref{app:experiment-details}. We also provide additional arguments to support our theoretical Assumption~\ref{assump:bounded_score} and Assumption~\ref{assump:bounded_reparam} in Appendix~\ref{app: numerical-experiments}.
 
 \subsection{Toy two-dimensional targets}
 \label{subsec:toy-experiments}
 
-We first use low-dimensional targets to check whether the learned semi-implicit distribution captures geometric features that are easy to inspect visually.
-%CZ: cite the hierarchical SIVI paper for 8 Gaussians.
-Following \citet{yu2023semi,li2023samplingmollifiedinteractionenergy, yu2023hierarchical}, we focus on the three plotted targets in Figure~\ref{fig:toy-scatter-grid}: \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  These targets probe for intersecting ridges, heavy-tailed dependence, and multi-modal coverage. We train all methods for 10,000 iterations with learning rate $10^{-3}$ and batch size 128. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Full per-method configurations and quantitative diagnostics are given in Appendix~\ref{app:toy-details}.
+We first use low-dimensional  unnormalized distribution targets to check whether the learned semi-implicit distribution captures geometric features that are easy to inspect visually.
+%ZTW: cited HSIVI explicitly. 
+%Done
 
 
-Figure~\ref{fig:toy-scatter-grid} shows that DIVI preserves the main geometry across the plotted targets, with sample clouds that more closely follow the target contours than the UIVI and AISIVI baselines in these visual comparisons.
+Following previous works~\citep{yu2023semi,li2023samplingmollifiedinteractionenergy, yu2023hierarchical}, we focus on the three plotted targets in Figure~\ref{fig:toy-scatter-grid}: \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  These targets probe for intersecting ridges, heavy-tailed dependence, and multi-modal coverage. We train all methods for 10,000 iterations with learning rate $10^{-3}$ and batch size 128. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Full per-method configurations and quantitative diagnostics are given in Appendix~\ref{app:toy-details}.
+
+
+Figure~\ref{fig:toy-scatter-grid} shows that DIVI preserves the main geometry across the plotted targets, with sample clouds that closely follow the target contours in these visual comparisons.
 The quantitative diagnostics in Appendix~\ref{app:toy-details} show the same pattern for the reported KL-style and Wasserstein metrics.
 
 \begin{figure}[t]
@@ -36,9 +39,9 @@ We next evaluate a 100-dimensional conditioned diffusion posterior used in recen
   \qquad x_0 = 0,
 \end{equation}
 where $w_t$ is one-dimensional Brownian motion.  We discretize the path with Euler-Maruyama step size $\Delta t=0.01$, giving
-\begin{equation}
+$
   x = (x_{\Delta t}, x_{2\Delta t}, \ldots, x_{100\Delta t}) \in \mathbb{R}^{100}.
-\end{equation}
+$
 Observations are made every five time steps,
 \begin{equation}
   y = (y_{5\Delta t}, y_{10\Delta t}, \ldots, y_{100\Delta t}),
@@ -59,8 +62,9 @@ In the evaluation, we include SIVI and KSIVI as additional baselines. We train S
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=1.0\linewidth]{langevin_trace_grid.png}
-  \caption{Posterior path approximations on the conditioned diffusion benchmark.  The magenta curve is the true latent path, red points are observations, blue curves are posterior mean paths, and shaded regions are marginal 95\% posterior intervals.}
+  \includegraphics[width=0.9\linewidth]{langevin_trace_grid.png}
+  \vspace{-0.2em}
+  \caption{Posterior path approximations on the conditioned diffusion benchmark.  The magenta curve is the true latent path, red points are observations, blue curves are posterior mean paths, and shaded regions are marginal 95\% confidence intervals.}
   \label{fig:langevin-trace-grid}
 \end{figure}
 

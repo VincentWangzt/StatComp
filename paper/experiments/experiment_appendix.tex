@@ -78,18 +78,91 @@ For BNN targets, evaluation draws 2,000 posterior samples (network weights) from
 \subsection{Two-dimensional targets}
 \label{app:toy-details}
 
-The two-dimensional suite contains \texttt{banana}, \texttt{multimodal}, \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
+The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
 
+\paragraph{Target density definitions.}
+We now state the precise density for each of the three two-dimensional synthetic targets used in Section~\ref{subsec:toy-experiments}.
+All targets have $z\in\mathbb{R}^2$.
+
+\subparagraph{X-shaped.}
+The \texttt{x\_shaped} target is an equal-weight mixture of two zero-mean Gaussians whose covariance ellipses cross at the origin, producing an X-shaped density:
+\begin{equation}\label{eq:x-shaped}
+  p(z) = \tfrac{1}{2}\,\mathcal{N}(z;\,0,\,\Sigma_1)
+        + \tfrac{1}{2}\,\mathcal{N}(z;\,0,\,\Sigma_2),
+\end{equation}
+where
+\[
+  \Sigma_1 = \begin{pmatrix} 2 & 1.8 \\ 1.8 & 2 \end{pmatrix},
+  \qquad
+  \Sigma_2 = \begin{pmatrix} 2 & -1.8 \\ -1.8 & 2 \end{pmatrix}.
+\]
+The high off-diagonal correlation ($\rho = \pm 0.9$) in each component creates two narrow ridges that intersect at the origin.  Approximating both ridges simultaneously requires the variational family to represent sharp, non-convex geometry.
+
+\subparagraph{Student-t (uncorrelated marginals).}
+The \texttt{student\_uc} target is a bivariate Student-$t$ distribution with $\nu=2$ degrees of freedom and a fixed scale matrix $A\in\mathbb{R}^{2\times 2}$ with $\det(A)=1$.  Its density is defined through the transformation $\tilde{z} = A^{-1}z$ with independent univariate Student-$t$ marginals:
+\begin{equation}\label{eq:student-uc}
+  p(z) \;=\; |\!\det A|^{-1}\,\prod_{i=1}^{2}
+    \frac{\Gamma\!\bigl(\tfrac{\nu+1}{2}\bigr)}
+         {\sqrt{\nu\pi}\;\Gamma\!\bigl(\tfrac{\nu}{2}\bigr)}
+    \left(1 + \frac{\tilde{z}_i^{\,2}}{\nu}\right)^{\!-(\nu+1)/2},
+  \qquad \nu = 2.
+\end{equation}
+The matrix $A$ is generated deterministically (seed~50) as $A = (B B^\top)^{-1}/\det\bigl((B B^\top)^{-1}\bigr)$, where $B_{ij}\sim\mathrm{Uniform}(-1,1)$.  The resulting density has polynomial tails ($\propto\|z\|^{-3}$ marginally), which stress-tests whether the variational approximation can allocate sufficient probability mass far from the mode.
+
+\subparagraph{Eight Gaussians.}
+The \texttt{8\_gaussians} target is an equally weighted mixture of eight isotropic Gaussians arranged uniformly on a circle of radius~$r$:
+\begin{equation}\label{eq:8-gaussians}
+  p(z) = \frac{1}{8}\sum_{k=1}^{8}
+    \mathcal{N}\!\bigl(z;\,\mu_k,\,\sigma^2 I_2\bigr),
+  \qquad
+  \mu_k = r\bigl(\cos(k\pi/4),\;\sin(k\pi/4)\bigr),
+\end{equation}
+with $r=4$ and $\sigma=0.5$.  The well-separated modes (inter-mode distance $\approx 3.1$, versus component standard deviation $0.5$) make this a challenging multi-modal target: the variational family must discover and cover all eight modes without spurious bridging density between them.
+
+\bigskip
+
+Table~\ref{tab:toy-target-summary} collects the key parameters of each target.
+
+\begin{table}[h]
+\centering
+\caption{Summary of two-dimensional synthetic target densities.}
+\label{tab:toy-target-summary}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Target} & \textbf{Density form} & \textbf{Parameters} & \textbf{Key challenge} \\
+\midrule
+\texttt{x\_shaped}
+  & $\frac{1}{2}\mathcal{N}(0,\Sigma_1) + \frac{1}{2}\mathcal{N}(0,\Sigma_2)$
+  & $\Sigma_{1,2} = \bigl(\begin{smallmatrix}2 & \pm1.8\\ \pm1.8 & 2\end{smallmatrix}\bigr)$
+  & Intersecting ridges \\[6pt]
+\texttt{student\_uc}
+  & $|A|^{-1}\prod_{i=1}^{2} t_\nu(\tilde{z}_i)$, \; $\tilde{z}=A^{-1}z$
+  & $\nu=2$, \; $\det(A)=1$
+  & Heavy polynomial tails \\[6pt]
+\texttt{8\_gaussians}
+  & $\frac{1}{8}\sum_{k=1}^{8}\mathcal{N}(\mu_k, \sigma^2 I)$
+  & $r=4$, \; $\sigma=0.5$
+  & Multi-modal coverage \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\paragraph{Training configuration details.}
 All methods use 10,000 iterations, VI learning rate $10^{-3}$, batch size 128, and a step scheduler with decay factor 0.7 every 1,000 iterations (0.9 on \texttt{8\_gaussians}).  Linear annealing over 5,000 steps is applied on all targets except \texttt{student\_uc}, where annealing is disabled for all methods.
 
-\paragraph{AISIVI.}
+\subparagraph{AISIVI.}
 AISIVI uses a conditional RealNVP reverse model with 8 coupling layers and hidden width 12.  Before joint training, the flow is pre-trained on initial VI samples for 500 warmup epochs with learning rate $10^{-2}$ and batch size 8,192.  During main training, the flow uses 1,024 reverse samples, reverse learning rate $10^{-3}$, and one reverse update per VI step.
 
-\paragraph{DIVI.}
+\subparagraph{DIVI.}
 The proxy score MLP has hidden width 64 and three hidden layers.  The proxy is warm-started for 500 epochs with learning rate $10^{-3}$ and batch size 8,192.  During main training the proxy uses reverse batch size 2,048, reverse learning rate $10^{-3}$, and 5 updates per VI step.
 
 % \paragraph{KSIVI.}
 % KSIVI is trained for 50,000 iterations with 25,000-step linear annealing (except on \texttt{student\_uc}), a step-decay schedule with factor 0.9 every 1,000 iterations, and the default settings from \citet{cheng2024kernel}.  We use a Gaussian kernel on most targets, an IMQ kernel on \texttt{multimodal}, and a Riesz kernel on \texttt{student\_uc}.
+
+\paragraph{Quantitative results.}
+We here present the quantitative results in Table~\ref{tab:toy-method-grid}. It can be seen from the table that, DIVI obtains the best metric on all targets in terms of KL divergence and Wasserstein-2 distance. Here the W2 distance evaluation follows the protocol in Appendix~\ref{app:metric-details}. We are observing divergence on \texttt{8_gaussians} for AISIVI, as a result of drifting support. The same divergence behavior has been observed in the official code of AISIVI, indicating a potential weakness in training stability.  
 
 \input{\finalizationtabledir/toy_method_grid.tex}
 
@@ -116,7 +189,7 @@ We evaluate using the expected log marginal likelihood defined in Appendix~\ref{
 \subsection{Bayesian neural-network regression}
 \label{app:bnn-details}
 
-Each BNN target uses a one-hidden-layer ReLU network with 50 hidden units.  The input dimensions are 13 for Boston, 8 for Concrete, 4 for Power, 9 for Protein, 11 for Wine Red, and 6 for Yacht.  Including weights, biases, and two precision variables, the corresponding posterior dimensions are 751, 501, 301, 551, 651, and 401.  The datasets contain 506, 1,030, 9,568, 45,730, 1,599, and 308 observations respectively.  Data preparation uses a fixed random seed, a 90/10 train-test split, input standardization based on the training split, and target standardization for training labels.  Test labels are evaluated on their original scale.
+Each BNN target uses a one-hidden-layer ReLU network with 50 hidden units.  The input dimensions are 13 for Boston, 8 for Concrete, 4 for Power, 9 for Protein, 11 for Wine Red, and 6 for Yacht. The datasets can be found on the UCI Machine Learning website \footnote{\url{https://archive.ics.uci.edu/}}, and all follow CC BY 4.0 License to the best of our knowledge. Including weights, biases, and two precision variables, the corresponding posterior dimensions are 751, 501, 301, 551, 651, and 401.  The datasets contain 506, 1,030, 9,568, 45,730, 1,599, and 308 observations respectively.  Data preparation uses a fixed random seed, a 90/10 train-test split, input standardization based on the training split, and target standardization for training labels.  Test labels are evaluated on their original scale.
 
 \paragraph{Common BNN protocol.}
 All methods use batch size 128, gradient clipping at norm 1, and a 100-step MSE pretraining stage that initializes the variational sampler toward predictive weights before posterior training begins.  For evaluation, we apply exponential moving averages of the VI parameters with decay 0.999, following the stabilized BNN evaluation protocol used by KSIVI and SIVI-SM \citep{cheng2024kernel,yu2023semi}.  The VI learning rate is selected separately for each method and target from $\{10^{-3}, 10^{-4}, 10^{-5}\}$ by cross-validation, since high-learning-rate divergence depends on both the method and the target posterior.
@@ -138,23 +211,59 @@ BNN evaluation draws 2,000 posterior samples and reports test RMSE and NLL as de
 
 % All results in the tables and figures are generated from the same evaluation workflow and seed set.  The standalone draft includes the generated figure and table inputs through the local LaTeX wrapper; the paper source should use the corresponding generated PDF figures and table inputs when integrated into the full manuscript.
 
-\section{Numerical experiments}
+\section{Numerical Validations}
 \label{app: numerical-experiments}
 
-In this section, we provide empirical diagnostics supporting Assumption~\ref{assump:bounded_grad} and Assumption~\ref{assump:clip} through numerical experiments along the observed training trajectories. For Assumption~\ref{assump:bounded_grad}, we report the calculated $M_\epsilon \coloneqq \max \big\{ \mathbb{E}_{\epsilon} \lVert \nabla_\phi \sigma_\phi(\epsilon)\rVert_2^2, \mathbb{E}_\epsilon \lVert \nabla_\phi \mu_\phi(\epsilon) \rVert_2^2 \big\}$ for each checkpoint respectively throughout the training process, and aggregate across 10 independent seeds. We track the metrics for the toy \texttt{x_shaped} and Conditioned Diffusion target distribution. The results are shown in Figure~\ref{fig:bounded_m_eps}, where the solid line indicates the mean while the shaded region demonstrates the minimum and maximum values. These diagnostics suggest that we can obtain a uniform upper bound for the expected $\ell_2$ norm square of the VI networks' gradient, justifying Assumption~\ref{assump:bounded_grad}.
+In this section, we provide empirical diagnostics supporting Assumption~\ref{assump:bounded_score} and Assumption~\ref{assump:bounded_reparam} through numerical experiments along the observed training trajectories. 
+
+For Assumption~\ref{assump:bounded_score}, we provide empirical diagnostics by tracking the fourth moment of scores, both for the reverse model and for the target score. We plot the mean value of the fourth moment of norms of the reverse model score $\mathbb{E}_{z\sim q_\phi} \lVert s_\psi(z) \rVert^4$ as the solid line, and the minimum and maximum values as the shaded regions in Figure~\ref{fig:score_q_4th_moment}, with each of the values calculated across 10 independent seeds. The same plot for fourth moment of the target score $\mathbb{E}_{z\sim q_\phi} \lVert \nabla_z \log p(\mathcal{D}, z) \rVert^4$ is shown in Figure~\ref{fig:score_p_4th_moment}. The figures provide empirical evidence that there exists a uniform bound on the $4^{\text{th}}$ moment of the norm of the scores over the training trajectories, consistent with  Assumption~\ref{assump:bounded_score}.
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=0.8\linewidth]{weight_norm_iteration_grid.pdf}
+%     \caption{Norm of the VI model parameters throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
+%     \label{fig:weight_norm}
+% \end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\linewidth]{score_q_4th_moment_iteration_grid.pdf}
+    \caption{Fourth moment of the norm of the approximated score $\mathbb{E}_{z\sim q_\phi} \lVert s_\psi(z) \rVert^4$ throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
+    \label{fig:score_q_4th_moment}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\linewidth]{score_p_4th_moment_iteration_grid.pdf}
+    \caption{Fourth moment of the norm of the target score $\mathbb{E}_{z\sim q_\phi} \lVert \nabla_z \log p(\mathcal{D}, z) \rVert^4$ throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
+    \label{fig:score_p_4th_moment}
+\end{figure}
+
+
+For Assumption~\ref{assump:bounded_reparam}, we report the calculated $\max \big\{ \mathbb{E}_{\epsilon} \lVert \nabla_\phi \sigma_\phi(\epsilon)\rVert_2^4, \mathbb{E}_\epsilon \lVert \nabla_\phi \mu_\phi(\epsilon) \rVert_2^4\big\}$ for each checkpoint respectively throughout the training process, and aggregate across 10 independent seeds. We track the metrics for the toy \texttt{x_shaped} and Conditioned Diffusion target distribution. The results are shown in Figure~\ref{fig:bounded_m_eps}, where the solid line indicates the mean while the shaded region demonstrates the minimum and maximum values. These diagnostics suggest that we can obtain a uniform upper bound for the expected $\ell_2$ norm's fourth moment of the VI networks' gradient, justifying Assumption~\ref{assump:bounded_reparam}.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.8\linewidth]{m_eps_iteration_grid.pdf}
-    \caption{The expected $\ell_2$ norm square of the VI model gradient throughout the DIVI training process for \texttt{x_shaped} and Conditioned Diffusion experiments, aggregated across 10 different seeds. This supports Assumption~\ref{assump:bounded_grad} that the VI model gradients are bounded. }
+    \caption{The expected $\ell_2$ norm's fourth moment of the VI model gradient throughout the DIVI training process for \texttt{x_shaped} and Conditioned Diffusion experiments, aggregated across 10 different seeds. This supports Assumption~\ref{assump:bounded_reparam} that the VI model gradients are bounded. }
     \label{fig:bounded_m_eps}
 \end{figure}
 
-For Assumption~\ref{assump:clip}, we provide empirical diagnostics by tracking the norm of the weights in the VI model. We plot the mean value of the norm of the VI model weights as the dashed line, and the minimum and maximum values as the shaded regions in Figure~\ref{fig:weight_norm}, with each of the values calculated across 10 independent seeds.  Figure~\ref{fig:weight_norm} shows that there exists a uniform bound on the norm of the weights $\phi$, suggesting that the observed training trajectories remain in a bounded region, consistent with  Assumption~\ref{assump:clip}.
+We also provide empirical evidence to the alternative version of Assumption~\ref{assump:bounded_score}, as present in Appendix~\ref{app:linear-growth}. In Appendix~\ref{app:linear-growth} we proved that Assumption~\ref{assump:bounded_score} can be derived from another linear growth condition $\max\{\lVert \nabla_z \log p(\mathcal{D},z) \rVert, \lVert s_\psi(z)\rVert \} \leq \lambda (\lVert z \rVert + 1)$ together with a bounded fourth-moment condition $\max\{ \mathbb{E}_\epsilon \lVert \mu_\phi(\epsilon) \rVert^4, \mathbb{E}_\epsilon \lVert \sigma_\phi(\epsilon) \rVert^4 \} \leq \zeta $, both of which we assume to hold uniformly over $\phi$. As empirical evidence, we demonstrate for three checkpoints taken at 2000, 5000 and 10000 iterations, that $\log \max\{\lVert \nabla_z \log p(\mathcal{D},z) \rVert, \lVert s_\psi(z)\rVert \} - \log (\lVert z \rVert + 1)$ is bounded in Figure~\ref{fig:score_norm_linearity}. The figure demonstrates different values for samples of $z$ drawn with uniform distribution in $\lVert z \rVert$.  
+
+We also plot the $4^{\text{th}}$ moment of the VI model checkpoints $\max\{ \mathbb{E}_\epsilon \lVert \mu_\phi(\epsilon) \rVert^4, \mathbb{E}_\epsilon \lVert \sigma_\phi(\epsilon) \rVert^4 \}$ using 10 different seeds and plot them along the 10 checkpoints we obtained during the DIVI training regime in Figure~\ref{fig:vi_fourth_moment}. The solid line indicates the 10-seed-average of the fourth moments, while the shaded regions indicate the minimum and maximum of recorded values. These plots together demonstrate empirical evidence to support the alternate version of Assumption~\ref{assump:bounded_score} in Appendix~\ref{app:linear-growth}.
+
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.8\linewidth]{weight_norm_iteration_grid.pdf}
-    \caption{Norm of the VI model parameters throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
-    \label{fig:weight_norm}
+    \includegraphics[width=0.8\linewidth]{score_norm_linearity_uniform_grid.pdf}
+    \caption{$\log \max\{\lVert \nabla_z \log p(\mathcal{D},z) \rVert, \lVert s_\psi(z)\rVert \} - \log (\lVert z \rVert + 1)$ over different $z$'s, $\phi$'s and $\psi$'s throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark.}
+    \label{fig:score_norm_linearity}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.8\linewidth]{vi_fourth_moment_iteration_grid.pdf}
+    \caption{Fourth moment of the VI model reparameterization norm $\max\{ \mathbb{E}_\epsilon \lVert \mu_\phi(\epsilon) \rVert^4, \mathbb{E}_\epsilon \lVert \sigma_\phi(\epsilon) \rVert^4 \}$ throughout DIVI training for \texttt{x\_shaped} and the conditioned diffusion benchmark, aggregated over 10 seeds.}
+    \label{fig:vi_fourth_moment}
 \end{figure}
