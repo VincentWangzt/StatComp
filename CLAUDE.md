@@ -34,7 +34,7 @@ Keep all experiment outputs inside these existing folders — create subfolders 
 ## Environment (Remote GPU)
 
 - Host: `ssh -p 48236 root@connect.nmb1.seetacloud.com`
-- Code path: `~/ruivi/` (same repo, `vince-dev` branch)
+- Code path: `~/ruivi/` (same repo, `distillation` branch)
 - Conda env: `ruivi` (PyTorch 2.9.0+cu126, Ubuntu 22.04)
 - Use `tmux` for long-running experiments
 
