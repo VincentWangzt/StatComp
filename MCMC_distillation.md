@@ -405,3 +405,47 @@ train:
 | $\tau$ / $\varepsilon$ | MCMC step size |
 | $K$ | Number of MCMC transition steps |
 | $N$ | Batch size |
+
+---
+
+## Implementation Status
+
+> **Last updated**: 2026-05-24
+
+### V1 — Implemented and Validated
+
+| Component | File | Status |
+|-----------|------|--------|
+| SGLD transition kernel (batched, K-step) | `utils/mcmc_kernels.py` | Done |
+| HMC transition kernel (batched, leapfrog + M-H) | `utils/mcmc_kernels.py` | Done |
+| Differentiable MMD² (V-statistic, paired) | `utils/mmd.py` | Done |
+| KDVI Runner (inherits BaseSIVIRunner) | `runner/kdvi.py` | Done |
+| Banana experiment config | `configs/kdvi_banana.yaml` | Done |
+| Runner registry update | `runner/runners.py` | Done |
+
+**V1 Scope:**
+- MCMC kernels: SGLD (no accept/reject) + HMC (with M-H correction)
+- MMD loss: V-statistic, paired mode, Gaussian RBF kernel with median heuristic bandwidth
+- Target annealing: Linear schedule (reuses existing `utils/annealing.py`)
+- Bandwidth fitting: Recomputed per epoch on q_phi samples (detached)
+- Full integration with base runner: metrics (KL, W2, ELBO), TensorBoard logging, contour plots, checkpointing, EMA
+
+**Initial Results (banana, 1000 epochs, SGLD, step_size=0.05, K=5):**
+- Loss: 0.017 → 0.008 (decreasing)
+- Mean MCMC displacement: ~0.63 (particles actively moving)
+- Training speed: ~60-75 it/s (CPU)
+
+### V2 — To Be Implemented
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| MALA kernel (Langevin + M-H) | Medium | Adds M-H to SGLD proposal |
+| U-statistic estimator | Medium | Diagonal exclusion, unbiased |
+| Unpaired mode | Low | Two independent batches for MMD |
+| K-step scheduling | Medium | $K(t) = K_{\min} + \lfloor (K_{\max} - K_{\min}) \cdot t / T \rfloor$ |
+| Cosine / sigmoid annealing | Low | Add to `utils/annealing.py` |
+| Multi-scale MMD | Medium | Sum over multiple bandwidths |
+| Adaptive MCMC step size | Medium | Dual-averaging targeting ~0.65 acceptance |
+| Data-dependent targets | High | Use `score_on_batch` for BNN/LR targets |
+| Additional target configs | Medium | multimodal, x_shaped, 8_gaussians, Langevin_post |
+| Full comparison experiments | High | KDVI vs KSIVI vs SIVI on all targets |
