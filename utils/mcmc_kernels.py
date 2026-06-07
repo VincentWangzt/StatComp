@@ -7,7 +7,7 @@ samplers in ``utils/mcmc.py`` (which handle burn-in, thinning, and long-chain
 sampling), these functions perform exactly K transition steps on a batch of N
 particles in parallel and return the final positions.
 
-Two kernels are provided:
+Three kernels are provided:
 
 - **SGLD** (Stochastic Gradient Langevin Dynamics): No accept/reject. Same
   update formula as ``SGLDSampler``. Always moves particles — biased for
@@ -15,6 +15,9 @@ Two kernels are provided:
 - **HMC** (Hamiltonian Monte Carlo): Leapfrog integration with Metropolis-
   Hastings correction. Same algorithm as ``HMCSampler._leapfrog`` but
   batched over N independent particles.
+- **MALA** (Metropolis-Adjusted Langevin Algorithm): Langevin proposal with
+  Metropolis-Hastings accept/reject. Same proposal as SGLD but corrects for
+  finite step size bias via the asymmetric proposal density ratio.
 
 All functions operate entirely under ``torch.no_grad()`` (except for internal
 gradient computation via ``torch.autograd.grad``). The caller is responsible
@@ -222,6 +225,101 @@ def hmc_transition(
         )  # [N] boolean
 
         # Apply accept/reject per particle
+        z = torch.where(accept_mask.unsqueeze(-1), z_prop, z)
+        total_accepts += accept_mask.sum().item()
+
+    accept_rate = total_accepts / (N * n_steps)
+    mean_disp = (z - z_init).norm(dim=-1).mean().item()
+
+    return MCMCTransitionOutput(
+        z=z,
+        accept_rate=accept_rate,
+        mean_disp=mean_disp,
+    )
+
+
+@torch.no_grad()
+def mala_transition(
+    z_init: Tensor,
+    log_prob_fn: Callable[[Tensor], Tensor],
+    step_size: float,
+    n_steps: int,
+) -> MCMCTransitionOutput:
+    """Run K steps of MALA (Metropolis-Adjusted Langevin Algorithm) on a batch.
+
+    Each MALA step:
+      1. Proposes via Langevin dynamics:
+         ``z* = z + (τ/2) * ∇log p(z) + √τ * ξ``, where ``ξ ~ N(0, I)``.
+      2. Applies Metropolis-Hastings accept/reject using the asymmetric
+         proposal density ratio to correct for finite step-size bias.
+
+    The M-H acceptance ratio accounts for the asymmetry of the Langevin
+    proposal::
+
+        log α = log p(z*) - log p(z) + log q(z|z*) - log q(z*|z)
+
+    where ``q(z*|z) = N(z*; z + (τ/2)∇log p(z), τI)``.
+
+    For the unadjusted variant (ULA, no M-H correction), use
+    ``sgld_transition`` instead — it is mathematically equivalent.
+
+    Args:
+        z_init: Starting particle positions, shape ``[N, D]``. Must be
+            detached from any computation graph.
+        log_prob_fn: Function mapping ``z: [N, D] -> [N]`` log-densities.
+            Used for gradient computation, M-H ratio evaluation, and
+            proposal density calculation.
+        step_size: Langevin step size (τ). Controls both drift and noise
+            magnitude. Typical values: 0.001–0.05.
+        n_steps: Number of MALA transition steps (K).
+
+    Returns:
+        MCMCTransitionOutput with:
+            - z: final positions ``[N, D]``
+            - accept_rate: mean acceptance rate across batch and K steps
+            - mean_disp: mean ``||z_final - z_init||_2`` over the batch
+    """
+    z = z_init.clone()
+    N, D = z.shape
+    noise_scale = math.sqrt(step_size)
+    total_accepts = 0
+
+    for _ in range(n_steps):
+        # Gradient at current position
+        grad_z = _batched_grad_logp(z, log_prob_fn)  # [N, D]
+
+        # Langevin proposal
+        noise = torch.randn_like(z)
+        z_prop = z + 0.5 * step_size * grad_z + noise_scale * noise  # [N, D]
+
+        # Gradient at proposed position (for backward proposal density)
+        grad_z_prop = _batched_grad_logp(z_prop, log_prob_fn)  # [N, D]
+
+        # Log-densities at both positions
+        log_p_current = log_prob_fn(z).squeeze()      # [N]
+        log_p_proposed = log_prob_fn(z_prop).squeeze()  # [N]
+
+        # Forward proposal log-density: log q(z*|z)
+        # q(z*|z) = N(z*; z + (τ/2)∇log p(z), τI)
+        # log q = -1/(2τ) * ||z* - z - (τ/2)∇log p(z)||²  (up to constant)
+        diff_forward = z_prop - z - 0.5 * step_size * grad_z  # [N, D]
+        log_q_forward = -0.5 / step_size * (diff_forward ** 2).sum(dim=-1)  # [N]
+
+        # Backward proposal log-density: log q(z|z*)
+        # q(z|z*) = N(z; z* + (τ/2)∇log p(z*), τI)
+        diff_backward = z - z_prop - 0.5 * step_size * grad_z_prop  # [N, D]
+        log_q_backward = -0.5 / step_size * (diff_backward ** 2).sum(dim=-1)  # [N]
+
+        # M-H acceptance ratio
+        log_accept_ratio = (
+            log_p_proposed - log_p_current
+            + log_q_backward - log_q_forward
+        )  # [N]
+
+        # Per-particle accept/reject
+        accept_mask = (
+            torch.log(torch.rand(N, device=z.device)) < log_accept_ratio
+        )  # [N] boolean
         z = torch.where(accept_mask.unsqueeze(-1), z_prop, z)
         total_accepts += accept_mask.sum().item()
 

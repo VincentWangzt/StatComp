@@ -23,12 +23,17 @@ train:
     scheme: linear
     steps: 25000
   kdvi:
-    mcmc_type: sgld             # 'sgld' or 'hmc'
-    mcmc_steps: 5               # K — number of transition steps
+    mcmc_type: sgld             # 'sgld', 'hmc', or 'mala'
+    mcmc_steps: 5               # K — number of transition steps (used if schedule disabled)
     mcmc_step_size: 0.05        # step size (conservative)
     hmc_leapfrog_steps: 10      # L — leapfrog sub-steps (HMC only)
     kernel: gaussian            # kernel for MMD (from utils/kernels.py registry)
     fit_bandwidth_on: x         # 'x', 'y', 'xy', or 'none'
+    mcmc_steps_schedule:         # K-step ramp (overrides mcmc_steps when enabled)
+      enabled: false
+      min_steps: 1
+      max_steps: 10
+      warmup_epochs: 25000
   grad_clip: 10.0
   log:
     metric_log_freq: 500

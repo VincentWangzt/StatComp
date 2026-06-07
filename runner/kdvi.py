@@ -23,7 +23,7 @@ Reference:
     Design document: MCMC_distillation.md
 
 Config keys under ``train.kdvi``:
-    mcmc_type (str): MCMC kernel type. One of 'sgld', 'hmc'.
+    mcmc_type (str): MCMC kernel type. One of 'sgld', 'hmc', 'mala'.
         Default: 'sgld'.
     mcmc_steps (int): Number of MCMC transition steps K.
         Default: 5.
@@ -35,6 +35,11 @@ Config keys under ``train.kdvi``:
         'imq', 'laplace', 'riesz'. Default: 'gaussian'.
     fit_bandwidth_on (str): Bandwidth fitting strategy. One of 'x', 'y',
         'xy', 'none'. Default: 'x'.
+    mcmc_steps_schedule (dict): Optional K-step scheduling.
+        enabled (bool): Whether to ramp K over training. Default: False.
+        min_steps (int): Starting K. Default: 1.
+        max_steps (int): Final K. Default: 10.
+        warmup_epochs (int): Epochs to ramp from min to max. Default: 10000.
 """
 
 import time
@@ -44,10 +49,10 @@ import torch
 from omegaconf import DictConfig
 
 from runner.base_runner import BaseSIVIRunner
-from utils.mcmc_kernels import sgld_transition, hmc_transition
+from utils.mcmc_kernels import sgld_transition, hmc_transition, mala_transition
 from utils.mmd import mmd2_v_statistic
 from utils.kernels import Kernels
-from utils.annealing import annealing
+from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
 
 logger = get_logger()
@@ -78,12 +83,20 @@ class KDVIRunner(BaseSIVIRunner):
 
         # MCMC kernel settings
         self.mcmc_type: str = kdvi_cfg.get('mcmc_type', 'sgld')
-        assert self.mcmc_type in ('sgld', 'hmc'), \
-            f"mcmc_type must be 'sgld' or 'hmc', got '{self.mcmc_type}'"
+        assert self.mcmc_type in ('sgld', 'hmc', 'mala'), \
+            f"mcmc_type must be 'sgld', 'hmc', or 'mala', got '{self.mcmc_type}'"
         self.mcmc_steps: int = int(kdvi_cfg.get('mcmc_steps', 5))
         self.mcmc_step_size: float = float(kdvi_cfg.get('mcmc_step_size', 0.05))
         self.hmc_leapfrog_steps: int = int(
             kdvi_cfg.get('hmc_leapfrog_steps', 10))
+
+        # K-step scheduling
+        schedule_cfg = kdvi_cfg.get('mcmc_steps_schedule', {})
+        self.k_schedule_enabled: bool = bool(schedule_cfg.get('enabled', False))
+        self.k_schedule_min: int = int(schedule_cfg.get('min_steps', 1))
+        self.k_schedule_max: int = int(schedule_cfg.get('max_steps', 10))
+        self.k_schedule_warmup: int = int(
+            schedule_cfg.get('warmup_epochs', 10000))
 
         # MMD kernel settings
         kernel_type: str = kdvi_cfg.get('kernel', 'gaussian')
@@ -107,6 +120,12 @@ class KDVIRunner(BaseSIVIRunner):
             f"mmd_kernel={kernel_type}, "
             f"fit_bandwidth_on={self.fit_bandwidth_on}"
         )
+        if self.k_schedule_enabled:
+            logger.info(
+                f"K-step scheduling enabled: K ramps from "
+                f"{self.k_schedule_min} to {self.k_schedule_max} over "
+                f"{self.k_schedule_warmup} epochs"
+            )
 
     def _get_log_prob_fn(self, epoch: int) -> Tuple[Callable, float]:
         """Construct a (possibly annealed) log-probability function.
@@ -191,6 +210,17 @@ class KDVIRunner(BaseSIVIRunner):
 
         log_prob_fn, beta = self._get_log_prob_fn(epoch)
 
+        # Determine current number of MCMC steps (fixed or scheduled)
+        if self.k_schedule_enabled:
+            current_mcmc_steps = mcmc_step_schedule(
+                t=epoch,
+                min_steps=self.k_schedule_min,
+                max_steps=self.k_schedule_max,
+                warmup_epochs=self.k_schedule_warmup,
+            )
+        else:
+            current_mcmc_steps = self.mcmc_steps
+
         if self.mcmc_type == 'sgld':
             # Use direct score function for efficiency (avoids autograd)
             score_fn = lambda z_in: beta * self.target_model.score(z_in)
@@ -198,7 +228,7 @@ class KDVIRunner(BaseSIVIRunner):
                 z_init=z.detach(),
                 score_fn_or_log_prob_fn=score_fn,
                 step_size=self.mcmc_step_size,
-                n_steps=self.mcmc_steps,
+                n_steps=current_mcmc_steps,
                 use_score_fn=True,
             )
         elif self.mcmc_type == 'hmc':
@@ -207,7 +237,14 @@ class KDVIRunner(BaseSIVIRunner):
                 log_prob_fn=log_prob_fn,
                 step_size=self.mcmc_step_size,
                 n_leapfrog=self.hmc_leapfrog_steps,
-                n_steps=self.mcmc_steps,
+                n_steps=current_mcmc_steps,
+            )
+        elif self.mcmc_type == 'mala':
+            mcmc_out = mala_transition(
+                z_init=z.detach(),
+                log_prob_fn=log_prob_fn,
+                step_size=self.mcmc_step_size,
+                n_steps=current_mcmc_steps,
             )
         else:
             raise ValueError(f"Unknown mcmc_type: {self.mcmc_type}")
@@ -261,6 +298,8 @@ class KDVIRunner(BaseSIVIRunner):
             "kdvi/mean_displacement", mcmc_out.mean_disp, epoch)
         self.writer.add_scalar(
             "kdvi/beta_anneal", beta, epoch)
+        self.writer.add_scalar(
+            "kdvi/mcmc_steps_K", current_mcmc_steps, epoch)
         self.writer.add_scalar(
             "kdvi/kernel_bandwidth", self.mmd_kernel.h, epoch)
         self.writer.add_scalar(
