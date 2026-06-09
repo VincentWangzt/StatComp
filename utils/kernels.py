@@ -388,9 +388,177 @@ class RieszKernel(BaseKernel):
         return kxy, grad_x, grad_y, grad_xy_trace
 
 
+class GaussianKernelMMD(BaseKernel):
+    """
+    Gaussian Kernel (MMD-style heuristic): k(x,y) = exp(-||x-y||^2 / (2h^2))
+
+    Identical kernel form to ``GaussianKernel``, but uses the textbook MMD
+    median heuristic ``h = sqrt(median(d^2))`` instead of the SVGD/KSD-style
+    ``h = sqrt(0.5 * median(d^2) / log(N+1))``.
+
+    With this heuristic, at the median pairwise distance::
+
+        k(x, y) = exp(-d_med^2 / (2 * d_med^2)) = exp(-0.5) ~ 0.6065
+
+    matching the bandwidth scale used in the reference notebook
+    ``IVI-via-mcmc-distillation``. The SVGD heuristic in ``GaussianKernel``
+    yields ``k(d_med) ~ 1/(N+1)`` (e.g. ~0.008 at N=128), which is
+    appropriate for SVGD's local Stein operator but starves MMD cross-mode
+    gradients on multimodal targets with widely-separated modes.
+
+    Use this kernel for MMD-based training objectives (e.g. KDVI). Keep
+    ``GaussianKernel`` for SVGD/KSD consumers.
+    """
+
+    def __init__(self, h: float = -1, name: str = 'GaussianKernelMMD'):
+        super().__init__(h, name)
+
+    def fit_h(self, samples: torch.Tensor) -> float:
+
+        # Textbook MMD median heuristic: h = sqrt(median(||x_i - x_j||^2))
+        pairwise_dists = _pairwise_squared_distances(samples)
+        h = torch.median(pairwise_dists)
+        # Guard against degenerate (collapsed) batches
+        h = torch.clamp_min(h, 1e-12)
+        self.h = torch.sqrt(h).item()
+        return self.h
+
+    def pair_eval(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+        fit_h: bool = False,
+        detach_h: bool = True,
+    ) -> torch.Tensor:
+
+        if samples_y is None:
+            samples_y = samples_x
+
+        pairwise_dists = _pairwise_squared_distances(samples_x, samples_y)
+        if fit_h or self.h < 0:
+            d2 = pairwise_dists.detach() if detach_h else pairwise_dists
+            h = torch.median(d2)
+            h = torch.clamp_min(h, 1e-12)
+            h = torch.sqrt(h)
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = torch.exp(-pairwise_dists / (h**2 * 2))
+        return kxy
+
+    def grad_all(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+
+        if samples_y is None:
+            samples_y = samples_x
+
+        if self.h < 0:
+            self.fit_h(samples_x)
+
+        diff = samples_x[:, None, :] - samples_y[None, :, :]
+        pairwise_dists = (diff**2).sum(-1)
+        kxy = torch.exp(-pairwise_dists / (self.h**2 * 2))
+
+        grad_x = -diff / self.h**2 * kxy[:, :, None]
+        grad_y = diff / self.h**2 * kxy[:, :, None]
+
+        dim = samples_x.shape[-1]
+        term1 = dim / self.h**2
+        term2 = pairwise_dists / self.h**4
+        grad_xy_trace = kxy * (term1 - term2)
+
+        return kxy, grad_x, grad_y, grad_xy_trace
+
+
+class LaplaceL2Kernel(BaseKernel):
+    """
+    Laplace-on-L2 (radial exponential) Kernel: k(x,y) = exp(-||x-y||_2 / (2h))
+
+    Heavier-tailed than the Gaussian kernel — exponential decay in
+    Euclidean distance rather than squared Euclidean distance. This is the
+    kernel used by the reference notebook ``IVI-via-mcmc-distillation``
+    in its MMD objective.
+
+    Heuristic: ``h = median(||x_i - x_j||_2)`` (Euclidean, not squared).
+
+    This kernel is **distinct from** ``LaplaceKernel`` (which uses
+    L1 distance). The exponential of Euclidean distance is what the MMD
+    literature usually means by "Laplace kernel" in continuous spaces.
+
+    ``grad_all`` is intentionally not implemented: KDVI does not use it,
+    and SVGD-style consumers should keep using the existing L1
+    ``LaplaceKernel`` (whose closed-form gradient is well-defined).
+    """
+
+    def __init__(self, h: float = -1, name: str = 'LaplaceL2Kernel'):
+        super().__init__(h, name)
+
+    def fit_h(self, samples: torch.Tensor) -> float:
+
+        # Median heuristic on the Euclidean (L2) distance.
+        pairwise_dists_sq = _pairwise_squared_distances(samples)
+        pairwise_dists = torch.sqrt(torch.clamp_min(pairwise_dists_sq, 0.0))
+        h = torch.median(pairwise_dists)
+        h = torch.clamp_min(h, 1e-12)
+        self.h = h.item()
+        return self.h
+
+    def pair_eval(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+        fit_h: bool = False,
+        detach_h: bool = True,
+    ) -> torch.Tensor:
+
+        if samples_y is None:
+            samples_y = samples_x
+
+        pairwise_dists_sq = _pairwise_squared_distances(samples_x, samples_y)
+        # sqrt is non-differentiable at 0; use a tiny eps to keep gradients
+        # well-behaved when x = y (diagonal entries).
+        pairwise_dists = torch.sqrt(pairwise_dists_sq + 1e-12)
+
+        if fit_h or self.h < 0:
+            d_for_h = pairwise_dists.detach() if detach_h else pairwise_dists
+            h = torch.median(d_for_h)
+            h = torch.clamp_min(h, 1e-12)
+            self.h = h.detach().item()
+        else:
+            h = torch.as_tensor(
+                self.h,
+                device=samples_x.device,
+                dtype=samples_x.dtype,
+            )
+
+        kxy = torch.exp(-pairwise_dists / (h * 2))
+        return kxy
+
+    def grad_all(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        raise NotImplementedError(
+            "LaplaceL2Kernel.grad_all is not implemented; KDVI only needs "
+            "pair_eval. SVGD/KSD consumers should use LaplaceKernel (L1) "
+            "or GaussianKernel."
+        )
+
+
 Kernels: dict[str, type[BaseKernel]] = {
     'gaussian': GaussianKernel,
+    'gaussian_mmd': GaussianKernelMMD,
     'imq': IMQKernel,
     'laplace': LaplaceKernel,
+    'laplace_l2': LaplaceL2Kernel,
     'riesz': RieszKernel,
 }

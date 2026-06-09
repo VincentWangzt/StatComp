@@ -109,6 +109,39 @@ class KDVIRunner(BaseSIVIRunner):
             f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', " \
             f"got '{self.fit_bandwidth_on}'"
 
+        # Optional fixed bandwidth — if set, overrides fit_bandwidth_on with
+        # 'none' and pins kernel.h to this value for the entire training run.
+        # Set kernel_bandwidth to null/None or omit it to keep current
+        # adaptive median-heuristic behavior.
+        kb = kdvi_cfg.get('kernel_bandwidth', None)
+        self.fixed_kernel_bandwidth: float | None = (
+            float(kb) if kb is not None else None
+        )
+        if self.fixed_kernel_bandwidth is not None:
+            self.mmd_kernel.h = self.fixed_kernel_bandwidth
+            self.fit_bandwidth_on = 'none'
+
+        # Optional step-size schedule:
+        #   step_size_schedule:
+        #     type: none | cosine | coupled
+        #     start: <float>   # for cosine: starting step size
+        #     end:   <float>   # for cosine: ending step size
+        #     steps: <int>     # for cosine: number of epochs to decay over
+        # 'coupled' divides mcmc_step_size by the current beta (notebook style).
+        # 'none' (default) keeps mcmc_step_size constant.
+        sched = kdvi_cfg.get('step_size_schedule', {}) or {}
+        self.step_size_schedule_type: str = str(
+            sched.get('type', 'none')).lower()
+        assert self.step_size_schedule_type in ('none', 'cosine', 'coupled'), \
+            f"step_size_schedule.type must be 'none', 'cosine', or " \
+            f"'coupled', got '{self.step_size_schedule_type}'"
+        self.step_size_schedule_start: float = float(
+            sched.get('start', self.mcmc_step_size))
+        self.step_size_schedule_end: float = float(
+            sched.get('end', self.mcmc_step_size))
+        self.step_size_schedule_steps: int = int(
+            sched.get('steps', 50000))
+
         # KDVI has no reverse model
         self.reverse_train = False
 
@@ -120,6 +153,20 @@ class KDVIRunner(BaseSIVIRunner):
             f"mmd_kernel={kernel_type}, "
             f"fit_bandwidth_on={self.fit_bandwidth_on}"
         )
+        if self.fixed_kernel_bandwidth is not None:
+            logger.info(
+                f"Fixed kernel bandwidth enabled: h="
+                f"{self.fixed_kernel_bandwidth} (fit_bandwidth_on forced "
+                f"to 'none')"
+            )
+        if self.step_size_schedule_type != 'none':
+            logger.info(
+                f"Step-size schedule enabled: type="
+                f"{self.step_size_schedule_type}, start="
+                f"{self.step_size_schedule_start}, end="
+                f"{self.step_size_schedule_end}, steps="
+                f"{self.step_size_schedule_steps}"
+            )
         if self.k_schedule_enabled:
             logger.info(
                 f"K-step scheduling enabled: K ramps from "
@@ -221,13 +268,32 @@ class KDVIRunner(BaseSIVIRunner):
         else:
             current_mcmc_steps = self.mcmc_steps
 
+        # Determine current MCMC step size (fixed, cosine-decayed, or
+        # beta-coupled per the notebook style).
+        if self.step_size_schedule_type == 'cosine':
+            import math as _math
+            progress = min(1.0, float(epoch) /
+                           max(1, self.step_size_schedule_steps))
+            cos_factor = 0.5 * (1.0 + _math.cos(_math.pi * progress))
+            current_step_size = (
+                self.step_size_schedule_end +
+                (self.step_size_schedule_start - self.step_size_schedule_end)
+                * cos_factor
+            )
+        elif self.step_size_schedule_type == 'coupled':
+            # Notebook style: divide by beta so step size is large when the
+            # target is flattened, and tightens as beta -> 1.
+            current_step_size = self.mcmc_step_size / max(beta, 1e-6)
+        else:
+            current_step_size = self.mcmc_step_size
+
         if self.mcmc_type == 'sgld':
             # Use direct score function for efficiency (avoids autograd)
             score_fn = lambda z_in: beta * self.target_model.score(z_in)
             mcmc_out = sgld_transition(
                 z_init=z.detach(),
                 score_fn_or_log_prob_fn=score_fn,
-                step_size=self.mcmc_step_size,
+                step_size=current_step_size,
                 n_steps=current_mcmc_steps,
                 use_score_fn=True,
             )
@@ -235,7 +301,7 @@ class KDVIRunner(BaseSIVIRunner):
             mcmc_out = hmc_transition(
                 z_init=z.detach(),
                 log_prob_fn=log_prob_fn,
-                step_size=self.mcmc_step_size,
+                step_size=current_step_size,
                 n_leapfrog=self.hmc_leapfrog_steps,
                 n_steps=current_mcmc_steps,
             )
@@ -243,7 +309,7 @@ class KDVIRunner(BaseSIVIRunner):
             mcmc_out = mala_transition(
                 z_init=z.detach(),
                 log_prob_fn=log_prob_fn,
-                step_size=self.mcmc_step_size,
+                step_size=current_step_size,
                 n_steps=current_mcmc_steps,
             )
         else:
@@ -296,6 +362,8 @@ class KDVIRunner(BaseSIVIRunner):
             "kdvi/accept_rate", mcmc_out.accept_rate, epoch)
         self.writer.add_scalar(
             "kdvi/mean_displacement", mcmc_out.mean_disp, epoch)
+        self.writer.add_scalar(
+            "kdvi/mcmc_step_size", current_step_size, epoch)
         self.writer.add_scalar(
             "kdvi/beta_anneal", beta, epoch)
         self.writer.add_scalar(
