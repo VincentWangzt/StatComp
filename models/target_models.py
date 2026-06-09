@@ -30,6 +30,7 @@ __all__ = [
     "X_shaped",
     "Multimodal",
     "EightGaussians",
+    "EightGaussiansSmall",
     "StudentTFullDim",
     "LRwaveform",
     "Bnn",
@@ -66,6 +67,7 @@ class TargetModel(Protocol):
 DEFAULT_BBOX: dict[str, list[float]] = {
     "multimodal": [-5, 5, -5, 5],
     "8_gaussians": [-6, 6, -6, 6],
+    "8_gaussians_small": [-1.5, 1.5, -1.5, 1.5],
     "banana": [-3.5, 3.5, -6, 1],
     "x_shaped": [-5, 5, -5, 5],
     "student_uc": [-5, 5, -5, 5],
@@ -84,6 +86,11 @@ _MULTIMODAL_SPREAD: float = 2.0
 _EIGHT_GAUSSIANS_RADIUS: float = 4.0
 _EIGHT_GAUSSIANS_SIGMA: float = 0.5
 _EIGHT_GAUSSIANS_NUM_COMPONENTS: int = 8
+
+# Eight-Gaussians SMALL ring parameters — matches the IVI notebook
+# (`models.GMM(n_clusters=8, sigma=0.1, r=1)`).
+_EIGHT_GAUSSIANS_SMALL_RADIUS: float = 1.0
+_EIGHT_GAUSSIANS_SMALL_SIGMA: float = 0.1
 
 # StudentT degrees of freedom and scale-matrix seed
 _STUDENT_T_DF: float = 2.0
@@ -632,6 +639,33 @@ class EightGaussians(Toy_2D):
         )
         noise = torch.randn((N, self.z_dim), device=self.device) * self.sigma
         return self._centers[indices] + noise
+
+
+class EightGaussiansSmall(EightGaussians):
+    """Eight-Gaussians ring matching the IVI notebook geometry.
+
+    Identical to :class:`EightGaussians` but with
+    ``radius = _EIGHT_GAUSSIANS_SMALL_RADIUS`` (1.0) and
+    ``sigma = _EIGHT_GAUSSIANS_SMALL_SIGMA`` (0.1). This is the same target
+    used in :mod:`IVI-via-mcmc-distillation/models.py::GMM(8, 0.1, 1)`, so
+    cross-implementation comparisons (KDVI vs the IVI notebook) measure
+    exactly the same target distribution.
+    """
+
+    name: str = "8_gaussians_small"
+
+    def __init__(self, device: torch.device) -> None:
+        super().__init__(device=device)
+        # Override the ring radius / mode std without re-running the parent's
+        # one-time geometry setup. We rebuild only the affected fields.
+        unit_centers = self._centers / self.radius  # divide by old radius
+        self.radius = _EIGHT_GAUSSIANS_SMALL_RADIUS
+        self.sigma = _EIGHT_GAUSSIANS_SMALL_SIGMA
+        self._var = self.sigma ** 2
+        self._centers = unit_centers * self.radius
+        self._log_norm = -float(np.log(2 * np.pi * self._var))
+        # Tag instance so save paths and logging differentiate the small ring.
+        self.name = "EightGaussiansSmall"
 
 
 class StudentTFullDim(Toy_2D):
@@ -1426,6 +1460,7 @@ target_distribution: dict[str, type] = {
     "banana": Banana_shape,
     "multimodal": Multimodal,
     "8_gaussians": EightGaussians,
+    "8_gaussians_small": EightGaussiansSmall,
     "x_shaped": X_shaped,
     "student_uc": StudentTFullDim,
     "LRwaveform": LRwaveform,
