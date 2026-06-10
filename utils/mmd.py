@@ -125,25 +125,30 @@ def mmd_no_xx(
     kernel: BaseKernel,
     fit_bandwidth_on: str = "xy",
 ) -> Tuple[Tensor, dict]:
-    """Biased MMD-like loss that *omits* the k_xx term.
+    """Biased MMD-like loss matching the IVI-via-mcmc-distillation notebook.
 
-    Computes::
+    The notebook computes::
 
-        L(x, y) = 0.5 * E[k(y, y')] - E[k(x, y')]
+        L = 0.5 * E[k(samp_x, samp_x)] - E[k(next_x_detached, samp_x)]
 
-    This is the loss formulation used by the reference IVI notebook
-    (``IVI-via-mcmc-distillation``). It is **NOT** an unbiased estimator
-    of MMD² — relative to the V-statistic it drops the ``E[k(x, x')]``
-    term, which acts as a self-repulsion regularizer that pushes the VI
-    samples apart. Empirically, on multimodal toy targets the no-xx
-    formulation reaches a smaller KL_ITE than the V-statistic, but it
-    can in principle admit a degenerate minimizer in which the VI
-    distribution collapses.
+    where ``samp_x`` carries gradients and ``next_x`` is the MCMC-refined
+    sample (detached). In the KDVI naming convention (``x`` = q_phi
+    samples with grad, ``y`` = MCMC-refined detached) that is::
 
-    The signature, gradient flow, and bandwidth-fitting policy are
-    identical to :func:`mmd2_v_statistic` — only the loss expression
-    differs. ``info`` still reports ``k_xx_mean`` for diagnostic
-    parity with the V-statistic version (it does not enter the loss).
+        L = 0.5 * E[k(x, x')] - E[k(x, y')]
+          = 0.5 * k_xx_mean - k_xy_mean
+
+    so the term that gets dropped relative to the V-statistic
+    (``k_xx + k_yy - 2 k_xy``) is **k_yy**, not k_xx. The gradient
+    therefore is ``0.5 * ∇k_xx - ∇k_xy`` — half the V-statistic's
+    self-repulsion strength relative to the cross term.
+
+    Note: under KDVI's gradient flow ``y`` is fully detached, so
+    omitting ``k_yy`` from the loss expression has zero effect on the
+    gradient. The functional difference between this loss and
+    ``mmd2_v_statistic`` is purely the (constant) factor on
+    ``k_xx_mean`` — the V-statistic uses ``+1.0 * k_xx`` whereas this
+    loss uses ``+0.5 * k_xx``.
 
     Args:
         x: Variational samples, shape ``[N, D]``, with gradient.
@@ -154,8 +159,7 @@ def mmd_no_xx(
             pooled xy + yy distances).
 
     Returns:
-        ``(loss, info)`` where ``loss`` is the scalar
-        ``0.5 * k_yy_mean - k_xy_mean``.
+        ``(loss, info)`` where ``loss == 0.5 * k_xx_mean - k_xy_mean``.
     """
     # 1. Fit bandwidth (detached — no gradient through bandwidth selection)
     if fit_bandwidth_on == "x":
@@ -172,24 +176,21 @@ def mmd_no_xx(
             f"got '{fit_bandwidth_on}'"
         )
 
-    # 2. Compute the two kernel matrices we need (k_xx is intentionally
-    #    skipped — it does not enter the loss). We still compute k_xx_mean
-    #    in eval mode for parity diagnostics, but only when training does
-    #    not need its gradient — to avoid wasted compute we just record a
-    #    NaN sentinel for k_xx_mean here.
-    K_yy = kernel.pair_eval(y, y, fit_h=False, detach_h=True)  # [N, N]
+    # 2. Compute the two kernel matrices we need (k_yy is intentionally
+    #    skipped — it has no gradient and does not enter the loss).
+    K_xx = kernel.pair_eval(x, x, fit_h=False, detach_h=True)  # [N, N]
     K_xy = kernel.pair_eval(x, y, fit_h=False, detach_h=True)  # [N, M]
 
-    k_yy_mean = K_yy.mean()
+    k_xx_mean = K_xx.mean()
     k_xy_mean = K_xy.mean()
 
-    loss = 0.5 * k_yy_mean - k_xy_mean
+    loss = 0.5 * k_xx_mean - k_xy_mean
 
     info = {
-        # k_xx skipped from the loss; report NaN so downstream tensorboard
-        # logging can plot a clean line without inferring a real value.
-        'k_xx_mean': float('nan'),
-        'k_yy_mean': k_yy_mean.item(),
+        'k_xx_mean': k_xx_mean.item(),
+        # k_yy not computed (would be a no-grad scalar that does not
+        # affect training); report NaN so TB plots have a clean gap.
+        'k_yy_mean': float('nan'),
         'k_xy_mean': k_xy_mean.item(),
     }
 
