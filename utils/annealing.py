@@ -26,6 +26,11 @@ def annealing(
             return 0.1 + 0.9 * progress  # linear annealing
         elif scheme == 'sigmoid':
             return 0.1 + 0.9 * (1 / (1 + math.exp(-10 * (progress - 0.5))))
+        elif scheme == 'ivi':
+            # IVI notebook scheme (run_ivi.py:317):
+            #   anneal_coef = min(1.0, 0.1 + i * 1.0 / warm_up_interval)
+            # Reaches 1.0 at i = 0.9 * warm_up_interval (faster than 'linear').
+            return min(1.0, 0.1 + t / warm_up_interval)
         else:
             raise ValueError(f"Unknown annealing scheme: {scheme}")
 

@@ -14,6 +14,8 @@ def _make_activation(name: str) -> nn.Module:
         return nn.SiLU()
     if name == "relu":
         return nn.ReLU()
+    if name == "elu":
+        return nn.ELU()
     raise ValueError(f"Unsupported activation '{name}'")
 
 
@@ -162,12 +164,17 @@ class ConditionalGaussian(BaseVIModel):
         self.var_min = float(config.get('var_min', 1e-4))
         self.variance_parameterization = config.get(
             'variance_parameterization', 'softplus_var')
-        if self.variance_parameterization not in ('softplus_var', 'logvar'):
+        if self.variance_parameterization not in (
+                'softplus_var', 'logvar', 'logstd'):
             raise ValueError(
                 "variance_parameterization must be one of "
-                "('softplus_var', 'logvar')"
+                "('softplus_var', 'logvar', 'logstd')"
             )
         self.log_var_min = float(config.get('log_var_min', -20.0))
+        # log_std clamp threshold (only used when variance_parameterization
+        # == 'logstd'). Mirrors IVI-via-mcmc-distillation/run_ivi.py which
+        # uses ``log_std.clamp(log_std_min=-3)``.
+        self.log_std_min = float(config.get('log_std_min', -10.0))
         self.activation = config.get('activation', 'silu')
         # The network outputs both mean and variance
         layers = []
@@ -197,6 +204,13 @@ class ConditionalGaussian(BaseVIModel):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if self.variance_parameterization == 'logvar':
             log_var = var_raw.clamp(min=self.log_var_min)
+            return torch.exp(log_var), log_var
+        if self.variance_parameterization == 'logstd':
+            # Network output is log_std; std = exp(log_std), var = exp(2*log_std).
+            # Matches IVI-via-mcmc-distillation/run_ivi.py:249's
+            # ``log_std.clamp(log_std_min)`` then ``log_std.exp()``.
+            log_std = var_raw.clamp(min=self.log_std_min)
+            log_var = 2.0 * log_std
             return torch.exp(log_var), log_var
         var = torch.nn.functional.softplus(var_raw)
         var = var.clamp(min=self.var_min)

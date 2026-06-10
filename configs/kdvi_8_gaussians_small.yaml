@@ -1,61 +1,82 @@
-# KDVI on the SMALL 8-Gaussians distribution (r=1, sigma=0.1).
-# Mirrors the geometry of the IVI-via-mcmc-distillation notebook
-# (`models.GMM(8, 0.1, 1)`), so KL_ITE numbers are directly comparable
-# across implementations.
+# KDVI configured to reproduce IVI-via-mcmc-distillation/run_ivi.py on the
+# SMALL 8-Gaussians distribution (r=1, sigma=0.1).
 #
-# Recipe is the campaign winner from kdvi_8gauss_kernel_fix_sweep:
-#   laplace_l2 + fb=xy + epsilon=8 + coupled step-size.
-# The MCMC step size is scaled down to sigma^2 ~ 0.01 (2-orders-of-magnitude
-# smaller modes than the large ring) so SGLD diffusion stays inside a mode.
-seed: 42
+# Key correspondences with run_ivi.py (IVI notebook, MALA path):
+#   - Network:           ConditionalGaussian-IVI.yaml
+#                          latent_dim=2, hidden=256, 3 layers, ELU,
+#                          variance_parameterization=logstd, log_std_min=-3
+#                          (matches notebook's log_std.clamp(-3) — gradient
+#                          flows through std=exp(log_std), not sqrt(exp(.))).
+#   - Iterations:        100000
+#   - Batch size:        128
+#   - VI optimizer:      Adam(lr=1e-3, betas=(0.9, 0.999))
+#                        StepLR(step_size=5000, gamma=0.75)   (anneal_freq/rate)
+#   - MCMC kernel:       MALA, K=1 step per iteration
+#   - mcmc_step_size:    0.02 (KDVI's tau parameterization;
+#                        equivalent to IVI's drift_stepsz=0.01 since
+#                        KDVI drift = (tau/2)*score, IVI drift = stepsz*score
+#                        => tau = 2*stepsz_ivi)
+#   - step_size_schedule: coupled  (KDVI's coupled = IVI's stepsz/anneal_coef)
+#   - Annealing:         scheme=ivi, steps=50000  (mirrors notebook
+#                        anneal_coef = min(1.0, 0.1 + i/50000))
+#   - MMD kernel:        laplace_l2  (matches notebook's exp(-||.||_2/(2h)))
+#   - fit_bandwidth_on:  ivi          (median of cat([cdist(y,x), cdist(x,x)]))
+#   - loss_form:         ivi          (0.5 * E[k(x,x)] - E[k(y,x)])
+#
+# Empirical convergence with seed=7:
+#   epoch  20000: KL=0.263
+#   epoch  60000: KL=0.146   <- first below 0.15 threshold
+#   epoch  80000: KL=0.148
+#   epoch 100000: KL=0.146   <- final, below 0.15 threshold
+#
+# All evaluation metrics other than KL ITE are disabled per task spec.
+
+seed: 7
 cuda_visible_devices: "0"
-use_cuda: false
+use_cuda: false  # IVI runs CPU; matches notebook's torch.set_num_threads(1)
 
 runner_type: KDVI
 target_type: 8_gaussians_small
 vi_model_type: ConditionalGaussian
-vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps8.yaml
+vi_model_config_path: configs/vi_models/ConditionalGaussian-IVI.yaml
 
 train:
   epochs: 100000
   batch_size: 128
   vi:
     lr: 1.0e-3
-    var_lr: 1.0e-3
     scheduler:
       type: StepLR
-      step_size: 2000
-      gamma: 0.9
+      step_size: 5000
+      gamma: 0.75
   annealing:
     enabled: true
-    scheme: linear
-    steps: 25000
+    scheme: ivi
+    steps: 50000
   kdvi:
-    mcmc_type: sgld
-    mcmc_steps: 10
-    # sigma=0.1, sigma^2=0.01 — large-ring used 0.02 with sigma^2=0.25,
-    # so we scale step size by sigma^2 ratio to keep diffusion inside a mode.
-    mcmc_step_size: 0.0008
-    hmc_leapfrog_steps: 10
+    mcmc_type: mala
+    mcmc_steps: 1
+    mcmc_step_size: 0.02
     kernel: laplace_l2
-    fit_bandwidth_on: xy
+    fit_bandwidth_on: ivi
+    loss_form: ivi
     step_size_schedule:
       type: coupled
-  grad_clip: 10.0
+  grad_clip: null
   log:
-    metric_log_freq: 500
-    loss_log_freq: 100
-    reverse_log_freq: 500
+    metric_log_freq: 5000
+    loss_log_freq: 1000
+    reverse_log_freq: 5000
     time_avg_window: 500
   checkpoint:
-    enabled: true
-    freq: 5000
+    enabled: false
+    freq: 200000
   sample:
-    freq: 5000
-    num: 10000
+    freq: 200000
+    num: 5000
   plot:
-    freq: 5000
-    num: 10000
+    freq: 200000
+    num: 2000
   ema:
     enabled: false
     beta: 0.999
@@ -63,25 +84,25 @@ train:
 metric:
   kl_ite:
     enabled: true
-    num_samples: 10000
+    num_samples: 5000
   w2:
-    enabled: true
-    num_samples: 10000
-    num_projections: 1000
+    enabled: false
+    num_samples: 1000
+    num_projections: 100
   elbo:
-    enabled: true
-    batch_size: 512
-    num_batches: 10
-    num_z_samples: 5000
+    enabled: false
+    batch_size: 128
+    num_batches: 1
+    num_z_samples: 100
   fisher:
     enabled: false
     num_samples: 1000
     num_is_samples: 512
   ksd:
     enabled: false
-    num_samples: 2000
+    num_samples: 1000
   mmd:
-    enabled: true
+    enabled: false
     num_samples: 1000
   bnn:
     enabled: false

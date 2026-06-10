@@ -448,6 +448,14 @@ class BaseSIVIRunner():
     def evaluate_vi_to_baseline_kl(self) -> float:
         """
         Estimate KL divergence KL(q_phi(z) || q_baseline(z)) using `ite.cost.BDKL_KnnK`.
+
+        ``BDKL_KnnK`` is a kNN-based estimator and is **sensitive to the
+        relative sample sizes** of the two empirical distributions: feeding
+        N q-samples vs. M baseline samples with N != M biases the estimate.
+        To match the IVI reference implementation (which uses the same N
+        for both), we subsample the baseline to ``n_ite_samples`` rows
+        before estimating.
+
         Returns:
             kl_div (float): Estimated KL divergence value.
         """
@@ -458,9 +466,22 @@ class BaseSIVIRunner():
         _, z = self.vi_model.sampling(num=self.n_ite_samples)
         z_np = z.cpu().numpy()
 
+        # Subsample baseline to match number of q samples — fresh draw each
+        # call, no replacement, so KL trajectories track the q_phi changes
+        # rather than fluctuations in baseline sample size.
+        if self.baseline_samples.shape[0] > self.n_ite_samples:
+            indices = np.random.choice(
+                self.baseline_samples.shape[0],
+                self.n_ite_samples,
+                replace=False,
+            )
+            baseline_subset = self.baseline_samples[indices]
+        else:
+            baseline_subset = self.baseline_samples
+
         cost_obj = ite.cost.BDKL_KnnK()
         try:
-            kl_div = cost_obj.estimation(z_np, self.baseline_samples)
+            kl_div = cost_obj.estimation(z_np, baseline_subset)
             return float(kl_div)
         except Exception as e:
             logger.error(f"KL estimation failed: {e}")

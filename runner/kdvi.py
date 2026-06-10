@@ -50,7 +50,7 @@ from omegaconf import DictConfig
 
 from runner.base_runner import BaseSIVIRunner
 from utils.mcmc_kernels import sgld_transition, hmc_transition, mala_transition
-from utils.mmd import mmd2_v_statistic
+from utils.mmd import mmd2_v_statistic, mmd_ivi_drift
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
@@ -105,9 +105,17 @@ class KDVIRunner(BaseSIVIRunner):
         self.mmd_kernel = Kernels[kernel_type]()
         self.mmd_kernel_type: str = kernel_type
         self.fit_bandwidth_on: str = kdvi_cfg.get('fit_bandwidth_on', 'x')
-        assert self.fit_bandwidth_on in ('x', 'y', 'xy', 'none'), \
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', " \
+        assert self.fit_bandwidth_on in ('x', 'y', 'xy', 'none', 'ivi'), \
+            f"fit_bandwidth_on must be 'x', 'y', 'xy', 'none', or 'ivi', " \
             f"got '{self.fit_bandwidth_on}'"
+
+        # Loss form. 'mmd2' (default) is the symmetric V-statistic
+        # MMD^2 = E[k(x,x')] + E[k(y,y')] - 2 E[k(x,y')]. 'ivi' is the
+        # asymmetric drift loss used by IVI-via-mcmc-distillation:
+        #   loss = 0.5 E[k(y,y')] - E[k(x,y')].
+        self.loss_form: str = str(kdvi_cfg.get('loss_form', 'mmd2')).lower()
+        assert self.loss_form in ('mmd2', 'ivi'), \
+            f"loss_form must be 'mmd2' or 'ivi', got '{self.loss_form}'"
 
         # Optional fixed bandwidth — if set, overrides fit_bandwidth_on with
         # 'none' and pins kernel.h to this value for the entire training run.
@@ -324,11 +332,20 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        loss, mmd_info = mmd2_v_statistic(
-            x=z,
-            y=z_refined,
-            kernel=self.mmd_kernel,
-            fit_bandwidth_on=self.fit_bandwidth_on,
+        loss, mmd_info = (
+            mmd_ivi_drift(
+                x=z,
+                y=z_refined,
+                kernel=self.mmd_kernel,
+                fit_bandwidth_on=self.fit_bandwidth_on,
+            )
+            if self.loss_form == 'ivi'
+            else mmd2_v_statistic(
+                x=z,
+                y=z_refined,
+                kernel=self.mmd_kernel,
+                fit_bandwidth_on=self.fit_bandwidth_on,
+            )
         )
 
         # Optimizer step
