@@ -1,0 +1,88 @@
+# KDVI on the SMALL 8-Gaussians distribution (r=1, sigma=0.1).
+# IDENTICAL to kdvi_8_gaussians_small.yaml except for `mmd_loss: no_xx`,
+# which selects the IVI-notebook-style biased loss
+#     L = 0.5 * E[k(y,y')] - E[k(x,y')]
+# (drops the k_xx self-repulsion term from the V-statistic).
+# Used to test whether the IVI implementation's lower KL_ITE on this
+# target is attributable to the loss formulation rather than the MCMC
+# kernel / step count / bandwidth fitting strategy.
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: KDVI
+target_type: 8_gaussians_small
+vi_model_type: ConditionalGaussian
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps8.yaml
+
+train:
+  epochs: 100000
+  batch_size: 128
+  vi:
+    lr: 1.0e-3
+    var_lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.9
+  annealing:
+    enabled: true
+    scheme: linear
+    steps: 25000
+  kdvi:
+    mcmc_type: sgld
+    mcmc_steps: 10
+    mcmc_step_size: 0.0008
+    hmc_leapfrog_steps: 10
+    kernel: laplace_l2
+    fit_bandwidth_on: xy
+    mmd_loss: no_xx       # <-- the only intended difference from the canonical config
+    step_size_schedule:
+      type: coupled
+  grad_clip: 10.0
+  log:
+    metric_log_freq: 500
+    loss_log_freq: 100
+    reverse_log_freq: 500
+    time_avg_window: 500
+  checkpoint:
+    enabled: true
+    freq: 5000
+  sample:
+    freq: 5000
+    num: 10000
+  plot:
+    freq: 5000
+    num: 10000
+  ema:
+    enabled: false
+    beta: 0.999
+
+metric:
+  kl_ite:
+    enabled: true
+    num_samples: 10000
+  w2:
+    enabled: true
+    num_samples: 10000
+    num_projections: 1000
+  elbo:
+    enabled: true
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 5000
+  fisher:
+    enabled: false
+    num_samples: 1000
+    num_is_samples: 512
+  ksd:
+    enabled: false
+    num_samples: 2000
+  mmd:
+    enabled: true
+    num_samples: 1000
+  bnn:
+    enabled: false
+    num_samples: 500
+  expected_log_marginal:
+    enabled: false

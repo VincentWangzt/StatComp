@@ -50,7 +50,7 @@ from omegaconf import DictConfig
 
 from runner.base_runner import BaseSIVIRunner
 from utils.mcmc_kernels import sgld_transition, hmc_transition, mala_transition
-from utils.mmd import mmd2_v_statistic
+from utils.mmd import mmd2_v_statistic, mmd_no_xx
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
@@ -109,6 +109,26 @@ class KDVIRunner(BaseSIVIRunner):
             f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', " \
             f"got '{self.fit_bandwidth_on}'"
 
+        # Loss formulation:
+        #   'v_statistic' (default): k_xx + k_yy - 2 k_xy  (full V-statistic)
+        #   'no_xx': 0.5 k_yy - k_xy  (drops the k_xx self-repulsion term;
+        #            matches the IVI-via-mcmc-distillation notebook).
+        loss_type: str = str(kdvi_cfg.get('mmd_loss', 'v_statistic')).lower()
+        assert loss_type in ('v_statistic', 'no_xx'), (
+            f"mmd_loss must be 'v_statistic' or 'no_xx', got '{loss_type}'"
+        )
+        self.mmd_loss_type: str = loss_type
+
+        # Loss formulation:
+        #   'v_statistic' (default): k_xx + k_yy - 2 k_xy  (full V-statistic)
+        #   'no_xx': 0.5 k_yy - k_xy  (drops the k_xx self-repulsion term;
+        #            matches the IVI-via-mcmc-distillation notebook).
+        loss_type: str = str(kdvi_cfg.get('mmd_loss', 'v_statistic')).lower()
+        assert loss_type in ('v_statistic', 'no_xx'), (
+            f"mmd_loss must be 'v_statistic' or 'no_xx', got '{loss_type}'"
+        )
+        self.mmd_loss_type: str = loss_type
+
         # Optional fixed bandwidth — if set, overrides fit_bandwidth_on with
         # 'none' and pins kernel.h to this value for the entire training run.
         # Set kernel_bandwidth to null/None or omit it to keep current
@@ -151,7 +171,8 @@ class KDVIRunner(BaseSIVIRunner):
             f"mcmc_step_size={self.mcmc_step_size}, "
             f"hmc_leapfrog_steps={self.hmc_leapfrog_steps}, "
             f"mmd_kernel={kernel_type}, "
-            f"fit_bandwidth_on={self.fit_bandwidth_on}"
+            f"fit_bandwidth_on={self.fit_bandwidth_on}, "
+            f"mmd_loss={self.mmd_loss_type}"
         )
         if self.fixed_kernel_bandwidth is not None:
             logger.info(
@@ -324,7 +345,9 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        loss, mmd_info = mmd2_v_statistic(
+        loss, mmd_info = (
+            mmd_no_xx if self.mmd_loss_type == 'no_xx' else mmd2_v_statistic
+        )(
             x=z,
             y=z_refined,
             kernel=self.mmd_kernel,
