@@ -1,0 +1,98 @@
+# KDVI on small 8-gaussians, configured to match the IVI notebook
+# recipe AS CLOSELY AS POSSIBLE inside KDVI's framework:
+#
+#   * mcmc_type   = mala   (IVI uses MALA)
+#   * mcmc_steps  = 1      (IVI takes a single MALA step per training iter)
+#   * step_size   = 0.01   (IVI's drift_stepsz on the small ring)
+#   * kernel      = laplace_l2 + fb=xy
+#                          (IVI's MMD uses exp(-d/(2h)) with h fit on the
+#                          pooled xy + yy distances — the same kernel
+#                          family/heuristic as KDVI's `laplace_l2 + fb=xy`)
+#   * mmd_loss    = no_xx  (IVI's biased loss 0.5*k_yy - k_xy)
+#
+# This is the joint test of the loss-formulation hypothesis: the prior
+# K=10 SGLD + laplace_l2 + no_xx run collapsed because k_xx had been
+# the only force preventing the K=10 refined samples from being too far
+# from x. With K=1 MALA the refined samples are within one step of x,
+# so the loss naturally pulls VI toward the score-implied transition
+# without needing k_xx self-repulsion.
+seed: 42
+cuda_visible_devices: "0"
+use_cuda: true
+
+runner_type: KDVI
+target_type: 8_gaussians_small
+vi_model_type: ConditionalGaussian
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps8.yaml
+
+train:
+  epochs: 100000
+  batch_size: 128
+  vi:
+    lr: 1.0e-3
+    var_lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.9
+  annealing:
+    enabled: true
+    scheme: linear
+    steps: 25000
+  kdvi:
+    mcmc_type: mala
+    mcmc_steps: 1
+    mcmc_step_size: 0.01
+    hmc_leapfrog_steps: 10
+    kernel: laplace_l2
+    fit_bandwidth_on: xy
+    mmd_loss: no_xx
+    step_size_schedule:
+      type: coupled
+  grad_clip: 10.0
+  log:
+    metric_log_freq: 500
+    loss_log_freq: 100
+    reverse_log_freq: 500
+    time_avg_window: 500
+  checkpoint:
+    enabled: false
+    freq: 5000
+  sample:
+    freq: 5000
+    num: 10000
+  plot:
+    freq: 5000
+    num: 10000
+  ema:
+    enabled: false
+    beta: 0.999
+
+metric:
+  kl_ite:
+    enabled: true
+    num_samples: 10000
+  w2:
+    enabled: true
+    num_samples: 10000
+    num_projections: 1000
+  elbo:
+    enabled: false
+    batch_size: 512
+    num_batches: 10
+    num_z_samples: 5000
+  fisher:
+    enabled: false
+    num_samples: 1000
+    num_is_samples: 512
+  ksd:
+    enabled: false
+    num_samples: 2000
+  mmd:
+    enabled: true
+    num_samples: 1000
+  bnn:
+    enabled: false
+    num_samples: 500
+  expected_log_marginal:
+    enabled: false
