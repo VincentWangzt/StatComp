@@ -314,11 +314,19 @@ class KDVIRunner(BaseSIVIRunner):
                 n_steps=current_mcmc_steps,
             )
         elif self.mcmc_type == 'mala':
+            # Use the analytic target score for the Langevin drift (no
+            # autograd), matching IVI-via-mcmc-distillation's MALA which uses
+            # self.target.score for the proposal and self.target.logp only for
+            # the accept ratio. score_fn carries the same beta annealing as
+            # log_prob_fn (beta is constant w.r.t. z, so
+            # beta * score == grad(beta * logp)).
+            score_fn = lambda z_in: beta * self.target_model.score(z_in)
             mcmc_out = mala_transition(
                 z_init=z.detach(),
                 log_prob_fn=log_prob_fn,
                 step_size=current_step_size,
                 n_steps=current_mcmc_steps,
+                score_fn=score_fn,
             )
         else:
             raise ValueError(f"Unknown mcmc_type: {self.mcmc_type}")

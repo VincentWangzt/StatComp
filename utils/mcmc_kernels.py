@@ -244,6 +244,7 @@ def mala_transition(
     log_prob_fn: Callable[[Tensor], Tensor],
     step_size: float,
     n_steps: int,
+    score_fn: Callable[[Tensor], Tensor] | None = None,
 ) -> MCMCTransitionOutput:
     """Run K steps of MALA (Metropolis-Adjusted Langevin Algorithm) on a batch.
 
@@ -267,11 +268,20 @@ def mala_transition(
         z_init: Starting particle positions, shape ``[N, D]``. Must be
             detached from any computation graph.
         log_prob_fn: Function mapping ``z: [N, D] -> [N]`` log-densities.
-            Used for gradient computation, M-H ratio evaluation, and
-            proposal density calculation.
+            Used for the M-H acceptance ratio. When ``score_fn`` is None it is
+            also differentiated (via ``torch.autograd.grad``) to obtain the
+            Langevin drift.
         step_size: Langevin step size (τ). Controls both drift and noise
             magnitude. Typical values: 0.001–0.05.
         n_steps: Number of MALA transition steps (K).
+        score_fn: Optional function ``z: [N, D] -> [N, D]`` returning the
+            analytic score ``∇log p(z)`` directly. When provided, the Langevin
+            drift (and the forward/backward proposal densities) use this score
+            with **no autograd**, mirroring
+            ``IVI-via-mcmc-distillation/run_ivi.py::ImVIDrift.mala`` which uses
+            ``self.target.score`` for the drift and ``self.target.logp`` only
+            for the accept ratio. ``log_prob_fn`` is still used for the M-H
+            ratio. Default None reverts to the autograd-of-log_prob_fn drift.
 
     Returns:
         MCMCTransitionOutput with:
@@ -284,16 +294,23 @@ def mala_transition(
     noise_scale = math.sqrt(step_size)
     total_accepts = 0
 
+    def _grad_logp(z_in: Tensor) -> Tensor:
+        # Analytic score (no autograd) when score_fn is supplied, else fall
+        # back to differentiating log_prob_fn.
+        if score_fn is not None:
+            return score_fn(z_in)
+        return _batched_grad_logp(z_in, log_prob_fn)
+
     for _ in range(n_steps):
         # Gradient at current position
-        grad_z = _batched_grad_logp(z, log_prob_fn)  # [N, D]
+        grad_z = _grad_logp(z)  # [N, D]
 
         # Langevin proposal
         noise = torch.randn_like(z)
         z_prop = z + 0.5 * step_size * grad_z + noise_scale * noise  # [N, D]
 
         # Gradient at proposed position (for backward proposal density)
-        grad_z_prop = _batched_grad_logp(z_prop, log_prob_fn)  # [N, D]
+        grad_z_prop = _grad_logp(z_prop)  # [N, D]
 
         # Log-densities at both positions
         log_p_current = log_prob_fn(z).squeeze()      # [N]

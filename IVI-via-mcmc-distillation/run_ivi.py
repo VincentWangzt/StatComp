@@ -309,11 +309,16 @@ class ImVIDrift(nn.Module):
         samp_x = self.sample(batch_size)
         if method == "sgld":
             next_x = self.sgld(samp_x, stepsz, anneal_coef)
+            # SGLD has no accept/reject: every proposal is accepted (mirrors
+            # KDVI's sgld_transition accept_rate == 1.0).
+            accept_rate = 1.0
         elif method == "mala":
-            next_x, _ = self.mala(samp_x, stepsz, anneal_coef)
+            next_x, accept_rate = self.mala(samp_x, stepsz, anneal_coef)
+            accept_rate = float(accept_rate)
         else:
             raise NotImplementedError
-        return maximum_mean_discrepancy(next_x.detach(), samp_x)
+        loss = maximum_mean_discrepancy(next_x.detach(), samp_x)
+        return loss, accept_rate
 
     def learn(
         self,
@@ -328,46 +333,70 @@ class ImVIDrift(nn.Module):
         method="sgld",
         kl_eval_freq=None,
         eval_callback=None,
+        accept_log_path=None,
     ):
         optimizer = torch.optim.Adam(self.parameters(), lr=stepsz)
-        for i in range(1, max_iter + 1):
-            anneal_coef = min(1.0, 0.1 + i * 1.0 / warm_up_interval)
-            loss = self.drift_loss(
-                drift_stepsz / anneal_coef,
-                anneal_coef,
-                batch_size=batch_size,
-                method=method,
-            )
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        # Silent per-step acceptance-rate tracker. Streams to its own CSV
+        # (step,accept_rate) without any console output, mirroring KDVI's
+        # per-step "kdvi/accept_rate" scalar. accept_rate is the mean MALA
+        # accept fraction over the batch (1.0 for SGLD).
+        accept_fh = None
+        if accept_log_path is not None:
+            os.makedirs(os.path.dirname(accept_log_path), exist_ok=True)
+            accept_fh = open(accept_log_path, "w")
+            accept_fh.write("step,accept_rate\n")
 
-            if i % test_freq == 0:
-                with torch.no_grad():
-                    samp_x = self.sample(2000)
-                    target_x = self.target.sample(2000)
-                    ksd_est = maximum_mean_discrepancy(target_x, samp_x, test=True)
-                print(
-                    "[Iter {:d}/{:d}] [KSD loss: {:.4f}]".format(
-                        i, max_iter, ksd_est
-                    ),
-                    flush=True,
+        try:
+            for i in range(1, max_iter + 1):
+                anneal_coef = min(1.0, 0.1 + i * 1.0 / warm_up_interval)
+                loss, accept_rate = self.drift_loss(
+                    drift_stepsz / anneal_coef,
+                    anneal_coef,
+                    batch_size=batch_size,
+                    method=method,
                 )
 
-            # KDVI-aligned evaluation + contour plotting cadence. Fires every
-            # ``kl_eval_freq`` iterations and always on the final iteration so
-            # the schedule matches KDVI's ``train.log.metric_log_freq``.
-            if (
-                eval_callback is not None
-                and kl_eval_freq is not None
-                and (i % kl_eval_freq == 0 or i == max_iter)
-            ):
-                eval_callback(i)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-            if i % anneal_freq == 0:
-                for g in optimizer.param_groups:
-                    g["lr"] *= anneal_rate
+                if accept_fh is not None:
+                    accept_fh.write(f"{i},{accept_rate:.6f}\n")
+
+                if i % test_freq == 0:
+                    with torch.no_grad():
+                        samp_x = self.sample(2000)
+                        target_x = self.target.sample(2000)
+                        ksd_est = maximum_mean_discrepancy(target_x, samp_x, test=True)
+                    print(
+                        "[Iter {:d}/{:d}] [KSD loss: {:.4f}]".format(
+                            i, max_iter, ksd_est
+                        ),
+                        flush=True,
+                    )
+                    # Periodically flush the accept-rate buffer to disk so the
+                    # tracker survives long runs / interruptions.
+                    if accept_fh is not None:
+                        accept_fh.flush()
+
+                # KDVI-aligned evaluation + contour plotting cadence. Fires
+                # every ``kl_eval_freq`` iterations and always on the final
+                # iteration so the schedule matches KDVI's
+                # ``train.log.metric_log_freq``.
+                if (
+                    eval_callback is not None
+                    and kl_eval_freq is not None
+                    and (i % kl_eval_freq == 0 or i == max_iter)
+                ):
+                    eval_callback(i)
+
+                if i % anneal_freq == 0:
+                    for g in optimizer.param_groups:
+                        g["lr"] *= anneal_rate
+        finally:
+            if accept_fh is not None:
+                accept_fh.close()
 
 
 # ---------------------------------------------------------------------------
@@ -676,6 +705,7 @@ def main():
         method="mala",
         kl_eval_freq=kl_eval_freq,
         eval_callback=eval_callback,
+        accept_log_path=os.path.join(save_path, "accept_rate.csv"),
     )
 
     # ---- Final KL ITE summary ----
