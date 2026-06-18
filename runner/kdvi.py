@@ -49,7 +49,12 @@ import torch
 from omegaconf import DictConfig
 
 from runner.base_runner import BaseSIVIRunner
-from utils.mcmc_kernels import sgld_transition, hmc_transition, mala_transition
+from utils.mcmc_kernels import (
+    sgld_transition,
+    hmc_transition,
+    mala_transition,
+    mala_transition_ivi,
+)
 from utils.mmd import mmd2_v_statistic, mmd_ivi_drift
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
@@ -317,16 +322,29 @@ class KDVIRunner(BaseSIVIRunner):
             # Use the analytic target score for the Langevin drift (no
             # autograd), matching IVI-via-mcmc-distillation's MALA which uses
             # self.target.score for the proposal and self.target.logp only for
-            # the accept ratio. score_fn carries the same beta annealing as
-            # log_prob_fn (beta is constant w.r.t. z, so
-            # beta * score == grad(beta * logp)).
-            score_fn = lambda z_in: beta * self.target_model.score(z_in)
-            mcmc_out = mala_transition(
+            # the accept ratio.
+            #
+            # We call ``mala_transition_ivi`` — a bit-exact replica of
+            # ``ImVIDrift.mala`` — so KDVI's MCMC-refined samples are
+            # byte-identical to IVI under the same RNG stream. It applies the
+            # annealing factor internally (``anneal_coef=beta``) to the RAW
+            # target score/logp, so we pass the un-annealed callables. The
+            # mapping to IVI's parameterization is:
+            #   - IVI proposal: x + stepsz*anneal*score + sqrt(2*stepsz)*noise
+            #   - generic KDVI: x + 0.5*step_size*(beta*score)
+            #                     + sqrt(step_size)*noise
+            #   => equal when stepsz = current_step_size/2 and anneal = beta
+            #      (drift stepsz*anneal == 0.5*step_size*beta; noise scale
+            #       sqrt(2*stepsz) == sqrt(step_size)).
+            raw_score_fn = lambda z_in: self.target_model.score(z_in)
+            raw_logp_fn = lambda z_in: self.target_model.logp(z_in)
+            mcmc_out = mala_transition_ivi(
                 z_init=z.detach(),
-                log_prob_fn=log_prob_fn,
-                step_size=current_step_size,
+                score_fn=raw_score_fn,
+                logp_fn=raw_logp_fn,
+                stepsz=current_step_size / 2.0,
+                anneal_coef=beta,
                 n_steps=current_mcmc_steps,
-                score_fn=score_fn,
             )
         else:
             raise ValueError(f"Unknown mcmc_type: {self.mcmc_type}")

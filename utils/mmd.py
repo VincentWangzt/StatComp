@@ -193,9 +193,15 @@ def mmd_ivi_drift(
             f"got '{fit_bandwidth_on}'"
         )
 
-    # 2. Pairwise kernels — gradient flows through x in BOTH K_xx and K_xy.
-    K_xx = kernel.pair_eval(x, x, fit_h=False, detach_h=True)
+    # 2. Pairwise kernels — gradient flows through x in BOTH K_yx and K_xx.
+    #    IMPORTANT: create the CROSS term (K_yx = k(y, x)) BEFORE the K_xx term,
+    #    matching the IVI notebook's statement order
+    #    (``term1 = cdist(samples, y)`` then ``term2 = cdist(y, y)``). Autograd
+    #    accumulates the two contributions to ``x.grad`` in node-creation order;
+    #    float32 addition is non-associative, so this ordering is required for
+    #    bit-level gradient parity with IVI.
     K_yx = kernel.pair_eval(y, x, fit_h=False, detach_h=True)
+    K_xx = kernel.pair_eval(x, x, fit_h=False, detach_h=True)
 
     k_xx_mean = K_xx.mean()
     k_yx_mean = K_yx.mean()
