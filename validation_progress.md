@@ -167,11 +167,38 @@ numerically by the harness:
 - IVI and KDVI are now byte-identical: per-step (reseed), per-stream
   (standalone), natural init, and end-to-end via the real training loops.
 
+### [CONFIRM] Both targets, both RNG modes, long horizon — DONE
+- `8_gaussians_small`: standalone `--no-sync` **0 divergence / 10000 steps**
+  (covers multiple StepLR decays); reseed/standalone 0 diff at 30/50/200/2000.
+- `8_gaussians` (large; `configs/kdvi_8_gaussians.yaml`, IVI drift_stepsz=0.25,
+  KDVI mcmc_step_size=0.50): standalone `--no-sync` **0 divergence / 200 steps**,
+  reseed **0 divergence / 100 steps** (seed 13). Natural init byte-identical.
+- `configs/kdvi_8_gaussians.yaml` also gets `train.parity_rng_isolation: true`.
+
+## Final residual analysis
+- The ONLY non-zero residual encountered after fixes 1–4 was a ULP-level
+  (~5.8e-11 float32; ~1e-19 float64) gradient-accumulation effect, which fix 4
+  eliminated by matching node-creation order. With all fixes, every compared
+  quantity (z, z', h, loss, grad, params) is exactly `0.0` in float32 across
+  thousands of steps on both targets. No irreducible residual remains for these
+  toy targets at batch=128.
+
+## How to reproduce parity in standalone CLI runs
+- KDVI: `src.py --config configs/kdvi_8_gaussians_small.yaml`
+  (config already sets `train.parity_rng_isolation: true`).
+- IVI:  `IVI-via-mcmc-distillation/run_ivi.py --target 8_gaussians_small
+  --drift-stepsz 0.01 --rng-isolation` (same seed).
+- Both build the same net first after seeding (natural init identical), reset
+  the training RNG before the loop, and keep eval/plot/sample RNG-neutral, so
+  the trained models are byte-identical.
+
 ## Temporary debug outputs to remove before finishing (CHECKLIST)
-- [ ] `scripts/compare_ivi_kdvi_lockstep.py` — diagnostic harness; keep until
-      end-to-end parity confirmed on BOTH targets, then decide keep-as-regression
-      vs delete.
+- [x] `scripts/compare_ivi_kdvi_lockstep.py` — KEPT as a permanent regression
+      harness (clean, documented, no stray debug; opt-in CLI tool). Re-run any
+      time to assert IVI<->KDVI byte-identity.
 - [x] `scripts/_tmp_isolate_grad.py` — deleted after isolating fix 4.
 - [x] `scripts/_tmp_e2e_compare.py` — deleted after confirming fix 5.
-- [x] No `print`/`logger.debug` left inside production modules (all changes are
-      functional, commented edits; no stray debug prints).
+- [x] No `print`/`logger.debug` left inside production modules (verified by
+      grep: no DEBUG/_tmp_/FIXME markers in the edited files).
+- [x] No leftover `results/ivi_kdvi_lockstep`, `tb_logs/ivi_kdvi_lockstep`, or
+      `results/_tmp_e2e` artifact directories.

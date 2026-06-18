@@ -50,7 +50,7 @@ KDVI_CONFIG = REPO_ROOT / "configs" / "kdvi_8_gaussians_small.yaml"
 
 # IVI learn(...) hyper-parameters for 8_gaussians_small (run_ivi.py::main).
 IVI_LR = 0.001
-IVI_DRIFT_STEPSZ = 0.01          # KDVI tau = 2 * this = 0.02
+IVI_DRIFT_STEPSZ = 0.01          # KDVI tau = 2 * this = 0.02 (small target)
 IVI_BATCH_SIZE = 128
 IVI_WARMUP_INTERVAL = 50000      # anneal_coef = min(1, 0.1 + i/50000)
 IVI_ANNEAL_FREQ = 5000
@@ -110,7 +110,7 @@ def _load_ivi_module():
 # --------------------------------------------------------------------------
 # Builders
 # --------------------------------------------------------------------------
-def build_ivi(run_ivi, target_name: str):
+def build_ivi(run_ivi, target_name: str, drift_stepsz: float):
     """Build the IVI ImVIDrift model on the project target (no training)."""
     target_model = run_ivi.build_target(target_name)
     model = run_ivi.ImVIDrift(target_model, hidden_units=256, latent_dim=2)
@@ -118,9 +118,9 @@ def build_ivi(run_ivi, target_name: str):
     return model, optimizer, run_ivi.maximum_mean_discrepancy
 
 
-def build_kdvi(target_name: str, seed: int):
+def build_kdvi(target_name: str, seed: int, config_path: str):
     """Build the KDVIRunner from the parity config (no training)."""
-    cfg = OmegaConf.load(str(KDVI_CONFIG))
+    cfg = OmegaConf.load(config_path)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     over = OmegaConf.from_dotlist([
         f"seed={seed}",
@@ -134,7 +134,7 @@ def build_kdvi(target_name: str, seed: int):
         f"output.tb_dir=tb_logs/ivi_kdvi_lockstep/{timestamp}",
     ])
     cfg = OmegaConf.merge(cfg, over)
-    cfg.config_path = str(KDVI_CONFIG)
+    cfg.config_path = config_path
     cfg.device = "cpu"
     runner = Runners[cfg.runner_type](config=cfg)
     return runner
@@ -184,10 +184,11 @@ def banner(msg: str) -> None:
 # Single-step drivers (replicating each pipeline using its OWN production
 # sub-functions, so the comparison stays faithful).
 # --------------------------------------------------------------------------
-def ivi_step(model, optimizer, mmd_fn, i: int, capture: dict) -> None:
+def ivi_step(model, optimizer, mmd_fn, i: int, capture: dict,
+             drift_stepsz: float) -> None:
     """One IVI optimization step (mirrors ImVIDrift.drift_loss + learn loop)."""
     anneal_coef = min(1.0, 0.1 + i * 1.0 / IVI_WARMUP_INTERVAL)
-    stepsz = IVI_DRIFT_STEPSZ / anneal_coef
+    stepsz = drift_stepsz / anneal_coef
 
     samp_x = model.sample(IVI_BATCH_SIZE)
     next_x, accept_rate = model.mala(samp_x, stepsz, anneal_coef)
@@ -262,6 +263,11 @@ def kdvi_step(runner, optimizer, i: int, capture: dict) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--target", default="8_gaussians_small")
+    ap.add_argument("--kdvi-config", default=str(KDVI_CONFIG),
+                    help="KDVI YAML config (default: small target).")
+    ap.add_argument("--ivi-drift-stepsz", type=float, default=IVI_DRIFT_STEPSZ,
+                    help="IVI drift_stepsz (0.01 small, 0.25 large). KDVI "
+                         "mcmc_step_size must equal 2x this.")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--steps", type=int, default=5)
     ap.add_argument("--mode", choices=["reseed", "global", "standalone"],
@@ -288,13 +294,14 @@ def main() -> None:
     # --- Build KDVI first (caches project `models`), then IVI. ---
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    kdvi = build_kdvi(args.target, args.seed)
+    kdvi = build_kdvi(args.target, args.seed, args.kdvi_config)
     kdvi_opt = kdvi.optimizer_vi
 
     run_ivi = _load_ivi_module()
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    ivi_model, ivi_opt, ivi_mmd = build_ivi(run_ivi, args.target)
+    ivi_model, ivi_opt, ivi_mmd = build_ivi(run_ivi, args.target,
+                                            args.ivi_drift_stepsz)
 
     # --- Force-sync initial parameters (IVI -> KDVI) and assert identical. ---
     if args.no_sync:
@@ -332,18 +339,21 @@ def main() -> None:
 
         if args.mode == "reseed":
             torch.manual_seed(1000 + i)
-            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
+            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap,
+                     args.ivi_drift_stepsz)
             torch.manual_seed(1000 + i)
             kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)
         elif args.mode == "standalone":
             torch.set_rng_state(rng_ivi)
-            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
+            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap,
+                     args.ivi_drift_stepsz)
             rng_ivi = torch.get_rng_state()
             torch.set_rng_state(rng_kdvi)
             kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)
             rng_kdvi = torch.get_rng_state()
         else:  # global
-            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
+            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap,
+                     args.ivi_drift_stepsz)
             kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)
 
         d_anneal = abs(ivi_cap["anneal"] - kdvi_cap["anneal"])

@@ -28,6 +28,10 @@ vi_model_config_path: configs/vi_models/ConditionalGaussian-IVI.yaml
 train:
   epochs: 30000
   batch_size: 128
+  # Byte-identical IVI parity: reset the training RNG to `seed` right before the
+  # loop and make eval/sample/plot draws RNG-neutral. Run IVI with
+  # `--rng-isolation` to match.
+  parity_rng_isolation: true
   vi:
     lr: 1.0e-3
     scheduler:
