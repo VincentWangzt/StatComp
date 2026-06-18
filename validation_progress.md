@@ -138,11 +138,40 @@ numerically by the harness:
 - [x] `utils/kernels.py` — `LaplaceL2Kernel` cdist + exp form (fix 2, 4b).
 - [x] `utils/mmd.py` — `mmd_ivi_drift` K_yx-before-K_xx order (fix 4a).
 - [x] `utils/mcmc_kernels.py` — added `mala_transition_ivi` (fix 3).
-- [ ] `runner/kdvi.py` — wire the `mala` path to `mala_transition_ivi`
-      (the harness validated the helper; production runner pending).
+- [x] `runner/kdvi.py` — `mala` path now uses `mala_transition_ivi`.
+
+### [fix 5] Standalone-run RNG-stream alignment — DONE
+- **Goal**: make the *actual CLI programs* (`src.py` KDVI vs `run_ivi.py` IVI)
+  byte-identical, not just the per-step algorithm. Two obstacles:
+  (a) construction / pre-training contour-plot draws offset the training RNG;
+  (b) mid-training eval/plot/sample draws perturb it at differing cadences.
+- **Verified first**: natural initialization is **byte-identical** without any
+  force-sync — both build the same 4-`Linear` net as the FIRST torch-RNG
+  consumer after seeding (`--no-sync` harness run: init diff = 0).
+- **Fix** (opt-in, guarded; default off → zero impact on other runs):
+  - `runner/base_runner.py`: `train.parity_rng_isolation` flag. When set,
+    `torch.manual_seed(seed)` right before the training loop, and snapshot/
+    restore the RNG around the eval/sample/plot block so diagnostics are
+    RNG-neutral.
+  - `IVI-via-mcmc-distillation/run_ivi.py`: `--rng-isolation` flag doing the
+    same (re-seed before loop; snapshot/restore around KSD-print + eval_callback).
+  - `configs/kdvi_8_gaussians_small.yaml`: `train.parity_rng_isolation: true`.
+- **Result**:
+  - Harness `--mode standalone --no-sync` (each impl its OWN continuous RNG
+    stream from the same init): **0 divergence across 2000 steps** (seeds 7, 42).
+  - Real `learn()` methods end-to-end (KDVI `runner.learn()` + IVI
+    `model.learn(rng_isolation=True)`), eval disabled: **final max-abs param
+    diff = 0.000e+00 after 300 training steps** — byte-identical trained models.
+
+### [MILESTONE] Full algorithm + standalone-run parity on 8_gaussians_small — DONE
+- IVI and KDVI are now byte-identical: per-step (reseed), per-stream
+  (standalone), natural init, and end-to-end via the real training loops.
 
 ## Temporary debug outputs to remove before finishing (CHECKLIST)
 - [ ] `scripts/compare_ivi_kdvi_lockstep.py` — diagnostic harness; keep until
-      end-to-end parity confirmed, then decide keep-as-regression vs delete.
+      end-to-end parity confirmed on BOTH targets, then decide keep-as-regression
+      vs delete.
 - [x] `scripts/_tmp_isolate_grad.py` — deleted after isolating fix 4.
-- [ ] Any `print`/`logger.debug` added inside production modules — none added.
+- [x] `scripts/_tmp_e2e_compare.py` — deleted after confirming fix 5.
+- [x] No `print`/`logger.debug` left inside production modules (all changes are
+      functional, commented edits; no stray debug prints).

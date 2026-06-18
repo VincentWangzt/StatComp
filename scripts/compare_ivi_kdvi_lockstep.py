@@ -264,9 +264,20 @@ def main() -> None:
     ap.add_argument("--target", default="8_gaussians_small")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--steps", type=int, default=5)
-    ap.add_argument("--mode", choices=["reseed", "global"], default="reseed")
+    ap.add_argument("--mode", choices=["reseed", "global", "standalone"],
+                    default="reseed",
+                    help=(
+                        "reseed: feed both the SAME RNG stream per step "
+                        "(isolates algorithm). standalone: each impl keeps its "
+                        "OWN continuous RNG stream, both initialized identically "
+                        "right before the loop (simulates two independent runs "
+                        "from the same seed). global: shared sequential stream "
+                        "(diagnostic only)."))
     ap.add_argument("--atol", type=float, default=0.0,
                     help="Max-abs tolerance for declaring a phase 'matched'.")
+    ap.add_argument("--no-sync", action="store_true",
+                    help="Skip the IVI->KDVI param force-sync, to test whether "
+                         "natural initialization (same seed) already matches.")
     args = ap.parse_args()
 
     # Determinism: match IVI (ImVIDrift.__init__ calls set_num_threads(1)).
@@ -286,16 +297,35 @@ def main() -> None:
     ivi_model, ivi_opt, ivi_mmd = build_ivi(run_ivi, args.target)
 
     # --- Force-sync initial parameters (IVI -> KDVI) and assert identical. ---
-    sync_params_ivi_to_kdvi(ivi_model, kdvi)
-    init_diff = assert_params_equal(ivi_model, kdvi)
-    print(f"[init] max-abs param diff after force-sync: {init_diff:.3e}")
-    if init_diff != 0.0:
-        print("[init] WARNING: initial parameters not byte-identical.")
+    if args.no_sync:
+        init_diff = assert_params_equal(ivi_model, kdvi)
+        print(f"[init] NO force-sync. Natural init max-abs param diff: "
+              f"{init_diff:.3e}")
+        if init_diff == 0.0:
+            print("[init] OK: natural initialization is byte-identical "
+                  "(same seed, same net build order).")
+        else:
+            print("[init] Natural init DIFFERS; force-sync would be required.")
     else:
-        print("[init] OK: initial parameters byte-identical.")
+        sync_params_ivi_to_kdvi(ivi_model, kdvi)
+        init_diff = assert_params_equal(ivi_model, kdvi)
+        print(f"[init] max-abs param diff after force-sync: {init_diff:.3e}")
+        if init_diff != 0.0:
+            print("[init] WARNING: initial parameters not byte-identical.")
+        else:
+            print("[init] OK: initial parameters byte-identical.")
 
     # --- Lockstep loop ---
     first_div = None
+    # For "standalone" mode: each implementation keeps its OWN continuous RNG
+    # stream, both initialized to the SAME state right before the loop. This
+    # models two independent standalone runs that begin training from the same
+    # RNG state and consume RNG identically per step.
+    if args.mode == "standalone":
+        torch.manual_seed(1000)
+        rng_ivi = torch.get_rng_state()
+        rng_kdvi = rng_ivi.clone()
+
     for i in range(1, args.steps + 1):
         ivi_cap: dict = {}
         kdvi_cap: dict = {}
@@ -305,6 +335,13 @@ def main() -> None:
             ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
             torch.manual_seed(1000 + i)
             kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)
+        elif args.mode == "standalone":
+            torch.set_rng_state(rng_ivi)
+            ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
+            rng_ivi = torch.get_rng_state()
+            torch.set_rng_state(rng_kdvi)
+            kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)
+            rng_kdvi = torch.get_rng_state()
         else:  # global
             ivi_step(ivi_model, ivi_opt, ivi_mmd, i, ivi_cap)
             kdvi_step(kdvi, kdvi_opt, i, kdvi_cap)

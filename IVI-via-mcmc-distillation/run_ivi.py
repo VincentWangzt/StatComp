@@ -334,6 +334,7 @@ class ImVIDrift(nn.Module):
         kl_eval_freq=None,
         eval_callback=None,
         accept_log_path=None,
+        rng_isolation=False,
     ):
         optimizer = torch.optim.Adam(self.parameters(), lr=stepsz)
 
@@ -363,6 +364,14 @@ class ImVIDrift(nn.Module):
 
                 if accept_fh is not None:
                     accept_fh.write(f"{i},{accept_rate:.6f}\n")
+
+                # Parity RNG isolation: snapshot the RNG after the training
+                # step so the diagnostic draws below (KSD print, eval_callback)
+                # do not advance the training RNG stream. This makes the run
+                # byte-identical to KDVI (which isolates eval RNG the same way)
+                # regardless of test_freq / kl_eval_freq cadence.
+                _rng_state = (
+                    torch.get_rng_state() if rng_isolation else None)
 
                 if i % test_freq == 0:
                     with torch.no_grad():
@@ -394,6 +403,11 @@ class ImVIDrift(nn.Module):
                 if i % anneal_freq == 0:
                     for g in optimizer.param_groups:
                         g["lr"] *= anneal_rate
+
+                # Restore the pre-diagnostic RNG so eval/plot draws leave the
+                # training RNG stream untouched.
+                if _rng_state is not None:
+                    torch.set_rng_state(_rng_state)
         finally:
             if accept_fh is not None:
                 accept_fh.close()
@@ -495,6 +509,16 @@ def main():
                             "only; contour plots are driven by --kl-eval-freq."
                         ))
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--rng-isolation", action="store_true",
+        help=(
+            "Reset the training RNG to --seed right before the loop and make "
+            "all diagnostic (KSD-print / KL-eval / contour) draws RNG-neutral, "
+            "so the training stream is a pure function of (seed, step). Enables "
+            "byte-identical parity with KDVI run with "
+            "train.parity_rng_isolation=true."
+        ),
+    )
     parser.add_argument("--kl-num-samples", type=int, default=5000,
                         help="Number of q_phi samples drawn per KL_ITE eval.")
     parser.add_argument(
@@ -693,6 +717,12 @@ def main():
     # ---- Only the FIRST model.learn call from the notebook is kept ----
     print(f"[run_ivi] target={args.target} drift_stepsz={drift_stepsz} "
           f"max_iter={args.max_iter} kl_eval_freq={kl_eval_freq}", flush=True)
+    # Parity RNG isolation: reset the training RNG stream to the run seed right
+    # before training so the pre-training contour-plot draw above does not
+    # offset it. KDVI does the same (train.parity_rng_isolation), so both begin
+    # training from the identical RNG state.
+    if args.rng_isolation:
+        torch.manual_seed(args.seed)
     model.learn(
         0.001,
         drift_stepsz,
@@ -706,6 +736,7 @@ def main():
         kl_eval_freq=kl_eval_freq,
         eval_callback=eval_callback,
         accept_log_path=os.path.join(save_path, "accept_rate.csv"),
+        rng_isolation=args.rng_isolation,
     )
 
     # ---- Final KL ITE summary ----

@@ -252,6 +252,17 @@ class BaseSIVIRunner():
         self.anneal_steps: int = self.training_cfg['annealing']['steps']
         self.anneal_scheme: str = self.training_cfg['annealing']['scheme']
 
+        # Parity RNG isolation (opt-in; default off so existing runs are
+        # unaffected). When enabled, the training RNG stream is reset to the
+        # run seed right before the training loop (so model construction /
+        # pre-training draws do not offset it) and evaluation/sampling/plotting
+        # draws are made RNG-neutral (snapshot/restore around them). This makes
+        # two runs with the same seed byte-identical regardless of eval cadence
+        # — required for exact IVI<->KDVI standalone-run parity.
+        self._parity_rng_isolation: bool = bool(
+            self.training_cfg.get('parity_rng_isolation', False))
+        self._parity_seed: int = int(self.config.get('seed', 42))
+
         # VI optimizer/scheduler config
         self.vi_opt_cfg = self.training_cfg['vi']
         self.vi_lr = self.vi_opt_cfg['lr']
@@ -1377,6 +1388,14 @@ class BaseSIVIRunner():
 
         # Main training loop
         self.vi_model.train()
+
+        # Parity RNG isolation: reset the training RNG stream to the run seed
+        # right before the loop so model construction (and any pre-training
+        # draws) do not offset it. Both IVI and KDVI then begin training from
+        # the identical RNG state.
+        if self._parity_rng_isolation:
+            torch.manual_seed(self._parity_seed)
+
         # Timing accumulators
         last_time = time.perf_counter()
         self.train_start_time = time.perf_counter()
@@ -1480,6 +1499,12 @@ class BaseSIVIRunner():
             needs_metrics = (self.training_metric_log_freq > 0
                              and epoch % self.training_metric_log_freq == 0)
             needs_plot = (epoch % self.plot_freq == 0)
+
+            # Parity RNG isolation: snapshot the RNG before any
+            # evaluation/sampling/plotting draws so they do not advance the
+            # training RNG stream. Restored after the EMA block below.
+            _parity_rng_state = (
+                torch.get_rng_state() if self._parity_rng_isolation else None)
 
             # EMA: swap to shadow params for evaluation/sampling/plotting
             _ema_swapped = False
@@ -1615,6 +1640,12 @@ class BaseSIVIRunner():
             # EMA: restore training params
             if _ema_swapped:
                 self.ema.restore(self.vi_model.parameters())
+
+            # Parity RNG isolation: restore the pre-eval RNG state so the
+            # evaluation/sampling/plotting draws above leave the training RNG
+            # stream untouched.
+            if _parity_rng_state is not None:
+                torch.set_rng_state(_parity_rng_state)
 
             epoch_end_time = time.perf_counter()
             epoch_time = epoch_end_time - epoch_start_time
