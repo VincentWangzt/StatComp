@@ -8,10 +8,10 @@ The campaign contains:
   (MALA/SGLD), MCMC steps (1/2/5), step size (0.50/0.10), seeds 0..2
   (36 runs).
 
-Runs are sequential so a single background task owns the GPU.  State is
-append-only and resumable.  ``summary.md`` is regenerated after every run and
-reports collapse counts (final KL ITE > 1) plus the mean over non-collapsed
-runs for every method slug/target setup.
+Runs are sequential by default, with optional bounded parallel execution via
+``--jobs``. State is append-only and resumable. ``summary.md`` is regenerated
+after every run and reports collapse counts (final KL ITE > 1) plus the mean
+over non-collapsed runs for every method slug/target setup.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ import statistics
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +51,8 @@ MCMC_TYPES = ("mala", "sgld")
 MCMC_STEPS = (1, 2, 5)
 MCMC_STEP_SIZES = (0.50, 0.10)
 COLLAPSE_THRESHOLD = 1.0
+IVI_LATENT_DIM = 32
+KDVI_EPSILON_DIM = 32
 
 IVI_SCRIPT = "IVI-via-mcmc-distillation/run_ivi.py"
 KDVI_CONFIGS = {
@@ -150,6 +153,8 @@ def build_command(spec: RunSpec) -> list[str]:
             spec.target,
             "--seed",
             str(spec.seed),
+            "--latent-dim",
+            str(IVI_LATENT_DIM),
             "--rng-isolation",
             "--ref-samples-path",
             REFERENCE_PATHS[spec.target],
@@ -165,6 +170,7 @@ def build_command(spec: RunSpec) -> list[str]:
         "--config",
         str(spec.config_path),
         f"seed={spec.seed}",
+        f"vi_model.epsilon_dim={KDVI_EPSILON_DIM}",
         f"output.results_dir={run_results_root}",
         f"output.tb_dir={TB_ROOT / spec.run_id}",
     ]
@@ -366,6 +372,8 @@ def run_one(spec: RunSpec) -> dict[str, Any]:
 
     record: dict[str, Any] = {
         **asdict(spec),
+        "latent_dim": IVI_LATENT_DIM if spec.method == "IVI" else None,
+        "epsilon_dim": KDVI_EPSILON_DIM if spec.method == "KDVI" else None,
         "status": status,
         "returncode": completed.returncode,
         "final_step": final_step,
@@ -384,7 +392,6 @@ def run_one(spec: RunSpec) -> dict[str, Any]:
         "failure_reason": failure_reason,
         "git_commit": _git_commit(),
     }
-    append_record(record)
     value_text = "missing" if final_kl is None else f"{final_kl:.6f}"
     print(
         f"[done] {spec.run_id}: status={status} final_kl={value_text} "
@@ -420,7 +427,9 @@ def write_summary(specs: list[RunSpec], records: dict[str, dict[str, Any]]) -> N
         f"Progress: **{len(completed)}/{len(specs)}** runs with a final KL ITE. "
         f"Collapse is defined as **final KL ITE > {COLLAPSE_THRESHOLD:g}**.",
         "All setups use the checked-in 100k exact reference sample for their "
-        "target; training hyperparameters remain at the current IVI/KDVI defaults.",
+        "target. IVI uses a 32-dimensional latent input and KDVI uses a "
+        "32-dimensional epsilon input; all other training hyperparameters "
+        "remain at the current IVI/KDVI defaults.",
         "",
         "## Aggregate by setup",
         "",
@@ -506,7 +515,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run entries again even when their latest record is completed.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="Maximum number of runs to execute concurrently (default: 1).",
+    )
+    args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error("--jobs must be at least 1")
+    return args
 
 
 def main() -> int:
@@ -525,6 +543,7 @@ def main() -> int:
         print(f"Validated {len(specs)} unique runs")
         return 0
 
+    pending: list[tuple[int, RunSpec]] = []
     for index, spec in enumerate(specs, start=1):
         previous = records.get(spec.run_id)
         if (
@@ -533,12 +552,46 @@ def main() -> int:
             and previous.get("status") == "completed"
             and previous.get("final_kl_ite") is not None
         ):
-            print(f"[skip {index:02d}/76] {spec.run_id} already completed", flush=True)
+            print(
+                f"[skip {index:02d}/{len(specs)}] "
+                f"{spec.run_id} already completed",
+                flush=True,
+            )
             continue
-        print(f"[progress {index:02d}/76]", flush=True)
-        record = run_one(spec)
-        records[spec.run_id] = record
-        write_summary(specs, records)
+        pending.append((index, spec))
+
+    if args.jobs == 1:
+        for index, spec in pending:
+            print(f"[progress {index:02d}/{len(specs)}]", flush=True)
+            record = run_one(spec)
+            append_record(record)
+            records[spec.run_id] = record
+            write_summary(specs, records)
+    elif pending:
+        print(
+            f"Running {len(pending)} entries with up to {args.jobs} "
+            "concurrent jobs",
+            flush=True,
+        )
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+            futures = {
+                executor.submit(run_one, spec): (index, spec)
+                for index, spec in pending
+            }
+            for completed_count, future in enumerate(
+                as_completed(futures),
+                start=1,
+            ):
+                index, spec = futures[future]
+                record = future.result()
+                append_record(record)
+                records[spec.run_id] = record
+                write_summary(specs, records)
+                print(
+                    f"[collected {completed_count:02d}/{len(pending)}] "
+                    f"manifest={index:02d}/{len(specs)} {spec.run_id}",
+                    flush=True,
+                )
 
     failures = sum(
         1
