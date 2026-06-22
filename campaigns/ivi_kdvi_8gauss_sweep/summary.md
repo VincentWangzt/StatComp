@@ -1,9 +1,9 @@
 # IVI/KDVI 8-Gaussian Sweep
 
-Updated: 2026-06-22T08:08:35.639055+00:00
+Updated: 2026-06-22T13:00:12.786047+00:00
 
 Progress: **76/76** runs with a final KL ITE. Collapse is defined as **final KL ITE > 1**.
-All setups use the checked-in 100k exact reference sample for their target; IVI uses its default 32-dimensional latent input, and all other training hyperparameters remain at the current IVI/KDVI defaults.
+All setups use the checked-in 100k exact reference sample for their target; the default IVI/KDVI comparison uses a 32-dimensional latent/epsilon input, and all other training hyperparameters remain at the current IVI/KDVI defaults. The KDVI MCMC ablations retain their original 2-dimensional epsilon input.
 
 ## Aggregate by setup
 
@@ -11,8 +11,8 @@ All setups use the checked-in 100k exact reference sample for their target; IVI 
 |---|---|---:|---:|---:|---:|---:|
 | `ivi_default` | `8_gaussians` | 10 | 10 | 0 | 10 | 0.124283 |
 | `ivi_default` | `8_gaussians_small` | 10 | 10 | 0 | 10 | 0.184770 |
-| `kdvi_default` | `8_gaussians` | 10 | 10 | 1 | 9 | 0.229587 |
-| `kdvi_default` | `8_gaussians_small` | 10 | 10 | 6 | 4 | 0.167039 |
+| `kdvi_default` | `8_gaussians` | 10 | 10 | 0 | 10 | 0.100762 |
+| `kdvi_default` | `8_gaussians_small` | 10 | 10 | 0 | 10 | 0.128864 |
 | `kdvi_mala_mcmcsteps1_stepsize0p50` | `8_gaussians` | 3 | 3 | 1 | 2 | 0.534808 |
 | `kdvi_mala_mcmcsteps1_stepsize0p10` | `8_gaussians` | 3 | 3 | 0 | 3 | 0.696888 |
 | `kdvi_mala_mcmcsteps2_stepsize0p50` | `8_gaussians` | 3 | 3 | 0 | 3 | 0.685831 |
@@ -50,26 +50,26 @@ All setups use the checked-in 100k exact reference sample for their target; IVI 
 | `ivi_default__8_gaussians_small__seed07` | completed | 100000 | 0.176453 | no | kl_ite.csv |
 | `ivi_default__8_gaussians_small__seed08` | completed | 100000 | 0.174679 | no | kl_ite.csv |
 | `ivi_default__8_gaussians_small__seed09` | completed | 100000 | 0.187431 | no | kl_ite.csv |
-| `kdvi_default__8_gaussians__seed00` | completed | 100000 | 1.011827 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed01` | completed | 100000 | 0.986830 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed02` | completed | 100000 | 0.108936 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed03` | completed | 100000 | 0.135111 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed04` | completed | 100000 | 0.153541 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed05` | completed | 100000 | 0.124197 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed06` | completed | 100000 | 0.152391 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed07` | completed | 100000 | 0.140003 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed08` | completed | 100000 | 0.112298 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians__seed09` | completed | 100000 | 0.152977 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed00` | completed | 100000 | 0.142887 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed01` | completed | 100000 | 1.204120 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed02` | completed | 100000 | 0.205807 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed03` | completed | 100000 | 0.198138 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed04` | completed | 100000 | 1.161830 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed05` | completed | 100000 | 1.223947 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed06` | completed | 100000 | 1.125833 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed07` | completed | 100000 | 0.121322 | no | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed08` | completed | 100000 | 1.131071 | yes | tensorboard:metric/vi_model/kl_ite |
-| `kdvi_default__8_gaussians_small__seed09` | completed | 100000 | 1.225810 | yes | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed00` | completed | 100000 | 0.071312 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed01` | completed | 100000 | 0.125387 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed02` | completed | 100000 | 0.086291 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed03` | completed | 100000 | 0.116127 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed04` | completed | 100000 | 0.086952 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed05` | completed | 100000 | 0.081017 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed06` | completed | 100000 | 0.120970 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed07` | completed | 100000 | 0.116255 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed08` | completed | 100000 | 0.090743 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians__seed09` | completed | 100000 | 0.112568 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed00` | completed | 100000 | 0.129319 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed01` | completed | 100000 | 0.146687 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed02` | completed | 100000 | 0.131603 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed03` | completed | 100000 | 0.101494 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed04` | completed | 100000 | 0.121090 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed05` | completed | 100000 | 0.119159 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed06` | completed | 100000 | 0.155098 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed07` | completed | 100000 | 0.139808 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed08` | completed | 100000 | 0.146597 | no | tensorboard:metric/vi_model/kl_ite |
+| `kdvi_default__8_gaussians_small__seed09` | completed | 100000 | 0.097783 | no | tensorboard:metric/vi_model/kl_ite |
 | `kdvi_mala_mcmcsteps1_stepsize0p50__8_gaussians__seed00` | completed | 100000 | 0.982737 | no | tensorboard:metric/vi_model/kl_ite |
 | `kdvi_mala_mcmcsteps1_stepsize0p50__8_gaussians__seed01` | completed | 100000 | 1.035457 | yes | tensorboard:metric/vi_model/kl_ite |
 | `kdvi_mala_mcmcsteps1_stepsize0p50__8_gaussians__seed02` | completed | 100000 | 0.086879 | no | tensorboard:metric/vi_model/kl_ite |
