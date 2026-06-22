@@ -510,6 +510,15 @@ def main():
                         ))
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
+        "--latent-dim",
+        type=int,
+        default=32,
+        help=(
+            "Dimension of the standard-normal latent input to the IVI "
+            "transform (default 32, matching ImVIDrift's native default)."
+        ),
+    )
+    parser.add_argument(
         "--rng-isolation", action="store_true",
         help=(
             "Reset the training RNG to --seed right before the loop and make "
@@ -624,7 +633,11 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    model = ImVIDrift(target_model, hidden_units=256, latent_dim=2)
+    model = ImVIDrift(
+        target_model,
+        hidden_units=256,
+        latent_dim=args.latent_dim,
+    )
     model._bbox = bbox  # legacy field, kept for compatibility
 
     if args.drift_stepsz is not None:
@@ -715,8 +728,9 @@ def main():
         plt.close()
 
     # ---- Only the FIRST model.learn call from the notebook is kept ----
-    print(f"[run_ivi] target={args.target} drift_stepsz={drift_stepsz} "
-          f"max_iter={args.max_iter} kl_eval_freq={kl_eval_freq}", flush=True)
+    print(f"[run_ivi] target={args.target} latent_dim={args.latent_dim} "
+          f"drift_stepsz={drift_stepsz} max_iter={args.max_iter} "
+          f"kl_eval_freq={kl_eval_freq}", flush=True)
     # Parity RNG isolation: reset the training RNG stream to the run seed right
     # before training so the pre-training contour-plot draw above does not
     # offset it. KDVI does the same (train.parity_rng_isolation), so both begin
@@ -753,6 +767,7 @@ def main():
 
     print("=" * 60)
     print(f"Target             : {args.target}  (name={target_model.name})")
+    print(f"latent_dim         : {args.latent_dim}")
     print(f"drift_stepsz       : {drift_stepsz}")
     print(f"final step         : {final_step}")
     print(f"KL ITE (BDKL_KnnK)  KL( q_phi(x) || p_target(x) ) = {kl_div:.6f}")
