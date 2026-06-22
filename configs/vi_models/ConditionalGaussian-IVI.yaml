@@ -1,5 +1,5 @@
 # VI model matching the architecture of IVI-via-mcmc-distillation/run_ivi.py.
-#   - latent_dim = 2 (notebook's `latent_dim=2`).
+#   - epsilon_dim = 32 (IVI's native latent-dimension default).
 #   - 3 hidden layers of width 256 with ELU activations (notebook's `Transform`).
 #   - Output split into (mean, log_std). std = exp(log_std), with
 #     log_std clamped at log_std_min = -3 — matches notebook line 249:
@@ -12,7 +12,7 @@
 # epsilon_dim is set to a literal here so that base_runner's
 # target.epsilon_dim = z_dim override does not propagate into this config.
 z_dim: ${target.z_dim}
-epsilon_dim: 2
+epsilon_dim: 32
 hidden_dim: 256
 num_layers: 3
 activation: elu
