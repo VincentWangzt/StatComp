@@ -20,10 +20,12 @@ import argparse
 import csv
 import json
 import math
+import mmap
 import os
 import re
 import shlex
 import statistics
+import struct
 import subprocess
 import sys
 import time
@@ -257,6 +259,57 @@ def _last_tensorboard_kl(spec: RunSpec) -> tuple[int | None, float | None]:
     timestamp_dirs = sorted(path for path in run_root.iterdir() if path.is_dir())
     if not timestamp_dirs:
         return None, None
+    tag = "metric/vi_model/kl_ite"
+    tag_bytes = tag.encode()
+
+    # Each KDVI run writes several diagnostic scalars per epoch, so loading the
+    # full event history can take minutes. Locate the final KL tag in the
+    # TFRecord file and decode just its enclosing Event protobuf instead.
+    try:
+        from tensorboard.compat.proto import event_pb2
+
+        event_files = sorted(
+            timestamp_dirs[-1].glob("events.out.tfevents.*"),
+            key=lambda path: path.stat().st_mtime_ns,
+            reverse=True,
+        )
+        for event_file in event_files:
+            with event_file.open("rb") as handle, mmap.mmap(
+                handle.fileno(),
+                0,
+                access=mmap.ACCESS_READ,
+            ) as mapped:
+                tag_pos = mapped.rfind(tag_bytes)
+                if tag_pos < 0:
+                    continue
+                for record_start in range(max(0, tag_pos - 2048), tag_pos):
+                    if record_start + 12 > len(mapped):
+                        continue
+                    record_len = struct.unpack_from(
+                        "<Q",
+                        mapped,
+                        record_start,
+                    )[0]
+                    record_end = record_start + 12 + record_len
+                    if (
+                        record_len > 1_000_000
+                        or not record_start + 12 <= tag_pos < record_end
+                        or record_end + 4 > len(mapped)
+                    ):
+                        continue
+                    try:
+                        event = event_pb2.Event.FromString(
+                            mapped[record_start + 12:record_end]
+                        )
+                    except Exception:
+                        continue
+                    for value in event.summary.value:
+                        if value.tag == tag:
+                            return int(event.step), float(value.simple_value)
+    except Exception:
+        pass
+
+    # Compatibility fallback for unusual event layouts.
     try:
         from tensorboard.backend.event_processing.event_accumulator import (
             EventAccumulator,
@@ -266,7 +319,6 @@ def _last_tensorboard_kl(spec: RunSpec) -> tuple[int | None, float | None]:
             str(timestamp_dirs[-1]), size_guidance={"scalars": 0}
         )
         accumulator.Reload()
-        tag = "metric/vi_model/kl_ite"
         if tag not in accumulator.Tags().get("scalars", []):
             return None, None
         values = accumulator.Scalars(tag)
@@ -516,6 +568,23 @@ def parse_args() -> argparse.Namespace:
         help="Run entries again even when their latest record is completed.",
     )
     parser.add_argument(
+        "--rerun-stale",
+        action="store_true",
+        help=(
+            "Rerun completed entries whose latest record was produced by a "
+            "different git commit."
+        ),
+    )
+    parser.add_argument(
+        "--fresh-commit",
+        type=str,
+        default=None,
+        help=(
+            "Commit considered fresh by --rerun-stale (default: current "
+            "HEAD). Useful when resuming a sweep after a runner-only fix."
+        ),
+    )
+    parser.add_argument(
         "--jobs",
         type=int,
         default=1,
@@ -544,10 +613,18 @@ def main() -> int:
         return 0
 
     pending: list[tuple[int, RunSpec]] = []
+    current_commit = _git_commit()
+    fresh_commit = args.fresh_commit or current_commit
     for index, spec in enumerate(specs, start=1):
         previous = records.get(spec.run_id)
+        rerun_stale = (
+            args.rerun_stale
+            and previous is not None
+            and previous.get("git_commit") != fresh_commit
+        )
         if (
             not args.rerun_completed
+            and not rerun_stale
             and previous is not None
             and previous.get("status") == "completed"
             and previous.get("final_kl_ite") is not None
