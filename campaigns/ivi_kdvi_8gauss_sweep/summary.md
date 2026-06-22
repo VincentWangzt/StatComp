@@ -1,16 +1,16 @@
 # IVI/KDVI 8-Gaussian Sweep
 
-Updated: 2026-06-22T03:49:28.242465+00:00
+Updated: 2026-06-22T08:08:35.639055+00:00
 
 Progress: **76/76** runs with a final KL ITE. Collapse is defined as **final KL ITE > 1**.
-All setups use the checked-in 100k exact reference sample for their target; training hyperparameters remain at the current IVI/KDVI defaults.
+All setups use the checked-in 100k exact reference sample for their target; IVI uses its default 32-dimensional latent input, and all other training hyperparameters remain at the current IVI/KDVI defaults.
 
 ## Aggregate by setup
 
 | Method slug | Target | Expected | Observed | Collapsed | Non-collapsed | Mean KL (non-collapsed) |
 |---|---|---:|---:|---:|---:|---:|
-| `ivi_default` | `8_gaussians` | 10 | 10 | 5 | 5 | 0.152642 |
-| `ivi_default` | `8_gaussians_small` | 10 | 10 | 5 | 5 | 0.203136 |
+| `ivi_default` | `8_gaussians` | 10 | 10 | 0 | 10 | 0.124283 |
+| `ivi_default` | `8_gaussians_small` | 10 | 10 | 0 | 10 | 0.184770 |
 | `kdvi_default` | `8_gaussians` | 10 | 10 | 1 | 9 | 0.229587 |
 | `kdvi_default` | `8_gaussians_small` | 10 | 10 | 6 | 4 | 0.167039 |
 | `kdvi_mala_mcmcsteps1_stepsize0p50` | `8_gaussians` | 3 | 3 | 1 | 2 | 0.534808 |
@@ -30,26 +30,26 @@ All setups use the checked-in 100k exact reference sample for their target; trai
 
 | Run ID | Status | Final step | Final KL ITE | Collapsed | Metric source |
 |---|---|---:|---:|:---:|---|
-| `ivi_default__8_gaussians__seed00` | completed | 100000 | 0.176172 | no | kl_ite.csv |
-| `ivi_default__8_gaussians__seed01` | completed | 100000 | 1.104971 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians__seed02` | completed | 100000 | 1.153110 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians__seed03` | completed | 100000 | 0.159296 | no | kl_ite.csv |
-| `ivi_default__8_gaussians__seed04` | completed | 100000 | 0.158171 | no | kl_ite.csv |
-| `ivi_default__8_gaussians__seed05` | completed | 100000 | 1.111891 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians__seed06` | completed | 100000 | 1.153502 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians__seed07` | completed | 100000 | 0.134095 | no | kl_ite.csv |
-| `ivi_default__8_gaussians__seed08` | completed | 100000 | 0.135477 | no | kl_ite.csv |
-| `ivi_default__8_gaussians__seed09` | completed | 100000 | 1.092814 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed00` | completed | 100000 | 1.335360 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed01` | completed | 100000 | 0.192412 | no | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed02` | completed | 100000 | 0.214659 | no | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed03` | completed | 100000 | 1.323364 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed04` | completed | 100000 | 1.322251 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed05` | completed | 100000 | 0.209310 | no | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed06` | completed | 100000 | 1.365712 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed07` | completed | 100000 | 1.363537 | yes | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed08` | completed | 100000 | 0.180655 | no | kl_ite.csv |
-| `ivi_default__8_gaussians_small__seed09` | completed | 100000 | 0.218642 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed00` | completed | 100000 | 0.126352 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed01` | completed | 100000 | 0.140058 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed02` | completed | 100000 | 0.115579 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed03` | completed | 100000 | 0.113693 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed04` | completed | 100000 | 0.127473 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed05` | completed | 100000 | 0.126990 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed06` | completed | 100000 | 0.103072 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed07` | completed | 100000 | 0.125085 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed08` | completed | 100000 | 0.144581 | no | kl_ite.csv |
+| `ivi_default__8_gaussians__seed09` | completed | 100000 | 0.119949 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed00` | completed | 100000 | 0.202847 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed01` | completed | 100000 | 0.192893 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed02` | completed | 100000 | 0.217472 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed03` | completed | 100000 | 0.155199 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed04` | completed | 100000 | 0.218357 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed05` | completed | 100000 | 0.179565 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed06` | completed | 100000 | 0.142807 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed07` | completed | 100000 | 0.176453 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed08` | completed | 100000 | 0.174679 | no | kl_ite.csv |
+| `ivi_default__8_gaussians_small__seed09` | completed | 100000 | 0.187431 | no | kl_ite.csv |
 | `kdvi_default__8_gaussians__seed00` | completed | 100000 | 1.011827 | yes | tensorboard:metric/vi_model/kl_ite |
 | `kdvi_default__8_gaussians__seed01` | completed | 100000 | 0.986830 | no | tensorboard:metric/vi_model/kl_ite |
 | `kdvi_default__8_gaussians__seed02` | completed | 100000 | 0.108936 | no | tensorboard:metric/vi_model/kl_ite |
