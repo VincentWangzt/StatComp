@@ -1,7 +1,7 @@
 {
   "campaign": "ivi_kdvi_8gauss_sweep",
-  "generated_at_utc": "2026-06-21T14:24:38.471818+00:00",
-  "git_commit": "4e56ed83415bf57b3d4bcaf71115b60936d25037",
+  "generated_at_utc": "2026-06-22T17:17:47.420470+00:00",
+  "git_commit": "66a7348d9fb11fe31785f587bce8ae3fe8eb2105",
   "collapse_rule": "final_kl_ite > 1.0",
   "run_count": 76,
   "runs": [
