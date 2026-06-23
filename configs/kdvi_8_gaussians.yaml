@@ -5,15 +5,11 @@ use_cuda: true
 runner_type: KDVI
 target_type: 8_gaussians
 vi_model_type: ConditionalGaussian
-vi_model_config_path: configs/vi_models/ConditionalGaussian-IVI.yaml
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yaml
 
 train:
   epochs: 100000
   batch_size: 128
-  # Byte-identical IVI parity: reset the training RNG to `seed` right before the
-  # loop and make eval/sample/plot draws RNG-neutral. Run IVI with
-  # `--rng-isolation` to match.
-  parity_rng_isolation: true
   vi:
     lr: 1.0e-3
     scheduler:
@@ -22,15 +18,14 @@ train:
       gamma: 0.75
   annealing:
     enabled: true
-    scheme: ivi
+    scheme: offset_linear
     steps: 50000
   kdvi:
     mcmc_type: mala
     mcmc_steps: 1
     mcmc_step_size: 0.50
     kernel: laplace_l2
-    fit_bandwidth_on: ivi
-    loss_form: ivi
+    fit_bandwidth_on: x
     step_size_schedule:
       type: coupled
   grad_clip: null

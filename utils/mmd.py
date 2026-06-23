@@ -28,11 +28,40 @@ from typing import Tuple
 from utils.kernels import BaseKernel
 
 
+def configure_kernel_bandwidth(
+    kernel: BaseKernel,
+    fit_bandwidth_on: str = "x",
+    kernel_bandwidth: float | None = None,
+) -> str | None:
+    """Resolve adaptive versus fixed bandwidth configuration.
+
+    A fixed positive bandwidth takes precedence over the adaptive source.
+    Otherwise only variational (``"x"``) and pooled (``"xy"``) fitting are
+    supported.
+    """
+    if kernel_bandwidth is not None:
+        fixed = float(kernel_bandwidth)
+        if fixed <= 0:
+            raise ValueError(
+                f"kernel_bandwidth must be positive, got {fixed}"
+            )
+        kernel.h = fixed
+        return None
+
+    fit_source = str(fit_bandwidth_on).lower()
+    if fit_source not in ("x", "xy"):
+        raise ValueError(
+            "fit_bandwidth_on must be 'x' or 'xy', "
+            f"got '{fit_source}'"
+        )
+    return fit_source
+
+
 def mmd2_v_statistic(
     x: Tensor,
     y: Tensor,
     kernel: BaseKernel,
-    fit_bandwidth_on: str = "x",
+    fit_bandwidth_on: str | None = "x",
 ) -> Tuple[Tensor, dict]:
     """Compute the biased V-statistic estimator of MMD².
 
@@ -59,10 +88,8 @@ def mmd2_v_statistic(
         fit_bandwidth_on: Strategy for fitting the kernel bandwidth:
             - ``"x"``: Fit on q_phi samples (detached). Tracks the current
               scale of the variational distribution. **Recommended default.**
-            - ``"y"``: Fit on MCMC-refined samples.
             - ``"xy"``: Fit on the pooled set of both x and y.
-            - ``"none"``: Use whatever bandwidth is currently set on the
-              kernel object (useful for fixed-bandwidth experiments).
+            - ``None``: Use a positive bandwidth already set on the kernel.
 
     Returns:
         A tuple ``(mmd2, info)`` where:
@@ -83,15 +110,17 @@ def mmd2_v_statistic(
     # 1. Fit bandwidth (detached — no gradient through bandwidth selection)
     if fit_bandwidth_on == "x":
         kernel.fit_h(x.detach())
-    elif fit_bandwidth_on == "y":
-        kernel.fit_h(y.detach())
     elif fit_bandwidth_on == "xy":
         kernel.fit_h(torch.cat([x.detach(), y.detach()], dim=0))
-    elif fit_bandwidth_on == "none":
-        pass  # Use existing kernel.h
+    elif fit_bandwidth_on is None:
+        if kernel.h <= 0:
+            raise ValueError(
+                "A positive kernel bandwidth must be set when adaptive "
+                "bandwidth fitting is disabled."
+            )
     else:
         raise ValueError(
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', "
+            f"fit_bandwidth_on must be 'x', 'xy', or None, "
             f"got '{fit_bandwidth_on}'"
         )
 
@@ -117,102 +146,3 @@ def mmd2_v_statistic(
     }
 
     return mmd2, info
-
-
-def mmd_ivi_drift(
-    x: Tensor,
-    y: Tensor,
-    kernel: BaseKernel,
-    fit_bandwidth_on: str = "ivi",
-) -> Tuple[Tensor, dict]:
-    """Asymmetric MMD-style training loss used by the IVI notebook.
-
-    Implements verbatim the training objective in
-    ``IVI-via-mcmc-distillation/run_ivi.py::maximum_mean_discrepancy``,
-    called as ``maximum_mean_discrepancy(samples=next_x.detach(), y=samp_x)``::
-
-        loss = 0.5 * E[k(samp_x, samp_x)] - E[k(next_x.detach, samp_x)]
-
-    where ``samp_x`` are the variational samples (carry gradient) and
-    ``next_x`` is the MCMC-refined sample (detached). In KDVI's API:
-
-        ``x`` = q_phi samples (gradient-carrying)         <-> IVI ``samp_x``
-        ``y`` = MCMC-refined samples (detached)           <-> IVI ``next_x``
-
-        loss(x, y) = 0.5 * E[k(x, x')] - E[k(y, x')]
-
-    This is **not** the symmetric MMD² estimator: the ``E[k(y, y')]`` term is
-    intentionally absent — it would be a constant w.r.t. ``x`` anyway, so
-    omitting it does not change the gradient. What matters is that gradient
-    flows through ``x`` in **both** the K_xx and K_xy terms.
-
-    The IVI bandwidth heuristic uses
-    ``median(cat([cdist(y, x), cdist(x, x)]))`` on the **Euclidean** distance
-    (notebook line ``term1 = cdist(samples=next_x, y=samp_x)`` and
-    ``term2 = cdist(samp_x, samp_x)``).
-
-    Args:
-        x: Samples from the variational model q_phi, shape ``[N, D]``.
-            Gradient-carrying.
-        y: MCMC-refined samples, shape ``[N, D]`` (must be detached).
-        kernel: Kernel object implementing ``pair_eval``/``fit_h``.
-            Recommended kernel for this loss is ``LaplaceL2Kernel`` (matching
-            the notebook's ``exp(-||.||_2 / (2h))``).
-        fit_bandwidth_on: One of:
-            - ``"ivi"``: Inline IVI heuristic — bandwidth set to
-              ``median(cat([cdist(y, x), cdist(x, x)]))`` on Euclidean
-              distance, mirroring the notebook exactly.
-            - ``"y"``, ``"xy"``, ``"none"``: as in :func:`mmd2_v_statistic`.
-
-    Returns:
-        Tuple ``(loss, info)`` where ``loss`` is the scalar IVI drift loss and
-        ``info`` exposes ``k_xx_mean`` and ``k_xy_mean`` for logging.
-    """
-    # 1. Fit bandwidth.
-    if fit_bandwidth_on == "ivi":
-        # Bit-level reproduction of the notebook's bandwidth recipe:
-        #   term1 = cdist(samples=y, y=x)         (notebook order)
-        #   term2 = cdist(x, x)
-        #   h     = median(cat([term1, term2], dim=0))
-        with torch.no_grad():
-            cdist_yx = torch.cdist(y.detach(), x.detach(), p=2)
-            cdist_xx = torch.cdist(x.detach(), x.detach(), p=2)
-            h_ivi = torch.cat([cdist_yx, cdist_xx], dim=0).median()
-            kernel.h = float(h_ivi.item())
-    elif fit_bandwidth_on == "x":
-        kernel.fit_h(x.detach())
-    elif fit_bandwidth_on == "y":
-        kernel.fit_h(y.detach())
-    elif fit_bandwidth_on == "xy":
-        kernel.fit_h(torch.cat([x.detach(), y.detach()], dim=0))
-    elif fit_bandwidth_on == "none":
-        pass
-    else:
-        raise ValueError(
-            f"fit_bandwidth_on must be 'ivi', 'x', 'y', 'xy', or 'none', "
-            f"got '{fit_bandwidth_on}'"
-        )
-
-    # 2. Pairwise kernels — gradient flows through x in BOTH K_yx and K_xx.
-    #    IMPORTANT: create the CROSS term (K_yx = k(y, x)) BEFORE the K_xx term,
-    #    matching the IVI notebook's statement order
-    #    (``term1 = cdist(samples, y)`` then ``term2 = cdist(y, y)``). Autograd
-    #    accumulates the two contributions to ``x.grad`` in node-creation order;
-    #    float32 addition is non-associative, so this ordering is required for
-    #    bit-level gradient parity with IVI.
-    K_yx = kernel.pair_eval(y, x, fit_h=False, detach_h=True)
-    K_xx = kernel.pair_eval(x, x, fit_h=False, detach_h=True)
-
-    k_xx_mean = K_xx.mean()
-    k_yx_mean = K_yx.mean()
-
-    # 3. IVI drift loss: 0.5 * E[k(x,x')] - E[k(y, x')]
-    loss = 0.5 * k_xx_mean - k_yx_mean
-
-    info = {
-        'k_xx_mean': k_xx_mean.item(),
-        'k_yy_mean': float('nan'),  # not computed by the IVI form
-        'k_xy_mean': k_yx_mean.item(),
-    }
-
-    return loss, info

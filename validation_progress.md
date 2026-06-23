@@ -1,5 +1,10 @@
 # IVI ↔ KDVI Parity Validation Progress
 
+> **Archived historical note (2026-06-23):** The lockstep harness and the
+> production-only parity helpers documented below were intentionally removed
+> after validation. This file is retained as an investigation record; its
+> commands and symbol names are no longer part of the supported KDVI interface.
+
 Goal: make IVI (`IVI-via-mcmc-distillation/run_ivi.py::ImVIDrift`) and KDVI
 (`runner/kdvi.py::KDVIRunner`) produce **identical** training trajectories
 under the same seed, first on `8_gaussians_small`, then `8_gaussians`.

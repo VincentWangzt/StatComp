@@ -5,12 +5,12 @@ Trains an implicit variational model q_phi by distilling MCMC transition
 kernels. At each iteration:
 
 1. Draw samples z ~ q_phi via reparameterization (gradient-carrying).
-2. Run K steps of MCMC (SGLD or HMC) starting from z.detach(), targeting
+2. Run K steps of MCMC (SGLD, HMC, or MALA) starting from z.detach(), targeting
    the (possibly annealed) posterior p.
 3. Minimize MMD²(z, z') where z' are the MCMC-refined samples (detached).
 
-At convergence, q_phi = p implies the MCMC kernel is a fixed point
-(samples don't move), so MMD² = 0.
+For invariant MCMC kernels, q_phi = p is a distributional fixed point and
+therefore MMD² = 0. Finite-step SGLD is used as a biased training transition.
 
 Key properties:
 - No reverse model needed (unlike RSIVI/AISIVI/DSIVI).
@@ -32,9 +32,12 @@ Config keys under ``train.kdvi``:
     hmc_leapfrog_steps (int): Leapfrog sub-steps per HMC transition (L).
         Only used when mcmc_type='hmc'. Default: 10.
     kernel (str): Kernel type for MMD computation. One of 'gaussian',
-        'imq', 'laplace', 'riesz'. Default: 'gaussian'.
-    fit_bandwidth_on (str): Bandwidth fitting strategy. One of 'x', 'y',
-        'xy', 'none'. Default: 'x'.
+        'gaussian_mmd', 'imq', 'laplace', 'laplace_l2', or 'riesz'.
+        Default: 'gaussian'.
+    fit_bandwidth_on (str): Adaptive bandwidth fitting strategy. One of 'x'
+        or 'xy'. Default: 'x'.
+    kernel_bandwidth (float, optional): Positive fixed kernel bandwidth. When
+        provided, disables adaptive bandwidth fitting.
     mcmc_steps_schedule (dict): Optional K-step scheduling.
         enabled (bool): Whether to ramp K over training. Default: False.
         min_steps (int): Starting K. Default: 1.
@@ -53,9 +56,8 @@ from utils.mcmc_kernels import (
     sgld_transition,
     hmc_transition,
     mala_transition,
-    mala_transition_ivi,
 )
-from utils.mmd import mmd2_v_statistic, mmd_ivi_drift
+from utils.mmd import configure_kernel_bandwidth, mmd2_v_statistic
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
@@ -109,30 +111,19 @@ class KDVIRunner(BaseSIVIRunner):
             f"kernel must be one of {list(Kernels.keys())}, got '{kernel_type}'"
         self.mmd_kernel = Kernels[kernel_type]()
         self.mmd_kernel_type: str = kernel_type
-        self.fit_bandwidth_on: str = kdvi_cfg.get('fit_bandwidth_on', 'x')
-        assert self.fit_bandwidth_on in ('x', 'y', 'xy', 'none', 'ivi'), \
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', 'none', or 'ivi', " \
-            f"got '{self.fit_bandwidth_on}'"
-
-        # Loss form. 'mmd2' (default) is the symmetric V-statistic
-        # MMD^2 = E[k(x,x')] + E[k(y,y')] - 2 E[k(x,y')]. 'ivi' is the
-        # asymmetric drift loss used by IVI-via-mcmc-distillation:
-        #   loss = 0.5 E[k(y,y')] - E[k(x,y')].
-        self.loss_form: str = str(kdvi_cfg.get('loss_form', 'mmd2')).lower()
-        assert self.loss_form in ('mmd2', 'ivi'), \
-            f"loss_form must be 'mmd2' or 'ivi', got '{self.loss_form}'"
-
-        # Optional fixed bandwidth — if set, overrides fit_bandwidth_on with
-        # 'none' and pins kernel.h to this value for the entire training run.
+        # Optional fixed bandwidth — if set, overrides adaptive fitting and
+        # pins kernel.h to this value for the entire training run.
         # Set kernel_bandwidth to null/None or omit it to keep current
         # adaptive median-heuristic behavior.
         kb = kdvi_cfg.get('kernel_bandwidth', None)
         self.fixed_kernel_bandwidth: float | None = (
             float(kb) if kb is not None else None
         )
-        if self.fixed_kernel_bandwidth is not None:
-            self.mmd_kernel.h = self.fixed_kernel_bandwidth
-            self.fit_bandwidth_on = 'none'
+        self.fit_bandwidth_on = configure_kernel_bandwidth(
+            kernel=self.mmd_kernel,
+            fit_bandwidth_on=kdvi_cfg.get('fit_bandwidth_on', 'x'),
+            kernel_bandwidth=self.fixed_kernel_bandwidth,
+        )
 
         # Optional step-size schedule:
         #   step_size_schedule:
@@ -169,8 +160,7 @@ class KDVIRunner(BaseSIVIRunner):
         if self.fixed_kernel_bandwidth is not None:
             logger.info(
                 f"Fixed kernel bandwidth enabled: h="
-                f"{self.fixed_kernel_bandwidth} (fit_bandwidth_on forced "
-                f"to 'none')"
+                f"{self.fixed_kernel_bandwidth} (adaptive fitting disabled)"
             )
         if self.step_size_schedule_type != 'none':
             logger.info(
@@ -319,31 +309,14 @@ class KDVIRunner(BaseSIVIRunner):
                 n_steps=current_mcmc_steps,
             )
         elif self.mcmc_type == 'mala':
-            # Use the analytic target score for the Langevin drift (no
-            # autograd), matching IVI-via-mcmc-distillation's MALA which uses
-            # self.target.score for the proposal and self.target.logp only for
-            # the accept ratio.
-            #
-            # We call ``mala_transition_ivi`` — a bit-exact replica of
-            # ``ImVIDrift.mala`` — so KDVI's MCMC-refined samples are
-            # byte-identical to IVI under the same RNG stream. It applies the
-            # annealing factor internally (``anneal_coef=beta``) to the RAW
-            # target score/logp, so we pass the un-annealed callables. The
-            # mapping to IVI's parameterization is:
-            #   - IVI proposal: x + stepsz*anneal*score + sqrt(2*stepsz)*noise
-            #   - generic KDVI: x + 0.5*step_size*(beta*score)
-            #                     + sqrt(step_size)*noise
-            #   => equal when stepsz = current_step_size/2 and anneal = beta
-            #      (drift stepsz*anneal == 0.5*step_size*beta; noise scale
-            #       sqrt(2*stepsz) == sqrt(step_size)).
-            raw_score_fn = lambda z_in: self.target_model.score(z_in)
-            raw_logp_fn = lambda z_in: self.target_model.logp(z_in)
-            mcmc_out = mala_transition_ivi(
+            # Use the analytic annealed target score for the Langevin drift;
+            # log_prob_fn is only evaluated for the M-H acceptance ratio.
+            score_fn = lambda z_in: beta * self.target_model.score(z_in)
+            mcmc_out = mala_transition(
                 z_init=z.detach(),
-                score_fn=raw_score_fn,
-                logp_fn=raw_logp_fn,
-                stepsz=current_step_size / 2.0,
-                anneal_coef=beta,
+                log_prob_fn=log_prob_fn,
+                score_fn=score_fn,
+                step_size=current_step_size,
                 n_steps=current_mcmc_steps,
             )
         else:
@@ -358,20 +331,11 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        loss, mmd_info = (
-            mmd_ivi_drift(
-                x=z,
-                y=z_refined,
-                kernel=self.mmd_kernel,
-                fit_bandwidth_on=self.fit_bandwidth_on,
-            )
-            if self.loss_form == 'ivi'
-            else mmd2_v_statistic(
-                x=z,
-                y=z_refined,
-                kernel=self.mmd_kernel,
-                fit_bandwidth_on=self.fit_bandwidth_on,
-            )
+        loss, mmd_info = mmd2_v_statistic(
+            x=z,
+            y=z_refined,
+            kernel=self.mmd_kernel,
+            fit_bandwidth_on=self.fit_bandwidth_on,
         )
 
         # Optimizer step
