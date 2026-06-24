@@ -46,6 +46,7 @@ METRIC_MODES = {
 LOSS_TAG = "train/vi_model/loss"
 TOTAL_TRAINING_TIME_TAG = "summary/total_training_time"
 AVG_EPOCH_TIME_TAG = "summary/avg_epoch_time"
+TIME_AVG_EPOCH_TAG = "time_avg/epoch"
 ARTIFACT_MARKER = "Artifacts will be saved to: "
 CONFIG_HASH_VERSION = "default-grid-effective-v1"
 CONFIG_HASH_IGNORED_KEYS = {
@@ -475,7 +476,7 @@ def build_command(
         f"seed={entry['seed']}",
         f"cuda_visible_devices={gpu}",
         f"output.results_dir={results_dir}",
-        f"output.tb_dir={tb_dir}",
+        f"tracking.campaign={entry.get('campaign_slug', DEFAULT_CAMPAIGN_SLUG)}",
     ]
     cmd.extend(extra_overrides)
     return cmd
@@ -633,6 +634,14 @@ def write_manifest(
             row["runtime_gpu"] = event.get("gpu", row.get("runtime_gpu", ""))
             row["result_path"] = event.get("result_path", "")
             row["tb_path"] = event.get("tb_path", "")
+            for key in (
+                "metrics_path",
+                "wandb_run_id",
+                "wandb_url",
+                "wandb_run_path",
+                "wandb_mode",
+            ):
+                row[key] = finalize_event.get(key, event.get(key, ""))
             row["failure_reason"] = event.get("failure_reason", "")
             row["previous_config_hash"] = event.get("config_hash", "")
             row["artifact_config_hash"] = finalize_event.get("artifact_config_hash", event.get("artifact_config_hash", ""))
@@ -679,6 +688,16 @@ def write_manifest_csv(
                 "runtime_gpu": event.get("gpu", ""),
                 "result_path": event.get("result_path", ""),
                 "tb_path": finalize_event.get("tb_path", event.get("tb_path", "")),
+                "metrics_path": finalize_event.get(
+                    "metrics_path", event.get("metrics_path", "")),
+                "wandb_run_id": finalize_event.get(
+                    "wandb_run_id", event.get("wandb_run_id", "")),
+                "wandb_url": finalize_event.get(
+                    "wandb_url", event.get("wandb_url", "")),
+                "wandb_run_path": finalize_event.get(
+                    "wandb_run_path", event.get("wandb_run_path", "")),
+                "wandb_mode": finalize_event.get(
+                    "wandb_mode", event.get("wandb_mode", "")),
                 "failure_reason": event.get("failure_reason", ""),
                 "command_template": " ".join(map(str, entry["command_template"])),
             }
@@ -824,10 +843,16 @@ def collect_metric_summary(
 
 
 def collect_artifact_paths(result_path: Path | None, tb_path: Path | None, console_log: Path) -> dict[str, str]:
+    metrics_path = resolve_metrics_path(result_path, tb_path)
+    live_metrics_path = result_path / "metrics.csv" if result_path is not None else None
     artifacts = {
         "result_path": relpath(result_path) or "",
         "tb_path": relpath(tb_path) or "",
-        "extracted_metrics_path": relpath(tb_path / "extracted" if tb_path is not None else None) or "",
+        "metrics_path": relpath(metrics_path) or "",
+        "extracted_metrics_path": relpath(
+            tb_path / "extracted" if metrics_path is not None and tb_path is not None
+            and metrics_path != live_metrics_path else None
+        ) or "",
         "console_log": relpath(console_log) or "",
         "run_log": relpath(result_path / "run.log" if result_path is not None else None) or "",
         "checkpoints_path": "",
@@ -842,6 +867,20 @@ def collect_artifact_paths(result_path: Path | None, tb_path: Path | None, conso
     return artifacts
 
 
+def resolve_metrics_path(
+    result_path: Path | None, tb_path: Path | None
+) -> Path | None:
+    if result_path is not None:
+        live_path = result_path / "metrics.csv"
+        if live_path.is_file():
+            return live_path
+    if tb_path is not None:
+        legacy_path = tb_path / "extracted" / "metrics.csv"
+        if legacy_path.is_file():
+            return legacy_path
+    return None
+
+
 def summarize_completed_run(
     event: dict[str, Any],
     entry: dict[str, Any],
@@ -849,13 +888,19 @@ def summarize_completed_run(
     result_path: Path | None,
     tb_path: Path | None,
 ) -> dict[str, Any]:
-    metrics_path = tb_path / "extracted" / "metrics.csv" if tb_path is not None else Path()
-    metrics = read_metrics_csv(metrics_path)
+    metrics_path = resolve_metrics_path(result_path, tb_path)
+    metrics = read_metrics_csv(metrics_path) if metrics_path is not None else {}
     loss_points = metrics.get(LOSS_TAG, [])
-    iterations = int(loss_points[-1]["step"]) if loss_points else ""
+    iterations = int(loss_points[-1]["step"]) if loss_points else int(
+        entry.get("expected_epochs", 0) or 0)
     total_training_points = metrics.get(TOTAL_TRAINING_TIME_TAG, [])
     avg_epoch_points = metrics.get(AVG_EPOCH_TIME_TAG, [])
-    total_training_time = total_training_points[-1]["value"] if total_training_points else ""
+    if not avg_epoch_points:
+        avg_epoch_points = metrics.get(TIME_AVG_EPOCH_TAG, [])
+    total_training_time = (
+        total_training_points[-1]["value"] if total_training_points
+        else event.get("duration_sec", "")
+    )
     avg_iteration_time = avg_epoch_points[-1]["value"] if avg_epoch_points else ""
     if avg_iteration_time == "" and iterations:
         avg_iteration_time = float(event["duration_sec"]) / max(1, int(iterations))
@@ -908,7 +953,7 @@ def summary_cache_key(
     tb_path: Path | None,
     console_log: Path,
 ) -> str:
-    metrics_path = tb_path / "extracted" / "metrics.csv" if tb_path is not None else None
+    metrics_path = resolve_metrics_path(result_path, tb_path)
     payload = {
         "version": SUMMARY_CACHE_VERSION,
         "run_id": run_id,
@@ -953,10 +998,14 @@ def load_summary_row_cache(cache_path: Path, summary_path: Path) -> dict[str, di
     return bootstrapped
 
 
-def metrics_not_newer_than_summary(tb_path: Path | None, summary_mtime_ns: int) -> bool:
-    if tb_path is None or summary_mtime_ns <= 0:
+def metrics_not_newer_than_summary(
+    result_path: Path | None, tb_path: Path | None, summary_mtime_ns: int
+) -> bool:
+    if summary_mtime_ns <= 0:
         return False
-    metrics_path = tb_path / "extracted" / "metrics.csv"
+    metrics_path = resolve_metrics_path(result_path, tb_path)
+    if metrics_path is None:
+        return True
     if not metrics_path.exists():
         return True
     try:
@@ -1038,6 +1087,7 @@ def write_summary(
                 cached.get("key") == cache_key
                 or (
                     metrics_not_newer_than_summary(
+                        result_path,
                         tb_path,
                         int(cached.get("bootstrapped_summary_mtime_ns", 0)),
                     )
@@ -1194,6 +1244,8 @@ def complete_process(active_run: ActiveRun) -> dict[str, Any]:
     active_run.returncode = exit_code
     result_path = active_run.result_path
     tb_path: Path | None = None
+    metrics_path: Path | None = None
+    wandb_metadata: dict[str, Any] = {}
     failure_reason: str | None = None
 
     if exit_code != 0:
@@ -1201,7 +1253,12 @@ def complete_process(active_run: ActiveRun) -> dict[str, Any]:
     elif result_path is None:
         failure_reason = "missing result path marker in console log"
     else:
-        tb_path = infer_tb_path(result_path, entry)
+        metrics_path = result_path / "metrics.csv"
+        if not metrics_path.exists():
+            tb_path = infer_tb_path(result_path, entry)
+        metadata_path = result_path / "wandb_run.json"
+        if metadata_path.is_file():
+            wandb_metadata = read_json_or_default(metadata_path, {})
 
     run_status = "completed" if failure_reason is None else "failed"
     return {
@@ -1233,6 +1290,11 @@ def complete_process(active_run: ActiveRun) -> dict[str, Any]:
         "exit_code": exit_code,
         "result_path": relpath(result_path),
         "tb_path": relpath(tb_path),
+        "metrics_path": relpath(metrics_path),
+        "wandb_run_id": wandb_metadata.get("run_id", ""),
+        "wandb_url": wandb_metadata.get("run_url", ""),
+        "wandb_run_path": wandb_metadata.get("run_path", ""),
+        "wandb_mode": wandb_metadata.get("mode", ""),
         "console_log": relpath(active_run.console_log),
         "failure_reason": failure_reason,
     }

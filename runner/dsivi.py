@@ -39,7 +39,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
 
     def eval_kl_ite(self, epoch: int):
         """
-        Evaluate KL divergence between VI and baseline using ITE and log to TensorBoard.
+        Evaluate KL divergence between VI and baseline and log centrally.
         Args:
             epoch (int): Current epoch number.
         """
@@ -47,7 +47,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
 
     def eval_w2(self, epoch: int):
         """
-        Evaluate Wasserstein-2 distance between VI and baseline and log to TensorBoard.
+        Evaluate Wasserstein-2 distance between VI and baseline and log centrally.
         Args:
             epoch (int): Current epoch number.
         """
@@ -75,9 +75,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
 
     def eval_ksd(self, epoch: int):
         super().eval_ksd(epoch)
-        rev_ksd, rev_h = self.calculate_rev_KSD()
-        self.writer.add_scalar("metric/reverse_model/ksd", rev_ksd, epoch)
-        self.writer.add_scalar("metric/reverse_model/ksd_h", rev_h, epoch)
+        return self._eval_reverse_ksd(epoch)
 
     def _train_reverse_model(
         self,
@@ -150,20 +148,20 @@ class DSIVIRunner(BaseReverseConditionalRunner):
             steps (int): Number of steps taken in the current epoch.
             epoch (int): Current epoch number.
         '''
-        self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
+        warmup_scalars = {"warmup/reverse_model_loss": loss}
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
 
         if epoch % self.training_metric_log_freq == 0:
             if self.metric_ksd_enabled:
                 rev_ksd, _ = self.calculate_rev_KSD()
-                self.writer.add_scalar("warmup/rev_model_ksd", rev_ksd, epoch)
+                warmup_scalars["warmup/rev_model_ksd"] = rev_ksd
                 logger.debug(
                     f"Warmup Epoch {epoch}, Rev KSD: {rev_ksd:.4f}")
 
             if self.metric_fisher_enabled:
                 fisher_val = self.evaluate_fisher_divergence()
-                self.writer.add_scalar("warmup/fisher_div", fisher_val, epoch)
+                warmup_scalars["warmup/fisher_div"] = fisher_val
                 logger.debug(
                     f"Warmup Epoch {epoch}, Fisher Div: {fisher_val:.4f}")
 
@@ -178,6 +176,7 @@ class DSIVIRunner(BaseReverseConditionalRunner):
             logger.debug(
                 f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s, Avg Steps: {avg_steps:.4f}"
             )
+        self.experiment_logger.log_scalars(warmup_scalars, step=epoch)
 
     def calc_log_q_phi_z(
         self,
@@ -204,18 +203,15 @@ class DSIVIRunner(BaseReverseConditionalRunner):
         with torch.no_grad():
             # Log the average norm of the score function
             avg_score_norm = torch.mean(torch.norm(score, dim=-1)).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/avg_score_norm",
-                avg_score_norm,
-                self.curr_epoch,
-            )
 
             # Log the norm of the average of the score function
             avg_of_score_norm = torch.norm(score.mean(dim=0)).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/norm_of_avg_score",
-                avg_of_score_norm,
-                self.curr_epoch,
+            self.experiment_logger.log_scalars(
+                {
+                    "diagnostic/reverse_model/avg_score_norm": avg_score_norm,
+                    "diagnostic/reverse_model/norm_of_avg_score": avg_of_score_norm,
+                },
+                step=self.curr_epoch,
             )
 
         log_q_phi_z = torch.sum(score * z, dim=-1)

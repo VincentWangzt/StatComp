@@ -133,7 +133,8 @@ class KSIVIRunner(BaseSIVIRunner):
                     self.vi_model.parameters(), max_norm=self.grad_clip)
             optimizer.step()
             if step % log_freq == 0 or step == self.pretrain_steps:
-                self.writer.add_scalar("pretrain/vi_model/loss", loss.item(), step)
+                self.experiment_logger.log_scalars(
+                    {"pretrain/vi_model/loss": loss.item()}, step=step)
                 logger.info(
                     f"KSIVI pretrain step {step}/{self.pretrain_steps}: "
                     f"loss={loss.item():.6f}"
@@ -200,6 +201,8 @@ class KSIVIRunner(BaseSIVIRunner):
         f2 = anneal_factor * target_score2 + neg_score2
 
         t_vi1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "vi_sample", t_vi1 - t_vi0, step=epoch)
 
         # Kernel matrix computation
         t_ns0 = time.perf_counter()
@@ -251,6 +254,8 @@ class KSIVIRunner(BaseSIVIRunner):
             loss = loss - self.log_p_reg * log_p.mean() * reg_scale
 
         t_ns1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "neg_score", t_ns1 - t_ns0, step=epoch)
 
         # Optimizer step
         t_bw0 = time.perf_counter()
@@ -277,20 +282,21 @@ class KSIVIRunner(BaseSIVIRunner):
             )
 
         t_bw1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "backward", t_bw1 - t_bw0, step=epoch)
 
         # Log KSIVI-specific diagnostics
-        self.writer.add_scalar(
-            "ksivi/kernel_bandwidth", self.kernel.h, epoch)
-        self.writer.add_scalar(
-            "ksivi/score_product_mean",
-            score_product.detach().mean().item(), epoch)
+        self.experiment_logger.log_scalars(
+            {
+                "ksivi/kernel_bandwidth": self.kernel.h,
+                "ksivi/score_product_mean": score_product.detach().mean().item(),
+            },
+            step=epoch,
+        )
 
         return {
             'loss': loss,
             'grad_norm': grad_norm,
             'z': z1,
             'epsilon': eps1,
-            'time_vi_sample': t_vi1 - t_vi0,
-            'time_neg_score': t_ns1 - t_ns0,
-            'time_backward': t_bw1 - t_bw0,
         }

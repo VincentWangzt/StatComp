@@ -155,6 +155,7 @@ def prepare_config(rec: RunRecord, *, device: str, scratch_results: str, scratch
             "tb_dir": f"{scratch_tb}/{rec.run_id}",
         },
     )
+    cfg.tracking = OmegaConf.create({"enabled": False})
     return cfg
 
 
@@ -162,8 +163,7 @@ def build_runner(rec: RunRecord, cfg: Any):
     ckpt_dir, epoch = find_final_checkpoint(rec.result_path)
     set_seed(rec.seed, cfg.device == "cuda")
     runner = Runners[rec.runner_type](config=cfg)
-    if hasattr(runner, "writer"):
-        runner.writer.close()
+    runner.experiment_logger.finish()
     remove_file_handlers()
     state = torch.load(ckpt_dir / "vi_model.pt", map_location=runner.device)
     runner.vi_model.load_state_dict(state)
@@ -446,8 +446,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
         }
         return summary, raw_rows
     finally:
-        if hasattr(runner, "writer"):
-            runner.writer.close()
+        runner.experiment_logger.finish()
         remove_file_handlers()
         del runner
         if torch.cuda.is_available():

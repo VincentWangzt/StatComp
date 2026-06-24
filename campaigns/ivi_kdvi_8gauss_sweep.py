@@ -174,7 +174,7 @@ def build_command(spec: RunSpec) -> list[str]:
         f"seed={spec.seed}",
         f"vi_model.epsilon_dim={KDVI_EPSILON_DIM}",
         f"output.results_dir={run_results_root}",
-        f"output.tb_dir={TB_ROOT / spec.run_id}",
+        "tracking.campaign=ivi_kdvi_8gauss_sweep",
     ]
     if spec.mcmc_type is not None:
         command.extend(
@@ -249,6 +249,18 @@ def _last_csv_kl(path: Path) -> tuple[int | None, float | None]:
     if not rows:
         return None, None
     return int(rows[-1]["step"]), float(rows[-1]["kl"])
+
+
+def _last_metrics_kl(path: Path) -> tuple[int | None, float | None]:
+    if not path.is_file():
+        return None, None
+    rows = [
+        row for row in csv.DictReader(path.open(newline="", encoding="utf-8"))
+        if row.get("tag") == "metric/vi_model/kl_ite"
+    ]
+    if not rows:
+        return None, None
+    return int(rows[-1]["step"]), float(rows[-1]["value"])
 
 
 def _last_tensorboard_kl(spec: RunSpec) -> tuple[int | None, float | None]:
@@ -355,6 +367,11 @@ def extract_final_kl(
         return None, None, (
             str(artifact_path) if artifact_path else None
         ), None
+
+    if artifact_path is not None:
+        step, value = _last_metrics_kl(artifact_path / "metrics.csv")
+        if value is not None:
+            return step, value, str(artifact_path), "metrics.csv"
 
     step, value = _last_tensorboard_kl(spec)
     if value is not None:

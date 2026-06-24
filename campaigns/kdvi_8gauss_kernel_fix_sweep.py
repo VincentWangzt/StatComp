@@ -48,6 +48,7 @@ Outputs land at ``campaigns/kdvi_8gauss_kernel_fix_sweep/``.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import signal
@@ -80,6 +81,7 @@ ANCHOR_OVERRIDES = [
 # Common overrides for every run.
 BASE_OVERRIDES = [
     "use_cuda=true",
+    "tracking.campaign=kdvi_8gauss_kernel_fix_sweep",
     "metric.elbo.num_batches=1",
     "metric.elbo.num_z_samples=500",
     "train.epochs=100000",
@@ -132,6 +134,20 @@ def _read_scalar_curve(event_file: Path, tag: str) -> list[tuple[int, float]]:
             EventAccumulator,
         )
     except ImportError:
+        return []
+
+
+def _read_metrics_curve(metrics_file: Path, tag: str) -> list[tuple[int, float]]:
+    if not metrics_file.is_file():
+        return []
+    try:
+        with metrics_file.open("r", encoding="utf-8", newline="") as fh:
+            return [
+                (int(row["step"]), float(row["value"]))
+                for row in csv.DictReader(fh)
+                if row.get("tag") == tag
+            ]
+    except (OSError, KeyError, TypeError, ValueError):
         return []
     try:
         ea = EventAccumulator(str(event_file.parent),
@@ -217,6 +233,7 @@ def run_once(
 
     timestamp: str | None = None
     tb_event_file: Path | None = None
+    metrics_file: Path | None = None
     for _ in range(60):
         if proc.poll() is not None:
             break
@@ -226,6 +243,10 @@ def run_once(
             txt = ""
         timestamp = _find_results_timestamp(txt)
         if timestamp:
+            metrics_file = (REPO_ROOT / "results" / "KDVI" /
+                            "8_gaussians" / timestamp / "metrics.csv")
+            if metrics_file.exists():
+                break
             tb_dir = REPO_ROOT / "tb_logs" / "KDVI" / "8_gaussians" / timestamp
             tb_event_file = _find_tb_event_file(tb_dir)
             if tb_event_file is not None:
@@ -240,9 +261,12 @@ def run_once(
 
     while proc.poll() is None:
         time.sleep(poll_interval_s)
-        if tb_event_file is None or not tb_event_file.exists():
+        if metrics_file is not None and metrics_file.exists():
+            kl_curve = _read_metrics_curve(metrics_file, KL_ITE_TAG)
+        elif tb_event_file is not None and tb_event_file.exists():
+            kl_curve = _read_scalar_curve(tb_event_file, KL_ITE_TAG)
+        else:
             continue
-        kl_curve = _read_scalar_curve(tb_event_file, KL_ITE_TAG)
         if not kl_curve:
             continue
         last_known_step = kl_curve[-1][0]

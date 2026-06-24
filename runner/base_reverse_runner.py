@@ -9,6 +9,7 @@ from tqdm import tqdm
 from omegaconf import OmegaConf, DictConfig
 from runner.base_runner import BaseSIVIRunner
 from utils.metrics import compute_sliced_wasserstein
+from utils.experiment_logging import metric, timer
 
 logger = get_logger()
 
@@ -183,8 +184,13 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             logger.debug(
                 f"Epoch {epoch_outer}, Inner epoch {epoch_inner}, Reverse Model Loss: {avg_loss:.4f}, Avg Steps: {avg_steps:.4f}"
             )
-        self.writer.add_scalar("train/reverse_model/loss", loss, epoch)
-        self.writer.add_scalar("train/reverse_model/steps", steps, epoch)
+        self.experiment_logger.log_scalars(
+            {
+                "train/reverse_model/loss": loss,
+                "train/reverse_model/steps": steps,
+            },
+            step=epoch,
+        )
 
     def calculate_rev_KL(self) -> float:
         '''
@@ -249,13 +255,18 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             num_projections=self.n_w2_projections,
             device=self.device)
 
-    def eval_kl_ite(self, epoch: int):
-        """
-        Evaluate KL divergence between VI and baseline using ITE and log to TensorBoard. Also evaluate the KL divergence between the true joint distribution and the joint distribution induced by the reverse model.
-        Args:
-            epoch (int): Current epoch number.
-        """
-        super().eval_kl_ite(epoch)
+    @metric()
+    @timer("reverse_ksd_estimation")
+    def _eval_reverse_ksd(self, epoch: int) -> dict[str, float]:
+        rev_ksd, rev_h = self.calculate_rev_KSD()
+        return {
+            "metric/reverse_model/ksd": rev_ksd,
+            "metric/reverse_model/ksd_h": rev_h,
+        }
+
+    @metric("metric/reverse_model/kl_ite")
+    @timer("reverse_kl_estimation")
+    def _eval_reverse_kl(self, epoch: int) -> float:
         try:
             rev_kl_div = self.calculate_rev_KL()
         except RuntimeError as exc:
@@ -264,16 +275,17 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 "Logging NaN and continuing."
             )
             rev_kl_div = float("nan")
-        self.writer.add_scalar("metric/reverse_model/kl_ite", rev_kl_div, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model KL ITE: {rev_kl_div:.4f}")
+        return rev_kl_div
 
-    def eval_w2(self, epoch: int):
-        """
-        Evaluate W2 distance between VI and baseline using sliced wasserstein and log to TensorBoard. Also evaluate the W2 distance between the true joint distribution and the joint distribution induced by the reverse model.
-        Args:
-            epoch (int): Current epoch number.
-        """
-        super().eval_w2(epoch)
+    def eval_kl_ite(self, epoch: int):
+        """Evaluate and log VI and reverse-model KL divergence."""
+        super().eval_kl_ite(epoch)
+        return self._eval_reverse_kl(epoch)
+
+    @metric("metric/reverse_model/w2")
+    @timer("reverse_w2_estimation")
+    def _eval_reverse_w2(self, epoch: int) -> float:
         try:
             rev_w2 = self.calculate_rev_W2()
         except RuntimeError as exc:
@@ -282,8 +294,13 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
                 "Logging NaN and continuing."
             )
             rev_w2 = float("nan")
-        self.writer.add_scalar("metric/reverse_model/w2", rev_w2, epoch)
         logger.debug(f"Epoch {epoch}, Reverse Model W2: {rev_w2:.4f}")
+        return rev_w2
+
+    def eval_w2(self, epoch: int):
+        """Evaluate and log VI and reverse-model Wasserstein distance."""
+        super().eval_w2(epoch)
+        return self._eval_reverse_w2(epoch)
 
     def _train_reverse_model(
         self,
@@ -358,7 +375,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             steps (int): Number of steps taken in the current epoch.
             epoch (int): Current epoch number.
         '''
-        self.writer.add_scalar("warmup/reverse_model_loss", loss, epoch)
+        warmup_scalars = {"warmup/reverse_model_loss": loss}
         self.warmup_sample_loss += loss
         self.warmup_steps += steps
         if (self.training_metric_log_freq
@@ -367,24 +384,24 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
 
             if self.metric_kl_enabled:
                 kl_div = self.calculate_rev_KL()
-                self.writer.add_scalar("warmup/kl_div", kl_div, epoch)
+                warmup_scalars["warmup/kl_div"] = kl_div
                 logger.debug(
                     f"Warmup Epoch {epoch}, KL Divergence: {kl_div:.4f}")
 
             if self.metric_w2_enabled:
                 w2_dist = self.calculate_rev_W2()
-                self.writer.add_scalar("warmup/w2_dist", w2_dist, epoch)
+                warmup_scalars["warmup/w2_dist"] = w2_dist
                 logger.debug(f"Warmup Epoch {epoch}, W2 Dist: {w2_dist:.4f}")
 
             if self.metric_ksd_enabled:
                 rev_ksd, _ = self.calculate_rev_KSD()
-                self.writer.add_scalar("warmup/rev_model_ksd", rev_ksd, epoch)
+                warmup_scalars["warmup/rev_model_ksd"] = rev_ksd
                 logger.debug(
                     f"Warmup Epoch {epoch}, Rev KSD: {rev_ksd:.4f}")
 
             if self.metric_fisher_enabled:
                 fisher_val = self.evaluate_fisher_divergence()
-                self.writer.add_scalar("warmup/fisher_div", fisher_val, epoch)
+                warmup_scalars["warmup/fisher_div"] = fisher_val
                 logger.debug(
                     f"Warmup Epoch {epoch}, Fisher Div: {fisher_val:.4f}")
 
@@ -399,6 +416,7 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
             logger.debug(
                 f"Warmup Epoch {epoch}, Average Reverse Model Loss: {avg_loss:.4f}, Avg Step Time: {avg_step_time:.4f}s, Avg Steps: {avg_steps:.4f}"
             )
+        self.experiment_logger.log_scalars(warmup_scalars, step=epoch)
 
     def warmup(self) -> None:
         '''
@@ -445,11 +463,12 @@ class BaseReverseConditionalRunner(BaseSIVIRunner):
         logger.info(
             f"Warmup completed for {self.warmup_epochs} epochs. Total time: {warmup_time:.3f}s, Avg epoch time: {warmup_time/self.warmup_epochs:.6f}s"
         )
-        self.writer.add_scalar("summary/warmup_time", warmup_time, 0)
-        self.writer.add_scalar(
-            "summary/warmup_avg_epoch_time",
-            warmup_time / self.warmup_epochs,
-            0,
+        self.experiment_logger.log_scalars(
+            {
+                "summary/warmup_time": warmup_time,
+                "summary/warmup_avg_epoch_time": warmup_time / self.warmup_epochs,
+            },
+            step=0,
         )
 
     def save_checkpoint(self, epoch: int):

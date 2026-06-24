@@ -341,6 +341,8 @@ def finalize_job(job: FinalizationJob) -> FinalizeResult:
     )
 
     tb_path: Path | None = None
+    metrics_path: Path | None = None
+    wandb_metadata: dict[str, Any] = {}
     run_log_path: Path | None = None
     extractor_stdout = ""
     extractor_stderr = ""
@@ -353,19 +355,25 @@ def finalize_job(job: FinalizationJob) -> FinalizeResult:
         if job.run_status == "completed":
             if result_path is None:
                 raise RuntimeError("missing result path")
-            tb_path = infer_tb_path(repo_root, result_path, job)
             run_log_path = result_path / "run.log"
             if not result_path.exists():
                 raise RuntimeError(f"result path not found: {result_path}")
-            if not tb_path.exists():
-                raise RuntimeError(f"tb path not found: {tb_path}")
             if not run_log_path.exists():
                 raise RuntimeError(f"run log not found: {run_log_path}")
-            extractor = run_extractor(repo_root, tb_path, job)
-            extractor_stdout = extractor.stdout
-            extractor_stderr = extractor.stderr
-            if extractor.returncode != 0:
-                raise RuntimeError(f"extractor failed with exit code {extractor.returncode}")
+            metrics_path = result_path / "metrics.csv"
+            if not metrics_path.exists():
+                tb_path = infer_tb_path(repo_root, result_path, job)
+                if not tb_path.exists():
+                    raise RuntimeError("neither metrics.csv nor legacy TensorBoard logs found")
+                extractor = run_extractor(repo_root, tb_path, job)
+                extractor_stdout = extractor.stdout
+                extractor_stderr = extractor.stderr
+                if extractor.returncode != 0:
+                    raise RuntimeError(f"extractor failed with exit code {extractor.returncode}")
+                metrics_path = tb_path / "extracted" / "metrics.csv"
+            metadata_path = result_path / "wandb_run.json"
+            if metadata_path.is_file():
+                wandb_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             full_config_path = result_path / "full_config.yaml"
             if full_config_path.exists():
                 artifact_hash = artifact_config_hash(repo_root, full_config_path, job.config_hash_version)
@@ -413,6 +421,11 @@ def finalize_job(job: FinalizationJob) -> FinalizeResult:
         "exit_code": job.exit_code,
         "result_path": relpath(repo_root, repo_path(repo_root, job.result_path)),
         "tb_path": relpath(repo_root, tb_path),
+        "metrics_path": relpath(repo_root, metrics_path),
+        "wandb_run_id": wandb_metadata.get("run_id", ""),
+        "wandb_url": wandb_metadata.get("run_url", ""),
+        "wandb_run_path": wandb_metadata.get("run_path", ""),
+        "wandb_mode": wandb_metadata.get("mode", ""),
         "console_log": relpath(repo_root, repo_path(repo_root, job.console_log)),
         "run_log_tail": tail_file(run_log_path),
         "console_log_tail": tail_file(repo_path(repo_root, job.console_log)),

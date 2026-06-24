@@ -259,8 +259,7 @@ def evaluate_run(
         )
 
     # Cleanup
-    if hasattr(runner, "writer"):
-        runner.writer.close()
+    runner.experiment_logger.finish()
     remove_file_handlers()
     del runner
     if torch.cuda.is_available():

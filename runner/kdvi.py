@@ -239,9 +239,7 @@ class KDVIRunner(BaseSIVIRunner):
                 - 'grad_norm' (Tensor or None): Gradient norm.
                 - 'z' (Tensor): Sampled z for diagnostic logging.
                 - 'epsilon' (Tensor): Sampled epsilon.
-                - 'time_vi_sample' (float): Time for sampling + forward.
-                - 'time_neg_score' (float): Time for MCMC transitions.
-                - 'time_backward' (float): Time for backward + optimizer.
+            Phase timings are emitted directly through ``ExperimentLogger``.
         """
         # ============================================================
         # Phase 1: Sample from q_phi (with reparameterization)
@@ -252,6 +250,8 @@ class KDVIRunner(BaseSIVIRunner):
         z, neg_score = self.vi_model.forward(epsilon)  # z: [N, D], has grad
 
         t_vi1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "vi_sample", t_vi1 - t_vi0, step=epoch)
 
         # ============================================================
         # Phase 2: MCMC refinement (no gradient through this phase)
@@ -325,6 +325,8 @@ class KDVIRunner(BaseSIVIRunner):
         z_refined = mcmc_out.z  # [N, D], detached
 
         t_mcmc1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "neg_score", t_mcmc1 - t_mcmc0, step=epoch)
 
         # ============================================================
         # Phase 3: MMD² loss + backward + optimizer step
@@ -361,35 +363,30 @@ class KDVIRunner(BaseSIVIRunner):
             )
 
         t_bw1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "backward", t_bw1 - t_bw0, step=epoch)
 
         # ============================================================
-        # KDVI-specific TensorBoard diagnostics
+        # KDVI-specific diagnostics
         # ============================================================
-        self.writer.add_scalar(
-            "kdvi/accept_rate", mcmc_out.accept_rate, epoch)
-        self.writer.add_scalar(
-            "kdvi/mean_displacement", mcmc_out.mean_disp, epoch)
-        self.writer.add_scalar(
-            "kdvi/mcmc_step_size", current_step_size, epoch)
-        self.writer.add_scalar(
-            "kdvi/beta_anneal", beta, epoch)
-        self.writer.add_scalar(
-            "kdvi/mcmc_steps_K", current_mcmc_steps, epoch)
-        self.writer.add_scalar(
-            "kdvi/kernel_bandwidth", self.mmd_kernel.h, epoch)
-        self.writer.add_scalar(
-            "kdvi/k_xx_mean", mmd_info['k_xx_mean'], epoch)
-        self.writer.add_scalar(
-            "kdvi/k_yy_mean", mmd_info['k_yy_mean'], epoch)
-        self.writer.add_scalar(
-            "kdvi/k_xy_mean", mmd_info['k_xy_mean'], epoch)
+        self.experiment_logger.log_scalars(
+            {
+                "kdvi/accept_rate": mcmc_out.accept_rate,
+                "kdvi/mean_displacement": mcmc_out.mean_disp,
+                "kdvi/mcmc_step_size": current_step_size,
+                "kdvi/beta_anneal": beta,
+                "kdvi/mcmc_steps_K": current_mcmc_steps,
+                "kdvi/kernel_bandwidth": self.mmd_kernel.h,
+                "kdvi/k_xx_mean": mmd_info['k_xx_mean'],
+                "kdvi/k_yy_mean": mmd_info['k_yy_mean'],
+                "kdvi/k_xy_mean": mmd_info['k_xy_mean'],
+            },
+            step=epoch,
+        )
 
         return {
             'loss': loss,
             'grad_norm': grad_norm,
             'z': z,
             'epsilon': epsilon,
-            'time_vi_sample': t_vi1 - t_vi0,
-            'time_neg_score': t_mcmc1 - t_mcmc0,
-            'time_backward': t_bw1 - t_bw0,
         }
