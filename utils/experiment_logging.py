@@ -116,9 +116,15 @@ class ExperimentLogger:
             tracking = {}
         self.enabled = bool(tracking.get("enabled", True))
         campaign = str(tracking.get("campaign") or "").strip()
+        configured_group = str(tracking.get("group") or "").strip()
+        self.group = configured_group or campaign
         timestamp = self.save_path.name
         base_name = f"{runner_name}-{target_type}-seed{seed}-{timestamp}"
-        self.run_name = f"{campaign}-{base_name}" if campaign else base_name
+        configured_run_name = str(tracking.get("run_name") or "").strip()
+        self.run_name = (
+            configured_run_name
+            or (f"{campaign}-{base_name}" if campaign else base_name)
+        )
         self.tags = [
             f"method:{runner_name}",
             f"target:{target_type}",
@@ -146,7 +152,7 @@ class ExperimentLogger:
                     tracking.get("entity") or os.getenv("WANDB_ENTITY") or ""
                 )
                 or None,
-                group=campaign or None,
+                group=self.group or None,
                 config=config_dict,
             )
         self._write_metadata()
@@ -230,6 +236,7 @@ class ExperimentLogger:
     def _write_metadata(self) -> None:
         metadata = {
             "run_name": self.run_name,
+            "group": self.group,
             "run_id": self.wandb_run_id,
             "run_url": self.wandb_url,
             "run_path": self.wandb_path,
