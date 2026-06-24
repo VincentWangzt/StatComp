@@ -2,7 +2,6 @@ import torch
 from models.target_models import target_distribution
 from models.vi_model import VIModel
 import os
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from datetime import datetime
 from utils.logging import get_logger, set_file_handler
@@ -10,10 +9,10 @@ import ite
 import time
 import numpy as np
 from omegaconf import OmegaConf, DictConfig
-from collections import defaultdict
 from utils.annealing import annealing
 from utils.elm import kde_expected_log_marginal
 from utils.metrics import compute_sliced_wasserstein, compute_ksd, compute_mmd
+from utils.experiment_logging import ExperimentLogger, metric, timer
 
 logger = get_logger()
 
@@ -21,13 +20,13 @@ logger = get_logger()
 class BaseSIVIRunner():
     '''
     The base Reverse SIVI class that encapsulates the model, training, and evaluation.
-    
+
     Key components:
     - Target model: provides `logp` and plotting utilities.
     - VI model: parameterizes q_phi(z|epsilon)
     - Reverse model [Optional]: parameterizes q_psi(epsilon|z) via normalizing flow
-    - Logging and artifact paths: under `results/` and `tb_logs/`.
-    
+    - Logging and artifact paths: W&B data and local files under `results/`.
+
     Args:
         config (DictConfig): Configuration for the experiment.
         name(str): Name of the Runner.
@@ -67,8 +66,8 @@ class BaseSIVIRunner():
         # save path
         self.config.setdefault('output', {})
         results_dir = self.config.output.get('results_dir', 'results')
-        tb_dir = self.config.output.get('tb_dir', 'tb_logs')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.timestamp = timestamp
         self.save_path = os.path.join(results_dir, self.name, self.target_type,
                                       timestamp)
         os.makedirs(self.save_path, exist_ok=True)
@@ -234,13 +233,6 @@ class BaseSIVIRunner():
         # Default no reverse model training, altered in subclasses
         self.reverse_train = False
 
-        # TensorBoard writer
-        self.tb_path = os.path.join(tb_dir, self.name, self.target_type,
-                                    timestamp)
-        os.makedirs(self.tb_path, exist_ok=True)
-
-        self.writer = SummaryWriter(log_dir=self.tb_path)
-
         # --------- Training/Experiment configuration ---------
         self.training_cfg: DictConfig = self.config['train']
         # epochs and batch sizes
@@ -318,7 +310,15 @@ class BaseSIVIRunner():
             'time_avg_window',
             100,
         )
-        self.time_history = defaultdict(list[tuple[float, int]])
+        self.experiment_logger = ExperimentLogger(
+            save_path=self.save_path,
+            config=self.config,
+            runner_name=self.name,
+            target_type=self.target_type,
+            vi_model_type=self.vi_model_type,
+            seed=int(self.config.get('seed', 42)),
+            time_avg_window=self.train_time_avg_window,
+        )
 
         # Starting epoch
         self.train_start_epoch: int = 1
@@ -400,20 +400,15 @@ class BaseSIVIRunner():
 
     def log_config(self):
         '''
-        Log the full configuration to TensorBoard and save as YAML file.
+        Log the full configuration to W&B and save as YAML file.
         '''
-        # Log to TensorBoard as text
         config_str = OmegaConf.to_yaml(self.config, resolve=True)
-        self.writer.add_text(
-            "config/full_config",
-            f"```yaml\n{config_str}\n```",
-            0,
-        )
 
         # Save to YAML file
         config_save_path = os.path.join(self.save_path, "full_config.yaml")
         with open(config_save_path, 'w') as f:
             f.write(config_str)
+        self.experiment_logger.update_config(self.config)
         logger.info(f"Saved full configuration to {config_save_path}.")
 
     def _load_baseline_samples(self) -> np.ndarray | None:
@@ -448,6 +443,14 @@ class BaseSIVIRunner():
     def evaluate_vi_to_baseline_kl(self) -> float:
         """
         Estimate KL divergence KL(q_phi(z) || q_baseline(z)) using `ite.cost.BDKL_KnnK`.
+
+        ``BDKL_KnnK`` is a kNN-based estimator and is **sensitive to the
+        relative sample sizes** of the two empirical distributions: feeding
+        N q-samples vs. M baseline samples with N != M biases the estimate.
+        To match the IVI reference implementation (which uses the same N
+        for both), we subsample the baseline to ``n_ite_samples`` rows
+        before estimating.
+
         Returns:
             kl_div (float): Estimated KL divergence value.
         """
@@ -458,9 +461,22 @@ class BaseSIVIRunner():
         _, z = self.vi_model.sampling(num=self.n_ite_samples)
         z_np = z.cpu().numpy()
 
+        # Subsample baseline to match number of q samples — fresh draw each
+        # call, no replacement, so KL trajectories track the q_phi changes
+        # rather than fluctuations in baseline sample size.
+        if self.baseline_samples.shape[0] > self.n_ite_samples:
+            indices = np.random.choice(
+                self.baseline_samples.shape[0],
+                self.n_ite_samples,
+                replace=False,
+            )
+            baseline_subset = self.baseline_samples[indices]
+        else:
+            baseline_subset = self.baseline_samples
+
         cost_obj = ite.cost.BDKL_KnnK()
         try:
-            kl_div = cost_obj.estimation(z_np, self.baseline_samples)
+            kl_div = cost_obj.estimation(z_np, baseline_subset)
             return float(kl_div)
         except Exception as e:
             logger.error(f"KL estimation failed: {e}")
@@ -497,37 +513,41 @@ class BaseSIVIRunner():
             logger.error(f"W2 estimation failed: {e}")
             raise e
 
-    def eval_kl_ite(self, epoch: int):
+    @metric("metric/vi_model/kl_ite")
+    @timer("kl_estimation")
+    def eval_kl_ite(self, epoch: int) -> float:
         '''
-        Evaluate KL divergence between VI and baseline using ITE and log to TensorBoard.
+        Evaluate KL divergence between VI and baseline and log centrally.
         Args:
             epoch (int): Current epoch number.
         '''
         kl_div = self.evaluate_vi_to_baseline_kl()
-        self.writer.add_scalar("metric/vi_model/kl_ite", kl_div, epoch)
         logger.debug(f"Epoch {epoch}, VI KL to baseline: {kl_div:.4f}")
+        return kl_div
 
-    def eval_w2(self, epoch: int):
+    @metric("metric/vi_model/w2")
+    @timer("w2_estimation")
+    def eval_w2(self, epoch: int) -> float:
         '''
-        Evaluate W2 distance between VI and baseline and log to TensorBoard.
+        Evaluate W2 distance between VI and baseline and log centrally.
         Args:
             epoch (int): Current epoch number.
         '''
         w2_dist = self.evaluate_vi_to_baseline_w2()
-        self.writer.add_scalar("metric/vi_model/w2", w2_dist, epoch)
         logger.debug(f"Epoch {epoch}, VI W2 to baseline: {w2_dist:.4f}")
+        return w2_dist
 
     def evaluate_elbo(self) -> tuple[float, float, float, float]:
         """
         Estimate ELBO using importance sampling for q_phi(z).
         ELBO = E_{z ~ q_phi} [log p(z) - log q_phi(z)]
-        
+
         To estimate log q_phi(z), we use:
         q_phi(z) = E_{epsilon' ~ p(epsilon)} [q_phi(z|epsilon')]
         approximated by Monte Carlo integration over epsilon'.
-        
+
         We use multiple batches to also estimate the standard error of q_phi(z) estimation.
-        
+
         Returns:
             (elbo_mean, elbo_std_total, elbo_std_q, elbo_ci_half) (float, float, float, float): Estimated ELBO mean, total std, std from q(z) estimation, and 1/2 width of 0.95 CI.
         """
@@ -649,22 +669,23 @@ class BaseSIVIRunner():
         return elbo_mean.item(), elbo_std_total.item(), elbo_std_q.item(
         ), elbo_ci_half.item()
 
-    def eval_elbo(self, epoch: int):
+    @metric(prefix="metric/vi_model")
+    @timer("elbo_estimation")
+    def eval_elbo(self, epoch: int) -> dict[str, float]:
         '''
-        Evaluate ELBO metric and log to TensorBoard.
+        Evaluate ELBO metric and log centrally.
         '''
         elbo_val, elbo_std_total, elbo_std_q, elbo_ci_half = self.evaluate_elbo(
         )
-        self.writer.add_scalar("metric/vi_model/elbo", elbo_val, epoch)
-        self.writer.add_scalar("metric/vi_model/elbo_std_total",
-                               elbo_std_total, epoch)
-        self.writer.add_scalar("metric/vi_model/elbo_std_q", elbo_std_q, epoch)
-        self.writer.add_scalar("metric/vi_model/elbo_ci_half", elbo_ci_half,
-                               epoch)
-
         logger.debug(
             f"Epoch {epoch}, ELBO: {elbo_val:.4f}, Std Total: {elbo_std_total:.4f}, Std Q: {elbo_std_q:.4f}, CI Half: {elbo_ci_half:.4f}"
         )
+        return {
+            "elbo": elbo_val,
+            "elbo_std_total": elbo_std_total,
+            "elbo_std_q": elbo_std_q,
+            "elbo_ci_half": elbo_ci_half,
+        }
 
     def _sample_reference_baseline_samples(self,
                                            num_samples: int) -> torch.Tensor:
@@ -750,34 +771,26 @@ class BaseSIVIRunner():
             device=self.device,
         )
 
-    def eval_expected_log_marginal(self, epoch: int):
-        """Evaluate KDE expected log marginal and log to TensorBoard."""
+    @metric()
+    @timer("expected_log_marginal_estimation")
+    def eval_expected_log_marginal(self, epoch: int) -> dict[str, float]:
+        """Evaluate KDE expected log marginal and route it through the logger."""
         estimate = self.evaluate_expected_log_marginal()
         metric_mean = estimate.value
         diagnostics = estimate.diagnostics
-        self.writer.add_scalar(
-            "metric/vi_model/expected_log_marginal",
-            metric_mean,
-            epoch,
-        )
-        self.writer.add_scalar(
-            "metric/vi_model/kde_expected_log_marginal",
-            metric_mean,
-            epoch,
-        )
-        self.writer.add_scalar(
-            "diagnostic/vi_model/kde_expected_log_marginal_std",
-            diagnostics["std_across_refs"],
-            epoch,
-        )
-        self.writer.add_scalar(
-            "diagnostic/vi_model/kde_expected_log_marginal_clamped_dims",
-            diagnostics["num_bandwidth_clamped_dims"],
-            epoch,
-        )
         logger.debug(
             f"Epoch {epoch}, KDE Expected Log Marginal: {metric_mean:.4f}"
         )
+        return {
+            "metric/vi_model/expected_log_marginal": metric_mean,
+            "metric/vi_model/kde_expected_log_marginal": metric_mean,
+            "diagnostic/vi_model/kde_expected_log_marginal_std": diagnostics[
+                "std_across_refs"
+            ],
+            "diagnostic/vi_model/kde_expected_log_marginal_clamped_dims": diagnostics[
+                "num_bandwidth_clamped_dims"
+            ],
+        }
 
     def evaluate_ksd(self) -> float:
         '''
@@ -797,15 +810,17 @@ class BaseSIVIRunner():
             logger.error(f"KSD estimation failed: {e}")
             raise e
 
-    def eval_ksd(self, epoch: int):
+    @metric("metric/vi_model/ksd")
+    @timer("ksd_estimation")
+    def eval_ksd(self, epoch: int) -> float:
         '''
-        Evaluate KSD metric and log to TensorBoard.
+        Evaluate KSD metric and log centrally.
         Args:
             epoch (int): Current epoch number.
         '''
         ksd_val = self.evaluate_ksd()
-        self.writer.add_scalar("metric/vi_model/ksd", ksd_val, epoch)
         logger.debug(f"Epoch {epoch}, VI KSD: {ksd_val:.4f}")
+        return ksd_val
 
     def _init_mmd_baseline_samples(self):
         '''
@@ -849,15 +864,17 @@ class BaseSIVIRunner():
             logger.error(f"MMD estimation failed: {e}")
             raise e
 
-    def eval_mmd(self, epoch: int):
+    @metric("metric/vi_model/mmd")
+    @timer("mmd_estimation")
+    def eval_mmd(self, epoch: int) -> float:
         '''
-        Evaluate MMD metric and log to TensorBoard.
+        Evaluate MMD metric and log centrally.
         Args:
             epoch (int): Current epoch number.
         '''
         mmd_val = self.evaluate_mmd()
-        self.writer.add_scalar("metric/vi_model/mmd", mmd_val, epoch)
         logger.debug(f"Epoch {epoch}, VI MMD: {mmd_val:.4f}")
+        return mmd_val
 
     def evaluate_bnn_metrics(self) -> tuple[float, float]:
         """Sample from VI and compute BNN test RMSE and test log-likelihood.
@@ -870,19 +887,19 @@ class BaseSIVIRunner():
             _, z = self.vi_model.sampling(num=self.n_bnn_samples)
         return self.target_model.rmse_llk(z)
 
-    def eval_bnn(self, epoch: int):
-        """Evaluate BNN RMSE / test log-likelihood and log to TensorBoard.
+    @metric(prefix="metric/vi_model")
+    @timer("bnn_estimation")
+    def eval_bnn(self, epoch: int) -> dict[str, float]:
+        """Evaluate BNN RMSE / test log-likelihood and log centrally.
 
         Args:
             epoch (int): Current epoch number.
         """
         rmse, test_llk = self.evaluate_bnn_metrics()
-        self.writer.add_scalar("metric/vi_model/rmse", rmse, epoch)
-        self.writer.add_scalar("metric/vi_model/test_llk", test_llk, epoch)
-        self.writer.add_scalar("metric/vi_model/nll", -test_llk, epoch)
         logger.debug(
             f"Epoch {epoch}, BNN RMSE: {rmse:.4f}, Test LLK: {test_llk:.4f}, NLL: {-test_llk:.4f}"
         )
+        return {"rmse": rmse, "test_llk": test_llk, "nll": -test_llk}
 
     def evaluate_fisher_divergence(self) -> float:
         """
@@ -939,20 +956,24 @@ class BaseSIVIRunner():
 
         return fisher_div.item()
 
-    def eval_fisher(self, epoch: int):
+    @metric("metric/vi_model/fisher_div")
+    @timer("fisher_estimation")
+    def eval_fisher(self, epoch: int) -> float:
         '''
-        Evaluate Fisher divergence and log to TensorBoard.
+        Evaluate Fisher divergence and log centrally.
         Args:
             epoch (int): Current epoch number.
         '''
         fisher_val = self.evaluate_fisher_divergence()
-        self.writer.add_scalar("metric/vi_model/fisher_div", fisher_val, epoch)
         logger.debug(f"Epoch {epoch}, Fisher Divergence: {fisher_val:.4f}")
+        return fisher_val
 
-    def eval_jacobian_spectral(self, epoch: int):
+    @metric(prefix="metric/vi_model")
+    @timer("jacobian_spectral_estimation")
+    def eval_jacobian_spectral(self, epoch: int) -> dict[str, float]:
         '''
         Evaluate Jacobian spectral norms (Bounded Reparameterization Assumption)
-        and log to TensorBoard.
+        and log centrally.
 
         Computes E_ε[‖∇_φ μ_φ(ε)‖₂⁴] and E_ε[‖∇_φ σ_φ(ε)‖₂⁴] where the
         norm is the matrix 2-norm (spectral norm) of the d_z × d_φ Jacobian.
@@ -969,15 +990,6 @@ class BaseSIVIRunner():
             num=self.n_jacobian_spectral_samples)
         bound = evaluate_assumption_bound(self.vi_model, epsilon)
 
-        self.writer.add_scalar(
-            "metric/vi_model/jacobian_spectral_mu",
-            bound.mean_sq_spectral_mu, epoch)
-        self.writer.add_scalar(
-            "metric/vi_model/jacobian_spectral_std",
-            bound.mean_sq_spectral_std, epoch)
-        self.writer.add_scalar(
-            "metric/vi_model/vi_derivative_fourth_moment",
-            bound.M_eps, epoch)
         logger.debug(
             f"Epoch {epoch}, VI_D4M: {bound.M_eps:.4f} "
             f"(mu: {bound.mean_sq_spectral_mu:.4f}, "
@@ -985,6 +997,11 @@ class BaseSIVIRunner():
 
         if was_training:
             self.vi_model.train()
+        return {
+            "jacobian_spectral_mu": bound.mean_sq_spectral_mu,
+            "jacobian_spectral_std": bound.mean_sq_spectral_std,
+            "vi_derivative_fourth_moment": bound.M_eps,
+        }
 
     def log_reverse_score_l2_to_target(
         self,
@@ -1003,10 +1020,9 @@ class BaseSIVIRunner():
             target_score = self.target_model.score(z_eval.detach())
             score_l2 = torch.mean(
                 torch.sum((score_eval.detach() - target_score)**2, dim=-1))
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/score_l2_to_target",
-                score_l2.item(),
-                self.curr_epoch,
+            self.experiment_logger.log_scalars(
+                {"diagnostic/reverse_model/score_l2_to_target": score_l2.item()},
+                step=self.curr_epoch,
             )
 
     def save_samples(self, epoch: int):
@@ -1196,8 +1212,8 @@ class BaseSIVIRunner():
             optimizer.step()
 
             if step % log_freq == 0 or step == self.pretrain_steps:
-                self.writer.add_scalar("pretrain/vi_model/loss", loss.item(),
-                                       step)
+                self.experiment_logger.log_scalars(
+                    {"pretrain/vi_model/loss": loss.item()}, step=step)
                 logger.info(
                     f"VI pretrain step {step}/{self.pretrain_steps}: "
                     f"loss={loss.item():.6f}"
@@ -1224,7 +1240,7 @@ class BaseSIVIRunner():
         Args:
             z (torch.Tensor): Samples from q_phi(z|epsilon), shape (batch_size, z_dim).
             epsilon (torch.Tensor): Corresponding epsilon samples, shape (batch_size, epsilon_dim).
-        
+
         Returns:
             log_q_phi_z (torch.Tensor): Estimated log q_phi(z), shape (batch_size,).
         '''
@@ -1248,76 +1264,57 @@ class BaseSIVIRunner():
                 - 'grad_norm' (float): Gradient norm before step.
                 - 'z' (torch.Tensor): Sampled z for diagnostic logging.
                 - 'epsilon' (torch.Tensor): Sampled epsilon for diagnostic logging.
-                - 'time_vi_sample' (float): Time for sampling + forward pass.
-                - 'time_neg_score' (float): Time for log q estimation.
-                - 'time_backward' (float): Time for backward pass + optimizer step.
+            Phase timings are emitted directly through ``ExperimentLogger``.
         """
-        # Sample epsilon
-        t_vi0 = time.perf_counter()
-        epsilon = self.vi_model.sample_epsilon(num=self.training_batch_size)
+        with self.experiment_logger.timer("vi_sample", step=epoch):
+            epsilon = self.vi_model.sample_epsilon(num=self.training_batch_size)
+            z, neg_score_implicit = self.vi_model.forward(epsilon)
+            log_prob_target: torch.Tensor = self.target_model.score(
+                z.clone().detach()) * z
+            log_prob_target = log_prob_target.sum(dim=-1)
+            anneal_factor = annealing(
+                t=epoch,
+                warm_up_interval=self.anneal_steps,
+                anneal=self.use_annealing,
+                scheme=self.anneal_scheme,
+            )
+            log_prob_target = log_prob_target * anneal_factor
 
-        # Sample z from variational distribution
-        z, neg_score_implicit = self.vi_model.forward(epsilon)
-
-        # Compute log prob under target distribution using score-gradient trick
-        log_prob_target: torch.Tensor = self.target_model.score(
-            z.clone().detach()) * z
-        log_prob_target = log_prob_target.sum(dim=-1)
-
-        # Apply annealing if enabled
-        anneal_factor = annealing(
-            t=epoch,
-            warm_up_interval=self.anneal_steps,
-            anneal=self.use_annealing,
-            scheme=self.anneal_scheme,
-        )
-        log_prob_target = log_prob_target * anneal_factor
-
-        t_vi1 = time.perf_counter()
-
-        t_ns0 = time.perf_counter()
-
-        # Estimate log q_phi(z)
-        result = self.calc_log_q_phi_z(z, epsilon)
-        if isinstance(result, tuple):
-            log_q_phi_z, score_q = result
-        else:
-            log_q_phi_z = result
-            score_q = None
-
-        t_ns1 = time.perf_counter()
-
-        t_bw0 = time.perf_counter()
-
-        # Compute ELBO loss
-        loss = -torch.mean(log_prob_target - log_q_phi_z)
-        grad_norm = None
-
-        if torch.isfinite(loss):
-            self.optimizer_vi.zero_grad()
-            loss.backward()
-            if self.grad_clip is not None:
-                grad_norm = torch.nn.utils.clip_grad_norm_(
-                    self.vi_model.parameters(), max_norm=self.grad_clip)
+        with self.experiment_logger.timer("neg_score", step=epoch):
+            result = self.calc_log_q_phi_z(z, epsilon)
+            if isinstance(result, tuple):
+                log_q_phi_z, score_q = result
             else:
-                grad_norm = torch.nn.utils.get_total_norm(
-                    [p.grad for p in self.vi_model.parameters() if p.grad is not None])
-            self.optimizer_vi.step()
-            self.scheduler_vi.step()
-            if self.ema_enabled:
-                self.ema.update_params(self.vi_model.parameters())
-        else:
-            logger.warning(
-                f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
-            )
-            logger.debug(
-                f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
-            )
-            logger.debug(
-                f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
-            )
+                log_q_phi_z = result
+                score_q = None
 
-        t_bw1 = time.perf_counter()
+        with self.experiment_logger.timer("backward", step=epoch):
+            loss = -torch.mean(log_prob_target - log_q_phi_z)
+            grad_norm = None
+
+            if torch.isfinite(loss):
+                self.optimizer_vi.zero_grad()
+                loss.backward()
+                if self.grad_clip is not None:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(
+                        self.vi_model.parameters(), max_norm=self.grad_clip)
+                else:
+                    grad_norm = torch.nn.utils.get_total_norm(
+                        [p.grad for p in self.vi_model.parameters() if p.grad is not None])
+                self.optimizer_vi.step()
+                self.scheduler_vi.step()
+                if self.ema_enabled:
+                    self.ema.update_params(self.vi_model.parameters())
+            else:
+                logger.warning(
+                    f"NaN or Inf detected in VI loss at epoch {epoch}. Skipping update."
+                )
+                logger.debug(
+                    f"Detected {(~torch.isfinite(log_prob_target)).sum()} non-finite values in log_prob_target."
+                )
+                logger.debug(
+                    f"Detected {(~torch.isfinite(log_q_phi_z)).sum()} non-finite values in log_q_phi_z."
+                )
 
         return {
             'loss': loss,
@@ -1325,10 +1322,126 @@ class BaseSIVIRunner():
             'z': z,
             'epsilon': epsilon,
             'score_q': score_q,
-            'time_vi_sample': t_vi1 - t_vi0,
-            'time_neg_score': t_ns1 - t_ns0,
-            'time_backward': t_bw1 - t_bw0,
         }
+
+    @timer("epoch")
+    def _run_training_epoch(self, epoch: int) -> None:
+        self.curr_epoch = epoch
+        self.experiment_logger.set_step(epoch)
+
+        diagnostics = self._compute_loss_and_step(epoch)
+        loss = diagnostics['loss']
+        z = diagnostics['z']
+        epsilon = diagnostics['epsilon']
+        grad_norm = diagnostics['grad_norm']
+        score_q = diagnostics.get('score_q', None)
+
+        weight_norm = torch.nn.utils.get_total_norm(self.vi_model.parameters())
+        z_norm = torch.norm(z, dim=1)
+        epsilon_norm = torch.norm(epsilon, dim=1)
+        scalar_batch = {
+            "train/vi_model/loss": loss.item(),
+            "diagnostic/vi_model/weight_norm": weight_norm.item(),
+            "diagnostic/vi_model/z_norm_avg": z_norm.mean().item(),
+            "diagnostic/vi_model/z_norm_std": z_norm.std().item(),
+            "diagnostic/vi_model/epsilon_norm_avg": epsilon_norm.mean().item(),
+            "diagnostic/vi_model/epsilon_norm_std": epsilon_norm.std().item(),
+        }
+        if grad_norm is not None:
+            scalar_batch["diagnostic/vi_model/grad_norm"] = grad_norm.item()
+        if score_q is not None:
+            with torch.no_grad():
+                score_conditional = self.vi_model.score(z.detach(), epsilon.detach())
+                score_gap = torch.mean(
+                    torch.sum((score_q - score_conditional)**2, dim=-1))
+            scalar_batch[
+                "diagnostic/vi_model/marginal_conditional_score_l2_gap"
+            ] = score_gap.item()
+        self.experiment_logger.log_scalars(scalar_batch, step=epoch)
+
+        self.training_sample_loss += loss.item()
+        if epoch % self.training_loss_log_freq == 0:
+            avg_loss = self.training_sample_loss / self.training_loss_log_freq
+            logger.debug(f"Epoch {epoch}: Avg Loss: {avg_loss:.4f}")
+            self.training_sample_loss = 0.0
+
+        if self.reverse_train:
+            with self.experiment_logger.timer("reverse_train", step=epoch):
+                self.train_reverse_model(epoch)
+
+        needs_sample = (epoch % self.training_sample_freq == 0)
+        needs_metrics = (self.training_metric_log_freq > 0
+                         and epoch % self.training_metric_log_freq == 0)
+        needs_plot = (epoch % self.plot_freq == 0)
+
+        ema_swapped = False
+        if self.ema_enabled and (needs_sample or needs_metrics or needs_plot):
+            self.ema.store(self.vi_model.parameters())
+            self.ema.apply_shadow(self.vi_model.parameters())
+            ema_swapped = True
+
+        try:
+            if needs_sample:
+                with self.experiment_logger.timer("sampling", step=epoch):
+                    self.save_samples(epoch)
+
+            if self.ckpt_enabled and (epoch % self.ckpt_freq == 0):
+                with self.experiment_logger.timer("checkpoint", step=epoch):
+                    self.save_checkpoint(epoch)
+
+            if needs_metrics:
+                with self.experiment_logger.timer("metric_eval_tot", step=epoch):
+                    if self.metric_kl_enabled:
+                        self.eval_kl_ite(epoch)
+                    if self.metric_w2_enabled:
+                        self.eval_w2(epoch)
+                    if self.metric_elbo_enabled:
+                        self.eval_elbo(epoch)
+                    if self.metric_expected_log_marginal_enabled:
+                        self.eval_expected_log_marginal(epoch)
+                    if self.metric_mmd_enabled:
+                        self.eval_mmd(epoch)
+                    if self.metric_ksd_enabled:
+                        self.eval_ksd(epoch)
+                    if self.metric_bnn_enabled:
+                        self.eval_bnn(epoch)
+                    if self.metric_fisher_enabled:
+                        self.eval_fisher(epoch)
+                    if self.metric_jacobian_spectral_enabled:
+                        self.eval_jacobian_spectral(epoch)
+
+            if needs_plot:
+                with self.experiment_logger.timer("plot", step=epoch):
+                    _, z_plot = self.vi_model.sampling(num=self.plot_num)
+                    contour_path = os.path.join(
+                        self.plot_save_path, f"contour_epoch_{epoch}.png")
+                    trace_path = os.path.join(
+                        self.plot_save_path, f"trace_epoch_{epoch}.png")
+                    try:
+                        self.target_model.contour_plot(
+                            self.config.target.bbox,
+                            fnet=None,
+                            samples=z_plot.cpu().numpy(),
+                            save_to_path=contour_path,
+                            quiver=False,
+                            t=epoch,
+                        )
+                        plot_path = contour_path
+                        logger.debug(f"Saved contour plot at epoch {epoch}.")
+                    except (NotImplementedError, AttributeError, KeyError):
+                        self.target_model.trace_plot(
+                            z_plot,
+                            figpath=self.plot_save_path,
+                            figname=f"trace_epoch_{epoch}.png",
+                            figtitle=f"Trace Plot at Epoch {epoch}",
+                        )
+                        plot_path = trace_path
+                        logger.debug(f"Saved trace plot at epoch {epoch}.")
+                    self.experiment_logger.log_image(
+                        "plots/posterior", plot_path, step=epoch)
+        finally:
+            if ema_swapped:
+                self.ema.restore(self.vi_model.parameters())
 
     def learn(self):
         '''
@@ -1343,7 +1456,7 @@ class BaseSIVIRunner():
             - loss = - E_q[ log p(z) - nabla_z log q_phi(z) ]
         3. Periodically update the reverse model for several inner epochs using
             samples from the current VI [Optional].
-        
+
         Returns:
             None
         '''
@@ -1356,10 +1469,8 @@ class BaseSIVIRunner():
 
         # Main training loop
         self.vi_model.train()
-        # Timing accumulators
-        last_time = time.perf_counter()
+
         self.train_start_time = time.perf_counter()
-        time_scalars = {}
 
         for epoch in tqdm(
                 range(self.train_start_epoch, self.training_num_epochs + 1),
@@ -1367,250 +1478,7 @@ class BaseSIVIRunner():
                 initial=self.train_start_epoch - 1,
                 total=self.training_num_epochs,
         ):
-            epoch_start_time = time.perf_counter()
-            self.curr_epoch = epoch
-            time_scalars.clear()
-
-            # Compute loss and perform optimizer step
-            diagnostics = self._compute_loss_and_step(epoch)
-            loss = diagnostics['loss']
-            z = diagnostics['z']
-            epsilon = diagnostics['epsilon']
-            grad_norm = diagnostics['grad_norm']
-            score_q = diagnostics.get('score_q', None)
-            time_scalars['vi_sample'] = diagnostics['time_vi_sample']
-            time_scalars['neg_score'] = diagnostics['time_neg_score']
-            time_scalars['backward'] = diagnostics['time_backward']
-
-            # TensorBoard scalars
-            self.writer.add_scalar("train/vi_model/loss", loss.item(), epoch)
-            if grad_norm is not None:
-                self.writer.add_scalar(
-                    "diagnostic/vi_model/grad_norm",
-                    grad_norm.item(),
-                    epoch,
-                )
-            weight_norm = torch.nn.utils.get_total_norm(
-                self.vi_model.parameters())
-            self.writer.add_scalar(
-                "diagnostic/vi_model/weight_norm",
-                weight_norm.item(),
-                epoch,
-            )
-            z_norm = torch.norm(z, dim=1)
-            self.writer.add_scalar(
-                "diagnostic/vi_model/z_norm_avg",
-                z_norm.mean().item(),
-                epoch,
-            )
-            self.writer.add_scalar(
-                "diagnostic/vi_model/z_norm_std",
-                z_norm.std().item(),
-                epoch,
-            )
-            epsilon_norm = torch.norm(epsilon, dim=1)
-            self.writer.add_scalar(
-                "diagnostic/vi_model/epsilon_norm_avg",
-                epsilon_norm.mean().item(),
-                epoch,
-            )
-            self.writer.add_scalar(
-                "diagnostic/vi_model/epsilon_norm_std",
-                epsilon_norm.std().item(),
-                epoch,
-            )
-
-            if score_q is not None:
-                with torch.no_grad():
-                    score_conditional = self.vi_model.score(
-                        z.detach(), epsilon.detach())
-                    score_gap = torch.mean(
-                        torch.sum((score_q - score_conditional)**2, dim=-1))
-                    self.writer.add_scalar(
-                        "diagnostic/vi_model/marginal_conditional_score_l2_gap",
-                        score_gap.item(),
-                        epoch,
-                    )
-
-            self.training_sample_loss += loss.item()
-            if epoch % self.training_loss_log_freq == 0:
-                avg_loss = self.training_sample_loss / self.training_loss_log_freq
-                current_time = time.perf_counter()
-                avg_epoch_time = (current_time -
-                                  last_time) / self.training_loss_log_freq
-
-                logger.debug(
-                    f"Epoch {epoch}: Avg Loss: {avg_loss:.4f}, Avg Epoch Time: {avg_epoch_time:.4f}s"
-                )
-                # Reset accumulators
-                self.training_sample_loss = 0.0
-                last_time = current_time
-
-            # Train reverse model
-            if self.reverse_train:
-                time_rev0 = time.perf_counter()
-                self.train_reverse_model(epoch)
-                time_rev1 = time.perf_counter()
-                time_reverse_step = time_rev1 - time_rev0
-                time_scalars['reverse_train'] = time_reverse_step
-
-            # Generate and save samples
-            needs_sample = (epoch % self.training_sample_freq == 0)
-            needs_metrics = (self.training_metric_log_freq > 0
-                             and epoch % self.training_metric_log_freq == 0)
-            needs_plot = (epoch % self.plot_freq == 0)
-
-            # EMA: swap to shadow params for evaluation/sampling/plotting
-            _ema_swapped = False
-            if self.ema_enabled and (needs_sample or needs_metrics
-                                     or needs_plot):
-                self.ema.store(self.vi_model.parameters())
-                self.ema.apply_shadow(self.vi_model.parameters())
-                _ema_swapped = True
-
-            if needs_sample:
-                time_sample0 = time.perf_counter()
-                self.save_samples(epoch)
-                time_sample1 = time.perf_counter()
-                time_sample_step = time_sample1 - time_sample0
-                time_scalars['sampling'] = time_sample_step
-
-            # Save checkpoints
-            if self.ckpt_enabled and (epoch % self.ckpt_freq == 0):
-                time_ckpt0 = time.perf_counter()
-                self.save_checkpoint(epoch)
-                time_ckpt1 = time.perf_counter()
-                time_ckpt_step = time_ckpt1 - time_ckpt0
-                time_scalars['checkpoint'] = time_ckpt_step
-
-            # Log metrics
-            if needs_metrics:
-
-                t_metric0 = time.perf_counter()
-
-                if self.metric_kl_enabled:
-                    t_kl0 = time.perf_counter()
-                    self.eval_kl_ite(epoch)
-                    t_kl1 = time.perf_counter()
-
-                    time_kl_step = t_kl1 - t_kl0
-                    time_scalars['kl_estimation'] = time_kl_step
-
-                if self.metric_w2_enabled:
-                    t_w2_0 = time.perf_counter()
-                    self.eval_w2(epoch)
-                    t_w2_1 = time.perf_counter()
-
-                    time_w2_step = t_w2_1 - t_w2_0
-                    time_scalars['w2_estimation'] = time_w2_step
-
-                if self.metric_elbo_enabled:
-                    # Evaluate ELBO
-                    t_elbo0 = time.perf_counter()
-                    self.eval_elbo(epoch)
-                    t_elbo1 = time.perf_counter()
-
-                    time_scalars['elbo_estimation'] = t_elbo1 - t_elbo0
-
-                if self.metric_expected_log_marginal_enabled:
-                    t_elm0 = time.perf_counter()
-                    self.eval_expected_log_marginal(epoch)
-                    t_elm1 = time.perf_counter()
-
-                    time_scalars[
-                        'expected_log_marginal_estimation'] = t_elm1 - t_elm0
-
-                if self.metric_mmd_enabled:
-                    t_mmd0 = time.perf_counter()
-                    self.eval_mmd(epoch)
-                    t_mmd1 = time.perf_counter()
-
-                    time_scalars['mmd_estimation'] = t_mmd1 - t_mmd0
-
-                if self.metric_ksd_enabled:
-                    t_ksd0 = time.perf_counter()
-                    self.eval_ksd(epoch)
-                    t_ksd1 = time.perf_counter()
-
-                    time_scalars['ksd_estimation'] = t_ksd1 - t_ksd0
-
-                if self.metric_bnn_enabled:
-                    t_bnn0 = time.perf_counter()
-                    self.eval_bnn(epoch)
-                    t_bnn1 = time.perf_counter()
-
-                    time_scalars['bnn_estimation'] = t_bnn1 - t_bnn0
-
-                if self.metric_fisher_enabled:
-                    t_fisher0 = time.perf_counter()
-                    self.eval_fisher(epoch)
-                    t_fisher1 = time.perf_counter()
-
-                    time_scalars['fisher_estimation'] = t_fisher1 - t_fisher0
-
-                if self.metric_jacobian_spectral_enabled:
-                    t_jspec0 = time.perf_counter()
-                    self.eval_jacobian_spectral(epoch)
-                    t_jspec1 = time.perf_counter()
-
-                    time_scalars['jacobian_spectral_estimation'] = (
-                        t_jspec1 - t_jspec0)
-
-                t_metric1 = time.perf_counter()
-                time_metric_step = t_metric1 - t_metric0
-                time_scalars['metric_eval_tot'] = time_metric_step
-
-            # Generate and save contour plots
-            if needs_plot:
-                t_plot0 = time.perf_counter()
-                _, z_plot = self.vi_model.sampling(num=self.plot_num)
-
-                try:
-                    self.target_model.contour_plot(
-                        self.config.target.bbox,
-                        fnet=None,
-                        samples=z_plot.cpu().numpy(),
-                        save_to_path=os.path.join(
-                            self.plot_save_path,
-                            f"contour_epoch_{epoch}.png",
-                        ),
-                        quiver=False,
-                        t=epoch,
-                    )
-                    logger.debug(f"Saved contour plot at epoch {epoch}.")
-                except Exception as e:
-                    self.target_model.trace_plot(
-                        z_plot,
-                        figpath=self.plot_save_path,
-                        figname=f"trace_epoch_{epoch}.png",
-                        figtitle=f"Trace Plot at Epoch {epoch}",
-                    )
-                    logger.debug(f"Saved trace plot at epoch {epoch}.")
-
-                t_plot1 = time.perf_counter()
-                time_plot_step = t_plot1 - t_plot0
-                time_scalars['plot'] = time_plot_step
-
-            # EMA: restore training params
-            if _ema_swapped:
-                self.ema.restore(self.vi_model.parameters())
-
-            epoch_end_time = time.perf_counter()
-            epoch_time = epoch_end_time - epoch_start_time
-            time_scalars['epoch'] = epoch_time
-
-            # Update time history and log
-            for key, value in time_scalars.items():
-                self.time_history[key].append((value, epoch))
-                self.writer.add_scalar(f"time/{key}", value, epoch)
-
-                while self.time_history[key][0][
-                        1] <= epoch - self.train_time_avg_window:
-                    self.time_history[key].pop(0)
-
-                avg_val = sum(val for val, _ in self.time_history[key]) / min(
-                    self.train_time_avg_window, epoch)
-                self.writer.add_scalar(f"time_avg/{key}", avg_val, epoch)
+            self._run_training_epoch(epoch)
 
         # Close writer at end
         total_time = time.perf_counter() - self.train_start_time
@@ -1618,6 +1486,10 @@ class BaseSIVIRunner():
         logger.info(
             f"Training completed. Total time: {total_time:.3f}s, Avg epoch time: {avg_epoch_time:.6f}s"
         )
-        self.writer.add_scalar("summary/total_training_time", total_time, 0)
-        self.writer.add_scalar("summary/avg_epoch_time", avg_epoch_time, 0)
-        self.writer.close()
+        self.experiment_logger.log_scalars(
+            {
+                "summary/total_training_time": total_time,
+                "summary/avg_epoch_time": avg_epoch_time,
+            },
+            step=self.training_num_epochs,
+        )

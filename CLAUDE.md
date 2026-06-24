@@ -23,7 +23,7 @@ Configs are composed from 4 layers — main experiment configs pull in sub-confi
 
 Keep all experiment outputs inside these existing folders — create subfolders when needed but don't spill generated files elsewhere:
 - Results: `results/{runner_type}/{target_type}/{timestamp}/`
-- TensorBoard: `tb_logs/{runner_type}/{target_type}/{timestamp}/`
+- W&B + live metrics: inside `results/{runner_type}/{target_type}/{timestamp}/`
 
 ## Environment (Local)
 

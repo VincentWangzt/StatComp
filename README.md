@@ -92,11 +92,24 @@ python src.py --config configs/sivi_banana.yaml
 python src.py --config configs/sivi_banana.yaml train.epochs=20000 train.vi.lr=0.001
 ```
 
-Monitor with:
+### Weights & Biases
 
-```bash
-tensorboard --logdir tb_logs/
+Copy the environment template once and add the API key from your W&B account:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set WANDB_API_KEY. WANDB_PROJECT defaults to StatComp.
 ```
+
+Runs are logged online when a key is available. Without a key, or if online
+initialization fails, an offline W&B run is stored inside the corresponding
+result directory. Upload it later with `wandb sync <offline-run-directory>`.
+Because diagnostic histories stay in W&B rather than `metrics.csv`, sync an
+offline run before regenerating gradient- or weight-norm finalization plots.
+
+Run names contain method, target, seed, and timestamp. Campaign runs also use
+the campaign slug as their name prefix, W&B group, and tag. Training plots are
+saved locally and included in the W&B run's image history.
 
 ### Reproducing Results
 
@@ -105,14 +118,16 @@ For full campaign sweeps, baseline generation, and finalization (evaluation + re
 ## Output Layout
 
 ```
-results/{runner_type}/{target_type}/{timestamp}/   # checkpoints, samples, metrics
-tb_logs/{runner_type}/{target_type}/{timestamp}/   # TensorBoard event files
+results/{runner_type}/{target_type}/{timestamp}/   # checkpoints, samples, plots, metrics.csv, W&B data
 campaigns/default_config_grid/
   ├── manifest.csv                                 # job index
   └── generated_reports/                           # figures, tables
 baselines/exact/                                   # toy 2D exact samples (.pt)
 baselines/mcmc/                                    # SGLD samples (.pt)
 ```
+
+TensorBoard remains installed only so historical event files can still be
+extracted; new experiments do not write TensorBoard events.
 
 ## Scripts & Tools
 

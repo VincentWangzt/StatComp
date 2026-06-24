@@ -102,6 +102,7 @@ def prepare_config(rec: RunRecord, *, device: str) -> Any:
             "tb_dir": os.path.join(scratch, "tb", rec.run_id),
         },
     )
+    cfg.tracking = OmegaConf.create({"enabled": False})
     return cfg
 
 
@@ -109,8 +110,7 @@ def build_runner_for_eval(rec: RunRecord, cfg: Any):
     """Instantiate a runner (without loading any checkpoint yet)."""
     set_seed(rec.seed, cfg.device == "cuda")
     runner = Runners[rec.runner_type](config=cfg)
-    if hasattr(runner, "writer"):
-        runner.writer.close()
+    runner.experiment_logger.finish()
     remove_file_handlers()
     return runner
 

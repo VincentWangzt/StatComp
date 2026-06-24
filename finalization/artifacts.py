@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -189,16 +190,18 @@ def load_baseline_samples(target: str) -> torch.Tensor:
 
 
 # ---------------------------------------------------------------------------
-# TensorBoard metric series helpers
+# Metric series helpers (live W&B CSV first, legacy TensorBoard CSV second)
 # ---------------------------------------------------------------------------
 
 def resolve_tb_metrics_csv(rec: RunRecord) -> Path | None:
-    """Derive the path to the extracted metrics.csv for a run.
+    """Resolve a live metrics.csv, falling back to a legacy extraction."""
+    live_path = rec.result_path / "metrics.csv"
+    if live_path.is_file():
+        return live_path
+    recorded_path = resolve_repo_path(rec.entry.get("metrics_path"))
+    if recorded_path is not None and recorded_path.is_file():
+        return recorded_path
 
-    Path pattern:
-        {REPO_ROOT}/{tb_dir}/{runner_type}/{target}/{timestamp}/extracted/metrics.csv
-    where timestamp = basename of result_path.
-    """
     tb_dir = rec.entry.get("tb_dir")
     if not tb_dir:
         return None
@@ -208,6 +211,46 @@ def resolve_tb_metrics_csv(rec: RunRecord) -> Path | None:
     if resolved is not None and resolved.is_file():
         return resolved
     return None
+
+
+def _load_wandb_series(
+    rec: RunRecord, tag: str
+) -> "tuple[np.ndarray, np.ndarray, np.ndarray] | None":
+    """Fetch a diagnostic excluded from local CSV after an online run is synced."""
+    import numpy as np
+
+    metadata: dict[str, Any] = {}
+    metadata_path = rec.result_path / "wandb_run.json"
+    if metadata_path.is_file():
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            metadata = {}
+    run_path = rec.entry.get("wandb_run_path") or metadata.get("run_path")
+    if not run_path:
+        logging.getLogger(__name__).warning(
+            "No W&B run path for %s; skipping %s", rec.run_id, tag)
+        return None
+    try:
+        import wandb
+
+        api_run = wandb.Api().run(str(run_path))
+        rows = list(api_run.scan_history(keys=[tag, "epoch", "_timestamp"]))
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Unable to load %s from W&B for %s", tag, rec.run_id, exc_info=True)
+        return None
+    valid = [row for row in rows if row.get(tag) is not None and row.get("epoch") is not None]
+    if len(valid) < 2:
+        return None
+    steps = np.asarray([row["epoch"] for row in valid], dtype=np.float64)
+    wall_times = np.asarray([row.get("_timestamp", np.nan) for row in valid], dtype=np.float64)
+    values = np.asarray([row[tag] for row in valid], dtype=np.float64)
+    mask = np.isfinite(steps) & np.isfinite(values)
+    if mask.sum() < 2:
+        return None
+    order = np.argsort(steps[mask])
+    return steps[mask][order], wall_times[mask][order], values[mask][order]
 
 
 def load_kl_ite_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.ndarray] | None":
@@ -262,7 +305,7 @@ def load_grad_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.n
 
     csv_path = resolve_tb_metrics_csv(rec)
     if csv_path is None:
-        return None
+        return _load_wandb_series(rec, "diagnostic/vi_model/grad_norm")
     steps: list[int] = []
     wall_times: list[float] = []
     values: list[float] = []
@@ -274,7 +317,7 @@ def load_grad_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np.n
             wall_times.append(float(row["wall_time"]))
             values.append(float(row["value"]))
     if len(steps) < 2:
-        return None
+        return _load_wandb_series(rec, "diagnostic/vi_model/grad_norm")
     steps_arr = np.array(steps, dtype=np.float64)
     wall_times_arr = np.array(wall_times, dtype=np.float64)
     values_arr = np.array(values, dtype=np.float64)
@@ -302,7 +345,7 @@ def load_weight_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np
 
     csv_path = resolve_tb_metrics_csv(rec)
     if csv_path is None:
-        return None
+        return _load_wandb_series(rec, "diagnostic/vi_model/weight_norm")
     steps: list[int] = []
     wall_times: list[float] = []
     values: list[float] = []
@@ -314,7 +357,7 @@ def load_weight_norm_series(rec: RunRecord) -> "tuple[np.ndarray, np.ndarray, np
             wall_times.append(float(row["wall_time"]))
             values.append(float(row["value"]))
     if len(steps) < 2:
-        return None
+        return _load_wandb_series(rec, "diagnostic/vi_model/weight_norm")
     steps_arr = np.array(steps, dtype=np.float64)
     wall_times_arr = np.array(wall_times, dtype=np.float64)
     values_arr = np.array(values, dtype=np.float64)

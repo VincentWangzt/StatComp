@@ -70,9 +70,7 @@ class AISIVIRunner(BaseReverseConditionalRunner):
 
     def eval_ksd(self, epoch: int):
         super().eval_ksd(epoch)
-        rev_ksd, rev_h = self.calculate_rev_KSD()
-        self.writer.add_scalar("metric/reverse_model/ksd", rev_ksd, epoch)
-        self.writer.add_scalar("metric/reverse_model/ksd_h", rev_h, epoch)
+        return self._eval_reverse_ksd(epoch)
 
     def calc_log_q_phi_z(
         self,
@@ -180,25 +178,18 @@ class AISIVIRunner(BaseReverseConditionalRunner):
                     epsilon_aux - epsilon.unsqueeze(1),
                     dim=-1,
                 )).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/avg_epsilon_distance",
-                avg_eps_distance,
-                self.curr_epoch,
-            )
             # Log the average norm of the score function
             avg_score_norm = torch.mean(torch.norm(score, dim=-1)).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/avg_score_norm",
-                avg_score_norm,
-                self.curr_epoch,
-            )
 
             # Log the norm of the average of the score function
             avg_of_score_norm = torch.norm(score.mean(dim=0)).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/norm_of_avg_score",
-                avg_of_score_norm,
-                self.curr_epoch,
+            self.experiment_logger.log_scalars(
+                {
+                    "diagnostic/reverse_model/avg_epsilon_distance": avg_eps_distance,
+                    "diagnostic/reverse_model/avg_score_norm": avg_score_norm,
+                    "diagnostic/reverse_model/norm_of_avg_score": avg_of_score_norm,
+                },
+                step=self.curr_epoch,
             )
 
         log_q_phi_z = torch.sum(score * z, dim=-1)  # shape (batch_size,)

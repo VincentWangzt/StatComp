@@ -26,7 +26,7 @@ def main() -> None:
     parser.add_argument(
         "--remote-artifact-root",
         default=None,
-        help="Optional remote root containing results/ and tb_logs/. Use for campaigns stored outside the repo.",
+        help="Optional remote root containing results/ and legacy tb_logs/. Use for campaigns stored outside the repo.",
     )
     args = parser.parse_args()
 
@@ -52,7 +52,7 @@ fi
 TMP_LIST="$(mktemp)"
 cd "$ARTIFACT_ROOT"
 if [ -d results/{args.campaign_slug} ]; then
-  find results/{args.campaign_slug} -type f \\( -name run.log -o -name full_config.yaml \\) >> "$TMP_LIST"
+  find results/{args.campaign_slug} -type f \\( -name run.log -o -name full_config.yaml -o -name metrics.csv -o -name wandb_run.json \\) >> "$TMP_LIST"
 fi
 if [ -d tb_logs/{args.campaign_slug} ]; then
   find tb_logs/{args.campaign_slug} -type f -path "*/extracted/*" >> "$TMP_LIST"

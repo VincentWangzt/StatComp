@@ -145,7 +145,8 @@ python scripts/run_sgld_baseline.py \
 | Artifact | Path |
 | --- | --- |
 | Run results | `results/default_config_grid/` |
-| TensorBoard logs | `tb_logs/default_config_grid/` |
+| Live scalar metrics | `results/default_config_grid/.../metrics.csv` |
+| W&B run data | Inside each run's result directory |
 | Campaign manifest | `campaigns/default_config_grid/` |
 | Generated reports | `campaigns/default_config_grid/generated_reports/` |
 | Exact baselines | `baselines/exact/` |

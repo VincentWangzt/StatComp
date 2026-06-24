@@ -196,9 +196,7 @@ class UIVIRunner(BaseSIVIRunner):
 
     def eval_ksd(self, epoch: int):
         super().eval_ksd(epoch)
-        rev_ksd, rev_h = self.calculate_rev_KSD()
-        self.writer.add_scalar("metric/reverse_model/ksd", rev_ksd, epoch)
-        self.writer.add_scalar("metric/reverse_model/ksd_h", rev_h, epoch)
+        return self._eval_reverse_ksd(epoch)
 
     def calc_log_q_phi_z(
         self,
@@ -227,10 +225,9 @@ class UIVIRunner(BaseSIVIRunner):
             step_size=self.hmc_step_size,
             leapfrog_steps=self.hmc_leapfrog_steps,
         )
-        self.writer.add_scalar(
-            "train/reverse_model/hmc_accept_rate",
-            acc_rate,
-            self.curr_epoch,
+        self.experiment_logger.log_scalars(
+            {"train/reverse_model/hmc_accept_rate": acc_rate},
+            step=self.curr_epoch,
         )
 
         with torch.no_grad():
@@ -245,10 +242,9 @@ class UIVIRunner(BaseSIVIRunner):
                     epsilon_aux - epsilon.unsqueeze(1),
                     dim=-1,
                 )).item()
-            self.writer.add_scalar(
-                "diagnostic/reverse_model/avg_epsilon_distance",
-                avg_eps_distance,
-                self.curr_epoch,
+            self.experiment_logger.log_scalars(
+                {"diagnostic/reverse_model/avg_epsilon_distance": avg_eps_distance},
+                step=self.curr_epoch,
             )
 
         log_q_phi_z = torch.sum(score * z, dim=-1)  # shape (batch_size,)

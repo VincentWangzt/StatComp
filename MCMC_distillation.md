@@ -1,8 +1,8 @@
 # KDVI: Kernel Distillation Variational Inference
 
-> **Status**: Design document (working draft)  
-> **Working name**: KDVI (temporary)  
-> **Date**: 2026-05-23
+> **Status**: Implemented design
+> **Method name**: Kernel Distillation Variational Inference (KDVI)
+> **Last updated**: 2026-06-23
 
 ---
 
@@ -139,6 +139,7 @@ where $\beta(t)$ increases from $\beta_{\min}$ to $1$ over training.
 | Schedule | Formula | Behavior |
 |----------|---------|----------|
 | **Linear** | $\beta(t) = \beta_{\min} + (1 - \beta_{\min}) \cdot t/T_{\text{anneal}}$ | Simplest; uniform ramp |
+| **Offset linear** | $\beta(t) = \min(1, 0.1 + t/T_{\text{anneal}})$ | Starts at 0.1 and reaches 1 at $0.9T_{\text{anneal}}$; config value `offset_linear` |
 | **Cosine** | $\beta(t) = 1 - (1 - \beta_{\min}) \cdot \frac{1}{2}(1 + \cos(\pi t / T_{\text{anneal}}))$ | Slow start/end, fast middle |
 | **Sigmoid** | $\beta(t) = \beta_{\min} + (1-\beta_{\min}) \cdot \sigma(a(t/T_{\text{anneal}} - 0.5))$ | Smooth S-curve, tunable steepness $a$ |
 
@@ -158,12 +159,14 @@ $$
 
 ### 4.2 Bandwidth Selection
 
-| Method | Formula | Notes |
-|--------|---------|-------|
-| **Median heuristic** (default) | $h = \sqrt{\frac{\text{median}(\|x_i - x_j\|^2)}{2\ln(N+1)}}$ | Adaptive, recomputed per batch. Uses existing `GaussianKernel.fit_h()` from `utils/kernels.py` |
-| **Fixed** | $h$ set in config | Useful for controlled experiments / ablations |
+| Method | Config | Notes |
+|--------|--------|-------|
+| **Variational adaptive** (default) | `fit_bandwidth_on: x` | Refit each step from detached $q_\phi$ samples. |
+| **Joint adaptive** | `fit_bandwidth_on: xy` | Refit each step from the pooled detached variational and MCMC-refined samples. |
+| **Fixed** | `kernel_bandwidth: <positive float>` | Pins the bandwidth and takes precedence over adaptive fitting. |
 
 Bandwidth is **detached** (stop-gradient) by default to avoid degenerate solutions where the kernel collapses.
+The former `y`, `ivi`, and `none` fitting values are not supported.
 
 ### 4.3 Other Kernels (from KSIVI infrastructure)
 
@@ -233,6 +236,10 @@ If $q_\phi = p$, then:
 - MCMC transitions preserve $p$ (by detailed balance or invariance): $z_i' \sim p$.
 - Therefore $\text{MMD}^2(q_\phi, T^K q_\phi) = 0$.
 
+This exact invariance argument applies to corrected kernels such as MALA and
+HMC. Finite-step SGLD is an intentionally biased training transition, so its
+fixed-point interpretation is approximate.
+
 Conversely, if $q_\phi \neq p$ and the MCMC kernel is ergodic, then $T^K q_\phi$ is closer to $p$ (in some sense) than $q_\phi$, so minimizing MMD drives $q_\phi$ toward $p$.
 
 ### 6.2 Relationship to Other Methods
@@ -274,42 +281,45 @@ KDVI Runner (standalone, like KSIVI)
 └── Loss: MMD^2(vi_samples, mcmc_improved_samples)
 ```
 
-### 7.2 New Files / Modifications
+### 7.2 Main Implementation Files
 
-| File | Action | Description |
-|------|--------|-------------|
-| `runner/kdvi.py` | **New** | KDVI runner class |
-| `runner/runners.py` | **Modify** | Register `KDVI` runner type |
-| `utils/mcmc_kernels.py` | **New** | Lightweight MCMC transition interface (batched single/multi-step HMC and MALA/ULA, without the full sampling apparatus of `utils/mcmc.py`) |
-| `utils/mmd.py` | **New** | MMD^2 computation (V-stat and U-stat), paired and unpaired |
-| `configs/kdvi_*.yaml` | **New** | Experiment configs for each target |
-| `configs/mcmc_kernels/` | **New** | MCMC kernel configs (step size, num steps, kernel type) |
+| File | Description |
+|------|-------------|
+| `runner/kdvi.py` | KDVI runner and production configuration parsing |
+| `utils/mcmc_kernels.py` | Batched SGLD, HMC, and analytic-score MALA transitions |
+| `utils/mmd.py` | Differentiable biased V-statistic MMD² objective |
+| `configs/kdvi_*.yaml` | Separate convenience configuration for each target |
 
 ### 7.3 Config Structure
 
 ```yaml
-runner_type: "KDVI"
-
-target:
-  type: banana    # or any supported target
-
-vi_model:
-  # ... same as other runners
+runner_type: KDVI
+target_type: banana
+vi_model_type: ConditionalGaussian
 
 train:
   epochs: 50000
-  batch_size: 512
+  batch_size: 128
   vi:
-    lr: 0.001
-    optimizer: Adam
+    lr: 1.0e-3
+    scheduler:
+      type: StepLR
+      step_size: 2000
+      gamma: 0.9
+
+  annealing:
+    enabled: true
+    scheme: offset_linear       # linear | sigmoid | offset_linear
+    steps: 25000
   
   kdvi:
-    # MCMC kernel settings
-    mcmc_kernel: "mala"          # "hmc" | "mala" | "ula"
-    mcmc_steps: 5               # K: number of transition steps
-    mcmc_step_size: 0.01        # step size (tau or epsilon)
-    mcmc_num_leapfrog: 10       # HMC only: leapfrog steps per transition
-    use_mh_correction: false    # whether to apply accept/reject
+    mcmc_type: sgld             # sgld | hmc | mala
+    mcmc_steps: 5
+    mcmc_step_size: 0.05
+    hmc_leapfrog_steps: 10
+    kernel: gaussian
+    fit_bandwidth_on: x         # x | xy; default x
+    kernel_bandwidth: null      # positive float selects fixed bandwidth
     
     # Step schedule (optional)
     mcmc_steps_schedule:
@@ -318,23 +328,8 @@ train:
       max_steps: 10
       warmup_epochs: 10000      # linearly increase K over this many epochs
     
-    # Target annealing (optional)
-    target_anneal:
-      enabled: false
-      schedule: "linear"        # "linear" | "cosine" | "sigmoid"
-      beta_min: 0.01            # starting temperature (0 = flat, 1 = full target)
-      warmup_epochs: 20000      # epochs to anneal from beta_min to 1.0
-      sigmoid_steepness: 10.0   # only used if schedule == "sigmoid"
-    
-    # MMD settings
-    mmd_kernel: "gaussian"      # "gaussian" | "imq" | "laplace"
-    mmd_statistic: "v"          # "v" (V-stat) | "u" (U-stat)
-    bandwidth_method: "median"  # "median" | "fixed"
-    bandwidth_fixed: null       # used only if bandwidth_method == "fixed"
-    detach_bandwidth: true      # stop-gradient through bandwidth
-    
-    # Sample pairing
-    sample_mode: "paired"       # "paired" | "unpaired"
+    step_size_schedule:
+      type: none                # none | cosine | coupled
 ```
 
 ---
@@ -410,7 +405,7 @@ train:
 
 ## Implementation Status
 
-> **Last updated**: 2026-05-25
+> **Last updated**: 2026-06-23
 
 ### V1 — Implemented and Validated
 
@@ -428,9 +423,9 @@ train:
 **V1 Scope:**
 - MCMC kernels: SGLD (no accept/reject) + HMC (with M-H correction) + MALA (Langevin + M-H)
 - K-step scheduling: linear ramp from K_min to K_max over warmup_epochs
-- MMD loss: V-statistic, paired mode, Gaussian RBF kernel with median heuristic bandwidth
-- Target annealing: Linear schedule (reuses existing `utils/annealing.py`)
-- Bandwidth fitting: Recomputed per epoch on q_phi samples (detached)
+- MMD loss: biased V-statistic, paired mode
+- Target annealing: linear, sigmoid, or offset-linear schedule
+- Bandwidth fitting: adaptive on `x`/`xy`, or fixed via `kernel_bandwidth`
 - Full integration with base runner: metrics (KL, W2, ELBO), TensorBoard logging, contour plots, checkpointing, EMA
 
 ### V2 — To Be Implemented

@@ -164,8 +164,7 @@ def _load_plot_samples(column: str, target: str, seed: int, idx: dict[tuple[int,
         try:
             return _sample_vi(runner, count, int(plot_cfg.get("sample_batch_size", 10000)))
         finally:
-            if hasattr(runner, "writer"):
-                runner.writer.close()
+            runner.experiment_logger.finish()
             remove_file_handlers()
             del runner
             if torch.cuda.is_available():

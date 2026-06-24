@@ -53,6 +53,13 @@ if __name__ == "__main__":
 
     runner_type = main_cfg.runner_type
 
-    runner = Runners[runner_type](config=main_cfg)
-    runner.log_config()
-    runner.learn()
+    runner = None
+    exit_code = 1
+    try:
+        runner = Runners[runner_type](config=main_cfg)
+        runner.log_config()
+        runner.learn()
+        exit_code = 0
+    finally:
+        if runner is not None and hasattr(runner, "experiment_logger"):
+            runner.experiment_logger.finish(exit_code=exit_code)

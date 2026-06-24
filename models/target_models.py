@@ -200,12 +200,15 @@ class Toy_2D:
             bbox[2] : bbox[3] : _CONTOUR_GRID_RES,
         ]
         positions = np.vstack([xx.ravel(), yy.ravel()])
-        f = -np.log(
-            -np.reshape(
-                self.logp(torch.Tensor(positions.T).to(self.device)).cpu().numpy(),
-                xx.shape,
-            )
+        logp_grid = np.reshape(
+            self.logp(torch.Tensor(positions.T).to(self.device)).cpu().numpy(),
+            xx.shape,
         )
+        # Log-compressed contour heights for even-looking bands. We shift by
+        # the grid maximum so the argument of log() is strictly positive even
+        # when logp > 0 (e.g. narrow modes like 8_gaussians_small), avoiding
+        # NaNs that matplotlib renders as white holes at the mode peaks.
+        f = -np.log(logp_grid.max() - logp_grid + 1e-6)
         if samples is None:
             samples = self.sample(_CONTOUR_N_SAMPLES).cpu().numpy()
 

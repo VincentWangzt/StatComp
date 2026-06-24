@@ -72,10 +72,9 @@ class SIVIRunner(BaseSIVIRunner):
                 epsilon_aux - epsilon.unsqueeze(1),
                 dim=-1,
             )).item()
-        self.writer.add_scalar(
-            "diagnostic/reverse_model/avg_epsilon_distance",
-            avg_eps_distance,
-            self.curr_epoch,
+        self.experiment_logger.log_scalars(
+            {"diagnostic/reverse_model/avg_epsilon_distance": avg_eps_distance},
+            step=self.curr_epoch,
         )
 
         return log_q_phi_z  # shape (batch_size,)

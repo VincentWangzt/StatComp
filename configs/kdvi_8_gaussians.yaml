@@ -1,49 +1,48 @@
-# KDVI on 8-Gaussians distribution
-# MCMC distillation: SGLD transitions + MMD² loss
-seed: 42
+seed: 7
 cuda_visible_devices: "0"
 use_cuda: true
 
 runner_type: KDVI
 target_type: 8_gaussians
 vi_model_type: ConditionalGaussian
+vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yaml
 
 train:
-  epochs: 50000
+  epochs: 100000
   batch_size: 128
   vi:
     lr: 1.0e-3
-    var_lr: 1.0e-3
     scheduler:
       type: StepLR
-      step_size: 2000
-      gamma: 0.9
+      step_size: 5000
+      gamma: 0.75
   annealing:
     enabled: true
-    scheme: linear
-    steps: 25000
+    scheme: offset_linear
+    steps: 50000
   kdvi:
-    mcmc_type: sgld             # 'sgld' or 'hmc'
-    mcmc_steps: 5               # K — number of transition steps
-    mcmc_step_size: 0.05        # step size (conservative)
-    hmc_leapfrog_steps: 10      # L — leapfrog sub-steps (HMC only)
-    kernel: gaussian            # kernel for MMD (from utils/kernels.py registry)
-    fit_bandwidth_on: x         # 'x', 'y', 'xy', or 'none'
-  grad_clip: 10.0
+    mcmc_type: mala
+    mcmc_steps: 1
+    mcmc_step_size: 0.50
+    kernel: laplace_l2
+    fit_bandwidth_on: x
+    step_size_schedule:
+      type: coupled
+  grad_clip: null
   log:
-    metric_log_freq: 500
-    loss_log_freq: 100
-    reverse_log_freq: 500
+    metric_log_freq: 5000
+    loss_log_freq: 1000
+    reverse_log_freq: 5000
     time_avg_window: 500
   checkpoint:
-    enabled: true
-    freq: 5000
+    enabled: false
+    freq: 200000
   sample:
-    freq: 5000
-    num: 10000
+    freq: 200000
+    num: 5000
   plot:
-    freq: 5000
-    num: 10000
+    freq: 200000
+    num: 2000
   ema:
     enabled: false
     beta: 0.999
@@ -51,36 +50,28 @@ train:
 metric:
   kl_ite:
     enabled: true
-    num_samples: 10000
+    num_samples: 5000
   w2:
-    enabled: true
-    num_samples: 10000
-    num_projections: 1000
+    enabled: false
+    num_samples: 1000
+    num_projections: 100
   elbo:
-    enabled: true
-    batch_size: 512
-    num_batches: 10
-    num_z_samples: 5000
+    enabled: false
+    batch_size: 128
+    num_batches: 1
+    num_z_samples: 100
   fisher:
     enabled: false
     num_samples: 1000
     num_is_samples: 512
   ksd:
     enabled: false
-    num_samples: 2000
+    num_samples: 1000
   mmd:
-    enabled: true
+    enabled: false
     num_samples: 1000
   bnn:
     enabled: false
     num_samples: 500
   expected_log_marginal:
     enabled: false
-    num_ref_samples: 1000
-    num_model_samples: 50000
-    sample_batch_size: 50000
-    dim_chunk: 50
-    ref_chunk: 500
-    model_chunk: 5000
-    min_bandwidth: 1.0e-6
-    dtype: float32

@@ -503,9 +503,13 @@ class LaplaceL2Kernel(BaseKernel):
 
     def fit_h(self, samples: torch.Tensor) -> float:
 
-        # Median heuristic on the Euclidean (L2) distance.
-        pairwise_dists_sq = _pairwise_squared_distances(samples)
-        pairwise_dists = torch.sqrt(torch.clamp_min(pairwise_dists_sq, 0.0))
+        # Median heuristic on the Euclidean (L2) distance. Use ``torch.cdist``
+        # (default compute_mode) to byte-match the reference notebook
+        # IVI-via-mcmc-distillation/run_ivi.py::maximum_mean_discrepancy, which
+        # computes distances via ``torch.cdist(..., p=2)``. The previous manual
+        # ``sqrt(x_norm + y_norm - 2 x yᵀ + 1e-12)`` differs from cdist at
+        # float32 level (and in its backward), which breaks bit-level parity.
+        pairwise_dists = torch.cdist(samples, samples, p=2)
         h = torch.median(pairwise_dists)
         h = torch.clamp_min(h, 1e-12)
         self.h = h.item()
@@ -522,10 +526,11 @@ class LaplaceL2Kernel(BaseKernel):
         if samples_y is None:
             samples_y = samples_x
 
-        pairwise_dists_sq = _pairwise_squared_distances(samples_x, samples_y)
-        # sqrt is non-differentiable at 0; use a tiny eps to keep gradients
-        # well-behaved when x = y (diagonal entries).
-        pairwise_dists = torch.sqrt(pairwise_dists_sq + 1e-12)
+        # torch.cdist (default compute_mode) to byte-match the IVI notebook's
+        # ``torch.cdist(..., p=2)``. cdist also handles the non-differentiable
+        # point x = y with a well-defined (zero) subgradient on the diagonal,
+        # so no epsilon is needed.
+        pairwise_dists = torch.cdist(samples_x, samples_y, p=2)
 
         if fit_h or self.h < 0:
             d_for_h = pairwise_dists.detach() if detach_h else pairwise_dists
@@ -539,7 +544,10 @@ class LaplaceL2Kernel(BaseKernel):
                 dtype=samples_x.dtype,
             )
 
-        kxy = torch.exp(-pairwise_dists / (h * 2))
+        # Textually identical to the IVI notebook's
+        # ``(-term / (2 * h)).exp()`` so the autograd graph (and its float32
+        # backward reduction order) matches bit-for-bit.
+        kxy = (-pairwise_dists / (2 * h)).exp()
         return kxy
 
     def grad_all(

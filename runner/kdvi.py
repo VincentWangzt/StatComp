@@ -5,12 +5,12 @@ Trains an implicit variational model q_phi by distilling MCMC transition
 kernels. At each iteration:
 
 1. Draw samples z ~ q_phi via reparameterization (gradient-carrying).
-2. Run K steps of MCMC (SGLD or HMC) starting from z.detach(), targeting
+2. Run K steps of MCMC (SGLD, HMC, or MALA) starting from z.detach(), targeting
    the (possibly annealed) posterior p.
 3. Minimize MMD²(z, z') where z' are the MCMC-refined samples (detached).
 
-At convergence, q_phi = p implies the MCMC kernel is a fixed point
-(samples don't move), so MMD² = 0.
+For invariant MCMC kernels, q_phi = p is a distributional fixed point and
+therefore MMD² = 0. Finite-step SGLD is used as a biased training transition.
 
 Key properties:
 - No reverse model needed (unlike RSIVI/AISIVI/DSIVI).
@@ -32,9 +32,12 @@ Config keys under ``train.kdvi``:
     hmc_leapfrog_steps (int): Leapfrog sub-steps per HMC transition (L).
         Only used when mcmc_type='hmc'. Default: 10.
     kernel (str): Kernel type for MMD computation. One of 'gaussian',
-        'imq', 'laplace', 'riesz'. Default: 'gaussian'.
-    fit_bandwidth_on (str): Bandwidth fitting strategy. One of 'x', 'y',
-        'xy', 'none'. Default: 'x'.
+        'gaussian_mmd', 'imq', 'laplace', 'laplace_l2', or 'riesz'.
+        Default: 'gaussian'.
+    fit_bandwidth_on (str): Adaptive bandwidth fitting strategy. One of 'x'
+        or 'xy'. Default: 'x'.
+    kernel_bandwidth (float, optional): Positive fixed kernel bandwidth. When
+        provided, disables adaptive bandwidth fitting.
     mcmc_steps_schedule (dict): Optional K-step scheduling.
         enabled (bool): Whether to ramp K over training. Default: False.
         min_steps (int): Starting K. Default: 1.
@@ -49,8 +52,12 @@ import torch
 from omegaconf import DictConfig
 
 from runner.base_runner import BaseSIVIRunner
-from utils.mcmc_kernels import sgld_transition, hmc_transition, mala_transition
-from utils.mmd import mmd2_v_statistic, mmd_no_xx
+from utils.mcmc_kernels import (
+    sgld_transition,
+    hmc_transition,
+    mala_transition,
+)
+from utils.mmd import configure_kernel_bandwidth, mmd2_v_statistic
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
@@ -104,42 +111,19 @@ class KDVIRunner(BaseSIVIRunner):
             f"kernel must be one of {list(Kernels.keys())}, got '{kernel_type}'"
         self.mmd_kernel = Kernels[kernel_type]()
         self.mmd_kernel_type: str = kernel_type
-        self.fit_bandwidth_on: str = kdvi_cfg.get('fit_bandwidth_on', 'x')
-        assert self.fit_bandwidth_on in ('x', 'y', 'xy', 'none'), \
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', " \
-            f"got '{self.fit_bandwidth_on}'"
-
-        # Loss formulation:
-        #   'v_statistic' (default): k_xx + k_yy - 2 k_xy  (full V-statistic)
-        #   'no_xx': 0.5 k_yy - k_xy  (drops the k_xx self-repulsion term;
-        #            matches the IVI-via-mcmc-distillation notebook).
-        loss_type: str = str(kdvi_cfg.get('mmd_loss', 'v_statistic')).lower()
-        assert loss_type in ('v_statistic', 'no_xx'), (
-            f"mmd_loss must be 'v_statistic' or 'no_xx', got '{loss_type}'"
-        )
-        self.mmd_loss_type: str = loss_type
-
-        # Loss formulation:
-        #   'v_statistic' (default): k_xx + k_yy - 2 k_xy  (full V-statistic)
-        #   'no_xx': 0.5 k_yy - k_xy  (drops the k_xx self-repulsion term;
-        #            matches the IVI-via-mcmc-distillation notebook).
-        loss_type: str = str(kdvi_cfg.get('mmd_loss', 'v_statistic')).lower()
-        assert loss_type in ('v_statistic', 'no_xx'), (
-            f"mmd_loss must be 'v_statistic' or 'no_xx', got '{loss_type}'"
-        )
-        self.mmd_loss_type: str = loss_type
-
-        # Optional fixed bandwidth — if set, overrides fit_bandwidth_on with
-        # 'none' and pins kernel.h to this value for the entire training run.
+        # Optional fixed bandwidth — if set, overrides adaptive fitting and
+        # pins kernel.h to this value for the entire training run.
         # Set kernel_bandwidth to null/None or omit it to keep current
         # adaptive median-heuristic behavior.
         kb = kdvi_cfg.get('kernel_bandwidth', None)
         self.fixed_kernel_bandwidth: float | None = (
             float(kb) if kb is not None else None
         )
-        if self.fixed_kernel_bandwidth is not None:
-            self.mmd_kernel.h = self.fixed_kernel_bandwidth
-            self.fit_bandwidth_on = 'none'
+        self.fit_bandwidth_on = configure_kernel_bandwidth(
+            kernel=self.mmd_kernel,
+            fit_bandwidth_on=kdvi_cfg.get('fit_bandwidth_on', 'x'),
+            kernel_bandwidth=self.fixed_kernel_bandwidth,
+        )
 
         # Optional step-size schedule:
         #   step_size_schedule:
@@ -171,14 +155,12 @@ class KDVIRunner(BaseSIVIRunner):
             f"mcmc_step_size={self.mcmc_step_size}, "
             f"hmc_leapfrog_steps={self.hmc_leapfrog_steps}, "
             f"mmd_kernel={kernel_type}, "
-            f"fit_bandwidth_on={self.fit_bandwidth_on}, "
-            f"mmd_loss={self.mmd_loss_type}"
+            f"fit_bandwidth_on={self.fit_bandwidth_on}"
         )
         if self.fixed_kernel_bandwidth is not None:
             logger.info(
                 f"Fixed kernel bandwidth enabled: h="
-                f"{self.fixed_kernel_bandwidth} (fit_bandwidth_on forced "
-                f"to 'none')"
+                f"{self.fixed_kernel_bandwidth} (adaptive fitting disabled)"
             )
         if self.step_size_schedule_type != 'none':
             logger.info(
@@ -257,9 +239,7 @@ class KDVIRunner(BaseSIVIRunner):
                 - 'grad_norm' (Tensor or None): Gradient norm.
                 - 'z' (Tensor): Sampled z for diagnostic logging.
                 - 'epsilon' (Tensor): Sampled epsilon.
-                - 'time_vi_sample' (float): Time for sampling + forward.
-                - 'time_neg_score' (float): Time for MCMC transitions.
-                - 'time_backward' (float): Time for backward + optimizer.
+            Phase timings are emitted directly through ``ExperimentLogger``.
         """
         # ============================================================
         # Phase 1: Sample from q_phi (with reparameterization)
@@ -270,6 +250,8 @@ class KDVIRunner(BaseSIVIRunner):
         z, neg_score = self.vi_model.forward(epsilon)  # z: [N, D], has grad
 
         t_vi1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "vi_sample", t_vi1 - t_vi0, step=epoch)
 
         # ============================================================
         # Phase 2: MCMC refinement (no gradient through this phase)
@@ -327,9 +309,13 @@ class KDVIRunner(BaseSIVIRunner):
                 n_steps=current_mcmc_steps,
             )
         elif self.mcmc_type == 'mala':
+            # Use the analytic annealed target score for the Langevin drift;
+            # log_prob_fn is only evaluated for the M-H acceptance ratio.
+            score_fn = lambda z_in: beta * self.target_model.score(z_in)
             mcmc_out = mala_transition(
                 z_init=z.detach(),
                 log_prob_fn=log_prob_fn,
+                score_fn=score_fn,
                 step_size=current_step_size,
                 n_steps=current_mcmc_steps,
             )
@@ -339,15 +325,15 @@ class KDVIRunner(BaseSIVIRunner):
         z_refined = mcmc_out.z  # [N, D], detached
 
         t_mcmc1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "neg_score", t_mcmc1 - t_mcmc0, step=epoch)
 
         # ============================================================
         # Phase 3: MMD² loss + backward + optimizer step
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        loss, mmd_info = (
-            mmd_no_xx if self.mmd_loss_type == 'no_xx' else mmd2_v_statistic
-        )(
+        loss, mmd_info = mmd2_v_statistic(
             x=z,
             y=z_refined,
             kernel=self.mmd_kernel,
@@ -377,35 +363,30 @@ class KDVIRunner(BaseSIVIRunner):
             )
 
         t_bw1 = time.perf_counter()
+        self.experiment_logger.record_timing(
+            "backward", t_bw1 - t_bw0, step=epoch)
 
         # ============================================================
-        # KDVI-specific TensorBoard diagnostics
+        # KDVI-specific diagnostics
         # ============================================================
-        self.writer.add_scalar(
-            "kdvi/accept_rate", mcmc_out.accept_rate, epoch)
-        self.writer.add_scalar(
-            "kdvi/mean_displacement", mcmc_out.mean_disp, epoch)
-        self.writer.add_scalar(
-            "kdvi/mcmc_step_size", current_step_size, epoch)
-        self.writer.add_scalar(
-            "kdvi/beta_anneal", beta, epoch)
-        self.writer.add_scalar(
-            "kdvi/mcmc_steps_K", current_mcmc_steps, epoch)
-        self.writer.add_scalar(
-            "kdvi/kernel_bandwidth", self.mmd_kernel.h, epoch)
-        self.writer.add_scalar(
-            "kdvi/k_xx_mean", mmd_info['k_xx_mean'], epoch)
-        self.writer.add_scalar(
-            "kdvi/k_yy_mean", mmd_info['k_yy_mean'], epoch)
-        self.writer.add_scalar(
-            "kdvi/k_xy_mean", mmd_info['k_xy_mean'], epoch)
+        self.experiment_logger.log_scalars(
+            {
+                "kdvi/accept_rate": mcmc_out.accept_rate,
+                "kdvi/mean_displacement": mcmc_out.mean_disp,
+                "kdvi/mcmc_step_size": current_step_size,
+                "kdvi/beta_anneal": beta,
+                "kdvi/mcmc_steps_K": current_mcmc_steps,
+                "kdvi/kernel_bandwidth": self.mmd_kernel.h,
+                "kdvi/k_xx_mean": mmd_info['k_xx_mean'],
+                "kdvi/k_yy_mean": mmd_info['k_yy_mean'],
+                "kdvi/k_xy_mean": mmd_info['k_xy_mean'],
+            },
+            step=epoch,
+        )
 
         return {
             'loss': loss,
             'grad_norm': grad_norm,
             'z': z,
             'epsilon': epsilon,
-            'time_vi_sample': t_vi1 - t_vi0,
-            'time_neg_score': t_mcmc1 - t_mcmc0,
-            'time_backward': t_bw1 - t_bw0,
         }

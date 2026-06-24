@@ -28,11 +28,40 @@ from typing import Tuple
 from utils.kernels import BaseKernel
 
 
+def configure_kernel_bandwidth(
+    kernel: BaseKernel,
+    fit_bandwidth_on: str = "x",
+    kernel_bandwidth: float | None = None,
+) -> str | None:
+    """Resolve adaptive versus fixed bandwidth configuration.
+
+    A fixed positive bandwidth takes precedence over the adaptive source.
+    Otherwise only variational (``"x"``) and pooled (``"xy"``) fitting are
+    supported.
+    """
+    if kernel_bandwidth is not None:
+        fixed = float(kernel_bandwidth)
+        if fixed <= 0:
+            raise ValueError(
+                f"kernel_bandwidth must be positive, got {fixed}"
+            )
+        kernel.h = fixed
+        return None
+
+    fit_source = str(fit_bandwidth_on).lower()
+    if fit_source not in ("x", "xy"):
+        raise ValueError(
+            "fit_bandwidth_on must be 'x' or 'xy', "
+            f"got '{fit_source}'"
+        )
+    return fit_source
+
+
 def mmd2_v_statistic(
     x: Tensor,
     y: Tensor,
     kernel: BaseKernel,
-    fit_bandwidth_on: str = "x",
+    fit_bandwidth_on: str | None = "x",
 ) -> Tuple[Tensor, dict]:
     """Compute the biased V-statistic estimator of MMD².
 
@@ -59,10 +88,8 @@ def mmd2_v_statistic(
         fit_bandwidth_on: Strategy for fitting the kernel bandwidth:
             - ``"x"``: Fit on q_phi samples (detached). Tracks the current
               scale of the variational distribution. **Recommended default.**
-            - ``"y"``: Fit on MCMC-refined samples.
             - ``"xy"``: Fit on the pooled set of both x and y.
-            - ``"none"``: Use whatever bandwidth is currently set on the
-              kernel object (useful for fixed-bandwidth experiments).
+            - ``None``: Use a positive bandwidth already set on the kernel.
 
     Returns:
         A tuple ``(mmd2, info)`` where:
@@ -83,15 +110,17 @@ def mmd2_v_statistic(
     # 1. Fit bandwidth (detached — no gradient through bandwidth selection)
     if fit_bandwidth_on == "x":
         kernel.fit_h(x.detach())
-    elif fit_bandwidth_on == "y":
-        kernel.fit_h(y.detach())
     elif fit_bandwidth_on == "xy":
         kernel.fit_h(torch.cat([x.detach(), y.detach()], dim=0))
-    elif fit_bandwidth_on == "none":
-        pass  # Use existing kernel.h
+    elif fit_bandwidth_on is None:
+        if kernel.h <= 0:
+            raise ValueError(
+                "A positive kernel bandwidth must be set when adaptive "
+                "bandwidth fitting is disabled."
+            )
     else:
         raise ValueError(
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', "
+            f"fit_bandwidth_on must be 'x', 'xy', or None, "
             f"got '{fit_bandwidth_on}'"
         )
 
@@ -117,81 +146,3 @@ def mmd2_v_statistic(
     }
 
     return mmd2, info
-
-
-def mmd_no_xx(
-    x: Tensor,
-    y: Tensor,
-    kernel: BaseKernel,
-    fit_bandwidth_on: str = "xy",
-) -> Tuple[Tensor, dict]:
-    """Biased MMD-like loss matching the IVI-via-mcmc-distillation notebook.
-
-    The notebook computes::
-
-        L = 0.5 * E[k(samp_x, samp_x)] - E[k(next_x_detached, samp_x)]
-
-    where ``samp_x`` carries gradients and ``next_x`` is the MCMC-refined
-    sample (detached). In the KDVI naming convention (``x`` = q_phi
-    samples with grad, ``y`` = MCMC-refined detached) that is::
-
-        L = 0.5 * E[k(x, x')] - E[k(x, y')]
-          = 0.5 * k_xx_mean - k_xy_mean
-
-    so the term that gets dropped relative to the V-statistic
-    (``k_xx + k_yy - 2 k_xy``) is **k_yy**, not k_xx. The gradient
-    therefore is ``0.5 * ∇k_xx - ∇k_xy`` — half the V-statistic's
-    self-repulsion strength relative to the cross term.
-
-    Note: under KDVI's gradient flow ``y`` is fully detached, so
-    omitting ``k_yy`` from the loss expression has zero effect on the
-    gradient. The functional difference between this loss and
-    ``mmd2_v_statistic`` is purely the (constant) factor on
-    ``k_xx_mean`` — the V-statistic uses ``+1.0 * k_xx`` whereas this
-    loss uses ``+0.5 * k_xx``.
-
-    Args:
-        x: Variational samples, shape ``[N, D]``, with gradient.
-        y: MCMC-refined / target samples, shape ``[N, D]``, detached.
-        kernel: Any :class:`utils.kernels.BaseKernel`.
-        fit_bandwidth_on: Same as :func:`mmd2_v_statistic`. Defaults to
-            ``"xy"`` to mirror the IVI notebook (``h = median`` over the
-            pooled xy + yy distances).
-
-    Returns:
-        ``(loss, info)`` where ``loss == 0.5 * k_xx_mean - k_xy_mean``.
-    """
-    # 1. Fit bandwidth (detached — no gradient through bandwidth selection)
-    if fit_bandwidth_on == "x":
-        kernel.fit_h(x.detach())
-    elif fit_bandwidth_on == "y":
-        kernel.fit_h(y.detach())
-    elif fit_bandwidth_on == "xy":
-        kernel.fit_h(torch.cat([x.detach(), y.detach()], dim=0))
-    elif fit_bandwidth_on == "none":
-        pass
-    else:
-        raise ValueError(
-            f"fit_bandwidth_on must be 'x', 'y', 'xy', or 'none', "
-            f"got '{fit_bandwidth_on}'"
-        )
-
-    # 2. Compute the two kernel matrices we need (k_yy is intentionally
-    #    skipped — it has no gradient and does not enter the loss).
-    K_xx = kernel.pair_eval(x, x, fit_h=False, detach_h=True)  # [N, N]
-    K_xy = kernel.pair_eval(x, y, fit_h=False, detach_h=True)  # [N, M]
-
-    k_xx_mean = K_xx.mean()
-    k_xy_mean = K_xy.mean()
-
-    loss = 0.5 * k_xx_mean - k_xy_mean
-
-    info = {
-        'k_xx_mean': k_xx_mean.item(),
-        # k_yy not computed (would be a no-grad scalar that does not
-        # affect training); report NaN so TB plots have a clean gap.
-        'k_yy_mean': float('nan'),
-        'k_xy_mean': k_xy_mean.item(),
-    }
-
-    return loss, info
