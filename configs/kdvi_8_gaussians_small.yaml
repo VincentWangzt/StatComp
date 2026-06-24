@@ -41,7 +41,7 @@ train:
     freq: 200000
     num: 5000
   plot:
-    freq: 200000
+    freq: 10000
     num: 2000
   ema:
     enabled: false

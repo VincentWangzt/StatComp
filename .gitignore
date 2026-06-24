@@ -21,8 +21,8 @@ Thumbs.db
 *.tar.gz
 
 # Project artifacts
-results*/
-tb_logs*/
+results
+tb_logs
 *.pt
 *.pth
 output.txt
@@ -58,3 +58,4 @@ campaigns/kdvi_8gauss_kernel_fix_sweep/runs/
 
 # IVI reference notebook clone (kept locally for reading; not part of the project)
 IVI-via-mcmc-distillation/
+**/.ipynb_checkpoints/

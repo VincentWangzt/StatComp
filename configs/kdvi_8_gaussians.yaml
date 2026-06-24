@@ -18,7 +18,7 @@ train:
       gamma: 0.75
   annealing:
     enabled: true
-    scheme: offset_linear
+    scheme: linear
     steps: 50000
   kdvi:
     mcmc_type: mala
@@ -41,7 +41,7 @@ train:
     freq: 200000
     num: 5000
   plot:
-    freq: 200000
+    freq: 10000
     num: 2000
   ema:
     enabled: false
