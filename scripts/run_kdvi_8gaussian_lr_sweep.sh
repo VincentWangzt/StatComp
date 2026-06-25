@@ -116,7 +116,7 @@ generate_manifest() {
 
     printf 'run_id\trecipe_id\tseed\tlr\tscheduler_step_size\tscheduler_gamma\n' >"${tmp_path}"
 
-    for lr in 1e-4 3e-4 1e-3 3e-3 1e-2; do
+    for lr in 1e-4 2e-4 5e-4 1e-3 2e-3; do
         lr_slug="$(lr_label "${lr}")"
         for gamma in 0.5 0.75 0.85 0.9 0.95 1.0; do
             gamma_slug="$(gamma_label "${gamma}")"
@@ -166,7 +166,7 @@ bad_groups = {
 if bad_groups:
     errors.append(f"groups without exactly seeds 0,1,7: {len(bad_groups)}")
 
-expected_lrs = {"1e-4", "3e-4", "1e-3", "3e-3", "1e-2"}
+expected_lrs = {"1e-4", "2e-4", "5e-4", "1e-3", "2e-3"}
 expected_gammas = {"0.5", "0.75", "0.85", "0.9", "0.95", "1.0"}
 if lr_values != expected_lrs:
     errors.append(f"unexpected lr values: {sorted(lr_values)}")
