@@ -204,11 +204,6 @@ class Toy_2D:
             self.logp(torch.Tensor(positions.T).to(self.device)).cpu().numpy(),
             xx.shape,
         )
-        # Log-compressed contour heights for even-looking bands. We shift by
-        # the grid maximum so the argument of log() is strictly positive even
-        # when logp > 0 (e.g. narrow modes like 8_gaussians_small), avoiding
-        # NaNs that matplotlib renders as white holes at the mode peaks.
-        f = -np.log(logp_grid.max() - logp_grid + 1e-6)
         if samples is None:
             samples = self.sample(_CONTOUR_N_SAMPLES).cpu().numpy()
 
@@ -219,7 +214,10 @@ class Toy_2D:
 
         ax.axis(bbox)
         ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
-        ax.contourf(xx, yy, f, cmap="Blues", alpha=0.8, levels=11)
+        # Contour the log-density itself. Linear spacing in log p corresponds
+        # to logarithmic spacing in density and avoids applying a second log
+        # transform that distorts narrow, separated modes such as 8 Gaussians.
+        ax.contourf(xx, yy, logp_grid, cmap="Blues", alpha=0.8, levels=11)
         ax.plot(samples[:, 0], samples[:, 1], ".", markersize=2, color="#ff7f0e")
         if quiver:
             cpositions = np.vstack([cxx.ravel(), cyy.ravel()])

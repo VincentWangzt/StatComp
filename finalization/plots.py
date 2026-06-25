@@ -76,11 +76,9 @@ def _toy_logp_grid(target: str, bbox: list[float], grid_size: int = 100) -> tupl
 
 def _draw_toy_contours(ax: plt.Axes, target: str, bbox: list[float]) -> None:
     xx, yy, logp_grid = _toy_logp_grid(target, bbox)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        density_surface = -np.log(-logp_grid)
-    if not np.isfinite(density_surface).any():
-        density_surface = logp_grid
-    ax.contourf(xx, yy, density_surface, cmap="Blues", alpha=0.8, levels=11)
+    # Linear contour levels in log p are logarithmically spaced in density.
+    # Do not take another logarithm: that over-compresses separated modes.
+    ax.contourf(xx, yy, logp_grid, cmap="Blues", alpha=0.8, levels=11)
     ax.axis(bbox)
     ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
 

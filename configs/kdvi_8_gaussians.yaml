@@ -21,9 +21,9 @@ train:
     scheme: linear
     steps: 50000
   kdvi:
-    mcmc_type: mala
-    mcmc_steps: 1
-    mcmc_step_size: 0.50
+    mcmc_type: sgld
+    mcmc_steps: 5
+    mcmc_step_size: 0.05
     kernel: laplace_l2
     fit_bandwidth_on: x
     step_size_schedule:
@@ -52,8 +52,8 @@ metric:
     enabled: true
     num_samples: 5000
   w2:
-    enabled: false
-    num_samples: 1000
+    enabled: true
+    num_samples: 5000
     num_projections: 100
   elbo:
     enabled: false
