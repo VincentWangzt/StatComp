@@ -338,6 +338,7 @@ class BaseSIVIRunner():
         self.plot_num = self.plot_cfg['num']
         self.plot_save_path = os.path.join(self.save_path, "plots")
         os.makedirs(self.plot_save_path, exist_ok=True)
+        self._log_groundtruth_plot()
 
         # Gradient clipping (None = disabled)
         self.grad_clip = self.training_cfg.get('grad_clip', None)
@@ -439,6 +440,84 @@ class BaseSIVIRunner():
                 f"Failed to load baseline samples from {baseline_path}: {e}. "
                 f"KL and W2 metrics will be disabled.")
             return None
+
+    def _groundtruth_plot_samples(self) -> torch.Tensor | None:
+        """Return samples suitable for one-time ground-truth plotting."""
+        num_samples = int(self.plot_num)
+        if self.baseline_samples is not None:
+            if self.baseline_samples.shape[0] > num_samples:
+                indices = np.random.choice(
+                    self.baseline_samples.shape[0],
+                    num_samples,
+                    replace=False,
+                )
+                samples = self.baseline_samples[indices]
+            else:
+                samples = self.baseline_samples
+            return torch.as_tensor(
+                samples,
+                dtype=torch.float32,
+                device=self.device,
+            )
+
+        sample = getattr(self.target_model, "sample", None)
+        if callable(sample):
+            try:
+                return sample(num_samples).detach().to(self.device)
+            except Exception as e:
+                logger.debug(
+                    f"Failed to draw target samples for ground-truth plot: {e}"
+                )
+        return None
+
+    def _log_groundtruth_plot(self) -> None:
+        """Save and log a one-time target/baseline sample plot when supported."""
+        samples = self._groundtruth_plot_samples()
+        if samples is None:
+            logger.info(
+                "Skipping ground-truth sample plot; no baseline or target sampler is available."
+            )
+            return
+
+        contour_path = os.path.join(self.plot_save_path, "groundtruth_contour.png")
+        trace_path = os.path.join(self.plot_save_path, "groundtruth_trace.png")
+
+        try:
+            self.target_model.contour_plot(
+                self.config.target.bbox,
+                fnet=None,
+                samples=samples.detach().cpu().numpy(),
+                save_to_path=contour_path,
+                quiver=False,
+                t=None,
+            )
+            plot_path = contour_path
+            logger.info(f"Saved ground-truth contour plot to {plot_path}.")
+        except (NotImplementedError, AttributeError, KeyError):
+            try:
+                self.target_model.trace_plot(
+                    samples,
+                    figpath=self.plot_save_path,
+                    figname="groundtruth_trace.png",
+                    figtitle="Ground Truth",
+                )
+                plot_path = trace_path
+                logger.info(f"Saved ground-truth trace plot to {plot_path}.")
+            except (NotImplementedError, AttributeError) as e:
+                logger.info(f"Skipping ground-truth sample plot: {e}")
+                return
+            except Exception as e:
+                logger.warning(f"Failed to create ground-truth trace plot: {e}")
+                return
+        except Exception as e:
+            logger.warning(f"Failed to create ground-truth contour plot: {e}")
+            return
+
+        self.experiment_logger.log_image(
+            "plots/groundtruth_samples",
+            plot_path,
+            step=0,
+        )
 
     def evaluate_vi_to_baseline_kl(self) -> float:
         """
