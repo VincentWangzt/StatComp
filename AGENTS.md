@@ -28,16 +28,16 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 
 ### Remote GPU Environment
 
-- Host: `ssh -p 48236 root@connect.nmb1.seetacloud.com`
-- Repo path: `~/ruivi/`
-- Branch: typically `vince-dev`
-- Conda env: `ruivi`
-- OS: Ubuntu 22.04.1 LTS
-- Driver: 580.105.08
-- PyTorch: 2.9.0+cu126
+- Host: `ssh -p 17473 root@connect.nmb2.seetacloud.com`
+- Repo path: `/root/StatComp`
+- Branch: typically `Zackary-codex`
+- Conda env: `stat_comp`
+- OS: Ubuntu 22.04.5 LTS
+- Driver: 580.76.05 
+- PyTorch: 2.8.0+cu128
 - Use `tmux` for long-running remote experiments
 - Required remote workflow for code/config/script changes: make the change locally, test locally when feasible, commit locally, push the branch, then sync the remote repo with git (`git pull`/`git fetch` + checkout) before running remote jobs. Do not copy code/config/script files directly to the remote server as the primary workflow.
-- Generated report artifacts such as finalization figures and tables should be produced on the remote server from the pushed code, then committed and pushed from the remote repo so the local checkout pulls them back through git. Do not sync final generated images/tables by ad hoc `scp`, tar extraction, or direct copy as the primary workflow. Create a private remote `.env` with the W&B key; never commit or copy that key into configs.
+- Generated report artifacts such as finalization figures and tables should be produced on the remote server from the pushed code, then committed and pushed from the remote repo so the local checkout pulls them back through git. Do not sync final generated images/tables by ad hoc `scp`, tar extraction, or direct copy as the primary workflow.
 - Keep direct changes made on the remote server minimal. Remote-only actions should be limited to running experiments, inspecting logs/results, generating report artifacts from committed code, committing those generated artifacts, and managing runtime artifacts under `results/`, `tb_logs/`, or `campaigns/*/runtime`.
 
 ## Core Commands
@@ -54,8 +54,8 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 ## Output Layout
 
 - Standard run outputs: `results/{runner_type}/{target_type}/{timestamp}/`
-- W&B transaction data and `metrics.csv`: inside the corresponding standard run directory.
-- Keep all experiment outputs inside the existing `results/` folder. New runs do not write TensorBoard events; `tb_logs/` is retained only for historical artifacts. Do not spill generated files into unrelated directories, especially on the remote server.
+- Standard TensorBoard logs: `tb_logs/{runner_type}/{target_type}/{timestamp}/`
+- Keep all experiment outputs inside the existing `results/` folder and all TensorBoard logs inside the existing `tb_logs/` folder. Do not spill generated files into unrelated directories, especially on the remote server; create a new subfolder under the corresponding existing folder when needed.
 
 There is no formal test suite, lint, or formatter configuration in the repo.
 
@@ -85,7 +85,7 @@ Configs are typically composed from:
 ### Runner System
 
 - `runner/base_runner.py`
-  - Shared training loop, metrics, W&B logging, checkpointing, and visualization.
+  - Shared training loop, metrics, logging, checkpointing, and visualization.
 - `runner/base_reverse_runner.py`
   - Adds reverse-model training behavior.
 - Registered runners in `runner/runners.py`
@@ -99,7 +99,7 @@ Configs are typically composed from:
 ### Supporting Modules
 
 - `utils/`
-  - HMC, metrics, annealing, EMA, central experiment logging, datasets, and legacy TensorBoard extraction helpers.
+  - HMC, metrics, annealing, EMA, logging, datasets, TensorBoard extraction helpers.
 - `ite/`
   - Information-theoretic estimators used for KL-style evaluation.
 - `visualization/`
@@ -142,3 +142,12 @@ Target configs currently present in `configs/targets/` include:
 - `Bnn_protein`
 - `Bnn_winered`
 - `Bnn_yacht`
+
+## Move to other Machines
+
+When moving to other machines, pay attention to the following terms:
+
+- Host
+- Repo path
+- Conda env
+
