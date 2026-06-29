@@ -30,7 +30,7 @@ uv pip install --python .\.venv\Scripts\python.exe --index-url https://pypi.org/
 
 - Host: `ssh -p 17473 root@connect.nmb2.seetacloud.com`
 - Repo path: `/root/StatComp`
-- Branch: typically `Zackary-codex`
+- Branch: typically `Zackary`
 - Conda env: `stat_comp`
 - OS: Ubuntu 22.04.5 LTS
 - Driver: 580.76.05 
