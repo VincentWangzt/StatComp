@@ -29,6 +29,7 @@ __all__ = [
     "Banana_shape",
     "X_shaped",
     "Multimodal",
+    "StandardGaussian",
     "FlatGaussian",
     "EightGaussians",
     "EightGaussiansSmall",
@@ -69,6 +70,7 @@ DEFAULT_BBOX: dict[str, list[float]] = {
     "multimodal": [-5, 5, -5, 5],
     "8_gaussians": [-6, 6, -6, 6],
     "8_gaussians_small": [-1.5, 1.5, -1.5, 1.5],
+    "standard_gaussian": [-5, 5, -5, 5],
     "flat_gaussian": [-5, 5, -35, 35],
     "banana": [-3.5, 3.5, -6, 1],
     "x_shaped": [-5, 5, -5, 5],
@@ -562,6 +564,24 @@ class FlatGaussian(Toy_2D):
     def sample(self, N: int) -> torch.Tensor:
         return torch.randn(N, self.z_dim, device=self.device) * self._std
 
+
+class StandardGaussian(Toy_2D):
+    """Standard 2-D Gaussian ``N(0, I_2)``."""
+
+    name: str = "standard_gaussian"
+
+    def __init__(self, device: torch.device) -> None:
+        super().__init__(device=device, name="StandardGaussian")
+        self._log_norm: float = -0.5 * 2 * np.log(2 * np.pi)
+
+    def logp(self, X: torch.Tensor) -> torch.Tensor:
+        return self._log_norm - 0.5 * torch.sum(X.square(), dim=1)
+
+    def score(self, X: torch.Tensor) -> torch.Tensor:
+        return -X
+
+    def sample(self, N: int) -> torch.Tensor:
+        return torch.randn(N, self.z_dim, device=self.device)
 
 class EightGaussians(Toy_2D):
     """Eight-component isotropic Gaussian mixture arranged on a ring.
@@ -1486,6 +1506,7 @@ class Langevin_post(Toy_2D):
 target_distribution: dict[str, type] = {
     "banana": Banana_shape,
     "multimodal": Multimodal,
+    "standard_gaussian": StandardGaussian,
     "flat_gaussian": FlatGaussian,
     "8_gaussians": EightGaussians,
     "8_gaussians_small": EightGaussiansSmall,
