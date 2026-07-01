@@ -29,6 +29,7 @@ __all__ = [
     "Banana_shape",
     "X_shaped",
     "Multimodal",
+    "FlatGaussian",
     "EightGaussians",
     "EightGaussiansSmall",
     "StudentTFullDim",
@@ -68,6 +69,7 @@ DEFAULT_BBOX: dict[str, list[float]] = {
     "multimodal": [-5, 5, -5, 5],
     "8_gaussians": [-6, 6, -6, 6],
     "8_gaussians_small": [-1.5, 1.5, -1.5, 1.5],
+    "flat_gaussian": [-5, 5, -35, 35],
     "banana": [-3.5, 3.5, -6, 1],
     "x_shaped": [-5, 5, -5, 5],
     "student_uc": [-5, 5, -5, 5],
@@ -535,6 +537,30 @@ class Multimodal(Toy_2D):
         component = torch.randint(0, 2, (N,), device=self.device)
         noise = torch.randn(N, 2, device=self.device)
         return self._means[component] + noise
+
+
+class FlatGaussian(Toy_2D):
+    """Flat 2-D Gaussian ``N(0, diag(1, 10^2))``."""
+
+    name: str = "flat_gaussian"
+
+    def __init__(self, device: torch.device) -> None:
+        super().__init__(device=device, name="FlatGaussian")
+        self._std: torch.Tensor = torch.tensor([1.0, 10.0], device=self.device)
+        self._var: torch.Tensor = self._std.square()
+        self._log_norm: float = -0.5 * 2 * np.log(2 * np.pi) - float(
+            torch.log(self._std).sum().item()
+        )
+
+    def logp(self, X: torch.Tensor) -> torch.Tensor:
+        scaled = X / self._std
+        return self._log_norm - 0.5 * torch.sum(scaled.square(), dim=1)
+
+    def score(self, X: torch.Tensor) -> torch.Tensor:
+        return -X / self._var
+
+    def sample(self, N: int) -> torch.Tensor:
+        return torch.randn(N, self.z_dim, device=self.device) * self._std
 
 
 class EightGaussians(Toy_2D):
@@ -1460,6 +1486,7 @@ class Langevin_post(Toy_2D):
 target_distribution: dict[str, type] = {
     "banana": Banana_shape,
     "multimodal": Multimodal,
+    "flat_gaussian": FlatGaussian,
     "8_gaussians": EightGaussians,
     "8_gaussians_small": EightGaussiansSmall,
     "x_shaped": X_shaped,
