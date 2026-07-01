@@ -1,0 +1,15 @@
+{
+  "run_name": "kdvi_standard_gaussian_seed42",
+  "group": "test_standard_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_standard_gaussian/KDVI/standard_gaussian/20260701_115045/metrics.csv",
+  "tags": [
+    "method:KDVI",
+    "target:standard_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_standard_gaussian"
+  ]
+}

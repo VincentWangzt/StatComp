@@ -1,0 +1,15 @@
+{
+  "run_name": "uivi_standard_gaussian_seed42",
+  "group": "test_standard_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_standard_gaussian/UIVI/standard_gaussian/20260701_114426/metrics.csv",
+  "tags": [
+    "method:UIVI",
+    "target:standard_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_standard_gaussian"
+  ]
+}

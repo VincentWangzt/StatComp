@@ -1,0 +1,91 @@
+2026-07-01 11:43:49 | INFO | sivi:base_runner.py:077| __init__ | Artifacts will be saved to: results/test_standard_gaussian/DSIVI/standard_gaussian/20260701_114349
+2026-07-01 11:43:49 | INFO | sivi:base_runner.py:434| _load_baseline_samples | Loaded baseline samples from baselines/exact/standard_gaussian_exact_100k.pt, shape: torch.Size([100000, 2])
+2026-07-01 11:43:49 | INFO | sivi:base_runner.py:210| __init__ | VI model type: ConditionalGaussian
+2026-07-01 11:43:49 | INFO | sivi:base_runner.py:219| __init__ | Using VI model config path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yaml
+2026-07-01 11:43:50 | INFO | sivi:base_runner.py:495| _log_groundtruth_plot | Saved ground-truth contour plot to results/test_standard_gaussian/DSIVI/standard_gaussian/20260701_114349/plots/groundtruth_contour.png.
+2026-07-01 11:43:50 | INFO | sivi:base_reverse_runner.py:037| __init__ | Reverse model type: MLPDenoiseModel
+2026-07-01 11:43:50 | WARNING | sivi:base_reverse_runner.py:041| __init__ | 'reverse_model_config_path' not found in main_config; using default: configs/reverse_models/MLPDenoiseModel.yaml
+2026-07-01 11:43:50 | INFO | sivi:base_reverse_runner.py:046| __init__ | Using reverse model config path: configs/reverse_models/MLPDenoiseModel.yaml
+2026-07-01 11:43:50 | INFO | sivi:base_runner.py:413| log_config | Saved full configuration to results/test_standard_gaussian/DSIVI/standard_gaussian/20260701_114349/full_config.yaml.
+2026-07-01 11:43:50 | INFO | sivi:base_reverse_runner.py:432| warmup | Starting reverse model warmup...
+2026-07-01 11:43:50 | DEBUG | sivi:dsivi.py:176| _warmup_log_func | Warmup Epoch 0, Average Reverse Model Loss: 0.0096, Avg Step Time: 0.0023s, Avg Steps: 0.0100
+2026-07-01 11:43:51 | DEBUG | sivi:dsivi.py:176| _warmup_log_func | Warmup Epoch 100, Average Reverse Model Loss: 0.1797, Avg Step Time: 0.0041s, Avg Steps: 1.0100
+2026-07-01 11:43:51 | DEBUG | sivi:dsivi.py:176| _warmup_log_func | Warmup Epoch 200, Average Reverse Model Loss: 0.0277, Avg Step Time: 0.0041s, Avg Steps: 2.0100
+2026-07-01 11:43:51 | DEBUG | sivi:dsivi.py:176| _warmup_log_func | Warmup Epoch 300, Average Reverse Model Loss: 0.0278, Avg Step Time: 0.0039s, Avg Steps: 3.0100
+2026-07-01 11:43:52 | DEBUG | sivi:dsivi.py:176| _warmup_log_func | Warmup Epoch 400, Average Reverse Model Loss: 0.0277, Avg Step Time: 0.0038s, Avg Steps: 4.0100
+2026-07-01 11:43:52 | INFO | sivi:base_reverse_runner.py:463| warmup | Warmup completed for 500 epochs. Total time: 2.219s, Avg epoch time: 0.004438s
+2026-07-01 11:43:52 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1, Inner epoch 0, Reverse Model Loss: 0.0002, Avg Steps: 0.0020
+2026-07-01 11:43:54 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 100: Avg Loss: -0.1096
+2026-07-01 11:43:54 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 100, VI KL to baseline: 1.3541
+2026-07-01 11:43:54 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 100, VI W2 to baseline: 1.4151
+2026-07-01 11:43:55 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 167, Inner epoch 2, Reverse Model Loss: 0.0980, Avg Steps: 1.0000
+2026-07-01 11:43:55 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 200: Avg Loss: 0.0259
+2026-07-01 11:43:55 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 200, VI KL to baseline: 0.7349
+2026-07-01 11:43:55 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 200, VI W2 to baseline: 0.8779
+2026-07-01 11:43:57 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 300: Avg Loss: 0.0188
+2026-07-01 11:43:57 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 300, VI KL to baseline: 0.4889
+2026-07-01 11:43:57 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 300, VI W2 to baseline: 0.6636
+2026-07-01 11:43:58 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 334, Inner epoch 1, Reverse Model Loss: 0.0536, Avg Steps: 1.0000
+2026-07-01 11:43:59 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 400: Avg Loss: 0.0150
+2026-07-01 11:43:59 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 400, VI KL to baseline: 0.2241
+2026-07-01 11:43:59 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 400, VI W2 to baseline: 0.4694
+2026-07-01 11:44:00 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 500: Avg Loss: 0.0127
+2026-07-01 11:44:00 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 500, VI KL to baseline: 0.1622
+2026-07-01 11:44:00 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 500, VI W2 to baseline: 0.3725
+2026-07-01 11:44:00 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 501, Inner epoch 0, Reverse Model Loss: 0.0602, Avg Steps: 1.0000
+2026-07-01 11:44:02 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 600: Avg Loss: 0.0111
+2026-07-01 11:44:02 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 600, VI KL to baseline: 0.0688
+2026-07-01 11:44:02 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 600, VI W2 to baseline: 0.2487
+2026-07-01 11:44:02 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 667, Inner epoch 2, Reverse Model Loss: 0.0590, Avg Steps: 1.0000
+2026-07-01 11:44:03 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 700: Avg Loss: 0.0085
+2026-07-01 11:44:03 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 700, VI KL to baseline: 0.0478
+2026-07-01 11:44:03 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 700, VI W2 to baseline: 0.1822
+2026-07-01 11:44:04 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 800: Avg Loss: 0.0061
+2026-07-01 11:44:04 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 800, VI KL to baseline: -0.0077
+2026-07-01 11:44:04 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 800, VI W2 to baseline: 0.1092
+2026-07-01 11:44:05 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 834, Inner epoch 1, Reverse Model Loss: 0.0606, Avg Steps: 1.0000
+2026-07-01 11:44:05 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 900: Avg Loss: 0.0043
+2026-07-01 11:44:05 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 900, VI KL to baseline: 0.0060
+2026-07-01 11:44:05 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 900, VI W2 to baseline: 0.0539
+2026-07-01 11:44:07 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1000: Avg Loss: 0.0032
+2026-07-01 11:44:07 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1000, VI KL to baseline: -0.0189
+2026-07-01 11:44:07 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1000, VI W2 to baseline: 0.0367
+2026-07-01 11:44:07 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1001, Inner epoch 0, Reverse Model Loss: 0.0635, Avg Steps: 1.0000
+2026-07-01 11:44:08 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1100: Avg Loss: 0.0003
+2026-07-01 11:44:08 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1100, VI KL to baseline: -0.0180
+2026-07-01 11:44:08 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1100, VI W2 to baseline: 0.0314
+2026-07-01 11:44:09 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1167, Inner epoch 2, Reverse Model Loss: 0.0662, Avg Steps: 1.0000
+2026-07-01 11:44:09 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1200: Avg Loss: 0.0001
+2026-07-01 11:44:09 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1200, VI KL to baseline: 0.0295
+2026-07-01 11:44:09 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1200, VI W2 to baseline: 0.0448
+2026-07-01 11:44:11 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1300: Avg Loss: 0.0003
+2026-07-01 11:44:11 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1300, VI KL to baseline: -0.0020
+2026-07-01 11:44:11 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1300, VI W2 to baseline: 0.0254
+2026-07-01 11:44:11 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1334, Inner epoch 1, Reverse Model Loss: 0.0708, Avg Steps: 1.0000
+2026-07-01 11:44:12 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1400: Avg Loss: -0.0002
+2026-07-01 11:44:12 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1400, VI KL to baseline: -0.0013
+2026-07-01 11:44:12 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1400, VI W2 to baseline: 0.0266
+2026-07-01 11:44:14 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1500: Avg Loss: 0.0002
+2026-07-01 11:44:14 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1500, VI KL to baseline: 0.0425
+2026-07-01 11:44:14 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1500, VI W2 to baseline: 0.0254
+2026-07-01 11:44:14 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1501, Inner epoch 0, Reverse Model Loss: 0.0736, Avg Steps: 1.0000
+2026-07-01 11:44:16 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1600: Avg Loss: 0.0005
+2026-07-01 11:44:16 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1600, VI KL to baseline: -0.0123
+2026-07-01 11:44:16 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1600, VI W2 to baseline: 0.0328
+2026-07-01 11:44:17 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1667, Inner epoch 2, Reverse Model Loss: 0.0787, Avg Steps: 1.0000
+2026-07-01 11:44:17 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1700: Avg Loss: 0.0001
+2026-07-01 11:44:17 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1700, VI KL to baseline: 0.0156
+2026-07-01 11:44:17 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1700, VI W2 to baseline: 0.0353
+2026-07-01 11:44:19 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1800: Avg Loss: 0.0003
+2026-07-01 11:44:19 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1800, VI KL to baseline: 0.0134
+2026-07-01 11:44:19 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1800, VI W2 to baseline: 0.0298
+2026-07-01 11:44:19 | DEBUG | sivi:base_reverse_runner.py:184| _training_rev_log_func | Epoch 1834, Inner epoch 1, Reverse Model Loss: 0.0844, Avg Steps: 1.0000
+2026-07-01 11:44:20 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 1900: Avg Loss: 0.0000
+2026-07-01 11:44:20 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 1900, VI KL to baseline: -0.0302
+2026-07-01 11:44:21 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 1900, VI W2 to baseline: 0.0376
+2026-07-01 11:44:22 | DEBUG | sivi:base_runner.py:1444| _run_training_epoch | Epoch 2000: Avg Loss: -0.0001
+2026-07-01 11:44:22 | DEBUG | sivi:base_runner.py:1134| save_samples | Saved 5000 samples at epoch 2000.
+2026-07-01 11:44:22 | DEBUG | sivi:base_runner.py:604| eval_kl_ite | Epoch 2000, VI KL to baseline: 0.0059
+2026-07-01 11:44:22 | DEBUG | sivi:base_runner.py:616| eval_w2 | Epoch 2000, VI W2 to baseline: 0.0312
+2026-07-01 11:44:22 | DEBUG | sivi:base_runner.py:1509| _run_training_epoch | Saved contour plot at epoch 2000.
+2026-07-01 11:44:22 | INFO | sivi:base_runner.py:1565| learn | Training completed. Total time: 29.874s, Avg epoch time: 0.014937s

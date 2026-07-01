@@ -1,0 +1,15 @@
+{
+  "run_name": "divi_standard_gaussian_seed42",
+  "group": "test_standard_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_standard_gaussian/DSIVI/standard_gaussian/20260701_114349/metrics.csv",
+  "tags": [
+    "method:DSIVI",
+    "target:standard_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_standard_gaussian"
+  ]
+}
