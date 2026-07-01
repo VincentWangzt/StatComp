@@ -4,8 +4,10 @@ use_cuda: true
 
 runner_type: KDVI
 target_type: Langevin_post
-vi_model_type: ConditionalGaussian
-vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yaml
+# vi_model_type: ConditionalGaussian
+# vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yaml
+vi_model_type: ConditionalGaussianGlobalUniform
+vi_model_config_path: configs/vi_models/ConditionalGaussianGlobalUniform-AISIVI.yaml
 
 train:
   epochs: 100000
@@ -23,7 +25,7 @@ train:
   kdvi:
     mcmc_type: sgld
     mcmc_steps: 5
-    mcmc_step_size: 0.05
+    mcmc_step_size: 0.005
     kernel: laplace_l2
     fit_bandwidth_on: x
     step_size_schedule:
@@ -49,7 +51,7 @@ train:
 
 metric:
   kl_ite:
-    enabled: true
+    enabled: false
     num_samples: 5000
   w2:
     enabled: true
@@ -74,4 +76,12 @@ metric:
     enabled: false
     num_samples: 500
   expected_log_marginal:
-    enabled: false
+    enabled: true
+    num_ref_samples: 1000
+    num_model_samples: 50000
+    sample_batch_size: 50000
+    dim_chunk: 50
+    ref_chunk: 500
+    model_chunk: 5000
+    min_bandwidth: 1.0e-6
+    dtype: float32
