@@ -1,0 +1,15 @@
+{
+  "run_name": "divi_flat_gaussian_seed42",
+  "group": "test_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_gaussian/DSIVI/flat_gaussian/20260701_103759/metrics.csv",
+  "tags": [
+    "method:DSIVI",
+    "target:flat_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_gaussian"
+  ]
+}

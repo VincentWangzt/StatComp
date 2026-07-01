@@ -1,0 +1,15 @@
+{
+  "run_name": "uivi_flat_gaussian_seed42",
+  "group": "test_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_gaussian/UIVI/flat_gaussian/20260701_103838/metrics.csv",
+  "tags": [
+    "method:UIVI",
+    "target:flat_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_gaussian"
+  ]
+}

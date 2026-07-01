@@ -1,0 +1,4 @@
+method,runner,run_dir,final_kl,final_kl_step,num_kl_points,final_w2,final_w2_step,num_w2_points
+DIVI,DSIVI,results/test_gaussian/DSIVI/flat_gaussian/20260701_103759,0.01886412800952465,2000,20,0.2074800580739975,2000,20
+UIVI,UIVI,results/test_gaussian/UIVI/flat_gaussian/20260701_103838,-0.041394343573996524,2000,20,0.20603427290916443,2000,20
+KDVI,KDVI,results/test_gaussian/KDVI/flat_gaussian/20260701_104501,0.38344585322833585,2000,20,4.422059059143066,2000,20
