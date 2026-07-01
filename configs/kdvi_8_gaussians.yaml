@@ -23,7 +23,7 @@ train:
   kdvi:
     mcmc_type: sgld
     mcmc_steps: 5
-    mcmc_step_size: 0.05
+    mcmc_step_size: 5.0e-2
     kernel: laplace_l2
     fit_bandwidth_on: x
     step_size_schedule:
