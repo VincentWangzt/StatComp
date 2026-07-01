@@ -31,6 +31,8 @@ Config keys under ``train.kdvi``:
         Default: 0.05.
     hmc_leapfrog_steps (int): Leapfrog sub-steps per HMC transition (L).
         Only used when mcmc_type='hmc'. Default: 10.
+    loss_type (str): Training objective. One of 'mmd', 'paired_l2', or
+        'mmd_per_dim'. Default: 'mmd'.
     kernel (str): Kernel type for MMD computation. One of 'gaussian',
         'gaussian_mmd', 'imq', 'laplace', 'laplace_l2', or 'riesz'.
         Default: 'gaussian'.
@@ -57,7 +59,12 @@ from utils.mcmc_kernels import (
     hmc_transition,
     mala_transition,
 )
-from utils.mmd import configure_kernel_bandwidth, mmd2_v_statistic
+from utils.mmd import (
+    configure_kernel_bandwidth,
+    mmd2_v_statistic,
+    mmd2_v_statistic_per_dim,
+    paired_l2_loss,
+)
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
 from utils.logging import get_logger
@@ -105,10 +112,20 @@ class KDVIRunner(BaseSIVIRunner):
         self.k_schedule_warmup: int = int(
             schedule_cfg.get('warmup_epochs', 10000))
 
+        # Loss settings
+        self.loss_type: str = str(kdvi_cfg.get('loss_type', 'mmd')).lower()
+        assert self.loss_type in ('mmd', 'paired_l2', 'mmd_per_dim'), \
+            "loss_type must be 'mmd', 'paired_l2', or 'mmd_per_dim', " \
+            f"got '{self.loss_type}'"
+
         # MMD kernel settings
         kernel_type: str = kdvi_cfg.get('kernel', 'gaussian')
         assert kernel_type in Kernels, \
             f"kernel must be one of {list(Kernels.keys())}, got '{kernel_type}'"
+        if self.loss_type == 'mmd_per_dim':
+            assert kernel_type in ('gaussian', 'gaussian_mmd', 'laplace_l2'), \
+                "loss_type='mmd_per_dim' supports only 'gaussian', " \
+                f"'gaussian_mmd', or 'laplace_l2', got '{kernel_type}'"
         self.mmd_kernel = Kernels[kernel_type]()
         self.mmd_kernel_type: str = kernel_type
         # Optional fixed bandwidth — if set, overrides adaptive fitting and
@@ -154,6 +171,7 @@ class KDVIRunner(BaseSIVIRunner):
             f"mcmc_steps={self.mcmc_steps}, "
             f"mcmc_step_size={self.mcmc_step_size}, "
             f"hmc_leapfrog_steps={self.hmc_leapfrog_steps}, "
+            f"loss_type={self.loss_type}, "
             f"mmd_kernel={kernel_type}, "
             f"fit_bandwidth_on={self.fit_bandwidth_on}"
         )
@@ -333,12 +351,24 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        loss, mmd_info = mmd2_v_statistic(
-            x=z,
-            y=z_refined,
-            kernel=self.mmd_kernel,
-            fit_bandwidth_on=self.fit_bandwidth_on,
-        )
+        if self.loss_type == 'mmd':
+            loss, loss_info = mmd2_v_statistic(
+                x=z,
+                y=z_refined,
+                kernel=self.mmd_kernel,
+                fit_bandwidth_on=self.fit_bandwidth_on,
+            )
+        elif self.loss_type == 'mmd_per_dim':
+            loss, loss_info = mmd2_v_statistic_per_dim(
+                x=z,
+                y=z_refined,
+                kernel=self.mmd_kernel,
+                fit_bandwidth_on=self.fit_bandwidth_on,
+            )
+        elif self.loss_type == 'paired_l2':
+            loss, loss_info = paired_l2_loss(x=z, y=z_refined)
+        else:
+            raise ValueError(f"Unknown loss_type: {self.loss_type}")
 
         # Optimizer step
         grad_norm = None
@@ -369,20 +399,23 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         # KDVI-specific diagnostics
         # ============================================================
-        self.experiment_logger.log_scalars(
-            {
-                "kdvi/accept_rate": mcmc_out.accept_rate,
-                "kdvi/mean_displacement": mcmc_out.mean_disp,
-                "kdvi/mcmc_step_size": current_step_size,
-                "kdvi/beta_anneal": beta,
-                "kdvi/mcmc_steps_K": current_mcmc_steps,
-                "kdvi/kernel_bandwidth": self.mmd_kernel.h,
-                "kdvi/k_xx_mean": mmd_info['k_xx_mean'],
-                "kdvi/k_yy_mean": mmd_info['k_yy_mean'],
-                "kdvi/k_xy_mean": mmd_info['k_xy_mean'],
-            },
-            step=epoch,
-        )
+        scalar_logs = {
+            "kdvi/accept_rate": mcmc_out.accept_rate,
+            "kdvi/mean_displacement": mcmc_out.mean_disp,
+            "kdvi/mcmc_step_size": current_step_size,
+            "kdvi/beta_anneal": beta,
+            "kdvi/mcmc_steps_K": current_mcmc_steps,
+            "kdvi/loss_type_mmd": float(self.loss_type == 'mmd'),
+            "kdvi/loss_type_mmd_per_dim": float(
+                self.loss_type == 'mmd_per_dim'),
+            "kdvi/loss_type_paired_l2": float(
+                self.loss_type == 'paired_l2'),
+        }
+        if self.loss_type == 'mmd':
+            scalar_logs["kdvi/kernel_bandwidth"] = self.mmd_kernel.h
+        for key, value in loss_info.items():
+            scalar_logs[f"kdvi/{key}"] = value
+        self.experiment_logger.log_scalars(scalar_logs, step=epoch)
 
         return {
             'loss': loss,

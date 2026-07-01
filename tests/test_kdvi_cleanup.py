@@ -7,9 +7,20 @@ import torch
 from omegaconf import OmegaConf
 
 from utils.annealing import annealing
-from utils.kernels import BaseKernel, GaussianKernel
+from utils.kernels import (
+    BaseKernel,
+    GaussianKernel,
+    GaussianKernelMMD,
+    IMQKernel,
+    LaplaceL2Kernel,
+)
 from utils.mcmc_kernels import mala_transition
-from utils.mmd import configure_kernel_bandwidth, mmd2_v_statistic
+from utils.mmd import (
+    configure_kernel_bandwidth,
+    mmd2_v_statistic,
+    mmd2_v_statistic_per_dim,
+    paired_l2_loss,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +101,123 @@ class KDVIBandwidthTests(unittest.TestCase):
                         GaussianKernel(), fit_bandwidth_on=removed)
 
 
+class KDVILossTypeTests(unittest.TestCase):
+    def test_paired_l2_value_and_gradient(self) -> None:
+        x = torch.tensor(
+            [[1.0, 2.0], [3.0, 4.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor(
+            [[2.0, 0.0], [1.0, 5.0]],
+            requires_grad=True,
+        )
+
+        loss, info = paired_l2_loss(x, y)
+
+        expected = torch.tensor((1.0 + 4.0 + 4.0 + 1.0) / 2.0)
+        self.assertTrue(torch.allclose(loss, expected))
+        self.assertAlmostEqual(info["paired_l2_mean"], expected.item())
+        loss.backward()
+        self.assertTrue(torch.allclose(x.grad, (2.0 / 2.0) * (x - y.detach())))
+        self.assertIsNone(y.grad)
+
+    def test_per_dim_gaussian_mmd_matches_hand_computed_kernel(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [2.0, 3.0], [4.0, 6.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor([[1.0, 1.5], [3.0, 4.5], [5.0, 7.5]])
+        kernel = GaussianKernelMMD()
+
+        loss, info = mmd2_v_statistic_per_dim(x, y, kernel, "x")
+
+        bandwidths = torch.tensor([2.0, 3.0])
+
+        def pair_eval(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+            scaled = (a[:, None, :] - b[None, :, :]) / bandwidths
+            return torch.exp(-0.5 * scaled.square().sum(dim=-1))
+
+        expected = (
+            pair_eval(x, x).mean()
+            + pair_eval(y, y).mean()
+            - 2.0 * pair_eval(x, y).mean()
+        )
+        self.assertTrue(torch.allclose(loss, expected))
+        self.assertAlmostEqual(info["kernel_bandwidth_mean"], 2.5)
+        self.assertAlmostEqual(info["kernel_bandwidth_min"], 2.0)
+        self.assertAlmostEqual(info["kernel_bandwidth_max"], 3.0)
+        loss.backward()
+        self.assertIsNotNone(x.grad)
+
+    def test_per_dim_laplace_l2_matches_hand_computed_kernel(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [2.0, 3.0], [4.0, 6.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor([[1.0, 1.5], [3.0, 4.5], [5.0, 7.5]])
+        kernel = LaplaceL2Kernel()
+
+        loss, info = mmd2_v_statistic_per_dim(x, y, kernel, "x")
+
+        bandwidths = torch.tensor([2.0, 3.0])
+
+        def pair_eval(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+            scaled = (a[:, None, :] - b[None, :, :]) / bandwidths
+            return torch.exp(-0.5 * scaled.square().sum(dim=-1).sqrt())
+
+        expected = (
+            pair_eval(x, x).mean()
+            + pair_eval(y, y).mean()
+            - 2.0 * pair_eval(x, y).mean()
+        )
+        self.assertTrue(torch.allclose(loss, expected))
+        self.assertAlmostEqual(info["kernel_bandwidth_mean"], 2.5)
+
+    def test_per_dim_bandwidth_xy_uses_pooled_samples(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [2.0, 3.0], [4.0, 6.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor([[100.0, 0.0], [102.0, 3.0], [104.0, 6.0]])
+
+        _, info_x = mmd2_v_statistic_per_dim(x, y, GaussianKernelMMD(), "x")
+        _, info_xy = mmd2_v_statistic_per_dim(
+            x, y, GaussianKernelMMD(), "xy")
+
+        self.assertAlmostEqual(info_x["kernel_bandwidth_mean"], 2.5)
+        self.assertGreater(info_xy["kernel_bandwidth_mean"], 2.5)
+
+    def test_per_dim_fixed_scalar_bandwidth_broadcasts(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [2.0, 3.0], [4.0, 6.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor([[1.0, 1.5], [3.0, 4.5], [5.0, 7.5]])
+        kernel = GaussianKernelMMD()
+        fit_source = configure_kernel_bandwidth(
+            kernel,
+            fit_bandwidth_on="x",
+            kernel_bandwidth=0.75,
+        )
+
+        _, info = mmd2_v_statistic_per_dim(x, y, kernel, fit_source)
+
+        self.assertIsNone(fit_source)
+        self.assertAlmostEqual(info["kernel_bandwidth_mean"], 0.75)
+        self.assertAlmostEqual(info["kernel_bandwidth_min"], 0.75)
+        self.assertAlmostEqual(info["kernel_bandwidth_max"], 0.75)
+
+    def test_per_dim_rejects_unsupported_kernels(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [2.0, 3.0], [4.0, 6.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor([[1.0, 1.5], [3.0, 4.5], [5.0, 7.5]])
+
+        with self.assertRaisesRegex(ValueError, "supports only"):
+            mmd2_v_statistic_per_dim(x, y, IMQKernel(), "x")
+
+
 class KDVIScheduleAndMALATests(unittest.TestCase):
     def test_offset_linear_annealing(self) -> None:
         values = [
@@ -148,6 +276,9 @@ class KDVIConfigSmokeTests(unittest.TestCase):
 
                 kdvi = config.train.kdvi
                 self.assertNotIn("loss_form", kdvi)
+                loss_type = kdvi.get("loss_type", "mmd")
+                self.assertIn(loss_type, ("mmd", "paired_l2", "mmd_per_dim"))
+                self.assertEqual(loss_type, "mmd")
                 self.assertIn(kdvi.get("fit_bandwidth_on", "x"), ("x", "xy"))
 
                 fixed = kdvi.get("kernel_bandwidth", None)

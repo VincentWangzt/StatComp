@@ -21,11 +21,17 @@ Typical usage::
     loss.backward()  # gradient flows through z only
 """
 
+import math
 import torch
 from torch import Tensor
 from typing import Tuple
 
-from utils.kernels import BaseKernel
+from utils.kernels import (
+    BaseKernel,
+    GaussianKernel,
+    GaussianKernelMMD,
+    LaplaceL2Kernel,
+)
 
 
 def configure_kernel_bandwidth(
@@ -145,4 +151,145 @@ def mmd2_v_statistic(
         'k_xy_mean': k_xy_mean.item(),
     }
 
+    return mmd2, info
+
+
+def paired_l2_loss(x: Tensor, y: Tensor) -> Tuple[Tensor, dict]:
+    """Compute the paired mean squared L2 displacement loss.
+
+    ``x`` carries gradients and ``y`` is treated as a fixed MCMC-refined
+    target. The two batches must have identical shape because samples are
+    compared by index, not as distributions.
+    """
+    if x.shape != y.shape:
+        raise ValueError(
+            f"paired_l2_loss requires matching shapes, got {tuple(x.shape)} "
+            f"and {tuple(y.shape)}"
+        )
+
+    squared_l2 = (x - y.detach()).square().sum(dim=-1)
+    loss = squared_l2.mean()
+    info = {
+        'paired_l2_mean': loss.item(),
+        'paired_l2_root_mean': squared_l2.sqrt().mean().item(),
+    }
+    return loss, info
+
+
+def _per_dim_pairwise_differences(samples: Tensor) -> Tensor:
+    return samples[:, None, :] - samples[None, :, :]
+
+
+def _fit_per_dim_bandwidth(
+    samples: Tensor,
+    kernel: BaseKernel,
+    min_bandwidth: float = 1e-12,
+) -> Tensor:
+    """Fit a diagonal bandwidth vector for supported KDVI debug kernels."""
+    diffs = _per_dim_pairwise_differences(samples)
+    if isinstance(kernel, GaussianKernel):
+        d2 = diffs.square()
+        h2 = torch.median(d2.reshape(-1, d2.shape[-1]), dim=0).values
+        h2 = torch.clamp_min(h2, min_bandwidth)
+        h = torch.sqrt(0.5 * h2 / math.log(samples.shape[0] + 1))
+    elif isinstance(kernel, GaussianKernelMMD):
+        d2 = diffs.square()
+        h2 = torch.median(d2.reshape(-1, d2.shape[-1]), dim=0).values
+        h2 = torch.clamp_min(h2, min_bandwidth)
+        h = torch.sqrt(h2)
+    elif isinstance(kernel, LaplaceL2Kernel):
+        d_abs = diffs.abs()
+        h = torch.median(d_abs.reshape(-1, d_abs.shape[-1]), dim=0).values
+        h = torch.clamp_min(h, min_bandwidth)
+    else:
+        raise ValueError(
+            "mmd_per_dim supports only 'gaussian', 'gaussian_mmd', and "
+            f"'laplace_l2' kernels, got {kernel.name}"
+        )
+
+    return torch.clamp_min(h, min_bandwidth)
+
+
+def _broadcast_fixed_per_dim_bandwidth(
+    x: Tensor,
+    kernel: BaseKernel,
+) -> Tensor:
+    if kernel.h <= 0:
+        raise ValueError(
+            "A positive kernel bandwidth must be set when adaptive "
+            "per-dim bandwidth fitting is disabled."
+        )
+    return torch.full(
+        (x.shape[-1],),
+        float(kernel.h),
+        device=x.device,
+        dtype=x.dtype,
+    )
+
+
+def _per_dim_pair_eval(
+    samples_x: Tensor,
+    samples_y: Tensor,
+    kernel: BaseKernel,
+    bandwidths: Tensor,
+) -> Tensor:
+    scaled = (
+        (samples_x[:, None, :] - samples_y[None, :, :]) /
+        bandwidths.view(1, 1, -1)
+    )
+    if isinstance(kernel, (GaussianKernel, GaussianKernelMMD)):
+        return torch.exp(-0.5 * scaled.square().sum(dim=-1))
+    if isinstance(kernel, LaplaceL2Kernel):
+        return torch.exp(-0.5 * scaled.square().sum(dim=-1).sqrt())
+    raise ValueError(
+        "mmd_per_dim supports only 'gaussian', 'gaussian_mmd', and "
+        f"'laplace_l2' kernels, got {kernel.name}"
+    )
+
+
+def mmd2_v_statistic_per_dim(
+    x: Tensor,
+    y: Tensor,
+    kernel: BaseKernel,
+    fit_bandwidth_on: str | None = "x",
+) -> Tuple[Tensor, dict]:
+    """Compute MMD² with a diagonal per-dimension bandwidth vector.
+
+    This KDVI debug objective mirrors :func:`mmd2_v_statistic`, but replaces
+    the scalar kernel bandwidth with a coordinate-wise median heuristic.
+    Supported kernels are Gaussian, Gaussian MMD, and Laplace-on-L2.
+    """
+    if fit_bandwidth_on == "x":
+        bandwidths = _fit_per_dim_bandwidth(x.detach(), kernel)
+    elif fit_bandwidth_on == "xy":
+        bandwidths = _fit_per_dim_bandwidth(
+            torch.cat([x.detach(), y.detach()], dim=0),
+            kernel,
+        )
+    elif fit_bandwidth_on is None:
+        bandwidths = _broadcast_fixed_per_dim_bandwidth(x, kernel)
+    else:
+        raise ValueError(
+            f"fit_bandwidth_on must be 'x', 'xy', or None, "
+            f"got '{fit_bandwidth_on}'"
+        )
+
+    K_xx = _per_dim_pair_eval(x, x, kernel, bandwidths)
+    K_yy = _per_dim_pair_eval(y, y, kernel, bandwidths)
+    K_xy = _per_dim_pair_eval(x, y, kernel, bandwidths)
+
+    k_xx_mean = K_xx.mean()
+    k_yy_mean = K_yy.mean()
+    k_xy_mean = K_xy.mean()
+    mmd2 = k_xx_mean + k_yy_mean - 2.0 * k_xy_mean
+
+    bandwidths_detached = bandwidths.detach()
+    info = {
+        'k_xx_mean': k_xx_mean.item(),
+        'k_yy_mean': k_yy_mean.item(),
+        'k_xy_mean': k_xy_mean.item(),
+        'kernel_bandwidth_mean': bandwidths_detached.mean().item(),
+        'kernel_bandwidth_min': bandwidths_detached.min().item(),
+        'kernel_bandwidth_max': bandwidths_detached.max().item(),
+    }
     return mmd2, info
