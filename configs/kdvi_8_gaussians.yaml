@@ -9,7 +9,7 @@ vi_model_config_path: configs/vi_models/ConditionalGaussian-Eps32-ELU-LogStd.yam
 
 train:
   epochs: 100000
-  batch_size: 128
+  batch_size: 1024
   vi:
     lr: 2.0e-3
     scheduler:
