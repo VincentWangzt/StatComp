@@ -172,6 +172,9 @@ class KDVILossTypeTests(unittest.TestCase):
         )
         self.assertTrue(torch.allclose(loss, expected))
         self.assertAlmostEqual(info["kernel_bandwidth_mean"], 2.5)
+        loss.backward()
+        self.assertIsNotNone(x.grad)
+        self.assertTrue(torch.isfinite(x.grad).all())
 
     def test_per_dim_bandwidth_xy_uses_pooled_samples(self) -> None:
         x = torch.tensor(

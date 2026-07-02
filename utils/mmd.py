@@ -233,14 +233,16 @@ def _per_dim_pair_eval(
     kernel: BaseKernel,
     bandwidths: Tensor,
 ) -> Tensor:
-    scaled = (
-        (samples_x[:, None, :] - samples_y[None, :, :]) /
-        bandwidths.view(1, 1, -1)
-    )
     if isinstance(kernel, (GaussianKernel, GaussianKernelMMD)):
+        scaled = (
+            (samples_x[:, None, :] - samples_y[None, :, :]) /
+            bandwidths.view(1, 1, -1)
+        )
         return torch.exp(-0.5 * scaled.square().sum(dim=-1))
     if isinstance(kernel, LaplaceL2Kernel):
-        return torch.exp(-0.5 * scaled.square().sum(dim=-1).sqrt())
+        scaled_x = samples_x / bandwidths.view(1, -1)
+        scaled_y = samples_y / bandwidths.view(1, -1)
+        return torch.exp(-0.5 * torch.cdist(scaled_x, scaled_y, p=2))
     raise ValueError(
         "mmd_per_dim supports only 'gaussian', 'gaussian_mmd', and "
         f"'laplace_l2' kernels, got {kernel.name}"
