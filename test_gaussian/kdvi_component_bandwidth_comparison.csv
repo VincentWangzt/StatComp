@@ -1,0 +1,4 @@
+variant,final_step,kl,w2,note
+scalar_laplace_l2_x,10000,0.056124163179835415,0.5144930481910706,previous scalar adaptive baseline
+component_laplace_l2_x,10000,2.108735013568728,25.741764068603516,per-coordinate adaptive bandwidth fit on x
+component_laplace_l2_xy,10000,2.1862621376360534,24.061216354370117,per-coordinate adaptive bandwidth fit on pooled x/y

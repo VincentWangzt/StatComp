@@ -1,0 +1,15 @@
+{
+  "run_name": "kdvi_flat_gaussian_component_seed42",
+  "group": "test_gaussian",
+  "run_id": "",
+  "run_url": "",
+  "run_path": "",
+  "mode": "disabled",
+  "metrics_path": "results/test_gaussian/KDVI/flat_gaussian/20260703_130340/metrics.csv",
+  "tags": [
+    "method:KDVI",
+    "target:flat_gaussian",
+    "vi:ConditionalGaussian",
+    "campaign:test_gaussian"
+  ]
+}

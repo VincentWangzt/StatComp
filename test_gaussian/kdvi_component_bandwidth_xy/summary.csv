@@ -1,0 +1,3 @@
+metric,final_step,final_value,num_points
+kl,10000,2.1862621376360534,100
+w2,10000,24.061216354370117,100
