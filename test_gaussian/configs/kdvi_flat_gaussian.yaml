@@ -16,7 +16,7 @@ tracking:
   run_name: kdvi_flat_gaussian_seed42
 
 train:
-  epochs: 2000
+  epochs: 10000
   batch_size: 128
   vi:
     lr: 2.0e-3
