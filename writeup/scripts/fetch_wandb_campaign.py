@@ -437,11 +437,11 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
                     height=PLOTLY_SOURCE_HEIGHT,
                     scale=PLOTLY_PNG_SCALE,
                 )
-            except ValueError as exc:
+            except Exception as exc:
                 if not png_export_warning_shown:
                     print(
-                        "WARNING: skipping Plotly PNG export; install kaleido "
-                        f"to enable fig.write_image(). First error: {exc}",
+                        "WARNING: skipping Plotly PNG export; install or repair "
+                        f"kaleido to enable fig.write_image(). First error: {exc}",
                         file=sys.stderr,
                     )
                     png_export_warning_shown = True

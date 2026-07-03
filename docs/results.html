@@ -258,19 +258,19 @@ banana
 <div class="tab-content target-tabs">
 <div id="tabset-1-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/banana_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/banana_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-1-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/banana_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/banana_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-1-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/banana_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/banana_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -281,13 +281,13 @@ banana
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/groundtruth.png" alt="Groundtruth samples for banana"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/groundtruth.png" alt="Groundtruth samples for banana"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-banana" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_60014.png" alt="KDVI posterior samples for banana"> <input id="slider-banana" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-banana" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_10000.png" alt="KDVI posterior samples for banana"> <input id="slider-banana" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-banana" class="posterior-caption">
 epoch 10000
 </div>
@@ -295,7 +295,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-banana');const image=document.getElementById('posterior-banana');const caption=document.getElementById('caption-banana');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-banana');const image=document.getElementById('posterior-banana');const caption=document.getElementById('caption-banana');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-1-5">
@@ -335,7 +335,7 @@ KDVI
 10
 </td>
 <td>
-0.02995 +/- 0.007782
+0.02873 +/- 0.005481
 </td>
 <td>
 0.4259 +/- 0.01545
@@ -355,7 +355,7 @@ DSIVI
 10
 </td>
 <td>
-0.00367 +/- 0.01111
+0.0009553 +/- 0.009519
 </td>
 <td>
 0.09974 +/- 0.04216
@@ -386,19 +386,19 @@ x_shaped
 <div class="tab-content target-tabs">
 <div id="tabset-2-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/x_shaped_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-2-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/x_shaped_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-2-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/x_shaped_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -409,13 +409,13 @@ x_shaped
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/groundtruth.png" alt="Groundtruth samples for x_shaped"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/groundtruth.png" alt="Groundtruth samples for x_shaped"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-x-shaped" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_60014.png" alt="KDVI posterior samples for x_shaped"> <input id="slider-x-shaped" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-x-shaped" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_10000.png" alt="KDVI posterior samples for x_shaped"> <input id="slider-x-shaped" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-x-shaped" class="posterior-caption">
 epoch 10000
 </div>
@@ -423,7 +423,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-x-shaped');const image=document.getElementById('posterior-x-shaped');const caption=document.getElementById('caption-x-shaped');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-x-shaped');const image=document.getElementById('posterior-x-shaped');const caption=document.getElementById('caption-x-shaped');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-2-5">
@@ -463,7 +463,7 @@ KDVI
 10
 </td>
 <td>
-0.0435 +/- 0.07966
+0.0433 +/- 0.08578
 </td>
 <td>
 0.06441 +/- 0.06615
@@ -483,7 +483,7 @@ DSIVI
 10
 </td>
 <td>
-0.002011 +/- 0.01017
+-0.0002799 +/- 0.009682
 </td>
 <td>
 0.07255 +/- 0.02841
@@ -514,19 +514,19 @@ multimodal
 <div class="tab-content target-tabs">
 <div id="tabset-3-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/multimodal_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-3-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/multimodal_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-3-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/multimodal_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -537,13 +537,13 @@ multimodal
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/groundtruth.png" alt="Groundtruth samples for multimodal"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/groundtruth.png" alt="Groundtruth samples for multimodal"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-multimodal" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_60014.png" alt="KDVI posterior samples for multimodal"> <input id="slider-multimodal" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-multimodal" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_10000.png" alt="KDVI posterior samples for multimodal"> <input id="slider-multimodal" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-multimodal" class="posterior-caption">
 epoch 10000
 </div>
@@ -551,7 +551,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-multimodal');const image=document.getElementById('posterior-multimodal');const caption=document.getElementById('caption-multimodal');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-multimodal');const image=document.getElementById('posterior-multimodal');const caption=document.getElementById('caption-multimodal');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-3-5">
@@ -591,7 +591,7 @@ KDVI
 10
 </td>
 <td>
-0.0005605 +/- 0.007783
+0.001065 +/- 0.00754
 </td>
 <td>
 0.03254 +/- 0.009139
@@ -611,7 +611,7 @@ DSIVI
 10
 </td>
 <td>
-0.002894 +/- 0.01117
+0.000245 +/- 0.01078
 </td>
 <td>
 0.03648 +/- 0.01319
@@ -642,19 +642,19 @@ DSIVI
 <div class="tab-content target-tabs">
 <div id="tabset-4-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-4-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-4-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -665,13 +665,13 @@ DSIVI
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/groundtruth.png" alt="Groundtruth samples for 8_gaussians"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/groundtruth.png" alt="Groundtruth samples for 8_gaussians"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-8-gaussians" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_60014.png" alt="KDVI posterior samples for 8_gaussians"> <input id="slider-8-gaussians" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-8-gaussians" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_10000.png" alt="KDVI posterior samples for 8_gaussians"> <input id="slider-8-gaussians" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-8-gaussians" class="posterior-caption">
 epoch 10000
 </div>
@@ -679,7 +679,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians');const image=document.getElementById('posterior-8-gaussians');const caption=document.getElementById('caption-8-gaussians');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians');const image=document.getElementById('posterior-8-gaussians');const caption=document.getElementById('caption-8-gaussians');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-4-5">
@@ -719,7 +719,7 @@ KDVI
 10
 </td>
 <td>
-0.03832 +/- 0.01646
+0.03946 +/- 0.01471
 </td>
 <td>
 0.2077 +/- 0.08744
@@ -739,7 +739,7 @@ DSIVI
 10
 </td>
 <td>
-0.2587 +/- 0.2032
+0.2674 +/- 0.2002
 </td>
 <td>
 0.2843 +/- 0.1976
@@ -770,19 +770,19 @@ DSIVI
 <div class="tab-content target-tabs">
 <div id="tabset-5-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-5-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-5-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -793,13 +793,13 @@ DSIVI
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/groundtruth.png" alt="Groundtruth samples for 8_gaussians_small"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/groundtruth.png" alt="Groundtruth samples for 8_gaussians_small"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-8-gaussians-small" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_60014.png" alt="KDVI posterior samples for 8_gaussians_small"> <input id="slider-8-gaussians-small" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-8-gaussians-small" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_10000.png" alt="KDVI posterior samples for 8_gaussians_small"> <input id="slider-8-gaussians-small" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-8-gaussians-small" class="posterior-caption">
 epoch 10000
 </div>
@@ -807,7 +807,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians-small');const image=document.getElementById('posterior-8-gaussians-small');const caption=document.getElementById('caption-8-gaussians-small');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians-small');const image=document.getElementById('posterior-8-gaussians-small');const caption=document.getElementById('caption-8-gaussians-small');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-5-5">
@@ -847,7 +847,7 @@ KDVI
 10
 </td>
 <td>
-0.1758 +/- 0.362
+0.1722 +/- 0.3568
 </td>
 <td>
 0.1378 +/- 0.0918
@@ -867,7 +867,7 @@ DSIVI
 10
 </td>
 <td>
-0.6457 +/- 0.1704
+0.6449 +/- 0.1583
 </td>
 <td>
 0.241 +/- 0.0496
@@ -898,19 +898,19 @@ student_uc
 <div class="tab-content target-tabs">
 <div id="tabset-6-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/student_uc_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-6-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/student_uc_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-6-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/student_uc_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -921,13 +921,13 @@ student_uc
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/groundtruth.png" alt="Groundtruth samples for student_uc"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/groundtruth.png" alt="Groundtruth samples for student_uc"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-student-uc" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_60014.png" alt="KDVI posterior samples for student_uc"> <input id="slider-student-uc" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-student-uc" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_10000.png" alt="KDVI posterior samples for student_uc"> <input id="slider-student-uc" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-student-uc" class="posterior-caption">
 epoch 10000
 </div>
@@ -935,7 +935,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-student-uc');const image=document.getElementById('posterior-student-uc');const caption=document.getElementById('caption-student-uc');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-student-uc');const image=document.getElementById('posterior-student-uc');const caption=document.getElementById('caption-student-uc');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-6-5">
@@ -975,7 +975,7 @@ KDVI
 10
 </td>
 <td>
-0.01569 +/- 0.01358
+0.02004 +/- 0.007059
 </td>
 <td>
 0.5877 +/- 0.01364
@@ -995,7 +995,7 @@ DSIVI
 10
 </td>
 <td>
-0.01126 +/- 0.008983
+0.008404 +/- 0.01233
 </td>
 <td>
 0.5565 +/- 0.01126
@@ -1026,19 +1026,19 @@ Langevin_post
 <div class="tab-content target-tabs">
 <div id="tabset-7-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-7-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-7-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post_kde_expected_log_marginal.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_kde_expected_log_marginal.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
@@ -1049,13 +1049,13 @@ Langevin_post
 <h3>
 Groundtruth
 </h3>
-<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/groundtruth.png" alt="Groundtruth samples for Langevin_post"></p>
+<p><img src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/groundtruth.png" alt="Groundtruth samples for Langevin_post"></p>
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
 KDVI posterior, seed 7
 </h3>
-<img id="posterior-langevin-post" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_60014.png" alt="KDVI posterior samples for Langevin_post"> <input id="slider-langevin-post" type="range" min="0" max="9" value="0" step="1">
+<img id="posterior-langevin-post" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_10000.png" alt="KDVI posterior samples for Langevin_post"> <input id="slider-langevin-post" type="range" min="0" max="9" value="0" step="1">
 <div id="caption-langevin-post" class="posterior-caption">
 epoch 10000
 </div>
@@ -1063,7 +1063,7 @@ epoch 10000
 </div>
 </div>
 <script>
-(function(){const frames=[{"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_60014.png", "epoch": 10000, "wandb_step": 60014}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_120030.png", "epoch": 20000, "wandb_step": 120030}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_180046.png", "epoch": 30000, "wandb_step": 180046}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_240062.png", "epoch": 40000, "wandb_step": 240062}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_300078.png", "epoch": 50000, "wandb_step": 300078}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_360094.png", "epoch": 60000, "wandb_step": 360094}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_420110.png", "epoch": 70000, "wandb_step": 420110}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_480126.png", "epoch": 80000, "wandb_step": 480126}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_540142.png", "epoch": 90000, "wandb_step": 540142}, {"path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_600158.png", "epoch": 100000, "wandb_step": 600158}];const slider=document.getElementById('slider-langevin-post');const image=document.getElementById('posterior-langevin-post');const caption=document.getElementById('caption-langevin-post');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-langevin-post');const image=document.getElementById('posterior-langevin-post');const caption=document.getElementById('caption-langevin-post');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-7-5">
