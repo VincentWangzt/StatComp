@@ -166,6 +166,10 @@ class Toy_2D:
         """
         raise NotImplementedError
 
+    def _contour_values(self, logp_grid: NDArray) -> NDArray:
+        """Return the grid values used for filled contours."""
+        return logp_grid
+
     def contour_plot(
         self,
         bbox: list[float],
@@ -214,10 +218,14 @@ class Toy_2D:
 
         ax.axis(bbox)
         ax.set_aspect(abs(bbox[1] - bbox[0]) / abs(bbox[3] - bbox[2]))
-        # Contour the log-density itself. Linear spacing in log p corresponds
-        # to logarithmic spacing in density and avoids applying a second log
-        # transform that distorts narrow, separated modes such as 8 Gaussians.
-        ax.contourf(xx, yy, logp_grid, cmap="Blues", alpha=0.8, levels=11)
+        ax.contourf(
+            xx,
+            yy,
+            self._contour_values(logp_grid),
+            cmap="Blues",
+            alpha=0.8,
+            levels=11,
+        )
         ax.plot(samples[:, 0], samples[:, 1], ".", markersize=2, color="#ff7f0e")
         if quiver:
             cpositions = np.vstack([cxx.ravel(), cyy.ravel()])
@@ -323,6 +331,10 @@ class Banana_shape(Toy_2D):
             -torch.stack((Y[:, 0] + 2 * X[:, 0] * Y[:, 1], Y[:, 1]), 1)
             / _BANANA_COV_SCALE
         )
+
+    def _contour_values(self, logp_grid: NDArray) -> NDArray:
+        """Use the historical log-log contour compression for banana plots."""
+        return -np.log(np.maximum(-logp_grid, 1e-12))
 
     def sample(self, N: int) -> torch.Tensor:
         """Draw exact samples by inverting the banana transform."""
