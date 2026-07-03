@@ -1,0 +1,5 @@
+count,method,metric,run_ids,target,warning
+1,KSIVI,w2_edge_10,seed47_ksivi_student_uc,student_uc,sampling process failed; edge-length fallback used
+1,KSIVI,w2_edge_5,seed47_ksivi_student_uc,student_uc,sampling process failed; edge-length fallback used
+1,KSIVI,w2_edge_8,seed47_ksivi_student_uc,student_uc,sampling process failed; edge-length fallback used
+1,KSIVI,w2_trunc_abs_8,seed47_ksivi_student_uc,student_uc,sampling process failed; edge-length fallback used

@@ -1,0 +1,145 @@
+## Environment Setup
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+
+```bash
+uv sync
+source .venv/bin/activate
+```
+
+This creates a `.venv/` with the correct Python version and all dependencies.
+Alternatively, prefix commands with `uv run` to skip activation.
+
+For data-dependent targets (BNN, logistic regression), run once before first use:
+
+```bash
+python prepare_data.py
+```
+
+## Architecture
+
+### Config System
+
+Configs use OmegaConf YAML with CLI dotlist overrides (`key.subkey=value`).
+
+| Layer | Path | Purpose |
+|-------|------|---------|
+| Experiment | `configs/{runner}_{target}.yaml` | Top-level run config |
+| Target | `configs/targets/` | Distribution parameters |
+| Reverse model | `configs/reverse_models/` | Reverse conditional architecture |
+| VI model | `configs/vi_models/` | Variational family architecture |
+
+### Core Abstractions
+
+| Abstraction | File | Interface |
+|-------------|------|-----------|
+| Target Distribution | `models/target_models.py` | `logp(X)`, `score(X)` |
+| VI Model | `models/vi_model.py` | `sample_epsilon()`, `forward(eps)` → z |
+| Reverse Model | `models/reverse_model.py` | `log_prob(eps, z)`, `sample(z)` |
+
+Data-dependent targets are wrapped by `models/data_bound_target.py` to expose the same `logp`/`score` interface with a bound dataset.
+
+### Runners
+
+All runners implement `runner.learn()`, called by `src.py`.
+
+| Runner | File | Reverse Model | Key Idea |
+|--------|------|---------------|----------|
+| SIVI | `runner/sivi.py` | None (prior) | Standard semi-implicit VI |
+| UIVI | `runner/uivi.py` | HMC | Unbiased importance weighting |
+| AISIVI | `runner/aisivi.py` | Learned + annealed | Annealed importance sampling |
+| DSIVI | `runner/dsivi.py` | Diffusion | Diffusion-based reverse |
+| KSIVI | `runner/ksivi.py` | None | Kernel Stein discrepancy |
+
+Runner types are registered in `runner/runners.py` and selected via `runner_type` in config.
+
+## Targets
+
+**Toy 2D** (exact baselines in `baselines/exact/`):
+
+| Target | Dim | Config |
+|--------|-----|--------|
+| `banana` | 2 | `configs/targets/banana.yaml` |
+| `multimodal` | 2 | `configs/targets/multimodal.yaml` |
+| `x_shaped` | 2 | `configs/targets/x_shaped.yaml` |
+| `student_uc` | 2 | `configs/targets/student_uc.yaml` |
+| `8_gaussians` | 2 | `configs/targets/8_gaussians.yaml` |
+
+**High-dimensional** (MCMC baseline in `baselines/mcmc/`):
+
+| Target | Dim | Config |
+|--------|-----|--------|
+| `Langevin_post` | 100 | `configs/targets/Langevin_post.yaml` |
+
+**Data-dependent** (ELBO evaluation only; require `prepare_data.py`):
+
+| Target | Dim | Config |
+|--------|-----|--------|
+| `LRwaveform` | 22 | `configs/targets/LRwaveform.yaml` |
+| `Bnn_boston` | 751 | `configs/targets/Bnn_boston.yaml` |
+| `Bnn_concrete` | 501 | `configs/targets/Bnn_concrete.yaml` |
+| `Bnn_power` | 301 | `configs/targets/Bnn_power.yaml` |
+| `Bnn_protein` | 551 | `configs/targets/Bnn_protein.yaml` |
+| `Bnn_winered` | 651 | `configs/targets/Bnn_winered.yaml` |
+| `Bnn_yacht` | 401 | `configs/targets/Bnn_yacht.yaml` |
+
+## Running Experiments
+
+### Single Experiment
+
+```bash
+python src.py --config configs/sivi_banana.yaml
+python src.py --config configs/sivi_banana.yaml train.epochs=20000 train.vi.lr=0.001
+```
+
+### Weights & Biases
+
+Copy the environment template once and add the API key from your W&B account:
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set WANDB_API_KEY. WANDB_PROJECT defaults to StatComp.
+```
+
+Runs are logged online when a key is available. Without a key, or if online
+initialization fails, an offline W&B run is stored inside the corresponding
+result directory. Upload it later with `wandb sync <offline-run-directory>`.
+Because diagnostic histories stay in W&B rather than `metrics.csv`, sync an
+offline run before regenerating gradient- or weight-norm finalization plots.
+
+Run names contain method, target, seed, and timestamp. Campaign runs also use
+the campaign slug as their name prefix, W&B group, and tag. Training plots are
+saved locally and included in the W&B run's image history.
+
+### Reproducing Results
+
+For full campaign sweeps, baseline generation, and finalization (evaluation + report generation), see [`scripts/README.md`](scripts/README.md).
+
+## Output Layout
+
+```
+results/{runner_type}/{target_type}/{timestamp}/   # checkpoints, samples, plots, metrics.csv, W&B data
+campaigns/default_config_grid/
+  ├── manifest.csv                                 # job index
+  └── generated_reports/                           # figures, tables
+baselines/exact/                                   # toy 2D exact samples (.pt)
+baselines/mcmc/                                    # SGLD samples (.pt)
+```
+
+TensorBoard remains installed only so historical event files can still be
+extracted; new experiments do not write TensorBoard events.
+
+## Scripts & Tools
+
+**Scripts** (`scripts/`): Campaign orchestration, baseline generation, artifact fetching.
+
+- Key scripts: `reproduce_baselines.sh`, `run_default_config_grid.sh`, `run_finalization.py`
+- Full reference: [`scripts/README.md`](scripts/README.md)
+
+**Config Reviewer** (`tools/config_reviewer/`): Local web UI for comparing YAML configs across methods and targets.
+
+```bash
+python tools/config_reviewer/server.py --port 8765
+```
+
+Details: [`tools/config_reviewer/README.md`](tools/config_reviewer/README.md)

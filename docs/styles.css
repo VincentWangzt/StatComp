@@ -1,0 +1,148 @@
+.reveal {
+  --r-main-font: "Times New Roman", Times, serif;
+  --r-heading-font: "Times New Roman", Times, serif;
+  --r-heading-font-weight: 700;
+}
+
+.reveal,
+.navbar,
+body {
+  font-family: "Times New Roman", Times, serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Times New Roman", Times, serif;
+  font-weight: 650;
+}
+
+.reveal .slides,
+.reveal .slides section,
+.reveal h1,
+.reveal h2,
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6,
+.reveal p,
+.reveal li,
+.reveal table,
+.reveal a {
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.reveal section[id^="results-"] > h2 {
+  font-size: 1.35em;
+  line-height: 1.05;
+  margin-bottom: 0.08em;
+}
+
+mjx-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.15rem;
+}
+
+.metric-table {
+  font-size: 0.92rem;
+}
+
+.target-definition-link {
+  margin: -0.25rem 0 0.35rem;
+  font-size: 0.72em;
+}
+
+.target-definition-link a {
+  text-decoration: none;
+}
+
+.target-metric-table table {
+  width: 100%;
+}
+
+.scaled-frame {
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.scaled-frame-content {
+  transform-origin: top left;
+}
+
+.target-tabs iframe {
+  width: 100%;
+  border: 0;
+}
+
+.visual-grid {
+  --visual-figure-width: 420px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, var(--visual-figure-width)));
+  justify-content: center;
+  gap: 56px;
+  align-items: start;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.visual-panel {
+  min-width: 0;
+}
+
+.visual-panel h3 {
+  margin: 0 0 8px;
+  font-size: 0.78em;
+  line-height: 1.05;
+}
+
+.visual-grid img {
+  display: block;
+  width: var(--visual-figure-width);
+  max-width: 100%;
+  height: auto;
+  max-height: 500px;
+  border: 1px solid #d8dee9;
+  background: #fff;
+  object-fit: contain;
+}
+
+.posterior-panel input[type="range"] {
+  display: block;
+  width: var(--visual-figure-width);
+  margin-top: 8px;
+}
+
+.posterior-caption {
+  margin-top: 0.18rem;
+  font-size: 0.68em;
+  color: #5b6472;
+}
+
+.reveal .visual-grid {
+  grid-template-columns: repeat(2, minmax(0, var(--visual-figure-width)));
+}
+
+.reveal .panel-tabset {
+  font-size: 0.48em;
+}
+
+.reveal .target-metric-table {
+  font-size: 0.82em;
+}
+
+.reveal .visual-grid img {
+  max-height: 420px;
+  object-fit: contain;
+}
+
+@media (max-width: 760px) {
+  .visual-grid:not(.scaled-frame-content),
+  .reveal .visual-grid:not(.scaled-frame-content) {
+    grid-template-columns: 1fr;
+  }
+}

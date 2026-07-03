@@ -1,0 +1,121 @@
+[
+  {
+    "objectID": "method.html",
+    "href": "method.html",
+    "title": "Method Formulation",
+    "section": "",
+    "text": "Let \\(p(z)\\) denote the unnormalized target density. We use an implicit variational sampler\n\\[\nz = g_\\theta(\\epsilon, \\eta), \\qquad\n\\epsilon \\sim p_\\epsilon,\\quad \\eta \\sim \\mathcal{N}(0,I),\n\\]\nwhich induces a marginal variational distribution \\(q_\\theta\\) over \\(z\\). The density \\(q_\\theta(z)\\) may be unavailable or inconvenient, but drawing samples from \\(q_\\theta\\) is cheap and differentiable with respect to \\(\\theta\\)."
+  },
+  {
+    "objectID": "method.html#implicit-variational-family",
+    "href": "method.html#implicit-variational-family",
+    "title": "Method Formulation",
+    "section": "",
+    "text": "Let \\(p(z)\\) denote the unnormalized target density. We use an implicit variational sampler\n\\[\nz = g_\\theta(\\epsilon, \\eta), \\qquad\n\\epsilon \\sim p_\\epsilon,\\quad \\eta \\sim \\mathcal{N}(0,I),\n\\]\nwhich induces a marginal variational distribution \\(q_\\theta\\) over \\(z\\). The density \\(q_\\theta(z)\\) may be unavailable or inconvenient, but drawing samples from \\(q_\\theta\\) is cheap and differentiable with respect to \\(\\theta\\)."
+  },
+  {
+    "objectID": "method.html#mcmc-pushforward",
+    "href": "method.html#mcmc-pushforward",
+    "title": "Method Formulation",
+    "section": "MCMC Pushforward",
+    "text": "MCMC Pushforward\nLet \\(T\\) be a Markov transition kernel with invariant distribution \\(p\\). For a current distribution \\(q\\), the pushforward \\(T_\\# q\\) is the distribution obtained by first drawing \\(z \\sim q\\), then drawing \\(z' \\sim T(\\cdot \\mid z)\\). Repeating the transition \\(K\\) times gives\n\\[\nz' \\sim T_\\#^K q_\\theta .\n\\]\nIf the transition kernel mixes toward \\(p\\), then \\(T_\\#^K q_\\theta\\) can be viewed as an MCMC-improved version of \\(q_\\theta\\)."
+  },
+  {
+    "objectID": "method.html#distillation-objective",
+    "href": "method.html#distillation-objective",
+    "title": "Method Formulation",
+    "section": "Distillation Objective",
+    "text": "Distillation Objective\nThe training objective is to make the implicit sampler match its own MCMC-improved distribution:\n\\[\n\\min_\\theta D\\!\\left(q_\\theta,\\; T_\\#^K q_\\theta\\right),\n\\]\nwhere \\(D\\) is a sample-based discrepancy between distributions. In the current method, \\(D\\) is Maximum Mean Discrepancy (MMD).\nFor a minibatch \\(z_i = g_\\theta(\\epsilon_i,\\eta_i)\\), run \\(K\\) MCMC steps from detached particles to obtain \\(\\tilde z_i\\). The loss is\n\\[\n\\mathcal{L}(\\theta)\n=\n\\widehat{\\operatorname{MMD}}^2\n\\left(\n\\{z_i\\}_{i=1}^n,\\,\n\\{\\operatorname{sg}(\\tilde z_i)\\}_{i=1}^n\n\\right),\n\\]\nwhere \\(\\operatorname{sg}(\\cdot)\\) is stop-gradient. Gradients flow through the variational samples \\(z_i\\), but not through the MCMC transition."
+  },
+  {
+    "objectID": "method.html#mmd-estimator",
+    "href": "method.html#mmd-estimator",
+    "title": "Method Formulation",
+    "section": "MMD Estimator",
+    "text": "MMD Estimator\nWith kernel \\(k\\), the biased V-statistic estimator is\n\\[\n\\widehat{\\operatorname{MMD}}^2\n=\n\\frac{1}{n^2}\\sum_{i,j} k(z_i,z_j)\n+ \\frac{1}{n^2}\\sum_{i,j} k(\\tilde z_i,\\tilde z_j)\n- \\frac{2}{n^2}\\sum_{i,j} k(z_i,\\tilde z_j).\n\\]\nThe first term keeps the variational particles spread out, while the cross term pulls them toward MCMC-improved particles. The second term is useful for the value of the discrepancy, but it is detached from the optimization path."
+  },
+  {
+    "objectID": "method.html#fixed-point-intuition",
+    "href": "method.html#fixed-point-intuition",
+    "title": "Method Formulation",
+    "section": "Fixed-Point Intuition",
+    "text": "Fixed-Point Intuition\nIf \\(q_\\theta = p\\), then applying an invariant transition leaves the distribution unchanged:\n\\[\nT_\\# p = p.\n\\]\nThus \\(q_\\theta=p\\) is a distributional fixed point of the objective. Conversely, when \\(q_\\theta\\) is not close to \\(p\\), a short MCMC chain usually moves samples toward regions preferred by the target. Distillation trains the sampler to reproduce that movement directly.\nThis is not a claim that every finite neural sampler and every short transition yields a formal contraction. The useful intuition is gentler: the MCMC kernel supplies local target-directed corrections, and the variational sampler amortizes those corrections across training."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "VI via MCMC distillation",
+    "section": "",
+    "text": "This writeup summarizes a variational inference method that learns an implicit sampler by distilling short MCMC transitions. The central idea is to train a flexible sampler until applying the target-preserving transition no longer changes its distribution.\nThe writeup is organized into three parts:\n\nMethod: the distributional formulation and fixed-point intuition.\nImplementation: the default mathematical choices used in the experiments.\nResults: campaign summaries, KDVI metric traces, and posterior visualizations."
+  },
+  {
+    "objectID": "implementation.html",
+    "href": "implementation.html",
+    "title": "Implementation",
+    "section": "",
+    "text": "Each iteration begins by drawing a minibatch from the current implicit variational distribution:\n\\[\nz_i = g_\\theta(\\epsilon_i,\\eta_i), \\qquad i=1,\\ldots,n.\n\\]\nThe samples are then treated as starting points for a short MCMC refinement chain targeting an annealed density\n\\[\n\\log p_{\\beta_t}(z) = \\beta_t \\log p(z).\n\\]\nThe refined samples are\n\\[\n\\tilde z_i = T_{\\beta_t,\\tau_t}^K(z_i),\n\\]\nwith gradients stopped through the transition. The default number of transition steps is\n\\[\nK=5.\n\\]\nTraining minimizes paired MMD between \\(\\{z_i\\}\\) and \\(\\{\\tilde z_i\\}\\). The pairing matters operationally: each target particle is the MCMC refinement of one variational particle, so the loss gives a low-variance local correction signal."
+  },
+  {
+    "objectID": "implementation.html#training-step",
+    "href": "implementation.html#training-step",
+    "title": "Implementation",
+    "section": "",
+    "text": "Each iteration begins by drawing a minibatch from the current implicit variational distribution:\n\\[\nz_i = g_\\theta(\\epsilon_i,\\eta_i), \\qquad i=1,\\ldots,n.\n\\]\nThe samples are then treated as starting points for a short MCMC refinement chain targeting an annealed density\n\\[\n\\log p_{\\beta_t}(z) = \\beta_t \\log p(z).\n\\]\nThe refined samples are\n\\[\n\\tilde z_i = T_{\\beta_t,\\tau_t}^K(z_i),\n\\]\nwith gradients stopped through the transition. The default number of transition steps is\n\\[\nK=5.\n\\]\nTraining minimizes paired MMD between \\(\\{z_i\\}\\) and \\(\\{\\tilde z_i\\}\\). The pairing matters operationally: each target particle is the MCMC refinement of one variational particle, so the loss gives a low-variance local correction signal."
+  },
+  {
+    "objectID": "implementation.html#mmd-kernel-and-bandwidth",
+    "href": "implementation.html#mmd-kernel-and-bandwidth",
+    "title": "Implementation",
+    "section": "MMD Kernel and Bandwidth",
+    "text": "MMD Kernel and Bandwidth\nThe default kernel is the radial Laplace kernel on Euclidean distance:\n\\[\nk_h(x,y)\n=\n\\exp\\!\\left(-\\frac{\\lVert x-y\\rVert_2}{2h}\\right).\n\\]\nThe bandwidth \\(h\\) is refit at each training iteration using the median pairwise distance among the current variational samples:\n\\[\nh_t\n=\n\\operatorname{median}_{i,j}\n\\lVert z_i-z_j\\rVert_2.\n\\]\nThe bandwidth computation is stop-gradient. This keeps the kernel scale adaptive without letting the optimizer reduce the loss by manipulating the bandwidth itself."
+  },
+  {
+    "objectID": "implementation.html#transition-kernels",
+    "href": "implementation.html#transition-kernels",
+    "title": "Implementation",
+    "section": "Transition Kernels",
+    "text": "Transition Kernels\nMost targets use stochastic gradient Langevin dynamics. One transition step is\n\\[\nz_{m+1}\n=\nz_m\n+ \\frac{\\tau_t}{2}\\nabla_z \\log p_{\\beta_t}(z_m)\n+ \\sqrt{\\tau_t}\\,\\xi_m,\n\\qquad\n\\xi_m \\sim \\mathcal{N}(0,I).\n\\]\nThe student_uc target uses a Metropolis-adjusted Langevin transition with the same Langevin proposal and an accept-reject correction. This keeps the heavy-tailed target from relying purely on the biased finite-step SGLD dynamics."
+  },
+  {
+    "objectID": "implementation.html#annealing",
+    "href": "implementation.html#annealing",
+    "title": "Implementation",
+    "section": "Annealing",
+    "text": "Annealing\nFor most targets, the inverse-temperature factor ramps linearly from \\(0.1\\) to \\(1.0\\) over the first 50,000 epochs:\n\\[\n\\beta_t\n=\n0.1 + 0.9 \\min\\!\\left(1,\\frac{t}{50000}\\right).\n\\]\nWhen \\(\\beta_t &lt; 1\\), the MCMC transition sees a flattened target. This makes early refinements less abrupt and keeps the MMD kernel from comparing batches that are too far apart. Targets that do not use annealing set \\(\\beta_t=1\\) throughout."
+  },
+  {
+    "objectID": "implementation.html#coupled-step-size",
+    "href": "implementation.html#coupled-step-size",
+    "title": "Implementation",
+    "section": "Coupled Step Size",
+    "text": "Coupled Step Size\nThe default MCMC step size is coupled to the annealing factor:\n\\[\n\\tau_t = \\frac{\\tau_0}{\\beta_t}.\n\\]\nThis counter-effects annealing on the score. Since\n\\[\n\\nabla_z \\log p_{\\beta_t}(z)\n=\n\\beta_t \\nabla_z \\log p(z),\n\\]\nthe deterministic Langevin drift becomes\n\\[\n\\frac{\\tau_t}{2}\\nabla_z \\log p_{\\beta_t}(z)\n=\n\\frac{\\tau_0}{2}\\nabla_z \\log p(z).\n\\]\nSo early training uses a flattened target for stability, but the score-driven drift does not vanish just because the target has been tempered."
+  },
+  {
+    "objectID": "implementation.html#default-step-sizes",
+    "href": "implementation.html#default-step-sizes",
+    "title": "Implementation",
+    "section": "Default Step Sizes",
+    "text": "Default Step Sizes\nThe base step size \\(\\tau_0\\) is target-specific:\n\n\n\nTarget\nTransition\n\\(\\tau_0\\)\nAnnealing\n\n\n\n\nbanana\nSGLD\n0.02\nlinear\n\n\nmultimodal\nSGLD\n0.10\nlinear\n\n\nx_shaped\nSGLD\n0.10\nlinear\n\n\n8_gaussians\nSGLD\n0.05\nlinear\n\n\n8_gaussians_small\nSGLD\n0.005\nlinear\n\n\nstudent_uc\nMALA\n0.10\nnone\n\n\nLangevin_post\nSGLD\n0.005\nlinear"
+  },
+  {
+    "objectID": "implementation.html#target-definitions",
+    "href": "implementation.html#target-definitions",
+    "title": "Implementation",
+    "section": "Target Definitions",
+    "text": "Target Definitions\n\nbanana\nThe banana target is a two-dimensional Gaussian density viewed through a unit-Jacobian nonlinear transform. For \\(z=(z_1,z_2)\\), define\n\\[\ny(z) = (z_1,\\; z_1^2 + z_2 + 1).\n\\]\nThe target density is\n\\[\np(z) = \\mathcal{N}(y(z); 0, \\Sigma),\n\\qquad\n\\Sigma =\n\\begin{pmatrix}\n1 & 0.9 \\\\\n0.9 & 1\n\\end{pmatrix}.\n\\]\nThe transform bends the correlated Gaussian mass into a curved valley, so the approximation must track nonlinear dependence rather than only a tilted ellipse.\n\n\nx_shaped\nThe x_shaped target is an equal-weight mixture of two zero-mean Gaussians:\n\\[\np(z)\n= \\frac{1}{2}\\mathcal{N}(z;0,\\Sigma_1)\n+ \\frac{1}{2}\\mathcal{N}(z;0,\\Sigma_2),\n\\]\nwith\n\\[\n\\Sigma_1 =\n\\begin{pmatrix}\n2 & 1.8 \\\\\n1.8 & 2\n\\end{pmatrix},\n\\qquad\n\\Sigma_2 =\n\\begin{pmatrix}\n2 & -1.8 \\\\\n-1.8 & 2\n\\end{pmatrix}.\n\\]\nThe two high-correlation components create crossing ridges. This target probes whether the sampler can cover non-convex local geometry near the intersection.\n\n\nmultimodal\nThe multimodal target is a symmetric two-component Gaussian mixture:\n\\[\np(z)\n= \\frac{1}{2}\\mathcal{N}(z; (2,0), I_2)\n+ \\frac{1}{2}\\mathcal{N}(z; (-2,0), I_2).\n\\]\nIt is a simple separated-mode benchmark: the two modes are easy to describe analytically, but a poor variational approximation can still collapse to one mode or add too much density between them.\n\n\n8_gaussians\nThe 8_gaussians target is an equally weighted mixture of eight isotropic Gaussians on a ring:\n\\[\np(z) =\n\\frac{1}{8}\\sum_{k=0}^{7}\n\\mathcal{N}(z;\\mu_k,\\sigma^2 I_2),\n\\qquad\n\\mu_k = 4(\\cos(k\\pi/4), \\sin(k\\pi/4)),\n\\qquad\n\\sigma=0.5.\n\\]\nThe modes are well separated, so this target mainly tests multi-modal coverage and whether training avoids spurious bridging density.\n\n\n8_gaussians_small\nThe 8_gaussians_small target has the same eight-mode ring geometry as 8_gaussians, but uses the IVI-notebook scale:\n\\[\n\\mu_k = (\\cos(k\\pi/4), \\sin(k\\pi/4)),\n\\qquad\n\\sigma=0.1,\n\\qquad\nk=0,\\ldots,7.\n\\]\nThe smaller radius and component variance keep the same coverage challenge while matching the reference notebook geometry used for cross-implementation comparisons.\n\n\nstudent_uc\nThe student_uc target is a transformed bivariate Student-\\(t\\) distribution with \\(\\nu=2\\). Let\n\\[\n\\tilde z = A^{-1}z,\n\\]\nwhere \\(A\\) is generated deterministically from seed 50 and normalized so that \\(\\det(A)=1\\). The density is\n\\[\np(z)\n= |\\det A|^{-1}\\prod_{i=1}^{2}\nt_{\\nu}(\\tilde z_i),\n\\qquad\n\\nu=2.\n\\]\nBecause the transformed marginals have polynomial tails, this target stresses tail coverage and uses MALA rather than the default unadjusted SGLD transition.\n\n\nLangevin_post\nThe Langevin_post target starts from the scalar Langevin SDE\n\\[\ndX_t\n=\n10\\,\\frac{X_t-X_t^3}{1+X_t^2}\\,dt\n+ dW_t,\n\\qquad\nX_0=0,\\quad 0\\le t\\le 1.\n\\]\nWe obtain the 100 latent variables \\(x_1,\\ldots,x_{100}\\) by applying the Euler-Maruyama discretization on the uniform grid \\(t_j=j\\Delta t\\), with \\(\\Delta t=0.01\\). Thus \\(x_j\\) represents the latent state at time \\(t_j\\), and the one-step transition is\n\\[\nx_j \\mid x_{j-1}\n\\sim\n\\mathcal{N}\\!\\left(\nx_{j-1}\n+ 10\\,\\frac{x_{j-1}-x_{j-1}^3}{1+x_{j-1}^2}\\Delta t,\n\\Delta t\n\\right),\n\\qquad\nj=1,\\ldots,100.\n\\]\nThe target is the posterior over the discretized latent path \\(x=(x_1,\\ldots,x_{100})\\). Observations are made every five time steps:\n\\[\ny_k \\mid x_{5k} \\sim \\mathcal{N}(x_{5k}, 0.1^2),\n\\qquad\nk=1,\\ldots,20.\n\\]\nThe implemented posterior has the form\n\\[\np(x\\mid y)\n\\propto\n\\prod_{j=1}^{100}\\mathcal{N}(x_j; m(x_{j-1}), \\Delta t)\n\\prod_{k=1}^{20}\\mathcal{N}(y_k; x_{5k}, 0.1^2),\n\\qquad\nx_0=0,\n\\]\nwith drift mean\n\\[\nm(u)\n= u + 10\\,\\frac{u-u^3}{1+u^2}\\Delta t.\n\\]\nThis benchmark is high dimensional, and quality is visible through the inferred path mean and marginal uncertainty band rather than through a two-dimensional contour."
+  },
+  {
+    "objectID": "implementation.html#variational-architectures",
+    "href": "implementation.html#variational-architectures",
+    "title": "Implementation",
+    "section": "Variational Architectures",
+    "text": "Variational Architectures\nFor the toy targets, the variational sampler uses Gaussian base noise\n\\[\n\\epsilon \\sim \\mathcal{N}(0,I_{32})\n\\]\nand a conditional Gaussian output distribution. The mean and log standard deviation are produced by a neural network with three hidden layers, width 256, and ELU activations.\nFor the Langevin_post target, the sampler uses\n\\[\n\\epsilon \\sim \\operatorname{Uniform}([0,1]^d),\n\\]\nwhere \\(d\\) is the target dimension. A two-layer ReLU network of width 128 maps \\(\\epsilon\\) to a mean \\(\\mu_\\theta(\\epsilon)\\). The conditional distribution is\n\\[\nz \\mid \\epsilon\n\\sim\n\\mathcal{N}\\!\\left(\\mu_\\theta(\\epsilon), \\operatorname{diag}(\\sigma_\\theta^2)\\right),\n\\]\nwith a learned global diagonal variance. The variance is parameterized through a softplus transform, initialized at \\(0.01725\\), and floored at \\(10^{-4}\\)."
+  },
+  {
+    "objectID": "implementation.html#optimization-and-evaluation-defaults",
+    "href": "implementation.html#optimization-and-evaluation-defaults",
+    "title": "Implementation",
+    "section": "Optimization and Evaluation Defaults",
+    "text": "Optimization and Evaluation Defaults\nThe default training horizon is 100,000 epochs with minibatch size 1024. The variational parameters use Adam with learning rate \\(2\\times 10^{-3}\\). A step scheduler multiplies the learning rate by \\(0.75\\) every 5,000 epochs.\nReported toy-target metrics use KL-ITE, sliced Wasserstein distance, and ELBO estimates. The results page summarizes final metric values across the available runs within each W&B group."
+  }
+]
