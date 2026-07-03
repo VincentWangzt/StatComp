@@ -1,0 +1,11 @@
+---
+title: "VI via MCMC distillation"
+---
+
+This writeup summarizes a variational inference method that learns an implicit sampler by distilling short MCMC transitions. The central idea is to train a flexible sampler until applying the target-preserving transition no longer changes its distribution.
+
+The writeup is organized into three parts:
+
+- [Method](method.qmd): the distributional formulation and fixed-point intuition.
+- [Implementation](implementation.qmd): the default mathematical choices used in the experiments.
+- [Results](results.qmd): campaign summaries, KDVI metric traces, and posterior visualizations.

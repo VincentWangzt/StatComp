@@ -1,0 +1,321 @@
+---
+title: "Implementation"
+---
+
+## Training Step
+
+Each iteration begins by drawing a minibatch from the current implicit variational distribution:
+
+\[
+z_i = g_\theta(\epsilon_i,\eta_i), \qquad i=1,\ldots,n.
+\]
+
+The samples are then treated as starting points for a short MCMC refinement chain targeting an annealed density
+
+\[
+\log p_{\beta_t}(z) = \beta_t \log p(z).
+\]
+
+The refined samples are
+
+\[
+\tilde z_i = T_{\beta_t,\tau_t}^K(z_i),
+\]
+
+with gradients stopped through the transition. The default number of transition steps is
+
+\[
+K=5.
+\]
+
+Training minimizes paired MMD between \(\{z_i\}\) and \(\{\tilde z_i\}\). The pairing matters operationally: each target particle is the MCMC refinement of one variational particle, so the loss gives a low-variance local correction signal.
+
+## MMD Kernel and Bandwidth
+
+The default kernel is the radial Laplace kernel on Euclidean distance:
+
+\[
+k_h(x,y)
+=
+\exp\!\left(-\frac{\lVert x-y\rVert_2}{2h}\right).
+\]
+
+The bandwidth \(h\) is refit at each training iteration using the median pairwise distance among the current variational samples:
+
+\[
+h_t
+=
+\operatorname{median}_{i,j}
+\lVert z_i-z_j\rVert_2.
+\]
+
+The bandwidth computation is stop-gradient. This keeps the kernel scale adaptive without letting the optimizer reduce the loss by manipulating the bandwidth itself.
+
+## Transition Kernels
+
+Most targets use stochastic gradient Langevin dynamics. One transition step is
+
+\[
+z_{m+1}
+=
+z_m
++ \frac{\tau_t}{2}\nabla_z \log p_{\beta_t}(z_m)
++ \sqrt{\tau_t}\,\xi_m,
+\qquad
+\xi_m \sim \mathcal{N}(0,I).
+\]
+
+The `student_uc` target uses a Metropolis-adjusted Langevin transition with the same Langevin proposal and an accept-reject correction. This keeps the heavy-tailed target from relying purely on the biased finite-step SGLD dynamics.
+
+## Annealing
+
+For most targets, the inverse-temperature factor ramps linearly from \(0.1\) to \(1.0\) over the first 50,000 epochs:
+
+\[
+\beta_t
+=
+0.1 + 0.9 \min\!\left(1,\frac{t}{50000}\right).
+\]
+
+When \(\beta_t < 1\), the MCMC transition sees a flattened target. This makes early refinements less abrupt and keeps the MMD kernel from comparing batches that are too far apart. Targets that do not use annealing set \(\beta_t=1\) throughout.
+
+## Coupled Step Size
+
+The default MCMC step size is coupled to the annealing factor:
+
+\[
+\tau_t = \frac{\tau_0}{\beta_t}.
+\]
+
+This counter-effects annealing on the score. Since
+
+\[
+\nabla_z \log p_{\beta_t}(z)
+=
+\beta_t \nabla_z \log p(z),
+\]
+
+the deterministic Langevin drift becomes
+
+\[
+\frac{\tau_t}{2}\nabla_z \log p_{\beta_t}(z)
+=
+\frac{\tau_0}{2}\nabla_z \log p(z).
+\]
+
+So early training uses a flattened target for stability, but the score-driven drift does not vanish just because the target has been tempered.
+
+## Default Step Sizes
+
+The base step size \(\tau_0\) is target-specific:
+
+| Target | Transition | \(\tau_0\) | Annealing |
+|---|---:|---:|---:|
+| banana | SGLD | 0.02 | linear |
+| multimodal | SGLD | 0.10 | linear |
+| x_shaped | SGLD | 0.10 | linear |
+| 8_gaussians | SGLD | 0.05 | linear |
+| 8_gaussians_small | SGLD | 0.005 | linear |
+| student_uc | MALA | 0.10 | none |
+| Langevin_post | SGLD | 0.005 | linear |
+
+## Target Definitions
+
+### banana {#sec-target-banana}
+
+The `banana` target is a two-dimensional Gaussian density viewed through a unit-Jacobian nonlinear transform. For \(z=(z_1,z_2)\), define
+
+\[
+y(z) = (z_1,\; z_1^2 + z_2 + 1).
+\]
+
+The target density is
+
+\[
+p(z) = \mathcal{N}(y(z); 0, \Sigma),
+\qquad
+\Sigma =
+\begin{pmatrix}
+1 & 0.9 \\
+0.9 & 1
+\end{pmatrix}.
+\]
+
+The transform bends the correlated Gaussian mass into a curved valley, so the approximation must track nonlinear dependence rather than only a tilted ellipse.
+
+### x_shaped {#sec-target-x-shaped}
+
+The `x_shaped` target is an equal-weight mixture of two zero-mean Gaussians:
+
+\[
+p(z)
+= \frac{1}{2}\mathcal{N}(z;0,\Sigma_1)
+ + \frac{1}{2}\mathcal{N}(z;0,\Sigma_2),
+\]
+
+with
+
+\[
+\Sigma_1 =
+\begin{pmatrix}
+2 & 1.8 \\
+1.8 & 2
+\end{pmatrix},
+\qquad
+\Sigma_2 =
+\begin{pmatrix}
+2 & -1.8 \\
+-1.8 & 2
+\end{pmatrix}.
+\]
+
+The two high-correlation components create crossing ridges. This target probes whether the sampler can cover non-convex local geometry near the intersection.
+
+### multimodal {#sec-target-multimodal}
+
+The `multimodal` target is a symmetric two-component Gaussian mixture:
+
+\[
+p(z)
+= \frac{1}{2}\mathcal{N}(z; (2,0), I_2)
+ + \frac{1}{2}\mathcal{N}(z; (-2,0), I_2).
+\]
+
+It is a simple separated-mode benchmark: the two modes are easy to describe analytically, but a poor variational approximation can still collapse to one mode or add too much density between them.
+
+### 8_gaussians {#sec-target-8-gaussians}
+
+The `8_gaussians` target is an equally weighted mixture of eight isotropic Gaussians on a ring:
+
+\[
+p(z) =
+\frac{1}{8}\sum_{k=0}^{7}
+\mathcal{N}(z;\mu_k,\sigma^2 I_2),
+\qquad
+\mu_k = 4(\cos(k\pi/4), \sin(k\pi/4)),
+\qquad
+\sigma=0.5.
+\]
+
+The modes are well separated, so this target mainly tests multi-modal coverage and whether training avoids spurious bridging density.
+
+### 8_gaussians_small {#sec-target-8-gaussians-small}
+
+The `8_gaussians_small` target has the same eight-mode ring geometry as `8_gaussians`, but uses the IVI-notebook scale:
+
+\[
+\mu_k = (\cos(k\pi/4), \sin(k\pi/4)),
+\qquad
+\sigma=0.1,
+\qquad
+k=0,\ldots,7.
+\]
+
+The smaller radius and component variance keep the same coverage challenge while matching the reference notebook geometry used for cross-implementation comparisons.
+
+### student_uc {#sec-target-student-uc}
+
+The `student_uc` target is a transformed bivariate Student-\(t\) distribution with \(\nu=2\). Let
+
+\[
+\tilde z = A^{-1}z,
+\]
+
+where \(A\) is generated deterministically from seed 50 and normalized so that \(\det(A)=1\). The density is
+
+\[
+p(z)
+= |\det A|^{-1}\prod_{i=1}^{2}
+t_{\nu}(\tilde z_i),
+\qquad
+\nu=2.
+\]
+
+Because the transformed marginals have polynomial tails, this target stresses tail coverage and uses MALA rather than the default unadjusted SGLD transition.
+
+### Langevin_post {#sec-target-langevin-post}
+
+The `Langevin_post` target starts from the scalar Langevin SDE
+
+\[
+dX_t
+=
+10\,\frac{X_t-X_t^3}{1+X_t^2}\,dt
++ dW_t,
+\qquad
+X_0=0,\quad 0\le t\le 1.
+\]
+
+We obtain the 100 latent variables \(x_1,\ldots,x_{100}\) by applying the Euler-Maruyama discretization on the uniform grid \(t_j=j\Delta t\), with \(\Delta t=0.01\). Thus \(x_j\) represents the latent state at time \(t_j\), and the one-step transition is
+
+\[
+x_j \mid x_{j-1}
+\sim
+\mathcal{N}\!\left(
+x_{j-1}
++ 10\,\frac{x_{j-1}-x_{j-1}^3}{1+x_{j-1}^2}\Delta t,
+\Delta t
+\right),
+\qquad
+j=1,\ldots,100.
+\]
+
+The target is the posterior over the discretized latent path \(x=(x_1,\ldots,x_{100})\). Observations are made every five time steps:
+
+\[
+y_k \mid x_{5k} \sim \mathcal{N}(x_{5k}, 0.1^2),
+\qquad
+k=1,\ldots,20.
+\]
+
+The implemented posterior has the form
+
+\[
+p(x\mid y)
+\propto
+\prod_{j=1}^{100}\mathcal{N}(x_j; m(x_{j-1}), \Delta t)
+\prod_{k=1}^{20}\mathcal{N}(y_k; x_{5k}, 0.1^2),
+\qquad
+x_0=0,
+\]
+
+with drift mean
+
+\[
+m(u)
+= u + 10\,\frac{u-u^3}{1+u^2}\Delta t.
+\]
+
+This benchmark is high dimensional, and quality is visible through the inferred path mean and marginal uncertainty band rather than through a two-dimensional contour.
+
+## Variational Architectures
+
+For the toy targets, the variational sampler uses Gaussian base noise
+
+\[
+\epsilon \sim \mathcal{N}(0,I_{32})
+\]
+
+and a conditional Gaussian output distribution. The mean and log standard deviation are produced by a neural network with three hidden layers, width 256, and ELU activations.
+
+For the `Langevin_post` target, the sampler uses
+
+\[
+\epsilon \sim \operatorname{Uniform}([0,1]^d),
+\]
+
+where \(d\) is the target dimension. A two-layer ReLU network of width 128 maps \(\epsilon\) to a mean \(\mu_\theta(\epsilon)\). The conditional distribution is
+
+\[
+z \mid \epsilon
+\sim
+\mathcal{N}\!\left(\mu_\theta(\epsilon), \operatorname{diag}(\sigma_\theta^2)\right),
+\]
+
+with a learned global diagonal variance. The variance is parameterized through a softplus transform, initialized at \(0.01725\), and floored at \(10^{-4}\).
+
+## Optimization and Evaluation Defaults
+
+The default training horizon is 100,000 epochs with minibatch size 1024. The variational parameters use Adam with learning rate \(2\times 10^{-3}\). A step scheduler multiplies the learning rate by \(0.75\) every 5,000 epochs.
+
+Reported toy-target metrics use KL-ITE, sliced Wasserstein distance, and ELBO estimates. The results page summarizes final metric values across the available runs within each W&B group.

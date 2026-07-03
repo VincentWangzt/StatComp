@@ -1,0 +1,342 @@
+---
+title: "Experiment Results"
+format:
+  revealjs:
+    theme: simple
+    transition: slide
+    slide-number: true
+    controls: true
+    progress: true
+    css: styles.css
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{=html}
+<script>
+window.fitScaledWriteupFrame = function(frame) {
+  const content = frame.querySelector(".scaled-frame-content");
+  const sourceWidth = Number(frame.dataset.sourceWidth);
+  const sourceHeight = Number(frame.dataset.sourceHeight);
+  if (!content || !sourceWidth || !sourceHeight) return;
+
+  const displayWidth = frame.clientWidth;
+  if (!displayWidth) return;
+
+  const scale = Math.min(1, displayWidth / sourceWidth);
+  const extraHeight = Number(frame.dataset.extraHeight || 0);
+  frame.style.maxWidth = "100%";
+  frame.style.height = `${Math.ceil(sourceHeight * scale + extraHeight)}px`;
+  frame.style.overflow = "hidden";
+  content.style.width = `${sourceWidth}px`;
+  content.style.height = `${sourceHeight}px`;
+  content.style.display = content.dataset.scaledDisplay || "block";
+  content.style.transformOrigin = "top left";
+  content.style.transform = `scale(${scale})`;
+};
+
+window.fitAllScaledWriteupFrames = function(root) {
+  (root || document)
+    .querySelectorAll(".scaled-frame")
+    .forEach((frame) => window.fitScaledWriteupFrame(frame));
+};
+
+window.tabPaneForWriteupFrame = function(frame) {
+  let node = frame.parentElement;
+  while (node && node.parentElement) {
+    if (node.parentElement.classList.contains("tab-content")) return node;
+    node = node.parentElement;
+  }
+  return null;
+};
+
+window.canHydrateWriteupFrame = function(frame) {
+  const tabset = frame.closest(".panel-tabset");
+  if (tabset) {
+    const panes = Array.from(tabset.querySelectorAll(".tab-content > div"));
+    const tabsetReady = panes.length <= 1 || panes.some((pane) => pane.hidden);
+    const pane = window.tabPaneForWriteupFrame(frame);
+    if (!tabsetReady || (pane && pane.hidden)) return false;
+  }
+  const rect = frame.getBoundingClientRect();
+  return Boolean(rect.width && rect.height && frame.offsetParent !== null);
+};
+
+window.hydrateScaledWriteupFrames = function(root) {
+  (root || document)
+    .querySelectorAll("iframe.metric-frame[data-src]")
+    .forEach((frame) => {
+      if (frame.getAttribute("src")) return;
+      if (!window.canHydrateWriteupFrame(frame)) return;
+      frame.setAttribute("src", frame.dataset.src);
+    });
+};
+
+window.dehydrateHiddenScaledWriteupFrames = function(root) {
+  (root || document)
+    .querySelectorAll("iframe.metric-frame[data-src][src]")
+    .forEach((frame) => {
+      const pane = window.tabPaneForWriteupFrame(frame);
+      if (pane && pane.hidden) frame.removeAttribute("src");
+    });
+};
+
+window.refreshScaledWriteupFrames = function(root) {
+  window.dehydrateHiddenScaledWriteupFrames(root || document);
+  window.hydrateScaledWriteupFrames(root);
+  window.fitAllScaledWriteupFrames(root);
+};
+
+window.scheduleScaledWriteupRefresh = function(root) {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => window.refreshScaledWriteupFrames(root))
+  );
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  window.scheduleScaledWriteupRefresh(document);
+  window.addEventListener("load", () => window.scheduleScaledWriteupRefresh(document));
+  if ("ResizeObserver" in window) {
+    const obs = new ResizeObserver((entries) =>
+      entries.forEach((entry) => window.scheduleScaledWriteupRefresh(entry.target))
+    );
+    document
+      .querySelectorAll(".scaled-frame")
+      .forEach((frame) => obs.observe(frame));
+  } else {
+    window.addEventListener("resize", () =>
+      window.scheduleScaledWriteupRefresh(document)
+    );
+  }
+  document.addEventListener("shown.bs.tab", (event) => {
+    window.scheduleScaledWriteupRefresh(event.target.closest(".panel-tabset"));
+  });
+  document.addEventListener("tabby", (event) => {
+    window.scheduleScaledWriteupRefresh(event.target.closest(".panel-tabset"));
+  });
+  if (window.Reveal && typeof window.Reveal.on === "function") {
+    window.Reveal.on("slidechanged", () =>
+      window.scheduleScaledWriteupRefresh(document)
+    );
+  }
+});
+</script>
+```
+
+```{python}
+#| output: asis
+from pathlib import Path
+import json
+import pandas as pd
+
+CAMPAIGN = "kdvi_dsivi_toy_default_sweep_10seed"
+DATA_DIR = Path("data") / CAMPAIGN
+PLOT_DIR = Path("assets") / "plotly" / CAMPAIGN
+VISUAL_MANIFEST = DATA_DIR / "visual_manifest.json"
+PLOTLY_SOURCE_WIDTH = 1000
+PLOTLY_SOURCE_HEIGHT = 420
+VISUAL_SOURCE_WIDTH = 1100
+VISUAL_SOURCE_HEIGHT = 500
+TARGET_ORDER = [
+    "banana",
+    "x_shaped",
+    "multimodal",
+    "8_gaussians",
+    "8_gaussians_small",
+    "student_uc",
+    "Langevin_post",
+]
+METRIC_ORDER = [
+    ("kl_ite", "KL-ITE", "KL"),
+    ("w2", "Sliced W2", "W2"),
+    ("elbo", "ELBO", "ELBO"),
+    ("kde_expected_log_marginal", "KDE ELM", "KDE ELM"),
+]
+TARGET_LABELS = {
+    "banana": "banana",
+    "x_shaped": "x_shaped",
+    "multimodal": "multimodal",
+    "8_gaussians": "8_gaussians",
+    "8_gaussians_small": "8_gaussians_small",
+    "student_uc": "student_uc",
+    "Langevin_post": "Langevin_post",
+}
+
+
+def fmt(value):
+    if pd.isna(value):
+        return "-"
+    return f"{value:.4g}"
+
+
+def read_manifest():
+    if not VISUAL_MANIFEST.exists():
+        return {}
+    return json.loads(VISUAL_MANIFEST.read_text(encoding="utf-8"))
+
+
+def target_id(target):
+    return target.replace("_", "-").lower()
+
+
+def frame_epoch(frame):
+    return frame.get("epoch", frame.get("step", ""))
+
+
+def count_value(value):
+    if pd.isna(value):
+        return 0
+    return int(value)
+
+
+def metric_value(item, metric):
+    mean_col = f"{metric}_final_mean"
+    std_col = f"{metric}_final_std"
+    count_col = f"{metric}_final_count"
+    if mean_col not in item or count_value(item.get(count_col, 0)) == 0:
+        return "-"
+    std = item.get(std_col)
+    if pd.isna(std):
+        return fmt(item[mean_col])
+    return f"{fmt(item[mean_col])} +/- {fmt(std)}"
+
+
+def target_metric_table(target_rows):
+    cols = ["Method", "Runs"]
+    for _, table_label, _ in METRIC_ORDER:
+        cols.append(table_label)
+
+    rows = []
+    for method in ["KDVI", "DSIVI"]:
+        row = target_rows[target_rows["method"] == method]
+        if row.empty:
+            continue
+        item = row.iloc[0]
+        values = [method, str(int(item["run_count"]))]
+        for metric, _, _ in METRIC_ORDER:
+            values.append(metric_value(item, metric))
+        rows.append(values)
+    return pd.DataFrame(rows, columns=cols)
+
+
+summary_path = DATA_DIR / "final_metrics.csv"
+if not summary_path.exists():
+    raise FileNotFoundError(
+        f"Missing {summary_path}. Run "
+        f"`python writeup/scripts/fetch_wandb_campaign.py {CAMPAIGN}` first."
+    )
+
+summary = pd.read_csv(summary_path)
+visuals = read_manifest()
+
+for target in TARGET_ORDER:
+    target_label = TARGET_LABELS[target]
+    target_html_id = target_id(target)
+    target_rows = summary[summary["target"] == target]
+    print(f'<section id="results-{target_html_id}"><h2>{target_label}</h2>')
+    print(
+        '<p class="target-definition-link">'
+        f'<a href="implementation.html#sec-target-{target_html_id}">'
+        "Target definition</a></p>"
+    )
+    print('::: {.panel-tabset .target-tabs}')
+    print('')
+    plotted = False
+    for metric, _, tab_label in METRIC_ORDER:
+        plot_path = PLOT_DIR / f"{target}_{metric}.html"
+        if plot_path.exists():
+            plotted = True
+            print(f"## {tab_label}")
+            print("")
+            print(
+                '<div class="scaled-frame scaled-plotly-frame" '
+                f'data-source-width="{PLOTLY_SOURCE_WIDTH}" '
+                f'data-source-height="{PLOTLY_SOURCE_HEIGHT}" '
+                'data-extra-height="8">'
+                f'<iframe class="metric-frame scaled-frame-content" '
+                f'data-src="{plot_path.as_posix()}" '
+                f'width="{PLOTLY_SOURCE_WIDTH}" height="{PLOTLY_SOURCE_HEIGHT}" '
+                'scrolling="no" '
+                'onload="window.fitScaledWriteupFrame(this.parentElement);">'
+                '</iframe></div>'
+            )
+            print("")
+    if not plotted:
+        print("## No Plots")
+        print("")
+        print("No metric plot is available for this target.")
+        print("")
+
+    print("## Visuals")
+    print("")
+    target_visual = visuals.get(target, {})
+    groundtruth = target_visual.get("groundtruth")
+    posterior = target_visual.get("posterior", [])
+    if groundtruth and posterior:
+        slider_id = f"slider-{target_html_id}"
+        img_id = f"posterior-{target_html_id}"
+        caption_id = f"caption-{target_html_id}"
+        first = posterior[0]
+        print(
+            '<div class="scaled-frame scaled-visual-frame" '
+            f'data-source-width="{VISUAL_SOURCE_WIDTH}" '
+            f'data-source-height="{VISUAL_SOURCE_HEIGHT}">'
+        )
+        print('<div class="visual-grid scaled-frame-content" data-scaled-display="grid">')
+        print('<div class="visual-panel">')
+        print('<h3>Groundtruth</h3>')
+        print(f'<img src="{groundtruth}" alt="Groundtruth samples for {target}">')
+        print('</div>')
+        print('<div class="visual-panel posterior-panel">')
+        print('<h3>KDVI posterior, seed 7</h3>')
+        print(
+            f'<img id="{img_id}" src="{first["path"]}" '
+            f'alt="KDVI posterior samples for {target}">'
+        )
+        print(
+            f'<input id="{slider_id}" type="range" min="0" '
+            f'max="{len(posterior) - 1}" value="0" step="1">'
+        )
+        print(
+            f'<div id="{caption_id}" class="posterior-caption">'
+            f'epoch {frame_epoch(first)}</div>'
+        )
+        print('</div>')
+        print('</div>')
+        print('</div>')
+        payload = json.dumps(posterior)
+        print("<script>")
+        print(
+            f"(function(){{const frames={payload};"
+            f"const slider=document.getElementById('{slider_id}');"
+            f"const image=document.getElementById('{img_id}');"
+            f"const caption=document.getElementById('{caption_id}');"
+            "if(!slider||!image||!caption){return;}"
+            "function update(){const item=frames[Number(slider.value)];"
+            "const epoch=(item.epoch ?? item.step);"
+            "image.src=item.path; caption.textContent='epoch '+epoch;}"
+            "slider.addEventListener('input', update); update();"
+            "requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();"
+        )
+        print("</script>")
+    else:
+        print("No seed-7 visualization media is available for this target.")
+    print("")
+
+    print("## Table")
+    print("")
+    target_table = target_metric_table(target_rows)
+    if target_table.empty:
+        print("No final metric summary is available for this target.")
+    else:
+        print(f'<h3>{target_label} final metrics</h3>')
+        print('<div class="metric-table target-metric-table">')
+        print(target_table.to_html(index=False, escape=False))
+        print("</div>")
+    print("")
+
+    print(":::")
+    print("</section>")
+```

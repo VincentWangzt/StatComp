@@ -1,0 +1,40 @@
+project:
+  type: website
+  output-dir: ../docs
+  resources:
+    - assets/**
+    - data/**
+  render:
+    - index.qmd
+    - method.qmd
+    - implementation.qmd
+    - results.qmd
+
+from: markdown+tex_math_single_backslash+tex_math_dollars
+
+website:
+  title: "VI via MCMC distillation"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: method.qmd
+        text: Method
+      - href: implementation.qmd
+        text: Implementation
+      - href: results.qmd
+        text: Results
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    page-layout: article
+    css: styles.css
+    html-math-method: mathjax
+
+execute:
+  echo: false
+  warning: false
+  message: false

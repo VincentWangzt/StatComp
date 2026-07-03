@@ -1,0 +1,74 @@
+---
+title: "Method Formulation"
+---
+
+## Implicit Variational Family
+
+Let \(p(z)\) denote the unnormalized target density. We use an implicit variational sampler
+
+\[
+z = g_\theta(\epsilon, \eta), \qquad
+\epsilon \sim p_\epsilon,\quad \eta \sim \mathcal{N}(0,I),
+\]
+
+which induces a marginal variational distribution \(q_\theta\) over \(z\). The density \(q_\theta(z)\) may be unavailable or inconvenient, but drawing samples from \(q_\theta\) is cheap and differentiable with respect to \(\theta\).
+
+## MCMC Pushforward
+
+Let \(T\) be a Markov transition kernel with invariant distribution \(p\). For a current distribution \(q\), the pushforward \(T_\# q\) is the distribution obtained by first drawing \(z \sim q\), then drawing \(z' \sim T(\cdot \mid z)\). Repeating the transition \(K\) times gives
+
+\[
+z' \sim T_\#^K q_\theta .
+\]
+
+If the transition kernel mixes toward \(p\), then \(T_\#^K q_\theta\) can be viewed as an MCMC-improved version of \(q_\theta\).
+
+## Distillation Objective
+
+The training objective is to make the implicit sampler match its own MCMC-improved distribution:
+
+\[
+\min_\theta D\!\left(q_\theta,\; T_\#^K q_\theta\right),
+\]
+
+where \(D\) is a sample-based discrepancy between distributions. In the current method, \(D\) is Maximum Mean Discrepancy (MMD).
+
+For a minibatch \(z_i = g_\theta(\epsilon_i,\eta_i)\), run \(K\) MCMC steps from detached particles to obtain \(\tilde z_i\). The loss is
+
+\[
+\mathcal{L}(\theta)
+=
+\widehat{\operatorname{MMD}}^2
+\left(
+\{z_i\}_{i=1}^n,\,
+\{\operatorname{sg}(\tilde z_i)\}_{i=1}^n
+\right),
+\]
+
+where \(\operatorname{sg}(\cdot)\) is stop-gradient. Gradients flow through the variational samples \(z_i\), but not through the MCMC transition.
+
+## MMD Estimator
+
+With kernel \(k\), the biased V-statistic estimator is
+
+\[
+\widehat{\operatorname{MMD}}^2
+=
+\frac{1}{n^2}\sum_{i,j} k(z_i,z_j)
++ \frac{1}{n^2}\sum_{i,j} k(\tilde z_i,\tilde z_j)
+- \frac{2}{n^2}\sum_{i,j} k(z_i,\tilde z_j).
+\]
+
+The first term keeps the variational particles spread out, while the cross term pulls them toward MCMC-improved particles. The second term is useful for the value of the discrepancy, but it is detached from the optimization path.
+
+## Fixed-Point Intuition
+
+If \(q_\theta = p\), then applying an invariant transition leaves the distribution unchanged:
+
+\[
+T_\# p = p.
+\]
+
+Thus \(q_\theta=p\) is a distributional fixed point of the objective. Conversely, when \(q_\theta\) is not close to \(p\), a short MCMC chain usually moves samples toward regions preferred by the target. Distillation trains the sampler to reproduce that movement directly.
+
+This is not a claim that every finite neural sampler and every short transition yields a formal contraction. The useful intuition is gentler: the MCMC kernel supplies local target-directed corrections, and the variational sampler amortizes those corrections across training.

@@ -1,0 +1,401 @@
+{
+  "8_gaussians": {
+    "run_name": "KDVI-8_gaussians-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "8_gaussians_small": {
+    "run_name": "KDVI-8_gaussians_small-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/8_gaussians_small/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "Langevin_post": {
+    "run_name": "KDVI-Langevin_post-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/Langevin_post/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "banana": {
+    "run_name": "KDVI-banana-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/banana/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "multimodal": {
+    "run_name": "KDVI-multimodal-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/multimodal/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "student_uc": {
+    "run_name": "KDVI-student_uc-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/student_uc/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  },
+  "x_shaped": {
+    "run_name": "KDVI-x_shaped-seed7",
+    "seed": 7,
+    "groundtruth": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/groundtruth.png",
+    "posterior": [
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_60014.png",
+        "epoch": 10000,
+        "wandb_step": 60014
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_120030.png",
+        "epoch": 20000,
+        "wandb_step": 120030
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_180046.png",
+        "epoch": 30000,
+        "wandb_step": 180046
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_240062.png",
+        "epoch": 40000,
+        "wandb_step": 240062
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_300078.png",
+        "epoch": 50000,
+        "wandb_step": 300078
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_360094.png",
+        "epoch": 60000,
+        "wandb_step": 360094
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_420110.png",
+        "epoch": 70000,
+        "wandb_step": 420110
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_480126.png",
+        "epoch": 80000,
+        "wandb_step": 480126
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_540142.png",
+        "epoch": 90000,
+        "wandb_step": 540142
+      },
+      {
+        "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed/x_shaped/posterior_step_600158.png",
+        "epoch": 100000,
+        "wandb_step": 600158
+      }
+    ]
+  }
+}
