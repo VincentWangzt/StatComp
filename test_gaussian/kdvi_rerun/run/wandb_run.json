@@ -5,7 +5,7 @@
   "run_url": "",
   "run_path": "",
   "mode": "disabled",
-  "metrics_path": "results/test_gaussian/KDVI/flat_gaussian/20260703_103005/metrics.csv",
+  "metrics_path": "results/test_gaussian/KDVI/flat_gaussian/20260703_120202/metrics.csv",
   "tags": [
     "method:KDVI",
     "target:flat_gaussian",

@@ -34,7 +34,7 @@ train:
   epochs: 10000
   batch_size: 128
   vi:
-    lr: 0.002
+    lr: 0.0005
     scheduler:
       type: StepLR
       step_size: 1000
