@@ -561,6 +561,80 @@ class LaplaceL2Kernel(BaseKernel):
             "or GaussianKernel."
         )
 
+class ComponentAdaptiveLaplaceL2Kernel(BaseKernel):
+    """
+    Component-adaptive Laplace-on-L2 kernel.
+
+    Instead of fitting one scalar bandwidth from the median Euclidean pairwise
+    distance, this kernel fits one bandwidth per coordinate using the median
+    absolute pairwise distance in that coordinate. Pairwise distances are then
+    computed in the coordinate-whitened space::
+
+        k(x, y) = exp(-sqrt(sum_d ((x_d - y_d) / h_d)^2) / 2)
+
+    This preserves the heavier-tailed Laplace-on-L2 shape while preventing a
+    high-variance coordinate from dominating the adaptive bandwidth on
+    anisotropic targets such as the flat Gaussian.
+    """
+
+    def __init__(
+        self,
+        h: float = -1,
+        name: str = 'ComponentAdaptiveLaplaceL2Kernel',
+    ):
+        super().__init__(h, name)
+        self._h_vec: Optional[torch.Tensor] = None
+
+    def fit_h(self, samples: torch.Tensor) -> float:
+        pairwise_abs = torch.abs(samples[:, None, :] - samples[None, :, :])
+        h_vec = torch.median(pairwise_abs, dim=0).values
+        h_vec = torch.median(h_vec, dim=0).values
+        h_vec = torch.clamp_min(h_vec, 1e-12)
+        self._h_vec = h_vec.detach()
+        self.h = h_vec.mean().detach().item()
+        return self.h
+
+    def _bandwidth_tensor(self, samples_x: torch.Tensor) -> torch.Tensor:
+        if self._h_vec is not None:
+            return self._h_vec.to(device=samples_x.device, dtype=samples_x.dtype)
+        if self.h <= 0:
+            raise ValueError("ComponentAdaptiveLaplaceL2Kernel bandwidth is not fitted.")
+        return torch.full(
+            (samples_x.shape[-1],),
+            float(self.h),
+            device=samples_x.device,
+            dtype=samples_x.dtype,
+        )
+
+    def pair_eval(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+        fit_h: bool = False,
+        detach_h: bool = True,
+    ) -> torch.Tensor:
+
+        if samples_y is None:
+            samples_y = samples_x
+
+        if fit_h or (self._h_vec is None and self.h < 0):
+            source = samples_x.detach() if detach_h else samples_x
+            self.fit_h(source)
+
+        h_vec = self._bandwidth_tensor(samples_x)
+        scaled_diff = (samples_x[:, None, :] - samples_y[None, :, :]) / h_vec
+        scaled_dist = torch.linalg.vector_norm(scaled_diff, ord=2, dim=-1)
+        return (-scaled_dist / 2).exp()
+
+    def grad_all(
+        self,
+        samples_x: torch.Tensor,
+        samples_y: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        raise NotImplementedError(
+            "ComponentAdaptiveLaplaceL2Kernel.grad_all is not implemented; "
+            "KDVI only needs pair_eval."
+        )
 
 Kernels: dict[str, type[BaseKernel]] = {
     'gaussian': GaussianKernel,
@@ -568,5 +642,6 @@ Kernels: dict[str, type[BaseKernel]] = {
     'imq': IMQKernel,
     'laplace': LaplaceKernel,
     'laplace_l2': LaplaceL2Kernel,
+    'laplace_l2_component': ComponentAdaptiveLaplaceL2Kernel,
     'riesz': RieszKernel,
 }

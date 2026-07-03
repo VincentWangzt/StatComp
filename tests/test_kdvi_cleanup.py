@@ -7,7 +7,11 @@ import torch
 from omegaconf import OmegaConf
 
 from utils.annealing import annealing
-from utils.kernels import BaseKernel, GaussianKernel
+from utils.kernels import (
+    BaseKernel,
+    ComponentAdaptiveLaplaceL2Kernel,
+    GaussianKernel,
+)
 from utils.mcmc_kernels import mala_transition
 from utils.mmd import configure_kernel_bandwidth, mmd2_v_statistic
 
@@ -88,6 +92,43 @@ class KDVIBandwidthTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "must be 'x' or 'xy'"):
                     configure_kernel_bandwidth(
                         GaussianKernel(), fit_bandwidth_on=removed)
+
+
+    def test_component_adaptive_laplace_l2_fits_coordinate_bandwidths(self) -> None:
+        samples = torch.tensor([
+            [0.0, 0.0],
+            [1.0, 10.0],
+            [2.0, 20.0],
+        ])
+        kernel = ComponentAdaptiveLaplaceL2Kernel()
+
+        kernel.fit_h(samples)
+        values = kernel.pair_eval(samples, samples)
+
+        self.assertTrue(torch.allclose(kernel._h_vec, torch.tensor([1.0, 10.0])))
+        self.assertAlmostEqual(kernel.h, 5.5)
+        self.assertEqual(tuple(values.shape), (3, 3))
+        self.assertTrue(torch.isfinite(values).all())
+
+    def test_component_adaptive_laplace_l2_respects_fixed_bandwidth(self) -> None:
+        samples = torch.tensor([
+            [0.0, 0.0],
+            [1.0, 10.0],
+            [2.0, 20.0],
+        ])
+        kernel = ComponentAdaptiveLaplaceL2Kernel()
+
+        fit_source = configure_kernel_bandwidth(
+            kernel,
+            fit_bandwidth_on="x",
+            kernel_bandwidth=2.0,
+        )
+        values = kernel.pair_eval(samples, samples)
+
+        self.assertIsNone(fit_source)
+        self.assertEqual(kernel.h, 2.0)
+        self.assertIsNone(kernel._h_vec)
+        self.assertEqual(tuple(values.shape), (3, 3))
 
 
 class KDVIScheduleAndMALATests(unittest.TestCase):
