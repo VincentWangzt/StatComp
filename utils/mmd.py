@@ -178,6 +178,66 @@ def paired_l2_loss(x: Tensor, y: Tensor) -> Tuple[Tensor, dict]:
     return loss, info
 
 
+def sliced_w2_loss(
+    x: Tensor,
+    y: Tensor,
+    num_projections: int = 128,
+    eps: float = 1e-12,
+) -> Tuple[Tensor, dict]:
+    """Compute a differentiable sliced W2 loss between two sample batches.
+
+    Random unit directions are sampled on the current device, both empirical
+    distributions are projected onto those directions, and the sorted
+    one-dimensional samples are compared with the W2 quantile formula. The
+    caller usually passes detached MCMC-refined samples for ``y`` so gradients
+    flow only through the VI samples ``x``.
+    """
+    if x.ndim != 2 or y.ndim != 2:
+        raise ValueError(
+            "sliced_w2_loss expects two 2D tensors, got "
+            f"{tuple(x.shape)} and {tuple(y.shape)}"
+        )
+    if x.shape[1] != y.shape[1]:
+        raise ValueError(
+            "sliced_w2_loss requires matching feature dimensions, got "
+            f"{x.shape[1]} and {y.shape[1]}"
+        )
+    if num_projections <= 0:
+        raise ValueError(
+            f"num_projections must be positive, got {num_projections}"
+        )
+
+    dim = x.shape[1]
+    projections = torch.randn(
+        dim,
+        int(num_projections),
+        device=x.device,
+        dtype=x.dtype,
+    )
+    projections = projections / projections.norm(dim=0, keepdim=True).clamp_min(eps)
+
+    y_fixed = y.detach()
+    x_sorted = torch.sort(x @ projections, dim=0).values
+    y_sorted = torch.sort(y_fixed @ projections, dim=0).values
+
+    if x_sorted.shape[0] != y_sorted.shape[0]:
+        raise ValueError(
+            "sliced_w2_loss currently requires matching batch sizes, got "
+            f"{x_sorted.shape[0]} and {y_sorted.shape[0]}"
+        )
+
+    squared_diff = (x_sorted - y_sorted).square()
+    mean_squared = squared_diff.mean()
+    loss = torch.sqrt(mean_squared.clamp_min(eps))
+
+    info = {
+        'sliced_w2': loss.item(),
+        'sliced_w2_squared': mean_squared.item(),
+        'sliced_w2_num_projections': float(num_projections),
+    }
+    return loss, info
+
+
 def _per_dim_pairwise_differences(samples: Tensor) -> Tensor:
     return samples[:, None, :] - samples[None, :, :]
 

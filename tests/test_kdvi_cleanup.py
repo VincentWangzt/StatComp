@@ -23,6 +23,7 @@ from utils.mmd import (
     mmd2_v_statistic,
     mmd2_v_statistic_per_dim,
     paired_l2_loss,
+    sliced_w2_loss,
 )
 
 
@@ -141,6 +142,28 @@ class KDVILossTypeTests(unittest.TestCase):
         loss.backward()
         self.assertTrue(torch.allclose(x.grad, (2.0 / 2.0) * (x - y.detach())))
         self.assertIsNone(y.grad)
+
+    def test_sliced_w2_value_and_gradient(self) -> None:
+        x = torch.tensor(
+            [[0.0], [2.0], [4.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor(
+            [[1.0], [3.0], [5.0]],
+            requires_grad=True,
+        )
+
+        torch.manual_seed(3)
+        loss, info = sliced_w2_loss(x, y, num_projections=4)
+
+        self.assertTrue(torch.allclose(loss, torch.tensor(1.0)))
+        self.assertAlmostEqual(info["sliced_w2"], 1.0)
+        self.assertEqual(info["sliced_w2_num_projections"], 4.0)
+        loss.backward()
+        self.assertIsNotNone(x.grad)
+        self.assertIsNone(y.grad)
+        self.assertTrue(torch.isfinite(x.grad).all())
+        self.assertGreater(x.grad.abs().sum().item(), 0.0)
 
     def test_per_dim_gaussian_mmd_matches_hand_computed_kernel(self) -> None:
         x = torch.tensor(
@@ -329,7 +352,13 @@ class KDVIConfigSmokeTests(unittest.TestCase):
                 loss_type = kdvi.get("loss_type", "mmd")
                 self.assertIn(
                     loss_type,
-                    ("mmd", "paired_l2", "mmd_per_dim", "mmd_no_detach"),
+                    (
+                        "mmd",
+                        "paired_l2",
+                        "mmd_per_dim",
+                        "mmd_no_detach",
+                        "sliced_w2",
+                    ),
                 )
                 self.assertEqual(loss_type, "mmd")
                 self.assertIn(kdvi.get("fit_bandwidth_on", "x"), ("x", "xy"))

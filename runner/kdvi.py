@@ -32,7 +32,7 @@ Config keys under ``train.kdvi``:
     hmc_leapfrog_steps (int): Leapfrog sub-steps per HMC transition (L).
         Only used when mcmc_type='hmc'. Default: 10.
     loss_type (str): Training objective. One of 'mmd', 'paired_l2',
-        'mmd_per_dim', or 'mmd_no_detach'. Default: 'mmd'.
+        'mmd_per_dim', 'mmd_no_detach', or 'sliced_w2'. Default: 'mmd'.
     kernel (str): Kernel type for MMD computation. One of 'gaussian',
         'gaussian_mmd', 'imq', 'laplace', 'laplace_l2', or 'riesz'.
         Default: 'gaussian'.
@@ -40,6 +40,8 @@ Config keys under ``train.kdvi``:
         or 'xy'. Default: 'x'.
     kernel_bandwidth (float, optional): Positive fixed kernel bandwidth. When
         provided, disables adaptive bandwidth fitting.
+    sliced_w2_num_projections (int): Number of random projections for
+        loss_type='sliced_w2'. Default: 128.
     mcmc_steps_schedule (dict): Optional K-step scheduling.
         enabled (bool): Whether to ramp K over training. Default: False.
         min_steps (int): Starting K. Default: 1.
@@ -65,6 +67,7 @@ from utils.mmd import (
     mmd2_v_statistic,
     mmd2_v_statistic_per_dim,
     paired_l2_loss,
+    sliced_w2_loss,
 )
 from utils.kernels import Kernels
 from utils.annealing import annealing, mcmc_step_schedule
@@ -116,14 +119,19 @@ class KDVIRunner(BaseSIVIRunner):
         # Loss settings
         self.loss_type: str = str(kdvi_cfg.get('loss_type', 'mmd')).lower()
         assert self.loss_type in (
-            'mmd', 'paired_l2', 'mmd_per_dim', 'mmd_no_detach'
+            'mmd', 'paired_l2', 'mmd_per_dim', 'mmd_no_detach', 'sliced_w2'
         ), \
-            "loss_type must be 'mmd', 'paired_l2', 'mmd_per_dim', or " \
-            "'mmd_no_detach', " \
+            "loss_type must be 'mmd', 'paired_l2', 'mmd_per_dim', " \
+            "'mmd_no_detach', or 'sliced_w2', " \
             f"got '{self.loss_type}'"
         assert self.loss_type != 'mmd_no_detach' or self.mcmc_type == 'sgld', \
             "loss_type='mmd_no_detach' is only supported with " \
             "mcmc_type='sgld'"
+        self.sliced_w2_num_projections: int = int(
+            kdvi_cfg.get('sliced_w2_num_projections', 128))
+        assert self.sliced_w2_num_projections > 0, \
+            "sliced_w2_num_projections must be positive, got " \
+            f"{self.sliced_w2_num_projections}"
 
         # MMD kernel settings
         kernel_type: str = kdvi_cfg.get('kernel', 'gaussian')
@@ -382,6 +390,12 @@ class KDVIRunner(BaseSIVIRunner):
             )
         elif self.loss_type == 'paired_l2':
             loss, loss_info = paired_l2_loss(x=z, y=z_refined)
+        elif self.loss_type == 'sliced_w2':
+            loss, loss_info = sliced_w2_loss(
+                x=z,
+                y=z_refined,
+                num_projections=self.sliced_w2_num_projections,
+            )
         else:
             raise ValueError(f"Unknown loss_type: {self.loss_type}")
 
@@ -427,6 +441,8 @@ class KDVIRunner(BaseSIVIRunner):
                 self.loss_type == 'paired_l2'),
             "kdvi/loss_type_mmd_no_detach": float(
                 self.loss_type == 'mmd_no_detach'),
+            "kdvi/loss_type_sliced_w2": float(
+                self.loss_type == 'sliced_w2'),
             "kdvi/mcmc_grad_through_transition": float(
                 self.loss_type == 'mmd_no_detach'),
         }
