@@ -31,8 +31,8 @@ Config keys under ``train.kdvi``:
         Default: 0.05.
     hmc_leapfrog_steps (int): Leapfrog sub-steps per HMC transition (L).
         Only used when mcmc_type='hmc'. Default: 10.
-    loss_type (str): Training objective. One of 'mmd', 'paired_l2', or
-        'mmd_per_dim'. Default: 'mmd'.
+    loss_type (str): Training objective. One of 'mmd', 'paired_l2',
+        'mmd_per_dim', or 'mmd_no_detach'. Default: 'mmd'.
     kernel (str): Kernel type for MMD computation. One of 'gaussian',
         'gaussian_mmd', 'imq', 'laplace', 'laplace_l2', or 'riesz'.
         Default: 'gaussian'.
@@ -56,6 +56,7 @@ from omegaconf import DictConfig
 from runner.base_runner import BaseSIVIRunner
 from utils.mcmc_kernels import (
     sgld_transition,
+    sgld_transition_differentiable,
     hmc_transition,
     mala_transition,
 )
@@ -114,9 +115,15 @@ class KDVIRunner(BaseSIVIRunner):
 
         # Loss settings
         self.loss_type: str = str(kdvi_cfg.get('loss_type', 'mmd')).lower()
-        assert self.loss_type in ('mmd', 'paired_l2', 'mmd_per_dim'), \
-            "loss_type must be 'mmd', 'paired_l2', or 'mmd_per_dim', " \
+        assert self.loss_type in (
+            'mmd', 'paired_l2', 'mmd_per_dim', 'mmd_no_detach'
+        ), \
+            "loss_type must be 'mmd', 'paired_l2', 'mmd_per_dim', or " \
+            "'mmd_no_detach', " \
             f"got '{self.loss_type}'"
+        assert self.loss_type != 'mmd_no_detach' or self.mcmc_type == 'sgld', \
+            "loss_type='mmd_no_detach' is only supported with " \
+            "mcmc_type='sgld'"
 
         # MMD kernel settings
         kernel_type: str = kdvi_cfg.get('kernel', 'gaussian')
@@ -311,13 +318,21 @@ class KDVIRunner(BaseSIVIRunner):
         if self.mcmc_type == 'sgld':
             # Use direct score function for efficiency (avoids autograd)
             score_fn = lambda z_in: beta * self.target_model.score(z_in)
-            mcmc_out = sgld_transition(
-                z_init=z.detach(),
-                score_fn_or_log_prob_fn=score_fn,
-                step_size=current_step_size,
-                n_steps=current_mcmc_steps,
-                use_score_fn=True,
-            )
+            if self.loss_type == 'mmd_no_detach':
+                mcmc_out = sgld_transition_differentiable(
+                    z_init=z,
+                    score_fn=score_fn,
+                    step_size=current_step_size,
+                    n_steps=current_mcmc_steps,
+                )
+            else:
+                mcmc_out = sgld_transition(
+                    z_init=z.detach(),
+                    score_fn_or_log_prob_fn=score_fn,
+                    step_size=current_step_size,
+                    n_steps=current_mcmc_steps,
+                    use_score_fn=True,
+                )
         elif self.mcmc_type == 'hmc':
             mcmc_out = hmc_transition(
                 z_init=z.detach(),
@@ -340,7 +355,7 @@ class KDVIRunner(BaseSIVIRunner):
         else:
             raise ValueError(f"Unknown mcmc_type: {self.mcmc_type}")
 
-        z_refined = mcmc_out.z  # [N, D], detached
+        z_refined = mcmc_out.z  # [N, D], detached except mmd_no_detach mode
 
         t_mcmc1 = time.perf_counter()
         self.experiment_logger.record_timing(
@@ -351,7 +366,7 @@ class KDVIRunner(BaseSIVIRunner):
         # ============================================================
         t_bw0 = time.perf_counter()
 
-        if self.loss_type == 'mmd':
+        if self.loss_type in ('mmd', 'mmd_no_detach'):
             loss, loss_info = mmd2_v_statistic(
                 x=z,
                 y=z_refined,
@@ -410,8 +425,12 @@ class KDVIRunner(BaseSIVIRunner):
                 self.loss_type == 'mmd_per_dim'),
             "kdvi/loss_type_paired_l2": float(
                 self.loss_type == 'paired_l2'),
+            "kdvi/loss_type_mmd_no_detach": float(
+                self.loss_type == 'mmd_no_detach'),
+            "kdvi/mcmc_grad_through_transition": float(
+                self.loss_type == 'mmd_no_detach'),
         }
-        if self.loss_type == 'mmd':
+        if self.loss_type in ('mmd', 'mmd_no_detach'):
             scalar_logs["kdvi/kernel_bandwidth"] = self.mmd_kernel.h
         for key, value in loss_info.items():
             scalar_logs[f"kdvi/{key}"] = value

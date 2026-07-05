@@ -14,7 +14,10 @@ from utils.kernels import (
     IMQKernel,
     LaplaceL2Kernel,
 )
-from utils.mcmc_kernels import mala_transition
+from utils.mcmc_kernels import (
+    mala_transition,
+    sgld_transition_differentiable,
+)
 from utils.mmd import (
     configure_kernel_bandwidth,
     mmd2_v_statistic,
@@ -102,6 +105,24 @@ class KDVIBandwidthTests(unittest.TestCase):
 
 
 class KDVILossTypeTests(unittest.TestCase):
+    def test_mmd_can_backpropagate_through_refined_samples(self) -> None:
+        x = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0]],
+            requires_grad=True,
+        )
+        y = torch.tensor(
+            [[0.0, 1.0], [1.0, 1.5]],
+            requires_grad=True,
+        )
+
+        loss, _ = mmd2_v_statistic(x, y, GaussianKernelMMD(h=1.0), None)
+
+        loss.backward()
+        self.assertIsNotNone(x.grad)
+        self.assertIsNotNone(y.grad)
+        self.assertTrue(torch.isfinite(y.grad).all())
+        self.assertGreater(y.grad.abs().sum().item(), 0.0)
+
     def test_paired_l2_value_and_gradient(self) -> None:
         x = torch.tensor(
             [[1.0, 2.0], [3.0, 4.0]],
@@ -222,6 +243,32 @@ class KDVILossTypeTests(unittest.TestCase):
 
 
 class KDVIScheduleAndMALATests(unittest.TestCase):
+    def test_differentiable_sgld_backpropagates_to_initial_particles(self) -> None:
+        z_init = torch.tensor(
+            [[1.0, -2.0], [0.5, 3.0]],
+            requires_grad=True,
+        )
+        step_size = 0.2
+        n_steps = 2
+
+        torch.manual_seed(11)
+        output = sgld_transition_differentiable(
+            z_init=z_init,
+            score_fn=lambda z: -z,
+            step_size=step_size,
+            n_steps=n_steps,
+        )
+
+        self.assertTrue(output.z.requires_grad)
+        output.z.sum().backward()
+        expected_factor = (1.0 - 0.5 * step_size) ** n_steps
+        self.assertTrue(
+            torch.allclose(
+                z_init.grad,
+                torch.full_like(z_init, expected_factor),
+            )
+        )
+
     def test_offset_linear_annealing(self) -> None:
         values = [
             annealing(t, warm_up_interval=100, scheme="offset_linear", anneal=True)
@@ -280,7 +327,10 @@ class KDVIConfigSmokeTests(unittest.TestCase):
                 kdvi = config.train.kdvi
                 self.assertNotIn("loss_form", kdvi)
                 loss_type = kdvi.get("loss_type", "mmd")
-                self.assertIn(loss_type, ("mmd", "paired_l2", "mmd_per_dim"))
+                self.assertIn(
+                    loss_type,
+                    ("mmd", "paired_l2", "mmd_per_dim", "mmd_no_detach"),
+                )
                 self.assertEqual(loss_type, "mmd")
                 self.assertIn(kdvi.get("fit_bandwidth_on", "x"), ("x", "xy"))
 

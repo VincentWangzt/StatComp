@@ -19,9 +19,11 @@ Three kernels are provided:
   Metropolis-Hastings accept/reject. Same proposal as SGLD but corrects for
   finite step size bias via the asymmetric proposal density ratio.
 
-All functions operate entirely under ``torch.no_grad()`` (except for internal
-gradient computation via ``torch.autograd.grad``). The caller is responsible
-for detaching inputs before passing them in.
+The standard transition helpers operate under ``torch.no_grad()`` (except for
+internal gradient computation via ``torch.autograd.grad``). The caller is
+responsible for detaching inputs before passing them in. The
+``sgld_transition_differentiable`` debug helper is the exception and preserves
+the graph through the SGLD transition.
 
 Typical usage in KDVI::
 
@@ -136,6 +138,36 @@ def sgld_transition(
         z = z + 0.5 * step_size * score + noise_scale * noise
 
     mean_disp = (z - z_init).norm(dim=-1).mean().item()
+
+    return MCMCTransitionOutput(
+        z=z,
+        accept_rate=1.0,
+        mean_disp=mean_disp,
+    )
+
+
+def sgld_transition_differentiable(
+    z_init: Tensor,
+    score_fn: Callable[[Tensor], Tensor],
+    step_size: float,
+    n_steps: int,
+) -> MCMCTransitionOutput:
+    """Run K SGLD steps while preserving the graph from ``z_init``.
+
+    This debug helper is intentionally narrower than :func:`sgld_transition`:
+    it requires an analytic score function and does not enter
+    ``torch.no_grad()``. As a result, gradients can backpropagate through the
+    SGLD drift terms and into the initial particles.
+    """
+    z = z_init.clone()
+    noise_scale = math.sqrt(step_size)
+
+    for _ in range(n_steps):
+        score = score_fn(z)
+        noise = torch.randn_like(z)
+        z = z + 0.5 * step_size * score + noise_scale * noise
+
+    mean_disp = (z.detach() - z_init.detach()).norm(dim=-1).mean().item()
 
     return MCMCTransitionOutput(
         z=z,

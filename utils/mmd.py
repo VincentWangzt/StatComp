@@ -6,9 +6,9 @@ suitable for use as training objectives in KDVI. Unlike the evaluation-only
 ``compute_mmd`` in ``utils/metrics.py`` (which returns a detached scalar),
 these functions return a differentiable tensor and diagnostic information.
 
-The key design choice for KDVI:
+The default KDVI design choice:
 - ``x`` (variational samples) carries gradients via the reparameterization trick.
-- ``y`` (MCMC-refined samples) is detached — no gradient flows through it.
+- ``y`` (MCMC-refined samples) is usually detached by the caller.
 - Bandwidth is fitted on detached samples and treated as a constant.
 
 Typical usage::
@@ -79,15 +79,16 @@ def mmd2_v_statistic(
     terms i=j). This is the biased estimator — always non-negative, lower
     variance than the U-statistic.
 
-    **Gradient flow**: Only ``x`` participates in backpropagation. ``y`` must
-    be detached before calling this function. The kernel bandwidth is fitted
-    on detached samples and does not carry gradients.
+    **Gradient flow**: ``x`` participates in backpropagation. ``y`` is treated
+    according to the tensor passed by the caller: the standard KDVI path passes
+    detached samples, while debug objectives may pass graph-carrying refined
+    samples. The kernel bandwidth is fitted on detached samples and does not
+    carry gradients.
 
     Args:
         x: Samples from the variational model q_phi, shape ``[N, D]``.
             These carry gradients from the reparameterization trick.
         y: MCMC-refined target samples, shape ``[N, D]`` (or ``[M, D]``).
-            Must be detached from the computation graph.
         kernel: Kernel object implementing ``pair_eval(x, y)`` and
             ``fit_h(samples)``. Any kernel from ``utils/kernels.py`` works
             (GaussianKernel, IMQKernel, LaplaceKernel, RieszKernel).
@@ -99,7 +100,8 @@ def mmd2_v_statistic(
 
     Returns:
         A tuple ``(mmd2, info)`` where:
-            - ``mmd2`` (Tensor): Scalar MMD² value, differentiable w.r.t. ``x``.
+            - ``mmd2`` (Tensor): Scalar MMD² value, differentiable w.r.t.
+              ``x`` and, if not detached, ``y``.
             - ``info`` (dict): Diagnostic values for logging:
                 - ``'k_xx_mean'``: Mean of k(x, x) matrix (float).
                 - ``'k_yy_mean'``: Mean of k(y, y) matrix (float).
