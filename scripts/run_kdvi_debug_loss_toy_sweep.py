@@ -18,11 +18,10 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CAMPAIGN_SLUG = "kdvi_debug_loss_toy_sweep"
+CAMPAIGN_SLUG = "kdvi_debug_loss_lr_sweep"
 CAMPAIGN_ROOT = REPO_ROOT / "campaigns" / CAMPAIGN_SLUG
 RUNTIME_ROOT = CAMPAIGN_ROOT / "runtime"
 LOG_DIR = RUNTIME_ROOT / "logs"
-ATTEMPT_DIR = RUNTIME_ROOT / "attempts"
 DONE_DIR = RUNTIME_ROOT / "done"
 FAILED_DIR = RUNTIME_ROOT / "failed"
 RESULT_MAP_DIR = RUNTIME_ROOT / "result_paths"
@@ -36,16 +35,15 @@ DEFAULT_TARGETS = (
     "x_shaped",
     "multimodal",
     "8_gaussians",
-    "8_gaussians_small",
     "student_uc",
-    "Langevin_post",
 )
 LOSS_SPECS = (
-    ("mmd", "mmd"),
-    ("mmd_per_dim", "mmd_per_dim"),
-    ("l2", "paired_l2"),
+    ("L2_loss", "paired_l2"),
+    ("sliced_W2", "sliced_w2"),
+    ("mmd_no_detach", "mmd_no_detach"),
 )
 LOSS_LABELS = tuple(label for label, _ in LOSS_SPECS)
+DEFAULT_LRS = ("2e-3", "1e-3", "5e-4", "2e-4", "1e-4")
 DEFAULT_SEEDS = (0, 1, 7)
 MAX_GPUS_DEFAULT = 10
 
@@ -62,6 +60,7 @@ class Job:
     target: str
     loss_label: str
     loss_type: str
+    lr: str
     seed: int
     config_path: str
     metric_family: str
@@ -89,7 +88,6 @@ def ensure_dirs() -> None:
         CAMPAIGN_ROOT,
         RUNTIME_ROOT,
         LOG_DIR,
-        ATTEMPT_DIR,
         DONE_DIR,
         FAILED_DIR,
         RESULT_MAP_DIR,
@@ -105,28 +103,30 @@ def metric_family_for_target(target: str) -> str:
     return "elm_w2" if target == "Langevin_post" else "kl_w2"
 
 
-def build_jobs(targets: list[str], seeds: list[int]) -> list[Job]:
+def build_jobs(targets: list[str], lrs: list[str], seeds: list[int]) -> list[Job]:
     jobs: list[Job] = []
     for target in targets:
         config_path = f"configs/kdvi_{target}.yaml"
         if not (REPO_ROOT / config_path).is_file():
             raise FileNotFoundError(f"Missing config for target {target}: {config_path}")
         for loss_label, loss_type in LOSS_SPECS:
-            recipe_id = f"KDVI-{target}-{loss_label}"
-            for seed in seeds:
-                run_id = f"{recipe_id}-seed{seed}"
-                jobs.append(
-                    Job(
-                        run_id=run_id,
-                        recipe_id=recipe_id,
-                        target=target,
-                        loss_label=loss_label,
-                        loss_type=loss_type,
-                        seed=seed,
-                        config_path=config_path,
-                        metric_family=metric_family_for_target(target),
+            for lr in lrs:
+                recipe_id = f"KDVI-{target}-{loss_label}-lr{lr}"
+                for seed in seeds:
+                    run_id = f"{recipe_id}-seed{seed}"
+                    jobs.append(
+                        Job(
+                            run_id=run_id,
+                            recipe_id=recipe_id,
+                            target=target,
+                            loss_label=loss_label,
+                            loss_type=loss_type,
+                            lr=lr,
+                            seed=seed,
+                            config_path=config_path,
+                            metric_family=metric_family_for_target(target),
+                        )
                     )
-                )
     return jobs
 
 
@@ -141,6 +141,7 @@ def write_manifest(jobs: list[Job]) -> None:
                 "target",
                 "loss_label",
                 "loss_type",
+                "lr",
                 "seed",
                 "config_path",
                 "metric_family",
@@ -151,7 +152,7 @@ def write_manifest(jobs: list[Job]) -> None:
             writer.writerow(job.__dict__)
 
 
-def validate_manifest(targets: list[str], seeds: list[int]) -> None:
+def validate_manifest(targets: list[str], lrs: list[str], seeds: list[int]) -> None:
     with MANIFEST_PATH.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
 
@@ -165,8 +166,8 @@ def validate_manifest(targets: list[str], seeds: list[int]) -> None:
         if row["metric_family"] != metric_family_for_target(row["target"]):
             errors.append(f"{row['run_id']} has wrong metric_family")
 
-    expected_runs = len(targets) * len(LOSS_SPECS) * len(seeds)
-    expected_groups = len(targets) * len(LOSS_SPECS)
+    expected_runs = len(targets) * len(LOSS_SPECS) * len(lrs) * len(seeds)
+    expected_groups = len(targets) * len(LOSS_SPECS) * len(lrs)
     expected_seed_list = sorted(seeds)
     if len(rows) != expected_runs:
         errors.append(f"expected {expected_runs} runs, found {len(rows)}")
@@ -192,13 +193,17 @@ def validate_manifest(targets: list[str], seeds: list[int]) -> None:
     expected_loss_types = {loss_type for _, loss_type in LOSS_SPECS}
     if manifest_loss_types != expected_loss_types:
         errors.append(f"unexpected runner loss types: {sorted(manifest_loss_types)}")
+    manifest_lrs = {row["lr"] for row in rows}
+    if manifest_lrs != set(lrs):
+        errors.append(f"unexpected learning rates: {sorted(manifest_lrs)}")
 
     if errors:
         raise SystemExit("Manifest validation failed:\n- " + "\n- ".join(errors))
 
     print(
         "Manifest validated: "
-        f"{len(rows)} runs, {len(groups)} target/loss groups, "
+        f"{len(rows)} runs, {len(groups)} target/loss/lr groups, "
+        f"learning rates {','.join(lrs)}, "
         f"seeds {','.join(str(seed) for seed in expected_seed_list)}."
     )
 
@@ -220,6 +225,7 @@ def build_command(
         f"seed={job.seed}",
         f"output.results_dir=results/{CAMPAIGN_SLUG}/{run_name}",
         f"train.kdvi.loss_type={job.loss_type}",
+        f"train.vi.lr={job.lr}",
         f"tracking.campaign={CAMPAIGN_SLUG}",
         f"tracking.group={job.recipe_id}",
         f"tracking.run_name={run_name}",
@@ -272,10 +278,6 @@ def failed_path(job: Job) -> Path:
     return FAILED_DIR / f"{slug(job.run_id)}.failed"
 
 
-def attempt_path(job: Job) -> Path:
-    return ATTEMPT_DIR / f"{slug(job.run_id)}.txt"
-
-
 def extract_result_path(log_path: Path) -> Path | None:
     if not log_path.is_file():
         return None
@@ -310,43 +312,35 @@ def run_job(
 
     done_path(job).unlink(missing_ok=True)
     failed_path(job).unlink(missing_ok=True)
-    attempt_file = attempt_path(job)
-    prior_attempts = 0
-    if attempt_file.is_file() and not force:
-        try:
-            prior_attempts = int(attempt_file.read_text(encoding="utf-8").strip())
-        except ValueError:
-            prior_attempts = 0
 
     gpu_id = gpu_queue.get()
     try:
-        for attempt in range(prior_attempts + 1, 3):
-            attempt_file.write_text(str(attempt), encoding="utf-8")
-            run_name = slug(job.run_id if attempt == 1 else f"{job.run_id}-retry{attempt - 1}")
-            log_path = LOG_DIR / f"{slug(job.run_id)}-attempt{attempt}.log"
-            cmd = build_command(job, gpu_id, run_name, extra_overrides, python_executable)
-            with log_path.open("w", encoding="utf-8", newline="") as log_fh:
-                log_fh.write("$ " + " ".join(cmd) + "\n")
-                log_fh.flush()
-                completed = subprocess.run(
-                    cmd,
-                    cwd=REPO_ROOT,
-                    stdout=log_fh,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    check=False,
-                )
-            result_path = extract_result_path(log_path)
-            if completed.returncode == 0 and result_path is not None:
-                try:
-                    rel = result_path.resolve().relative_to(REPO_ROOT.resolve())
-                    result_map_path(job).write_text(rel.as_posix(), encoding="utf-8")
-                except ValueError:
-                    result_map_path(job).write_text(str(result_path), encoding="utf-8")
-                done_path(job).touch()
-                failed_path(job).unlink(missing_ok=True)
-                return job, 0
-            print(f"{job.run_id}: attempt {attempt} failed with exit={completed.returncode}")
+        run_name = slug(job.run_id)
+        log_path = LOG_DIR / f"{slug(job.run_id)}.log"
+        cmd = build_command(job, gpu_id, run_name, extra_overrides, python_executable)
+        with log_path.open("w", encoding="utf-8", newline="") as log_fh:
+            log_fh.write("$ " + " ".join(cmd) + "\n")
+            log_fh.flush()
+            completed = subprocess.run(
+                cmd,
+                cwd=REPO_ROOT,
+                stdout=log_fh,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+        result_path = extract_result_path(log_path)
+        if completed.returncode == 0 and result_path is not None:
+            try:
+                rel = result_path.resolve().relative_to(REPO_ROOT.resolve())
+                result_map_path(job).write_text(rel.as_posix(), encoding="utf-8")
+            except ValueError:
+                result_map_path(job).write_text(str(result_path), encoding="utf-8")
+            done_path(job).touch()
+            failed_path(job).unlink(missing_ok=True)
+            return job, 0
+
+        print(f"{job.run_id}: failed with exit={completed.returncode}")
         failed_path(job).touch()
         return job, 1
     finally:
@@ -395,6 +389,7 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
     recipe_meta: dict[str, Job] = {}
     by_recipe: dict[str, list[dict[str, Any]]] = defaultdict(list)
     target_order = list(dict.fromkeys(job.target for job in jobs))
+    lr_order = list(dict.fromkeys(job.lr for job in jobs))
 
     for job in jobs:
         recipe_meta[job.recipe_id] = job
@@ -427,9 +422,13 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
                 sample[f"{name}_iter"] = point[0]
         by_recipe[job.recipe_id].append(sample)
 
-    def recipe_sort_key(recipe: str) -> tuple[int, int]:
+    def recipe_sort_key(recipe: str) -> tuple[int, int, int]:
         meta = recipe_meta[recipe]
-        return (target_order.index(meta.target), LOSS_LABELS.index(meta.loss_label))
+        return (
+            target_order.index(meta.target),
+            LOSS_LABELS.index(meta.loss_label),
+            lr_order.index(meta.lr),
+        )
 
     rows: list[dict[str, Any]] = []
     for recipe in sorted(recipe_meta, key=recipe_sort_key):
@@ -442,6 +441,7 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
             "target": meta.target,
             "loss_label": meta.loss_label,
             "loss_type": meta.loss_type,
+            "lr": meta.lr,
             "metric_family": meta.metric_family,
             "seeds_complete": ",".join(str(seed) for seed in seeds),
             "n_seeds": len(seeds),
@@ -490,6 +490,7 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
         "target",
         "loss_label",
         "loss_type",
+        "lr",
         "metric_family",
         "seeds_complete",
         "n_seeds",
@@ -513,9 +514,9 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
         writer.writerows(rows)
 
     lines = [
-        "# KDVI Debug Loss Toy Sweep Summary",
+        "# KDVI Debug Loss LR Sweep Summary",
         "",
-        f"Complete target/loss groups: **{len(complete_rows)} / {len(rows)}**.",
+        f"Complete target/loss/lr groups: **{len(complete_rows)} / {len(rows)}**.",
         "Metrics are final logged values summarized as means and sample standard deviations across seeds 0, 1, and 7.",
         "",
     ]
@@ -524,7 +525,7 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
         complete_target_rows = [row for row in target_rows if row["status"] == "complete"]
         lines.extend([f"## {target}", ""])
         if not complete_target_rows:
-            lines.extend(["No complete loss groups yet.", ""])
+            lines.extend(["No complete loss/LR groups yet.", ""])
         elif metric_family_for_target(target) == "elm_w2":
             elm_winner = max(complete_target_rows, key=lambda row: row["kde_expected_log_marginal_mean"])
             w2_winner = min(complete_target_rows, key=lambda row: row["w2_mean"])
@@ -537,8 +538,8 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
                     "",
                     "### ELM/W2 Pareto Front",
                     "",
-                    "| Loss | KDE ELM mean +/- std | W2 mean +/- std |",
-                    "|---|---:|---:|",
+                    "| Recipe | Loss | LR | KDE ELM mean +/- std | W2 mean +/- std |",
+                    "|---|---|---:|---:|---:|",
                 ]
             )
             pareto_rows = sorted(
@@ -547,7 +548,7 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
             )
             for row in pareto_rows:
                 lines.append(
-                    f"| `{row['loss_label']}` | {fmt(row['kde_expected_log_marginal_mean'])} +/- {fmt(row['kde_expected_log_marginal_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} |"
+                    f"| `{row['recipe_id']}` | `{row['loss_label']}` | `{row['lr']}` | {fmt(row['kde_expected_log_marginal_mean'])} +/- {fmt(row['kde_expected_log_marginal_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} |"
                 )
             lines.append("")
         else:
@@ -562,8 +563,8 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
                     "",
                     "### KL/W2 Pareto Front",
                     "",
-                    "| Loss | KL-ITE mean +/- std | W2 mean +/- std |",
-                    "|---|---:|---:|",
+                    "| Recipe | Loss | LR | KL-ITE mean +/- std | W2 mean +/- std |",
+                    "|---|---|---:|---:|---:|",
                 ]
             )
             pareto_rows = sorted(
@@ -572,24 +573,28 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
             )
             for row in pareto_rows:
                 lines.append(
-                    f"| `{row['loss_label']}` | {fmt(row['kl_ite_mean'])} +/- {fmt(row['kl_ite_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} |"
+                    f"| `{row['recipe_id']}` | `{row['loss_label']}` | `{row['lr']}` | {fmt(row['kl_ite_mean'])} +/- {fmt(row['kl_ite_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} |"
                 )
             lines.append("")
 
-        lines.extend(["### All Losses", ""])
-        if metric_family_for_target(target) == "elm_w2":
-            lines.extend(["| Loss | Status | Seeds | KDE ELM | W2 | Train loss |", "|---|---|---|---:|---:|---:|"])
-            for row in target_rows:
-                lines.append(
-                    f"| `{row['loss_label']}` | {row['status']} | {row['seeds_complete'] or 'none'} | {fmt(row['kde_expected_log_marginal_mean'])} +/- {fmt(row['kde_expected_log_marginal_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} | {fmt(row['loss_mean'])} +/- {fmt(row['loss_std'])} |"
-                )
-        else:
-            lines.extend(["| Loss | Status | Seeds | KL-ITE | W2 | Train loss |", "|---|---|---|---:|---:|---:|"])
-            for row in target_rows:
-                lines.append(
-                    f"| `{row['loss_label']}` | {row['status']} | {row['seeds_complete'] or 'none'} | {fmt(row['kl_ite_mean'])} +/- {fmt(row['kl_ite_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} | {fmt(row['loss_mean'])} +/- {fmt(row['loss_std'])} |"
-                )
-        lines.append("")
+        for loss_label in LOSS_LABELS:
+            loss_rows = [row for row in target_rows if row["loss_label"] == loss_label]
+            if not loss_rows:
+                continue
+            lines.extend([f"### {loss_label}", ""])
+            if metric_family_for_target(target) == "elm_w2":
+                lines.extend(["| LR | Status | Seeds | KDE ELM | W2 | Train loss |", "|---:|---|---|---:|---:|---:|"])
+                for row in loss_rows:
+                    lines.append(
+                        f"| `{row['lr']}` | {row['status']} | {row['seeds_complete'] or 'none'} | {fmt(row['kde_expected_log_marginal_mean'])} +/- {fmt(row['kde_expected_log_marginal_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} | {fmt(row['loss_mean'])} +/- {fmt(row['loss_std'])} |"
+                    )
+            else:
+                lines.extend(["| LR | Status | Seeds | KL-ITE | W2 | Train loss |", "|---:|---|---|---:|---:|---:|"])
+                for row in loss_rows:
+                    lines.append(
+                        f"| `{row['lr']}` | {row['status']} | {row['seeds_complete'] or 'none'} | {fmt(row['kl_ite_mean'])} +/- {fmt(row['kl_ite_std'])} | {fmt(row['w2_mean'])} +/- {fmt(row['w2_std'])} | {fmt(row['loss_mean'])} +/- {fmt(row['loss_std'])} |"
+                    )
+            lines.append("")
 
     incomplete = [row for row in rows if row["status"] != "complete"]
     lines.extend(["## Incomplete Groups", ""])
@@ -606,9 +611,14 @@ def summarize(jobs: list[Job], expected_seeds: list[int]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Compare KDVI debug loss types on 2D toy targets and Langevin_post."
+        description="Compare KDVI debug loss types and learning rates on toy targets."
     )
     parser.add_argument("--targets", default=",".join(DEFAULT_TARGETS), help="Comma-separated targets to run.")
+    parser.add_argument(
+        "--learning-rates",
+        default=",".join(DEFAULT_LRS),
+        help="Comma-separated train.vi.lr values to run.",
+    )
     parser.add_argument("--seeds", default=",".join(str(seed) for seed in DEFAULT_SEEDS), help="Comma-separated seeds.")
     parser.add_argument("--gpu-ids", default=None, help="Comma-separated GPU IDs.")
     parser.add_argument("--max-gpus", type=int, default=MAX_GPUS_DEFAULT, help="Use at most this many visible GPUs.")
@@ -633,10 +643,11 @@ def main() -> int:
 
     ensure_dirs()
     targets = parse_csv_arg(args.targets)
+    lrs = parse_csv_arg(args.learning_rates)
     seeds = parse_int_csv_arg(args.seeds)
-    jobs = build_jobs(targets, seeds)
+    jobs = build_jobs(targets, lrs, seeds)
     write_manifest(jobs)
-    validate_manifest(targets, seeds)
+    validate_manifest(targets, lrs, seeds)
 
     extra_overrides = list(args.overrides)
     if args.epochs is not None:
