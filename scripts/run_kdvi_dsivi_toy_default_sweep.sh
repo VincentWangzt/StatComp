@@ -11,7 +11,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-CAMPAIGN_SLUG="kdvi_dsivi_toy_default_sweep_10seed"
+CAMPAIGN_SLUG="kdvi_dsivi_toy_default_sweep_10seed_new"
 CAMPAIGN_ROOT="${REPO_ROOT}/campaigns/${CAMPAIGN_SLUG}"
 RUNTIME_ROOT="${CAMPAIGN_ROOT}/runtime"
 MANIFEST_PATH="${RUNTIME_ROOT}/manifest.tsv"
