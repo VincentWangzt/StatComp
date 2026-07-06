@@ -360,7 +360,12 @@ class KDVIConfigSmokeTests(unittest.TestCase):
                         "sliced_w2",
                     ),
                 )
-                self.assertEqual(loss_type, "mmd")
+                expected_loss = (
+                    "sliced_w2"
+                    if config_path.name.startswith("kdvi_w2_")
+                    else "mmd"
+                )
+                self.assertEqual(loss_type, expected_loss)
                 self.assertIn(kdvi.get("fit_bandwidth_on", "x"), ("x", "xy"))
 
                 fixed = kdvi.get("kernel_bandwidth", None)

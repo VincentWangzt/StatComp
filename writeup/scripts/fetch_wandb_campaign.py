@@ -34,9 +34,17 @@ TARGET_ORDER = [
     "student_uc",
     "Langevin_post",
 ]
-METHOD_ORDER = ["KDVI", "DSIVI"]
+METHOD_ORDER = ["KDVI-MMD", "KDVI-W2", "DSIVI"]
+GROUP_METHOD_PREFIXES = ("KDVI-W2", "KDVI", "DSIVI")
+METHOD_LABELS = {
+    "KDVI": "KDVI-MMD",
+    "KDVI-MMD": "KDVI-MMD",
+    "KDVI-W2": "KDVI-W2",
+    "DSIVI": "DSIVI",
+}
 PLOT_STEP_SCALE = {"DSIVI": 10}
 VISUAL_SEED = 7
+VISUAL_METHODS = ("KDVI-MMD", "KDVI-W2")
 PLOTLY_FONT_FAMILY = "Times New Roman, Times, serif"
 PLOTLY_SOURCE_WIDTH = 1000
 PLOTLY_SOURCE_HEIGHT = 410
@@ -87,8 +95,16 @@ def wandb_path(project: str, entity: str | None) -> str:
 
 
 def method_target_from_group(group: str) -> tuple[str, str]:
+    for prefix in GROUP_METHOD_PREFIXES:
+        marker = f"{prefix}-"
+        if group.startswith(marker):
+            return METHOD_LABELS[prefix], group[len(marker):]
     method, _, target = group.partition("-")
-    return method, target
+    return METHOD_LABELS.get(method, method), target
+
+
+def method_asset_slug(method: str) -> str:
+    return method.lower().replace("-", "_")
 
 
 def seed_from_run(run: Any) -> int | None:
@@ -306,9 +322,13 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
     plot_dir.mkdir(parents=True, exist_ok=True)
     png_export_warning_shown = False
     method_styles = {
-        "KDVI": {
+        "KDVI-MMD": {
             "line": "#1f77b4",
             "fill": "rgba(31, 119, 180, 0.16)",
+        },
+        "KDVI-W2": {
+            "line": "#2ca02c",
+            "fill": "rgba(44, 160, 44, 0.14)",
         },
         "DSIVI": {
             "line": "#d62728",
@@ -527,70 +547,92 @@ def collect_visuals(
     visual_seed: int,
 ) -> dict[str, Any]:
     manifest: dict[str, Any] = {}
-    by_target = {}
+    by_target: dict[str, dict[str, Any]] = defaultdict(dict)
     for run in runs:
         method, target = method_target_from_group(run.group or "")
-        if method == "KDVI" and seed_from_run(run) == visual_seed:
-            by_target[target] = run
+        if method in VISUAL_METHODS and seed_from_run(run) == visual_seed:
+            by_target[target][method] = run
 
-    for target, run in sorted(by_target.items()):
+    for target, method_runs in sorted(by_target.items()):
         target_dir = assets_dir / target
-        files = list(run.files())
-        groundtruth_files = [
-            item for item in files
-            if item.name.startswith("media/images/plots/groundtruth_samples")
-            and item.name.endswith(".png")
-        ]
-        posterior_files = sorted(
-            [
-                item for item in files
-                if item.name.startswith("media/images/plots/posterior_")
-                and item.name.endswith(".png")
-            ],
-            key=lambda item: file_step(item.name),
-        )
-        if not groundtruth_files or not posterior_files:
-            continue
+        target_manifest: dict[str, Any] = {"methods": {}}
+        groundtruth_saved = False
 
-        groundtruth_out = target_dir / "groundtruth.png"
-        download_file(run, groundtruth_files[0], groundtruth_out)
-        media_epochs = collect_media_epochs(run, "plots/posterior")
-        frames = []
-        for item in posterior_files:
-            wandb_step = file_step(item.name)
-            epoch = (
-                media_epochs.get(item.name)
-                or media_epochs.get(item.name.rsplit("/", 1)[-1])
-                or wandb_step
+        for method in VISUAL_METHODS:
+            run = method_runs.get(method)
+            if run is None:
+                continue
+            files = list(run.files())
+            groundtruth_files = [
+                item for item in files
+                if item.name.startswith("media/images/plots/groundtruth_samples")
+                and item.name.endswith(".png")
+            ]
+            posterior_files = sorted(
+                [
+                    item for item in files
+                    if item.name.startswith("media/images/plots/posterior_")
+                    and item.name.endswith(".png")
+                ],
+                key=lambda item: file_step(item.name),
             )
-            out = target_dir / f"posterior_epoch_{epoch}.png"
-            download_file(run, item, out)
-            frame = {
-                "epoch": epoch,
-                "path": (
+            if not posterior_files:
+                continue
+
+            if groundtruth_files and not groundtruth_saved:
+                groundtruth_out = target_dir / "groundtruth.png"
+                download_file(run, groundtruth_files[0], groundtruth_out)
+                target_manifest["groundtruth"] = (
                     Path("assets")
                     / "wandb"
                     / campaign
                     / target
-                    / out.name
-                ).as_posix(),
+                    / groundtruth_out.name
+                ).as_posix()
+                groundtruth_saved = True
+
+            method_slug = method_asset_slug(method)
+            method_dir = target_dir / method_slug
+            media_epochs = collect_media_epochs(run, "plots/posterior")
+            frames = []
+            for item in posterior_files:
+                wandb_step = file_step(item.name)
+                epoch = (
+                    media_epochs.get(item.name)
+                    or media_epochs.get(item.name.rsplit("/", 1)[-1])
+                    or wandb_step
+                )
+                out = method_dir / f"posterior_epoch_{epoch}.png"
+                download_file(run, item, out)
+                frame = {
+                    "epoch": epoch,
+                    "path": (
+                        Path("assets")
+                        / "wandb"
+                        / campaign
+                        / target
+                        / method_slug
+                        / out.name
+                    ).as_posix(),
+                }
+                if wandb_step and wandb_step != epoch:
+                    frame["wandb_step"] = wandb_step
+                frames.append(frame)
+            frames.sort(key=lambda frame: frame["epoch"])
+            target_manifest["methods"][method] = {
+                "run_name": run.name,
+                "seed": visual_seed,
+                "posterior": frames,
             }
-            if wandb_step and wandb_step != epoch:
-                frame["wandb_step"] = wandb_step
-            frames.append(frame)
-        frames.sort(key=lambda frame: frame["epoch"])
-        manifest[target] = {
-            "run_name": run.name,
-            "seed": visual_seed,
-            "groundtruth": (
-                Path("assets")
-                / "wandb"
-                / campaign
-                / target
-                / groundtruth_out.name
-            ).as_posix(),
-            "posterior": frames,
-        }
+
+        if target_manifest.get("groundtruth") or target_manifest["methods"]:
+            # Backward-compatible aliases for older writeup code and cached pages.
+            kdvi_mmd = target_manifest["methods"].get("KDVI-MMD")
+            if kdvi_mmd is not None:
+                target_manifest["run_name"] = kdvi_mmd["run_name"]
+                target_manifest["seed"] = visual_seed
+                target_manifest["posterior"] = kdvi_mmd["posterior"]
+            manifest[target] = target_manifest
     return manifest
 
 

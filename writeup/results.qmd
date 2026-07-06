@@ -137,7 +137,7 @@ PLOT_DIR = Path("assets") / "plotly" / CAMPAIGN
 VISUAL_MANIFEST = DATA_DIR / "visual_manifest.json"
 PLOTLY_SOURCE_WIDTH = 1000
 PLOTLY_SOURCE_HEIGHT = 420
-VISUAL_SOURCE_WIDTH = 1100
+VISUAL_SOURCE_WIDTH = 1420
 VISUAL_SOURCE_HEIGHT = 500
 TARGET_ORDER = [
     "banana",
@@ -163,6 +163,8 @@ TARGET_LABELS = {
     "student_uc": "student_uc",
     "Langevin_post": "Langevin_post",
 }
+METHOD_ORDER = ["KDVI-MMD", "KDVI-W2", "DSIVI"]
+VISUAL_METHODS = ["KDVI-MMD", "KDVI-W2"]
 
 
 def fmt(value):
@@ -183,6 +185,10 @@ def target_id(target):
 
 def frame_epoch(frame):
     return frame.get("epoch", frame.get("step", ""))
+
+
+def method_id(method):
+    return method.lower().replace("-", "_")
 
 
 def count_value(value):
@@ -209,7 +215,7 @@ def target_metric_table(target_rows):
         cols.append(table_label)
 
     rows = []
-    for method in ["KDVI", "DSIVI"]:
+    for method in METHOD_ORDER:
         row = target_rows[target_rows["method"] == method]
         if row.empty:
             continue
@@ -221,6 +227,56 @@ def target_metric_table(target_rows):
     return pd.DataFrame(rows, columns=cols)
 
 
+def visual_methods(target_visual):
+    methods = target_visual.get("methods")
+    if isinstance(methods, dict):
+        return methods
+    posterior = target_visual.get("posterior", [])
+    if posterior:
+        return {
+            "KDVI-MMD": {
+                "run_name": target_visual.get("run_name", ""),
+                "seed": target_visual.get("seed", 7),
+                "posterior": posterior,
+            }
+        }
+    return {}
+
+
+def aligned_visual_frames(methods):
+    frame_lists = {
+        method: list((methods.get(method) or {}).get("posterior", []))
+        for method in VISUAL_METHODS
+    }
+    available = {method: frames for method, frames in frame_lists.items() if frames}
+    if not available:
+        return []
+    if len(available) == len(VISUAL_METHODS):
+        by_epoch = {
+            method: {frame_epoch(frame): frame for frame in frames}
+            for method, frames in available.items()
+        }
+        common_epochs = sorted(set.intersection(*(set(items) for items in by_epoch.values())))
+        if common_epochs:
+            return [
+                {
+                    "epoch": epoch,
+                    **{method: by_epoch[method][epoch] for method in VISUAL_METHODS},
+                }
+                for epoch in common_epochs
+            ]
+        frame_count = min(len(frames) for frames in available.values())
+        return [
+            {
+                "epoch": frame_epoch(next(iter(available.values()))[idx]),
+                **{method: available[method][idx] for method in VISUAL_METHODS},
+            }
+            for idx in range(frame_count)
+        ]
+    method, frames = next(iter(available.items()))
+    return [{"epoch": frame_epoch(frame), method: frame} for frame in frames]
+
+
 summary_path = DATA_DIR / "final_metrics.csv"
 if not summary_path.exists():
     raise FileNotFoundError(
@@ -229,6 +285,8 @@ if not summary_path.exists():
     )
 
 summary = pd.read_csv(summary_path)
+if "method" in summary:
+    summary["method"] = summary["method"].replace({"KDVI": "KDVI-MMD"})
 visuals = read_manifest()
 
 for target in TARGET_ORDER:
@@ -273,12 +331,11 @@ for target in TARGET_ORDER:
     print("")
     target_visual = visuals.get(target, {})
     groundtruth = target_visual.get("groundtruth")
-    posterior = target_visual.get("posterior", [])
-    if groundtruth and posterior:
+    methods = visual_methods(target_visual)
+    frames = aligned_visual_frames(methods)
+    if groundtruth and frames:
         slider_id = f"slider-{target_html_id}"
-        img_id = f"posterior-{target_html_id}"
-        caption_id = f"caption-{target_html_id}"
-        first = posterior[0]
+        first = frames[0]
         print(
             '<div class="scaled-frame scaled-visual-frame" '
             f'data-source-width="{VISUAL_SOURCE_WIDTH}" '
@@ -289,34 +346,57 @@ for target in TARGET_ORDER:
         print('<h3>Groundtruth</h3>')
         print(f'<img src="{groundtruth}" alt="Groundtruth samples for {target}">')
         print('</div>')
-        print('<div class="visual-panel posterior-panel">')
-        print('<h3>KDVI posterior, seed 7</h3>')
+        image_ids = {}
+        caption_ids = {}
+        for method in VISUAL_METHODS:
+            method_frame = first.get(method)
+            method_slug = method_id(method)
+            img_id = f"posterior-{target_html_id}-{method_slug}"
+            caption_id = f"caption-{target_html_id}-{method_slug}"
+            image_ids[method] = img_id
+            caption_ids[method] = caption_id
+            print('<div class="visual-panel posterior-panel">')
+            print(f'<h3>{method} posterior, seed 7</h3>')
+            if method_frame:
+                print(
+                    f'<img id="{img_id}" src="{method_frame["path"]}" '
+                    f'alt="{method} posterior samples for {target}">'
+                )
+                print(
+                    f'<div id="{caption_id}" class="posterior-caption">'
+                    f'epoch {frame_epoch(method_frame)}</div>'
+                )
+            else:
+                print(
+                    f'<div class="visual-missing">No seed-7 {method} media is available.</div>'
+                )
+                print(f'<div id="{caption_id}" class="posterior-caption"></div>')
+            print('</div>')
+        print('</div>')
         print(
-            f'<img id="{img_id}" src="{first["path"]}" '
-            f'alt="KDVI posterior samples for {target}">'
-        )
-        print(
-            f'<input id="{slider_id}" type="range" min="0" '
-            f'max="{len(posterior) - 1}" value="0" step="1">'
-        )
-        print(
-            f'<div id="{caption_id}" class="posterior-caption">'
-            f'epoch {frame_epoch(first)}</div>'
+            f'<input id="{slider_id}" class="visual-slider" type="range" min="0" '
+            f'max="{len(frames) - 1}" value="0" step="1">'
         )
         print('</div>')
-        print('</div>')
-        print('</div>')
-        payload = json.dumps(posterior)
+        payload = json.dumps(frames)
+        image_payload = json.dumps(image_ids)
+        caption_payload = json.dumps(caption_ids)
         print("<script>")
         print(
             f"(function(){{const frames={payload};"
+            f"const imageIds={image_payload};"
+            f"const captionIds={caption_payload};"
             f"const slider=document.getElementById('{slider_id}');"
-            f"const image=document.getElementById('{img_id}');"
-            f"const caption=document.getElementById('{caption_id}');"
-            "if(!slider||!image||!caption){return;}"
+            "if(!slider){return;}"
             "function update(){const item=frames[Number(slider.value)];"
-            "const epoch=(item.epoch ?? item.step);"
-            "image.src=item.path; caption.textContent='epoch '+epoch;}"
+            "Object.keys(imageIds).forEach((method)=>{"
+            "const frame=item[method];"
+            "const image=document.getElementById(imageIds[method]);"
+            "const caption=document.getElementById(captionIds[method]);"
+            "if(!frame||!image){return;}"
+            "image.src=frame.path;"
+            "if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);"
+            "caption.textContent='epoch '+epoch;}});}"
             "slider.addEventListener('input', update); update();"
             "requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();"
         )
