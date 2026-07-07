@@ -138,7 +138,7 @@ VISUAL_MANIFEST = DATA_DIR / "visual_manifest.json"
 PLOTLY_SOURCE_WIDTH = 1000
 PLOTLY_SOURCE_HEIGHT = 420
 VISUAL_SOURCE_WIDTH = 1420
-VISUAL_SOURCE_HEIGHT = 500
+VISUAL_SOURCE_HEIGHT = 540
 TARGET_ORDER = [
     "banana",
     "x_shaped",
@@ -152,7 +152,7 @@ METRIC_ORDER = [
     ("kl_ite", "KL-ITE", "KL"),
     ("w2", "Sliced W2", "W2"),
     ("elbo", "ELBO", "ELBO"),
-    ("kde_expected_log_marginal", "KDE ELM", "KDE ELM"),
+    ("kde_expected_log_marginal", "ELM", "ELM"),
 ]
 TARGET_LABELS = {
     "banana": "banana",
@@ -372,11 +372,13 @@ for target in TARGET_ORDER:
                 )
                 print(f'<div id="{caption_id}" class="posterior-caption"></div>')
             print('</div>')
-        print('</div>')
         print(
+            '<div class="visual-slider-row">'
             f'<input id="{slider_id}" class="visual-slider" type="range" min="0" '
             f'max="{len(frames) - 1}" value="0" step="1">'
+            '</div>'
         )
+        print('</div>')
         print('</div>')
         payload = json.dumps(frames)
         image_payload = json.dumps(image_ids)

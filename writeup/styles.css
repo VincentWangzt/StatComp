@@ -84,7 +84,8 @@ mjx-container {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, var(--visual-figure-width)));
   justify-content: center;
-  gap: 40px;
+  column-gap: 40px;
+  row-gap: 10px;
   align-items: start;
   box-sizing: border-box;
   padding: 0;
@@ -111,11 +112,15 @@ mjx-container {
   object-fit: contain;
 }
 
+.visual-slider-row {
+  grid-column: 1 / -1;
+}
+
 .visual-slider,
 .posterior-panel input[type="range"] {
   display: block;
   width: min(100%, 1320px);
-  margin-top: 8px;
+  margin-top: 0;
   margin-left: auto;
   margin-right: auto;
 }

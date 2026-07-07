@@ -74,7 +74,7 @@ metric:
     enabled: false
     num_samples: 500
   expected_log_marginal:
-    enabled: false
+    enabled: true
     num_ref_samples: 1000
     num_model_samples: 50000
     sample_batch_size: 50000

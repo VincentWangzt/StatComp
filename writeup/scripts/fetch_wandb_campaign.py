@@ -339,7 +339,7 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
         "kl_ite": "KL-ITE",
         "w2": "Sliced W2",
         "elbo": "ELBO",
-        "kde_expected_log_marginal": "KDE expected log marginal",
+        "kde_expected_log_marginal": "ELM",
     }
     for target in TARGET_ORDER:
         for metric, label in metric_labels.items():
@@ -365,6 +365,7 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
                 std = method_subset["std"].fillna(0.0)
                 upper = mean + std
                 lower = mean - std
+                trace_visibility = "legendonly" if method == "KDVI-W2" else True
                 fig.add_trace(
                     go.Scatter(
                         x=x,
@@ -374,6 +375,7 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
                         hoverinfo="skip",
                         showlegend=False,
                         legendgroup=method,
+                        visible=trace_visibility,
                     )
                 )
                 fig.add_trace(
@@ -387,6 +389,7 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
                         hoverinfo="skip",
                         showlegend=False,
                         legendgroup=method,
+                        visible=trace_visibility,
                     )
                 )
                 fig.add_trace(
@@ -398,6 +401,7 @@ def write_plotly_plots(aggregates: pd.DataFrame, plot_dir: Path) -> None:
                         legendgroup=method,
                         line={"color": style["line"], "width": 2.4},
                         marker={"size": 5},
+                        visible=trace_visibility,
                         customdata=method_subset[["count", "std"]],
                         hovertemplate=(
                             "plot epoch=%{x}<br>"
@@ -595,13 +599,13 @@ def collect_visuals(
             method_dir = target_dir / method_slug
             media_epochs = collect_media_epochs(run, "plots/posterior")
             frames = []
-            for item in posterior_files:
+            for frame_idx, item in enumerate(posterior_files, start=1):
                 wandb_step = file_step(item.name)
-                epoch = (
+                matched_epoch = (
                     media_epochs.get(item.name)
                     or media_epochs.get(item.name.rsplit("/", 1)[-1])
-                    or wandb_step
                 )
+                epoch = matched_epoch or frame_idx * 10000 or wandb_step
                 out = method_dir / f"posterior_epoch_{epoch}.png"
                 download_file(run, item, out)
                 frame = {
