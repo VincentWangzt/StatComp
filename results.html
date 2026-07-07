@@ -275,7 +275,7 @@ banana
 </div>
 </div>
 <div id="tabset-1-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -285,17 +285,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-banana" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_10000.png" alt="KDVI posterior samples for banana"> <input id="slider-banana" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-banana" class="posterior-caption">
+<img id="posterior-banana-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for banana">
+<div id="caption-banana-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-banana-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for banana">
+<div id="caption-banana-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-banana" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-banana');const image=document.getElementById('posterior-banana');const caption=document.getElementById('caption-banana');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/banana/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-banana-kdvi_mmd", "KDVI-W2": "posterior-banana-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-banana-kdvi_mmd", "KDVI-W2": "caption-banana-kdvi_w2"};const slider=document.getElementById('slider-banana');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-1-5">
@@ -322,14 +334,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -342,6 +354,26 @@ KDVI
 </td>
 <td>
 -0.04586 +/- 0.006915
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.4358 +/- 0.8653
+</td>
+<td>
+0.434 +/- 0.1555
+</td>
+<td>
+-21.72 +/- 45.87
 </td>
 <td>
 -
@@ -403,7 +435,7 @@ x_shaped
 </div>
 </div>
 <div id="tabset-2-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -413,17 +445,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-x-shaped" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_10000.png" alt="KDVI posterior samples for x_shaped"> <input id="slider-x-shaped" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-x-shaped" class="posterior-caption">
+<img id="posterior-x-shaped-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for x_shaped">
+<div id="caption-x-shaped-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-x-shaped-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for x_shaped">
+<div id="caption-x-shaped-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-x-shaped" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-x-shaped');const image=document.getElementById('posterior-x-shaped');const caption=document.getElementById('caption-x-shaped');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/x_shaped/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-x-shaped-kdvi_mmd", "KDVI-W2": "posterior-x-shaped-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-x-shaped-kdvi_mmd", "KDVI-W2": "caption-x-shaped-kdvi_w2"};const slider=document.getElementById('slider-x-shaped');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-2-5">
@@ -450,14 +494,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -470,6 +514,26 @@ KDVI
 </td>
 <td>
 -0.1002 +/- 0.1267
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.325 +/- 0.1105
+</td>
+<td>
+0.3351 +/- 0.1059
+</td>
+<td>
+-0.4324 +/- 0.15
 </td>
 <td>
 -
@@ -531,7 +595,7 @@ multimodal
 </div>
 </div>
 <div id="tabset-3-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -541,17 +605,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-multimodal" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_10000.png" alt="KDVI posterior samples for multimodal"> <input id="slider-multimodal" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-multimodal" class="posterior-caption">
+<img id="posterior-multimodal-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for multimodal">
+<div id="caption-multimodal-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-multimodal-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for multimodal">
+<div id="caption-multimodal-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-multimodal" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-multimodal');const image=document.getElementById('posterior-multimodal');const caption=document.getElementById('caption-multimodal');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/multimodal/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-multimodal-kdvi_mmd", "KDVI-W2": "posterior-multimodal-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-multimodal-kdvi_mmd", "KDVI-W2": "caption-multimodal-kdvi_w2"};const slider=document.getElementById('slider-multimodal');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-3-5">
@@ -578,14 +654,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -598,6 +674,26 @@ KDVI
 </td>
 <td>
 -0.006531 +/- 0.001302
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.02747 +/- 0.06505
+</td>
+<td>
+0.06006 +/- 0.09022
+</td>
+<td>
+-0.03196 +/- 0.06882
 </td>
 <td>
 -
@@ -659,7 +755,7 @@ DSIVI
 </div>
 </div>
 <div id="tabset-4-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -669,17 +765,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-8-gaussians" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_10000.png" alt="KDVI posterior samples for 8_gaussians"> <input id="slider-8-gaussians" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-8-gaussians" class="posterior-caption">
+<img id="posterior-8-gaussians-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for 8_gaussians">
+<div id="caption-8-gaussians-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-8-gaussians-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for 8_gaussians">
+<div id="caption-8-gaussians-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-8-gaussians" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians');const image=document.getElementById('posterior-8-gaussians');const caption=document.getElementById('caption-8-gaussians');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-8-gaussians-kdvi_mmd", "KDVI-W2": "posterior-8-gaussians-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-8-gaussians-kdvi_mmd", "KDVI-W2": "caption-8-gaussians-kdvi_w2"};const slider=document.getElementById('slider-8-gaussians');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-4-5">
@@ -706,14 +814,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -726,6 +834,26 @@ KDVI
 </td>
 <td>
 -0.2219 +/- 0.01569
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.9399 +/- 0.8972
+</td>
+<td>
+0.8166 +/- 0.5504
+</td>
+<td>
+-1.759 +/- 2.258
 </td>
 <td>
 -
@@ -787,7 +915,7 @@ DSIVI
 </div>
 </div>
 <div id="tabset-5-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -797,17 +925,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-8-gaussians-small" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_10000.png" alt="KDVI posterior samples for 8_gaussians_small"> <input id="slider-8-gaussians-small" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-8-gaussians-small" class="posterior-caption">
+<img id="posterior-8-gaussians-small-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for 8_gaussians_small">
+<div id="caption-8-gaussians-small-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-8-gaussians-small-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for 8_gaussians_small">
+<div id="caption-8-gaussians-small-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-8-gaussians-small" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-8-gaussians-small');const image=document.getElementById('posterior-8-gaussians-small');const caption=document.getElementById('caption-8-gaussians-small');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/8_gaussians_small/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-8-gaussians-small-kdvi_mmd", "KDVI-W2": "posterior-8-gaussians-small-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-8-gaussians-small-kdvi_mmd", "KDVI-W2": "caption-8-gaussians-small-kdvi_w2"};const slider=document.getElementById('slider-8-gaussians-small');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-5-5">
@@ -834,14 +974,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -854,6 +994,26 @@ KDVI
 </td>
 <td>
 -0.3285 +/- 0.6088
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.167 +/- 0.01343
+</td>
+<td>
+0.02975 +/- 0.007388
+</td>
+<td>
+-0.3013 +/- 0.01718
 </td>
 <td>
 -
@@ -915,7 +1075,7 @@ student_uc
 </div>
 </div>
 <div id="tabset-6-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -925,17 +1085,29 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-student-uc" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_10000.png" alt="KDVI posterior samples for student_uc"> <input id="slider-student-uc" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-student-uc" class="posterior-caption">
+<img id="posterior-student-uc-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for student_uc">
+<div id="caption-student-uc-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-student-uc-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for student_uc">
+<div id="caption-student-uc-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-student-uc" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-student-uc');const image=document.getElementById('posterior-student-uc');const caption=document.getElementById('caption-student-uc');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/student_uc/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-student-uc-kdvi_mmd", "KDVI-W2": "posterior-student-uc-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-student-uc-kdvi_mmd", "KDVI-W2": "caption-student-uc-kdvi_w2"};const slider=document.getElementById('slider-student-uc');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
 <div id="tabset-6-5">
@@ -962,14 +1134,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -982,6 +1154,26 @@ KDVI
 </td>
 <td>
 -2.698 +/- 0.004065
+</td>
+<td>
+-
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+0.02105 +/- 0.01105
+</td>
+<td>
+0.5807 +/- 0.00734
+</td>
+<td>
+-2.703 +/- 0.006387
 </td>
 <td>
 -
@@ -1022,28 +1214,34 @@ Langevin_post
 <a href="implementation.html#sec-target-langevin-post">Target definition</a>
 </p>
 <div class="panel-tabset target-tabs">
-<ul id="tabset-7" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-7-1">W2</a></li><li><a href="#tabset-7-2">ELBO</a></li><li><a href="#tabset-7-3">KDE ELM</a></li><li><a href="#tabset-7-4">Visuals</a></li><li><a href="#tabset-7-5">Table</a></li></ul>
+<ul id="tabset-7" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-7-1">KL</a></li><li><a href="#tabset-7-2">W2</a></li><li><a href="#tabset-7-3">ELBO</a></li><li><a href="#tabset-7-4">ELM</a></li><li><a href="#tabset-7-5">Visuals</a></li><li><a href="#tabset-7-6">Table</a></li></ul>
 <div class="tab-content target-tabs">
 <div id="tabset-7-1">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_kl_ite.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-7-2">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_w2.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-7-3">
 <div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
-<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_kde_expected_log_marginal.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_elbo.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
 </iframe>
 </div>
 </div>
 <div id="tabset-7-4">
-<div class="scaled-frame scaled-visual-frame" data-source-width="1100" data-source-height="500">
+<div class="scaled-frame scaled-plotly-frame" data-source-width="1000" data-source-height="420" data-extra-height="8">
+<iframe class="metric-frame scaled-frame-content" data-src="assets/plotly/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post_kde_expected_log_marginal.html" width="1000" height="420" scrolling="no" onload="window.fitScaledWriteupFrame(this.parentElement);">
+</iframe>
+</div>
+</div>
+<div id="tabset-7-5">
+<div class="scaled-frame scaled-visual-frame" data-source-width="1420" data-source-height="540">
 <div class="visual-grid scaled-frame-content" data-scaled-display="grid">
 <div class="visual-panel">
 <h3>
@@ -1053,20 +1251,32 @@ Groundtruth
 </div>
 <div class="visual-panel posterior-panel">
 <h3>
-KDVI posterior, seed 7
+KDVI-MMD posterior, seed 7
 </h3>
-<img id="posterior-langevin-post" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_10000.png" alt="KDVI posterior samples for Langevin_post"> <input id="slider-langevin-post" type="range" min="0" max="9" value="0" step="1">
-<div id="caption-langevin-post" class="posterior-caption">
+<img id="posterior-langevin-post-kdvi_mmd" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_10000.png" alt="KDVI-MMD posterior samples for Langevin_post">
+<div id="caption-langevin-post-kdvi_mmd" class="posterior-caption">
 epoch 10000
 </div>
+</div>
+<div class="visual-panel posterior-panel">
+<h3>
+KDVI-W2 posterior, seed 7
+</h3>
+<img id="posterior-langevin-post-kdvi_w2" src="assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_10000.png" alt="KDVI-W2 posterior samples for Langevin_post">
+<div id="caption-langevin-post-kdvi_w2" class="posterior-caption">
+epoch 10000
+</div>
+</div>
+<div class="visual-slider-row">
+<input id="slider-langevin-post" class="visual-slider" type="range" min="0" max="9" value="0" step="1">
 </div>
 </div>
 </div>
 <script>
-(function(){const frames=[{"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_10000.png", "wandb_step": 60014}, {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_20000.png", "wandb_step": 120030}, {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_30000.png", "wandb_step": 180046}, {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_40000.png", "wandb_step": 240062}, {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_50000.png", "wandb_step": 300078}, {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_60000.png", "wandb_step": 360094}, {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_70000.png", "wandb_step": 420110}, {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_80000.png", "wandb_step": 480126}, {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_90000.png", "wandb_step": 540142}, {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/posterior_epoch_100000.png", "wandb_step": 600158}];const slider=document.getElementById('slider-langevin-post');const image=document.getElementById('posterior-langevin-post');const caption=document.getElementById('caption-langevin-post');if(!slider||!image||!caption){return;}function update(){const item=frames[Number(slider.value)];const epoch=(item.epoch ?? item.step);image.src=item.path; caption.textContent='epoch '+epoch;}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
+(function(){const frames=[{"epoch": 10000, "KDVI-MMD": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_10000.png", "wandb_step": 60014}, "KDVI-W2": {"epoch": 10000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_10000.png", "wandb_step": 60014}}, {"epoch": 20000, "KDVI-MMD": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_20000.png", "wandb_step": 120030}, "KDVI-W2": {"epoch": 20000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_20000.png", "wandb_step": 120030}}, {"epoch": 30000, "KDVI-MMD": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_30000.png", "wandb_step": 180046}, "KDVI-W2": {"epoch": 30000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_30000.png", "wandb_step": 180046}}, {"epoch": 40000, "KDVI-MMD": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_40000.png", "wandb_step": 240062}, "KDVI-W2": {"epoch": 40000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_40000.png", "wandb_step": 240062}}, {"epoch": 50000, "KDVI-MMD": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_50000.png", "wandb_step": 300078}, "KDVI-W2": {"epoch": 50000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_50000.png", "wandb_step": 300078}}, {"epoch": 60000, "KDVI-MMD": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_60000.png", "wandb_step": 360094}, "KDVI-W2": {"epoch": 60000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_60000.png", "wandb_step": 360094}}, {"epoch": 70000, "KDVI-MMD": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_70000.png", "wandb_step": 420110}, "KDVI-W2": {"epoch": 70000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_70000.png", "wandb_step": 420110}}, {"epoch": 80000, "KDVI-MMD": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_80000.png", "wandb_step": 480126}, "KDVI-W2": {"epoch": 80000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_80000.png", "wandb_step": 480126}}, {"epoch": 90000, "KDVI-MMD": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_90000.png", "wandb_step": 540142}, "KDVI-W2": {"epoch": 90000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_90000.png", "wandb_step": 540142}}, {"epoch": 100000, "KDVI-MMD": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_mmd/posterior_epoch_100000.png", "wandb_step": 600158}, "KDVI-W2": {"epoch": 100000, "path": "assets/wandb/kdvi_dsivi_toy_default_sweep_10seed_new/Langevin_post/kdvi_w2/posterior_epoch_100000.png", "wandb_step": 600158}}];const imageIds={"KDVI-MMD": "posterior-langevin-post-kdvi_mmd", "KDVI-W2": "posterior-langevin-post-kdvi_w2"};const captionIds={"KDVI-MMD": "caption-langevin-post-kdvi_mmd", "KDVI-W2": "caption-langevin-post-kdvi_w2"};const slider=document.getElementById('slider-langevin-post');if(!slider){return;}function update(){const item=frames[Number(slider.value)];Object.keys(imageIds).forEach((method)=>{const frame=item[method];const image=document.getElementById(imageIds[method]);const caption=document.getElementById(captionIds[method]);if(!frame||!image){return;}image.src=frame.path;if(caption){const epoch=(frame.epoch ?? frame.step ?? item.epoch);caption.textContent='epoch '+epoch;}});}slider.addEventListener('input', update); update();requestAnimationFrame(()=>window.fitAllScaledWriteupFrames(document));})();
 </script>
 </div>
-<div id="tabset-7-5">
+<div id="tabset-7-6">
 <h3>
 Langevin_post final metrics
 </h3>
@@ -1090,14 +1300,14 @@ Sliced W2
 ELBO
 </th>
 <th>
-KDE ELM
+ELM
 </th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>
-KDVI
+KDVI-MMD
 </td>
 <td>
 10
@@ -1113,6 +1323,26 @@ KDVI
 </td>
 <td>
 74.76 +/- 0.0365
+</td>
+</tr>
+<tr>
+<td>
+KDVI-W2
+</td>
+<td>
+10
+</td>
+<td>
+3.113 +/- 0.1425
+</td>
+<td>
+0.009797 +/- 0.0002643
+</td>
+<td>
+-194.3 +/- 0.9833
+</td>
+<td>
+-
 </td>
 </tr>
 <tr>
