@@ -1,0 +1,38 @@
+{
+  "selection_rule": "observed median sliced-W2 run within each method",
+  "num_plot_samples": 5000,
+  "runs": [
+    {
+      "method": "DIVI",
+      "display_name": "DIVI",
+      "seed": 45,
+      "elbo": -0.1667299121618271,
+      "w2": 0.21353965997695923,
+      "checkpoint": "/root/autodl-tmp/dsivi_results/results/nfvi_rebuttal_8_gaussians/results/DSIVI/8_gaussians/20260726_210623/final_vi_model.pt"
+    },
+    {
+      "method": "NFVI-4",
+      "display_name": "RealNVP-4",
+      "seed": 46,
+      "elbo": -0.34834906458854675,
+      "w2": 0.3796921372413635,
+      "checkpoint": "/root/autodl-tmp/dsivi_results/results/nfvi_rebuttal_8_gaussians/results/NFVI/8_gaussians/20260726_213400/final_vi_model.pt"
+    },
+    {
+      "method": "NFVI-8",
+      "display_name": "RealNVP-8",
+      "seed": 42,
+      "elbo": -0.28458812832832336,
+      "w2": 0.5562284588813782,
+      "checkpoint": "/root/autodl-tmp/dsivi_results/results/nfvi_rebuttal_8_gaussians/results/NFVI/8_gaussians/20260726_213822/final_vi_model.pt"
+    },
+    {
+      "method": "NFVI-16",
+      "display_name": "RealNVP-16",
+      "seed": 46,
+      "elbo": -0.29076623916625977,
+      "w2": 0.3932269513607025,
+      "checkpoint": "/root/autodl-tmp/dsivi_results/results/nfvi_rebuttal_8_gaussians/results/NFVI/8_gaussians/20260726_223445/final_vi_model.pt"
+    }
+  ]
+}
