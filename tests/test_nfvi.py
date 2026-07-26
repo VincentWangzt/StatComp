@@ -1,9 +1,16 @@
 import unittest
+from argparse import Namespace
+from pathlib import Path
 
 import torch
 from omegaconf import OmegaConf
 
 from models.vi_model import RealNVP
+from scripts.run_nfvi_rebuttal import (
+    PROJECT_ROOT,
+    Variant,
+    configure_run,
+)
 
 
 class RealNVPTest(unittest.TestCase):
@@ -58,6 +65,26 @@ class RealNVPTest(unittest.TestCase):
         model = RealNVP(self.config)
         z = torch.randn(3, 5, 2)
         self.assertEqual(model.logp(z).shape, (3, 5))
+
+
+class RebuttalBenchmarkConfigTest(unittest.TestCase):
+
+    def test_metric_frequency_suppresses_evaluation_without_using_zero(self) -> None:
+        args = Namespace(
+            epochs=100,
+            w2_samples=10,
+            w2_projections=2,
+            elbo_samples=10,
+            mode_samples=10,
+            output_dir=Path("results/test_nfvi_rebuttal"),
+        )
+        variant = Variant(
+            "DIVI",
+            PROJECT_ROOT / "configs/dsivi_8_gaussians.yaml",
+        )
+        config = configure_run(variant, 42, args, torch.device("cpu"))
+
+        self.assertEqual(config.train.log.metric_log_freq, 101)
 
 
 if __name__ == "__main__":

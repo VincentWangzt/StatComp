@@ -144,7 +144,7 @@ def configure_run(
 
     config.train.epochs = args.epochs
     # Keep instrumentation out of the timed section.
-    config.train.log.metric_log_freq = 0
+    config.train.log.metric_log_freq = args.epochs + 1
     config.train.log.loss_log_freq = args.epochs + 1
     config.train.checkpoint.enabled = False
     config.train.sample.freq = args.epochs + 1
