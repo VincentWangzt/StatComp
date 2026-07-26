@@ -20,6 +20,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -31,6 +32,7 @@ from typing import Callable, Sequence
 
 ProcessQuery = Callable[[], list[str]]
 BlockerQuery = Callable[[], bool]
+TelemetryQuery = Callable[[], tuple[float, float]]
 Clock = Callable[[], float]
 Sleeper = Callable[[float], None]
 Reporter = Callable[[str], None]
@@ -64,6 +66,33 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--wait-pid-command",
         help="Only treat --wait-pid as active while its command contains this text.",
+    )
+    parser.add_argument(
+        "--wait-manifest",
+        type=Path,
+        help=(
+            "Also wait while this campaign manifest contains nonterminal "
+            "statuses. Relative paths are resolved under --working-directory."
+        ),
+    )
+    parser.add_argument(
+        "--wait-manifest-status",
+        action="append",
+        default=[],
+        help=(
+            "Manifest status that blocks launch. May be repeated. Defaults "
+            "to pending/running/launched/process_running."
+        ),
+    )
+    parser.add_argument(
+        "--max-utilization",
+        type=nonnegative_float,
+        help="Require GPU utilization at or below this percentage.",
+    )
+    parser.add_argument(
+        "--max-used-memory-mib",
+        type=nonnegative_float,
+        help="Require GPU used memory at or below this many MiB.",
     )
     parser.add_argument(
         "--working-directory",
@@ -110,6 +139,27 @@ def gpu_compute_processes(gpu: int) -> list[str]:
     ]
 
 
+def gpu_telemetry(gpu: int) -> tuple[float, float]:
+    result = subprocess.run(
+        [
+            "nvidia-smi",
+            "-i",
+            str(gpu),
+            "--query-gpu=utilization.gpu,memory.used",
+            "--format=csv,noheader,nounits",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    fields = [field.strip() for field in result.stdout.strip().split(",")]
+    if len(fields) != 2:
+        raise RuntimeError(
+            f"Unexpected nvidia-smi telemetry output: {result.stdout!r}"
+        )
+    return float(fields[0]), float(fields[1])
+
+
 def pid_is_active(pid: int | None, command_substring: str | None) -> bool:
     if pid is None:
         return False
@@ -132,6 +182,40 @@ def pid_is_active(pid: int | None, command_substring: str | None) -> bool:
     return command_substring in command
 
 
+DEFAULT_BLOCKING_MANIFEST_STATUSES = {
+    "pending",
+    "running",
+    "launched",
+    "process_running",
+}
+
+
+def manifest_has_nonterminal_status(
+    path: Path | None,
+    statuses: set[str],
+) -> bool:
+    if path is None:
+        return False
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        # A missing or transiently rewritten manifest is not a safe launch
+        # signal. Keep waiting and try again on the next poll.
+        return True
+    if isinstance(payload, dict):
+        rows = payload.get("runs", payload.get("records", []))
+    else:
+        rows = payload
+    if not isinstance(rows, list):
+        return True
+    normalized = {status.lower() for status in statuses}
+    return any(
+        isinstance(row, dict)
+        and str(row.get("status", "")).lower() in normalized
+        for row in rows
+    )
+
+
 def wait_until_gpu_is_free(
     *,
     process_query: ProcessQuery,
@@ -139,6 +223,9 @@ def wait_until_gpu_is_free(
     poll_seconds: float,
     idle_seconds: float,
     report: Reporter,
+    telemetry_query: TelemetryQuery | None = None,
+    max_utilization: float | None = None,
+    max_used_memory_mib: float | None = None,
     clock: Clock = time.monotonic,
     sleep: Sleeper = time.sleep,
 ) -> None:
@@ -157,6 +244,34 @@ def wait_until_gpu_is_free(
                 idle_since = None
                 detail = f"GPU compute processes: {', '.join(processes)}"
             else:
+                telemetry_detail = ""
+                telemetry_is_idle = True
+                if telemetry_query is not None:
+                    utilization, used_memory = telemetry_query()
+                    telemetry_detail = (
+                        f"utilization={utilization:.1f}%, "
+                        f"used_memory={used_memory:.1f} MiB"
+                    )
+                    if (
+                        max_utilization is not None
+                        and utilization > max_utilization
+                    ):
+                        telemetry_is_idle = False
+                    if (
+                        max_used_memory_mib is not None
+                        and used_memory > max_used_memory_mib
+                    ):
+                        telemetry_is_idle = False
+                if not telemetry_is_idle:
+                    state = "gpu-telemetry-busy"
+                    idle_since = None
+                    detail = f"GPU telemetry not idle: {telemetry_detail}"
+                    if state != previous_state:
+                        report(detail)
+                        previous_state = state
+                    sleep(poll_seconds)
+                    continue
+
                 now = clock()
                 if idle_since is None:
                     idle_since = now
@@ -170,6 +285,8 @@ def wait_until_gpu_is_free(
                 detail = (
                     f"GPU idle for {idle_elapsed:.1f}/{idle_seconds:.1f}s"
                 )
+                if telemetry_detail:
+                    detail += f" ({telemetry_detail})"
 
         if state != previous_state:
             report(detail)
@@ -198,6 +315,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     working_directory = args.working_directory.resolve()
     if not working_directory.is_dir():
         raise NotADirectoryError(working_directory)
+    manifest_path = args.wait_manifest
+    if manifest_path is not None and not manifest_path.is_absolute():
+        manifest_path = working_directory / manifest_path
+    blocking_statuses = {
+        str(status).lower()
+        for status in (
+            args.wait_manifest_status
+            or sorted(DEFAULT_BLOCKING_MANIFEST_STATUSES)
+        )
+    }
     log_path = args.log_file.resolve() if args.log_file is not None else None
     report, log_handle = make_reporter(log_path)
 
@@ -208,13 +335,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         wait_until_gpu_is_free(
             process_query=lambda: gpu_compute_processes(args.gpu),
-            blocker_query=lambda: pid_is_active(
-                args.wait_pid,
-                args.wait_pid_command,
+            blocker_query=lambda: (
+                pid_is_active(
+                    args.wait_pid,
+                    args.wait_pid_command,
+                )
+                or manifest_has_nonterminal_status(
+                    manifest_path,
+                    blocking_statuses,
+                )
             ),
             poll_seconds=args.poll_seconds,
             idle_seconds=args.idle_seconds,
             report=report,
+            telemetry_query=(
+                (lambda: gpu_telemetry(args.gpu))
+                if (
+                    args.max_utilization is not None
+                    or args.max_used_memory_mib is not None
+                )
+                else None
+            ),
+            max_utilization=args.max_utilization,
+            max_used_memory_mib=args.max_used_memory_mib,
         )
         report(f"working directory: {working_directory}")
         output = log_handle if log_handle is not None else None

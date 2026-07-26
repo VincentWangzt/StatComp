@@ -1,6 +1,10 @@
 import unittest
+import json
+import tempfile
+from pathlib import Path
 
 from scripts.run_when_gpu_free import (
+    manifest_has_nonterminal_status,
     parse_args,
     wait_until_gpu_is_free,
 )
@@ -58,6 +62,47 @@ class RunWhenGpuFreeTest(unittest.TestCase):
         ])
 
         self.assertEqual(args.command, ["python", "job.py"])
+
+    def test_telemetry_must_remain_below_threshold(self) -> None:
+        telemetry_states = iter([
+            (99.0, 100.0),
+            (0.0, 100.0),
+            (0.0, 100.0),
+        ])
+        now = [0.0]
+
+        wait_until_gpu_is_free(
+            process_query=lambda: [],
+            blocker_query=lambda: False,
+            telemetry_query=lambda: next(telemetry_states),
+            max_utilization=5.0,
+            max_used_memory_mib=512.0,
+            poll_seconds=5.0,
+            idle_seconds=5.0,
+            report=lambda _message: None,
+            clock=lambda: now[0],
+            sleep=lambda seconds: now.__setitem__(0, now[0] + seconds),
+        )
+
+        self.assertEqual(now[0], 10.0)
+
+    def test_manifest_pending_status_blocks_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest = Path(temp_dir) / "manifest.json"
+            manifest.write_text(
+                json.dumps([{"status": "completed"}, {"status": "pending"}]),
+                encoding="utf-8",
+            )
+            self.assertTrue(
+                manifest_has_nonterminal_status(manifest, {"pending", "running"})
+            )
+            manifest.write_text(
+                json.dumps([{"status": "completed"}, {"status": "failed"}]),
+                encoding="utf-8",
+            )
+            self.assertFalse(
+                manifest_has_nonterminal_status(manifest, {"pending", "running"})
+            )
 
 
 if __name__ == "__main__":

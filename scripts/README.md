@@ -34,6 +34,7 @@ Use these scripts for the current workflow:
 | --- | --- | --- |
 | `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid and independent variants based on those configs. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--variant`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
+| `run_score_approximation.py` | Compares native checkpoint score approximations with a streamed high-budget marginal-score reference. | `--config`, `--set`, `--dry-run`, `--limit`, `--resume/--no-resume`, `--aggregate-only` |
 | `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
 ## Examples
@@ -119,12 +120,26 @@ python scripts/run_finalization.py \
   --only bnn_table
 ```
 
+Validate and run the score-approximation study. The production configuration
+selects SIVI/UIVI/AISIVI/DSIVI, the `x_shaped` and `8_gaussians` targets,
+seeds 42--46, and five checkpoint stages:
+
+```
+python scripts/run_score_approximation.py --dry-run
+python -u scripts/run_score_approximation.py
+```
+
+Cell records are resumable under
+`results/default_config_grid/score_approximation/`. Final CSV, Markdown, and
+LaTeX reports are written under the default finalization report directory.
+
 ## Utility Scripts
 
 | Script | Purpose | Main arguments |
 | --- | --- | --- |
 | `config_review_server.py` | Launches the config reviewer web tool. Currently known broken until migrated off removed legacy grid modules; see `tools/config_reviewer/README.md`. | `--port`, `--host` |
 | `run_sgld_baseline.py` | Generates saved target samples with SGLD. | `--target`, `--num-samples`, `--burn-in`, `--step-size`, `--thinning`, `--num-chains`, `--seed`, `--device`, `--max-grad-norm`, `--output-dir`, `--overwrite`, `--plot` |
+| `run_when_gpu_free.py` | Queues a command behind a blocker process/campaign and sustained GPU-idle telemetry. | `--gpu`, `--wait-pid`, `--wait-manifest`, `--poll-seconds`, `--idle-seconds`, `--max-utilization`, `--max-used-memory-mib`, `--log-file` |
 | `grid_finalization.py` | Shared event/config-hash/finalization helpers used by dynamic sweeps. | library module |
 
 The standalone ELM evaluator scripts were removed. The adopted ELM metric is

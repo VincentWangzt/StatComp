@@ -1,0 +1,24 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [SIVI, UIVI, AISIVI, DSIVI]
+  targets: [x_shaped, 8_gaussians]
+  seeds: [42, 43, 44, 45, 46]
+  checkpoint_progress: [0.2, 0.4, 0.6, 0.8, 1.0]
+
+evaluation:
+  device: cuda
+  forward_batch_size: 1024
+  aisivi_z_chunk_size: 128
+  reference:
+    reverse_batch_size: 1024
+    num_batches: 100
+    repeats: 10
+    accumulator_dtype: float64
+
+output:
+  runtime_dir: results/default_config_grid/score_approximation
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/score_approximation
+  scratch_results_dir: results/default_config_grid/score_approximation/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/score_approximation/scratch

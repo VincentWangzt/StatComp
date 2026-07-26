@@ -48,5 +48,7 @@ campaigns/default_config_grid/generated_reports/finalization/**
 !campaigns/default_config_grid/generated_reports/finalization/figures/*.pdf
 !campaigns/default_config_grid/generated_reports/finalization/tables/
 !campaigns/default_config_grid/generated_reports/finalization/tables/*.tex
+!campaigns/default_config_grid/generated_reports/finalization/score_approximation/
+!campaigns/default_config_grid/generated_reports/finalization/score_approximation/**
 campaigns/**/.ipynb_checkpoints/
 campaigns/**/.ipynb_checkpoints/**

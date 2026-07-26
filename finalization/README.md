@@ -30,3 +30,18 @@ Default outputs are written under:
 ```text
 campaigns/default_config_grid/generated_reports/finalization/
 ```
+
+## Score-approximation study
+
+The checkpoint score study has a separate resumable entrypoint:
+
+```bash
+python scripts/run_score_approximation.py --dry-run
+python -u scripts/run_score_approximation.py
+```
+
+Its defaults are defined in
+`configs/finalization/score_approximation.yaml`. Runtime cell metrics remain
+under `results/default_config_grid/score_approximation/`; aggregate CSV,
+Markdown, LaTeX, and metadata files are generated under
+`campaigns/default_config_grid/generated_reports/finalization/score_approximation/`.
