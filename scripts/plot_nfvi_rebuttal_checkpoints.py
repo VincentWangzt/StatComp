@@ -307,7 +307,7 @@ def save_combined_plot(
     fig, axes = plt.subplots(
         1,
         len(records),
-        figsize=(3.0 * len(records), 3.35),
+        figsize=(3.0 * len(records), 3.65),
         sharex=True,
         sharey=True,
         squeeze=False,
@@ -338,11 +338,12 @@ def save_combined_plot(
     fig.legend(
         handles=legend_handles,
         loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
         ncol=2,
         frameon=False,
         fontsize=9,
     )
-    fig.tight_layout(rect=(0, 0.08, 1, 1), w_pad=0.8)
+    fig.tight_layout(rect=(0, 0.17, 1, 1), w_pad=0.8)
     png_path = output_dir / "checkpoint_comparison.png"
     pdf_path = output_dir / "checkpoint_comparison.pdf"
     fig.savefig(png_path, dpi=dpi, bbox_inches="tight")
