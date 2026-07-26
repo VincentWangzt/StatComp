@@ -1,6 +1,7 @@
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import torch
 from omegaconf import OmegaConf
@@ -10,6 +11,7 @@ from scripts.run_nfvi_rebuttal import (
     PROJECT_ROOT,
     Variant,
     configure_run,
+    write_summary,
 )
 
 
@@ -85,6 +87,13 @@ class RebuttalBenchmarkConfigTest(unittest.TestCase):
         config = configure_run(variant, 42, args, torch.device("cpu"))
 
         self.assertEqual(config.train.log.metric_log_freq, 101)
+
+    def test_compact_csv_reports_use_unix_newlines(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "summary.csv"
+            write_summary(path, [{"method": "NFVI-4", "n_seeds": 1}])
+
+            self.assertNotIn(b"\r\n", path.read_bytes())
 
 
 if __name__ == "__main__":

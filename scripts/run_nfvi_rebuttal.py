@@ -326,7 +326,11 @@ def write_run_records(path: Path, records: list[dict[str, Any]]) -> None:
         "run_dir",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fieldnames,
+            lineterminator="\n",
+        )
         writer.writeheader()
         for record in sorted(records, key=lambda item: (item["method"], item["seed"])):
             serializable = dict(record)
@@ -362,7 +366,11 @@ def write_summary(path: Path, summaries: list[dict[str, Any]]) -> None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(summaries[0]))
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(summaries[0]),
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(summaries)
 
@@ -436,6 +444,11 @@ def main() -> None:
             )
             if device.type == "cuda":
                 torch.cuda.empty_cache()
+
+    # Re-emit compact reports even when every run was resumed/skipped. This
+    # keeps formatting and summary logic up to date without retraining.
+    write_run_records(run_metrics_path, records)
+    write_summary(report_dir / "summary.csv", summarize_records(records))
 
     metadata = hardware_metadata(device, args)
     with (report_dir / "metadata.json").open("w", encoding="utf-8") as handle:
