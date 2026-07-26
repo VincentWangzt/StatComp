@@ -537,16 +537,19 @@ def method_native_score(
 
 
 def compute_score_metrics(
-    method_score: torch.Tensor,
+    method_score: torch.Tensor | None,
     reference_scores: torch.Tensor,
 ) -> dict[str, Any]:
     if reference_scores.ndim != 3:
         raise ValueError("reference_scores must have shape [R,N,D].")
-    if method_score.shape != reference_scores.shape[1:]:
+    if (
+        method_score is not None
+        and method_score.shape != reference_scores.shape[1:]
+    ):
         raise ValueError("Method and reference score shapes do not match.")
-    if not torch.isfinite(method_score).all() or not torch.isfinite(
-        reference_scores
-    ).all():
+    if not torch.isfinite(reference_scores).all():
+        raise FloatingPointError(NONFINITE_SCORE_MESSAGE)
+    if method_score is not None and not torch.isfinite(method_score).all():
         raise FloatingPointError(NONFINITE_SCORE_MESSAGE)
 
     reference_mean = reference_scores.mean(dim=0)
@@ -556,22 +559,35 @@ def compute_score_metrics(
         .sum(dim=-1)
         .mean(dim=1)
     )
+    metrics: dict[str, Any] = {
+        "reference_internal_l2": float(repeat_internal.mean().item()),
+        "reference_repeat_internal_l2": [
+            float(value) for value in repeat_internal.tolist()
+        ],
+        "reference_mean_score_sq_norm": float(
+            reference_mean.square().sum(dim=-1).mean().item()
+        ),
+    }
+    if method_score is None:
+        metrics.update({
+            "method_l2": None,
+            "method_l2_z_sd": None,
+            "method_score_sq_norm": None,
+        })
+        return metrics
+
     method_point_l2 = (
         (method_score.to(reference_mean.dtype) - reference_mean)
         .square()
         .sum(dim=-1)
     )
-    return {
+    metrics.update({
         "method_l2": float(method_point_l2.mean().item()),
         "method_l2_z_sd": float(
             method_point_l2.std(unbiased=True).item()
             if method_point_l2.numel() > 1
             else 0.0
         ),
-        "reference_internal_l2": float(repeat_internal.mean().item()),
-        "reference_repeat_internal_l2": [
-            float(value) for value in repeat_internal.tolist()
-        ],
         "method_score_sq_norm": float(
             method_score.to(reference_mean.dtype)
             .square()
@@ -579,10 +595,8 @@ def compute_score_metrics(
             .mean()
             .item()
         ),
-        "reference_mean_score_sq_norm": float(
-            reference_mean.square().sum(dim=-1).mean().item()
-        ),
-    }
+    })
+    return metrics
 
 
 def _sync(device: torch.device) -> None:
@@ -648,15 +662,34 @@ def evaluate_cell(
     seed_everything(method_seed, use_cuda=use_cuda)
     _sync(device)
     method_started = time.perf_counter()
-    method_score, diagnostics = method_native_score(
-        runner,
-        spec.record.method,
-        z,
-        generating_epsilon,
-        aisivi_z_chunk_size=int(
-            cfg.evaluation.get("aisivi_z_chunk_size", forward_count)
-        ),
-    )
+    method_score: torch.Tensor | None
+    method_status = "ok"
+    method_error = ""
+    try:
+        method_score, diagnostics = method_native_score(
+            runner,
+            spec.record.method,
+            z,
+            generating_epsilon,
+            aisivi_z_chunk_size=int(
+                cfg.evaluation.get("aisivi_z_chunk_size", forward_count)
+            ),
+        )
+    except RuntimeError as exc:
+        if (
+            spec.record.method.upper() != "AISIVI"
+            or "Failed to obtain finite samples from RealNVP" not in str(exc)
+        ):
+            raise
+        # This is the method's native training-time failure mode. Preserve
+        # the cell and reference diagnostics rather than silently replacing
+        # the score with a different estimator.
+        method_score = None
+        diagnostics = {"native_auxiliary_samples": int(
+            runner.training_reverse_sample_num
+        )}
+        method_status = "unavailable"
+        method_error = f"{type(exc).__name__}: {exc}"
     _sync(device)
     method_runtime = time.perf_counter() - method_started
 
@@ -712,6 +745,8 @@ def evaluate_cell(
         "method_seed": method_seed,
         "reference_seeds": reference_seeds,
         "method_runtime_sec": method_runtime,
+        "method_status": method_status,
+        "method_error": method_error,
         "reference_runtime_sec": sum(reference_runtimes),
         "reference_repeat_runtime_sec": reference_runtimes,
         "total_runtime_sec": total_runtime,
@@ -845,10 +880,12 @@ def _summary_rows(
 
     rows: list[dict[str, Any]] = []
     for (target, method, progress, epoch), items in sorted(groups.items()):
-        method_values = np.asarray(
-            [float(item["method_l2"]) for item in items],
-            dtype=np.float64,
-        )
+        method_values = np.asarray([
+            float(item["method_l2"])
+            for item in items
+            if item.get("method_l2") is not None
+            and math.isfinite(float(item["method_l2"]))
+        ], dtype=np.float64)
         internal_values = np.asarray(
             [float(item["reference_internal_l2"]) for item in items],
             dtype=np.float64,
@@ -859,11 +896,17 @@ def _summary_rows(
             "progress": progress,
             "epoch": epoch,
             "n_seeds": len(items),
-            "method_l2_mean": float(method_values.mean()),
-            "method_l2_sd": float(
-                method_values.std(ddof=1)
+            "method_n_valid": int(len(method_values)),
+            "method_n_failed": int(len(items) - len(method_values)),
+            "method_l2_mean": (
+                float(method_values.mean())
+                if len(method_values)
+                else None
+            ),
+            "method_l2_sd": (
+                float(method_values.std(ddof=1))
                 if len(method_values) > 1
-                else 0.0
+                else (0.0 if len(method_values) == 1 else None)
             ),
             "reference_internal_l2_mean": float(
                 internal_values.mean()
@@ -890,8 +933,22 @@ def _summary_rows(
     return rows
 
 
-def _metric_text(mean: float, sd: float) -> str:
+def _metric_text(mean: float | None, sd: float | None) -> str:
+    if mean is None or sd is None:
+        return "NA"
     return f"{mean:.4e} ± {sd:.4e}"
+
+
+def _method_metric_text(row: dict[str, Any]) -> str:
+    metric = _metric_text(
+        row.get("method_l2_mean"),
+        row.get("method_l2_sd"),
+    )
+    n_valid = int(row["method_n_valid"])
+    n_seeds = int(row["n_seeds"])
+    if n_valid != n_seeds:
+        metric += f" (n={n_valid}/{n_seeds})"
+    return metric
 
 
 def _write_markdown_table(
@@ -914,10 +971,7 @@ def _write_markdown_table(
                 method=row["method"],
                 stage=100.0 * float(row["progress"]),
                 epoch=row["epoch"],
-                method_l2=_metric_text(
-                    float(row["method_l2_mean"]),
-                    float(row["method_l2_sd"]),
-                ),
+                method_l2=_method_metric_text(row),
                 internal_l2=_metric_text(
                     float(row["reference_internal_l2_mean"]),
                     float(row["reference_internal_l2_sd"]),
@@ -943,10 +997,18 @@ def _write_latex_table(
         r"\midrule",
     ]
     for row in summary_rows:
-        method_metric = (
-            f"{float(row['method_l2_mean']):.4e} "
-            rf"$\pm$ {float(row['method_l2_sd']):.4e}"
-        )
+        if row["method_l2_mean"] is None:
+            method_metric = "NA"
+        else:
+            method_metric = (
+                f"{float(row['method_l2_mean']):.4e} "
+                rf"$\pm$ {float(row['method_l2_sd']):.4e}"
+            )
+        if int(row["method_n_valid"]) != int(row["n_seeds"]):
+            method_metric += (
+                f" ($n={int(row['method_n_valid'])}/"
+                f"{int(row['n_seeds'])}$)"
+            )
         internal_metric = (
             f"{float(row['reference_internal_l2_mean']):.4e} "
             rf"$\pm$ {float(row['reference_internal_l2_sd']):.4e}"
@@ -1067,6 +1129,10 @@ def aggregate_results(
         "expected_cells": len(specs),
         "completed_cells": len(records),
         "summary_rows": len(summary_rows),
+        "native_score_failures": sum(
+            record.get("method_status", "ok") != "ok"
+            for record in records
+        ),
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
     atomic_write_json(report_dir / "run_metadata.json", metadata)
@@ -1136,11 +1202,16 @@ def run_analysis(
             )
             elapsed = time.perf_counter() - started
             completed_now += 1
+            method_l2_text = (
+                f"{record['method_l2']:.6e}"
+                if record["method_l2"] is not None
+                else "NA"
+            )
             print(
                 f"[{completed_now}/{initial_pending_count}] "
                 f"{spec.record.method} {spec.record.target} "
                 f"seed={spec.record.seed} epoch={spec.epoch}: "
-                f"method_l2={record['method_l2']:.6e}, "
+                f"method_l2={method_l2_text}, "
                 f"internal_l2={record['reference_internal_l2']:.6e}, "
                 f"runtime={elapsed:.1f}s",
                 flush=True,

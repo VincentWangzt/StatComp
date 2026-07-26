@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 from finalization.artifacts import RunRecord
 from finalization.score_approximation import (
     CellSpec,
+    _summary_rows,
     atomic_write_json,
     autograd_mixture_score,
     cell_record_path,
@@ -213,6 +214,35 @@ class ScoreApproximationTest(unittest.TestCase):
             metrics["reference_repeat_internal_l2"],
             [1.0, 1.0],
         )
+
+    def test_reference_metrics_survive_unavailable_method_score(self) -> None:
+        references = torch.tensor([
+            [[0.0, 0.0], [0.0, 0.0]],
+            [[2.0, 0.0], [0.0, 2.0]],
+        ])
+        metrics = compute_score_metrics(None, references)
+        self.assertIsNone(metrics["method_l2"])
+        self.assertAlmostEqual(metrics["reference_internal_l2"], 1.0)
+
+    def test_seed_summary_counts_unavailable_native_scores(self) -> None:
+        records = [
+            {
+                "target": "8_gaussians",
+                "method": "AISIVI",
+                "progress": 0.6,
+                "epoch": 6000,
+                "method_l2": None if seed == 42 else float(seed),
+                "reference_internal_l2": float(seed) / 10.0,
+                "method_runtime_sec": 1.0,
+                "reference_runtime_sec": 2.0,
+            }
+            for seed in range(42, 47)
+        ]
+        summary = _summary_rows(records)
+        self.assertEqual(len(summary), 1)
+        self.assertEqual(summary[0]["n_seeds"], 5)
+        self.assertEqual(summary[0]["method_n_valid"], 4)
+        self.assertEqual(summary[0]["method_n_failed"], 1)
 
     def test_resume_skips_matching_atomic_cell(self) -> None:
         rec = RunRecord(
