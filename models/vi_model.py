@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import math
 import torch.distributions as dist
+import normflows as nf
 from utils.logging import get_logger
 from omegaconf.dictconfig import DictConfig
 
@@ -658,9 +659,179 @@ class ConditionalGaussianGlobal(ConditionalGaussianGlobalUniform):
         return const - 0.5 * (epsilon**2).sum(dim=-1)
 
 
+class _RealNVPCouplingNet(nn.Module):
+    """MLP used for a RealNVP scale or translation map."""
+
+    def __init__(
+        self,
+        dim: int,
+        hidden_dim: int,
+        num_hidden_layers: int,
+        activation: str,
+        scale_clip: float | None = None,
+    ) -> None:
+        super().__init__()
+        if num_hidden_layers < 1:
+            raise ValueError("num_hidden_layers must be at least 1")
+
+        layers: list[nn.Module] = []
+        in_dim = dim
+        for _ in range(num_hidden_layers):
+            layers.append(nn.Linear(in_dim, hidden_dim))
+            layers.append(_make_activation(activation))
+            in_dim = hidden_dim
+        final = nn.Linear(in_dim, dim)
+        nn.init.zeros_(final.weight)
+        nn.init.zeros_(final.bias)
+        layers.append(final)
+        self.net = nn.Sequential(*layers)
+        self.scale_clip = scale_clip
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        value = self.net(x)
+        if self.scale_clip is not None:
+            value = self.scale_clip * torch.tanh(value / self.scale_clip)
+        return value
+
+
+class RealNVP(BaseVIModel):
+    """Explicit RealNVP variational distribution with an exact marginal density.
+
+    Unlike the semi-implicit models above, ``epsilon`` is the flow base
+    variable and the output is a deterministic bijection.  The density
+    ``log q_phi(z)`` is therefore available exactly by change of variables.
+    """
+
+    def __init__(self, config: DictConfig) -> None:
+        super().__init__(config, name="RealNVP")
+        if self.epsilon_dim != self.z_dim:
+            raise ValueError(
+                "RealNVP requires epsilon_dim == z_dim because its transform "
+                "is bijective."
+            )
+
+        self.hidden_dim = int(config.hidden_dim)
+        self.num_flow_layers = int(config.num_flow_layers)
+        self.num_hidden_layers = int(config.get("num_hidden_layers", 2))
+        self.activation = str(config.get("activation", "silu"))
+        self.scale_clip = float(config.get("scale_clip", 3.0))
+        base_trainable = bool(config.get("base_trainable", True))
+
+        if self.num_flow_layers < 1:
+            raise ValueError("num_flow_layers must be at least 1")
+
+        flows: list[nf.flows.Flow] = []
+        base_mask = torch.tensor(
+            [float(i % 2) for i in range(self.z_dim)],
+            dtype=torch.float32,
+        )
+        for layer_idx in range(self.num_flow_layers):
+            mask = base_mask if layer_idx % 2 == 0 else 1.0 - base_mask
+            scale_net = _RealNVPCouplingNet(
+                dim=self.z_dim,
+                hidden_dim=self.hidden_dim,
+                num_hidden_layers=self.num_hidden_layers,
+                activation=self.activation,
+                scale_clip=self.scale_clip,
+            )
+            translation_net = _RealNVPCouplingNet(
+                dim=self.z_dim,
+                hidden_dim=self.hidden_dim,
+                num_hidden_layers=self.num_hidden_layers,
+                activation=self.activation,
+                scale_clip=None,
+            )
+            flows.append(
+                nf.flows.MaskedAffineFlow(
+                    mask,
+                    t=translation_net,
+                    s=scale_net,
+                )
+            )
+
+        base = nf.distributions.base.DiagGaussian(
+            self.z_dim,
+            trainable=base_trainable,
+        )
+        self.flow = nf.NormalizingFlow(base, flows)
+
+    def sample_epsilon(self, num: int = 1000) -> torch.Tensor:
+        epsilon, _ = self.flow.q0(num)
+        return epsilon
+
+    def forward(
+        self,
+        epsilon: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        z, _ = self.flow.forward_and_log_det(epsilon)
+        # BaseSIVIRunner expects a second return value.  NFVIRunner does not
+        # use the conditional-score term, since log q_phi(z) is exact.
+        return z, torch.zeros_like(z)
+
+    def forward_and_log_prob(
+        self,
+        epsilon: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Transform base samples and return their exact flow log density."""
+        z, log_det = self.flow.forward_and_log_det(epsilon)
+        log_q = self.flow.q0.log_prob(epsilon) - log_det
+        return z, log_q
+
+    def sampling(
+        self,
+        num: int = 1000,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        with torch.no_grad():
+            epsilon = self.sample_epsilon(num=num)
+            z, _ = self.forward_and_log_prob(epsilon)
+        return epsilon.detach().clone(), z.detach().clone()
+
+    def sampling_with_log_prob(
+        self,
+        num: int = 1000,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        with torch.no_grad():
+            epsilon = self.sample_epsilon(num=num)
+            z, log_q = self.forward_and_log_prob(epsilon)
+        return (
+            epsilon.detach().clone(),
+            z.detach().clone(),
+            log_q.detach().clone(),
+        )
+
+    def logp(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        del epsilon
+        leading_shape = z.shape[:-1]
+        flat_z = z.reshape(-1, self.z_dim)
+        return self.flow.log_prob(flat_z).reshape(leading_shape)
+
+    def score(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        del epsilon
+        leading_shape = z.shape
+        with torch.enable_grad():
+            flat_z = z.detach().reshape(-1, self.z_dim).requires_grad_(True)
+            log_q = self.flow.log_prob(flat_z)
+            score = torch.autograd.grad(log_q.sum(), flat_z)[0]
+        return score.reshape(leading_shape)
+
+    def log_q_epsilon(self, epsilon: torch.Tensor) -> torch.Tensor:
+        leading_shape = epsilon.shape[:-1]
+        flat_epsilon = epsilon.reshape(-1, self.epsilon_dim)
+        return self.flow.q0.log_prob(flat_epsilon).reshape(leading_shape)
+
+
 VIModel: dict[str, type[BaseVIModel]] = {
     "ConditionalGaussian": ConditionalGaussian,
     "ConditionalGaussianUniform": ConditionalGaussianUniform,
     "ConditionalGaussianGlobalUniform": ConditionalGaussianGlobalUniform,
     "ConditionalGaussianGlobal": ConditionalGaussianGlobal,
+    "RealNVP": RealNVP,
 }
