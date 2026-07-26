@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from omegaconf import OmegaConf
 
@@ -11,6 +12,68 @@ from scripts import run_default_config_grid_sweep as sweep
 
 
 class DefaultConfigGridStalenessTests(unittest.TestCase):
+    def test_variants_expand_independently_from_the_same_default_config(self) -> None:
+        args = SimpleNamespace(
+            methods=["dsivi"],
+            exclude_methods=[],
+            targets=["banana"],
+            seeds=[42],
+            campaign_slug="test_variants",
+            results_dir="results/test_variants",
+            tb_dir="tb_logs/test_variants",
+            extra_override=[],
+            variant=[
+                ["baseline"],
+                ["reverse_steps_1", "train.reverse.epochs=1"],
+                ["reverse_batch_512", "train.reverse.batch_size=512"],
+            ],
+            limit=None,
+        )
+
+        entries = sweep.build_manifest_entries(args)
+
+        self.assertEqual(
+            [entry["run_id"] for entry in entries],
+            [
+                "seed42_dsivi_banana_baseline",
+                "seed42_dsivi_banana_reverse_steps_1",
+                "seed42_dsivi_banana_reverse_batch_512",
+            ],
+        )
+        self.assertEqual(
+            [entry["extra_overrides"] for entry in entries],
+            [
+                [],
+                ["train.reverse.epochs=1"],
+                ["train.reverse.batch_size=512"],
+            ],
+        )
+        self.assertEqual(len({entry["config_hash"] for entry in entries}), 3)
+
+    def test_no_variants_preserves_historical_run_id(self) -> None:
+        args = SimpleNamespace(
+            methods=["dsivi"],
+            exclude_methods=[],
+            targets=["banana"],
+            seeds=[42],
+            campaign_slug="test_default",
+            results_dir="results/test_default",
+            tb_dir="tb_logs/test_default",
+            extra_override=[],
+            variant=[],
+            limit=None,
+        )
+
+        entries = sweep.build_manifest_entries(args)
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["run_id"], "seed42_dsivi_banana")
+        self.assertEqual(entries[0]["variant"], "default")
+
+    def test_variant_names_must_be_unique(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Duplicate variant name"):
+            sweep.parse_variant_specs([["same"], ["same", "train.reverse.epochs=1"]])
+
     def test_effective_hash_ignores_cuda_slot_and_output_roots(self) -> None:
         config_path = Path("configs/sivi_banana.yaml")
 

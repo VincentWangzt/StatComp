@@ -32,7 +32,7 @@ Use these scripts for the current workflow:
 
 | Script | Purpose | Main arguments |
 | --- | --- | --- |
-| `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
+| `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid and independent variants based on those configs. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--variant`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
 | `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
@@ -42,6 +42,20 @@ Preview the current default grid without launching jobs:
 
 ```
 python scripts/run_default_config_grid_sweep.py \
+  --dry-run
+```
+
+Define independent variants with repeated `--variant NAME [KEY=VALUE ...]`
+arguments. Every variant starts from the same selected default config, so the
+scheduler does not form a Cartesian product between variants:
+
+```
+python scripts/run_default_config_grid_sweep.py \
+  --methods dsivi \
+  --targets banana \
+  --variant baseline \
+  --variant reverse_steps_1 train.reverse.epochs=1 \
+  --variant reverse_batch_512 train.reverse.batch_size=512 \
   --dry-run
 ```
 

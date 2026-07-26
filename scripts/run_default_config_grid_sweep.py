@@ -7,6 +7,7 @@ import json
 import math
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -376,8 +377,53 @@ def write_artifact_hash_inventory(
     return rows
 
 
-def run_id_for(seed: int, method: str, target: str) -> str:
-    return f"seed{seed}_{method}_{target.lower()}"
+def run_id_for(
+    seed: int,
+    method: str,
+    target: str,
+    variant_slug: str | None = None,
+) -> str:
+    run_id = f"seed{seed}_{method}_{target.lower()}"
+    if variant_slug:
+        run_id = f"{run_id}_{variant_slug}"
+    return run_id
+
+
+def parse_variant_specs(raw_variants: list[list[str]] | None) -> list[dict[str, Any]]:
+    """Normalize repeated ``--variant NAME [KEY=VALUE ...]`` arguments.
+
+    An empty variant list preserves the historical one-run-per-config behavior.
+    Explicit variants expand each selected seed/config independently; variants
+    are never combined with one another.
+    """
+    if not raw_variants:
+        return [{"slug": "", "overrides": []}]
+
+    specs: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw in raw_variants:
+        if not raw:
+            raise ValueError("Each --variant requires at least a name.")
+        slug, *overrides = raw
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", slug):
+            raise ValueError(
+                f"Invalid variant name {slug!r}; use only letters, digits, '-' and '_'."
+            )
+        if slug in seen:
+            raise ValueError(f"Duplicate variant name: {slug}")
+        invalid_overrides = [
+            override
+            for override in overrides
+            if "=" not in override or not override.split("=", 1)[0].strip()
+        ]
+        if invalid_overrides:
+            raise ValueError(
+                f"Invalid override(s) for variant {slug}: "
+                + ", ".join(invalid_overrides)
+            )
+        seen.add(slug)
+        specs.append({"slug": slug, "overrides": overrides})
+    return specs
 
 
 def discover_default_configs(methods: tuple[str, ...] = DEFAULT_METHODS) -> list[dict[str, Any]]:
@@ -505,36 +551,48 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
                 "No default configs matched --targets: "
                 + ", ".join(sorted(selected_targets))
             )
+    variant_specs = parse_variant_specs(getattr(args, "variant", None))
     entries: list[dict[str, Any]] = []
     for seed in args.seeds:
         for base in base_entries:
-            entry = dict(base)
-            entry["seed"] = seed
-            entry["run_id"] = run_id_for(seed, entry["method_slug"], entry["target_slug"])
-            entry["campaign_slug"] = args.campaign_slug
-            entry["results_dir"] = args.results_dir
-            entry["tb_dir"] = args.tb_dir
-            entry["status"] = "pending"
-            entry["runtime_gpu"] = ""
-            entry["extra_overrides"] = list(args.extra_override)
-            entry["config_hash_version"] = CONFIG_HASH_VERSION
-            entry["config_hash"] = effective_config_hash(
-                entry["config_path"],
-                seed=seed,
-                extra_overrides=entry["extra_overrides"],
-            )
-            entry["config_hash_basis"] = (
-                "resolved main config plus seed and extra overrides; "
-                "target/vi/reverse config files expanded; scheduler/output/device paths ignored"
-            )
-            entry["command_template"] = build_command(
-                entry,
-                gpu=0,
-                results_dir=args.results_dir,
-                tb_dir=args.tb_dir,
-                extra_overrides=args.extra_override,
-            )
-            entries.append(entry)
+            for variant_spec in variant_specs:
+                entry = dict(base)
+                variant_slug = str(variant_spec["slug"])
+                variant_overrides = list(variant_spec["overrides"])
+                combined_overrides = list(args.extra_override) + variant_overrides
+                entry["seed"] = seed
+                entry["variant"] = variant_slug or "default"
+                entry["variant_overrides"] = variant_overrides
+                entry["run_id"] = run_id_for(
+                    seed,
+                    entry["method_slug"],
+                    entry["target_slug"],
+                    variant_slug or None,
+                )
+                entry["campaign_slug"] = args.campaign_slug
+                entry["results_dir"] = args.results_dir
+                entry["tb_dir"] = args.tb_dir
+                entry["status"] = "pending"
+                entry["runtime_gpu"] = ""
+                entry["extra_overrides"] = combined_overrides
+                entry["config_hash_version"] = CONFIG_HASH_VERSION
+                entry["config_hash"] = effective_config_hash(
+                    entry["config_path"],
+                    seed=seed,
+                    extra_overrides=combined_overrides,
+                )
+                entry["config_hash_basis"] = (
+                    "resolved main config plus seed and extra overrides; "
+                    "target/vi/reverse config files expanded; scheduler/output/device paths ignored"
+                )
+                entry["command_template"] = build_command(
+                    entry,
+                    gpu=0,
+                    results_dir=args.results_dir,
+                    tb_dir=args.tb_dir,
+                    extra_overrides=combined_overrides,
+                )
+                entries.append(entry)
     if args.limit is not None:
         entries = entries[:args.limit]
     return entries
@@ -668,6 +726,9 @@ def write_manifest_csv(
                 "target": entry["target"],
                 "target_slug": entry["target_slug"],
                 "seed": entry["seed"],
+                "variant": entry.get("variant", "default"),
+                "variant_overrides": " ".join(entry.get("variant_overrides", [])),
+                "extra_overrides": " ".join(entry.get("extra_overrides", [])),
                 "config_path": entry["config_path"],
                 "config_hash": entry["config_hash"],
                 "config_hash_version": entry["config_hash_version"],
@@ -728,6 +789,7 @@ def write_current(
                 "seed": run.entry["seed"],
                 "method": run.entry["method"],
                 "target": run.entry["target"],
+                "variant": run.entry.get("variant", "default"),
                 "started_at": run.started_at,
                 "phase": run.phase,
                 "process_pid": run.process_pid,
@@ -868,6 +930,8 @@ def summarize_completed_run(
         "target": entry["target"],
         "target_slug": entry["target_slug"],
         "seed": entry["seed"],
+        "variant": entry.get("variant", "default"),
+        "variant_overrides": " ".join(entry.get("variant_overrides", [])),
         "gpu": event.get("gpu", ""),
         "config_path": entry["config_path"],
         "config_hash": entry.get("config_hash", ""),
@@ -1245,6 +1309,9 @@ def print_dry_run(entries: list[dict[str, Any]], gpus: list[int], args: argparse
     selected_targets = getattr(args, "targets", []) or []
     if selected_targets:
         print(f"targets: {', '.join(str(target) for target in selected_targets)}")
+    variants = parse_variant_specs(getattr(args, "variant", None))
+    if variants[0]["slug"]:
+        print(f"variants: {', '.join(str(variant['slug']) for variant in variants)}")
     print(f"runs: {len(entries)}")
     for entry in entries:
         command = build_command(
@@ -1252,7 +1319,7 @@ def print_dry_run(entries: list[dict[str, Any]], gpus: list[int], args: argparse
             gpu=gpus[0] if gpus else 0,
             results_dir=args.results_dir,
             tb_dir=args.tb_dir,
-            extra_overrides=args.extra_override,
+            extra_overrides=entry.get("extra_overrides", []),
         )
         print(f"{entry['run_id']}: {' '.join(command)}")
 
@@ -1298,6 +1365,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--extra-override", action="append", default=[])
+    parser.add_argument(
+        "--variant",
+        action="append",
+        nargs="+",
+        default=[],
+        metavar="TOKEN",
+        help=(
+            "Repeatable independent variant: NAME followed by zero or more "
+            "OmegaConf KEY=VALUE overrides. Each variant starts from the same "
+            "selected default config; variants are not combined cartesianly."
+        ),
+    )
     parser.add_argument("--finalize-mode", choices=["async", "sync"], default="async")
     parser.add_argument("--finalize-workers", type=int, default=1)
     parser.add_argument("--summary-interval-sec", type=float, default=120.0)
@@ -1562,6 +1641,13 @@ def main() -> None:
             "seeds": args.seeds,
             "total_runs": len(entries),
             "extra_overrides": args.extra_override,
+            "variants": [
+                {
+                    "name": variant["slug"] or "default",
+                    "overrides": variant["overrides"],
+                }
+                for variant in parse_variant_specs(args.variant)
+            ],
             "config_hash_version": CONFIG_HASH_VERSION,
             "rerun_stale": args.rerun_stale,
             "force_rerun": args.force_rerun,
@@ -1655,6 +1741,8 @@ def main() -> None:
                         "method_slug": entry["method_slug"],
                         "target": entry["target"],
                         "target_slug": entry["target_slug"],
+                        "variant": entry.get("variant", "default"),
+                        "variant_overrides": entry.get("variant_overrides", []),
                         "gpu": gpu,
                         "config_path": entry["config_path"],
                         "config_hash": entry.get("config_hash", ""),
