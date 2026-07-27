@@ -1,0 +1,84 @@
+{
+  "analysis_fingerprint": "2039e966ba63fbe9d2360f0767265fd6137a714705926dfba2820054c9009b84",
+  "completed_cells": 200,
+  "config": {
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "adapt_step_size": true,
+        "adaptation_rate": 0.3,
+        "burn_in_steps": 1000,
+        "divergence_threshold": 1000.0,
+        "estimator": "posterior_hmc",
+        "init_jitter_scale": 0.01,
+        "leapfrog_steps": 20,
+        "max_step_size": 0.01,
+        "min_step_size": 1e-05,
+        "num_chains": 20,
+        "quality": {
+          "max_divergence_fraction": 0.01,
+          "max_epsilon_rhat_p95": 2.0,
+          "max_score_rhat_p95": 1.1,
+          "min_post_burn_acceptance_rate": 0.6,
+          "min_worst_chain_acceptance_rate": 0.05
+        },
+        "step_size": 0.002,
+        "target_acceptance": 0.9,
+        "thinning": 1,
+        "total_samples": 100000
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_approximation_hmc_20x5k",
+      "runtime_dir": "results/default_config_grid/score_approximation_hmc_20x5k",
+      "scratch_results_dir": "results/default_config_grid/score_approximation_hmc_20x5k/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_approximation_hmc_20x5k/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "methods": [
+        "SIVI",
+        "UIVI",
+        "AISIVI",
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        45,
+        49,
+        50
+      ],
+      "targets": [
+        "x_shaped",
+        "8_gaussians"
+      ]
+    }
+  },
+  "expected_cells": 200,
+  "figures": [
+    "score_error_comparison.png",
+    "score_error_comparison.pdf",
+    "score_reference_quality.png",
+    "score_reference_quality.pdf",
+    "score_hmc_diagnostics.png",
+    "score_hmc_diagnostics.pdf"
+  ],
+  "generated_at": "2026-07-27T20:15:11.837700+00:00",
+  "git_commit": "2fe96c8b363e9afeb5b8326e717219caeb0092a5",
+  "native_score_failures": 6,
+  "reference_quality_warnings": 4,
+  "summary_rows": 40
+}
