@@ -1720,6 +1720,7 @@ def _write_markdown_table(
     summary_rows: list[dict[str, Any]],
     *,
     seeds: Iterable[int],
+    records: Iterable[dict[str, Any]],
 ) -> None:
     seed_text = ", ".join(str(int(seed)) for seed in seeds)
     lines = [
@@ -1729,11 +1730,41 @@ def _write_markdown_table(
         f"{seed_text}.",
         "The reference internal L2 is calculated across posterior-HMC chain "
         "means.",
+    ]
+    materialized_records = list(records)
+    native_failures = [
+        record
+        for record in materialized_records
+        if record.get("method_status") != "ok"
+    ]
+    quality_warnings = [
+        record
+        for record in materialized_records
+        if record.get("reference_quality_status") == "warning"
+    ]
+    if native_failures or quality_warnings:
+        lines.extend(["", "## Data-quality flags", ""])
+    for record in native_failures:
+        lines.append(
+            "- Native score unavailable: "
+            f"{record['target']} / {record['method']} / "
+            f"seed {record['seed']} / epoch {record['epoch']}: "
+            f"{record.get('method_error', 'unspecified error')}"
+        )
+    for record in quality_warnings:
+        issues = "; ".join(record.get("reference_quality_issues", []))
+        lines.append(
+            "- HMC diagnostic warning: "
+            f"{record['target']} / {record['method']} / "
+            f"seed {record['seed']} / epoch {record['epoch']}: "
+            f"{issues}"
+        )
+    lines.extend([
         "",
         "| Target | Method | Stage | Epoch | Method vs HMC q | "
         "Method vs target p | HMC q vs target p | HMC-chain internal L2 |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
-    ]
+    ])
     for row in summary_rows:
         lines.append(
             "| {target} | {method} | {stage:.0f}% | {epoch} | "
@@ -2262,6 +2293,7 @@ def aggregate_results(
         report_dir / "score_approximation_table.md",
         summary_rows,
         seeds=cfg.selection.seeds,
+        records=records,
     )
     _write_latex_table(
         report_dir / "score_approximation_table.tex",
