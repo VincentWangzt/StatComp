@@ -125,7 +125,8 @@ selects SIVI/UIVI/AISIVI/DSIVI, the `x_shaped` and `8_gaussians` targets,
 seeds 42--46, and five checkpoint stages. For every fixed `z`, the reference
 targets `q_phi(epsilon | z)` with ten HMC chains and averages 1,000 retained
 posterior samples. Chain-level score means provide the ten internal-L2
-replicates:
+replicates. The report places the training-style method-to-target L2 next to
+the method-to-HMC-reference L2 and renders sampler-diagnostic figures:
 
 ```
 python scripts/run_score_approximation.py --dry-run

@@ -864,6 +864,7 @@ def method_native_score(
 def compute_score_metrics(
     method_score: torch.Tensor | None,
     reference_scores: torch.Tensor,
+    target_score: torch.Tensor | None = None,
 ) -> dict[str, Any]:
     if reference_scores.ndim != 3:
         raise ValueError("reference_scores must have shape [R,N,D].")
@@ -876,6 +877,11 @@ def compute_score_metrics(
         raise FloatingPointError(NONFINITE_SCORE_MESSAGE)
     if method_score is not None and not torch.isfinite(method_score).all():
         raise FloatingPointError(NONFINITE_SCORE_MESSAGE)
+    if target_score is not None:
+        if target_score.shape != reference_scores.shape[1:]:
+            raise ValueError("Target and reference score shapes do not match.")
+        if not torch.isfinite(target_score).all():
+            raise FloatingPointError(NONFINITE_SCORE_MESSAGE)
 
     reference_mean = reference_scores.mean(dim=0)
     repeat_internal = (
@@ -892,10 +898,36 @@ def compute_score_metrics(
         "reference_mean_score_sq_norm": float(
             reference_mean.square().sum(dim=-1).mean().item()
         ),
+        "reference_mean_mcse_l2": float(
+            repeat_internal.mean().item()
+            / max(1, reference_scores.shape[0] - 1)
+        ),
     }
+    if target_score is None:
+        metrics.update({
+            "target_score_sq_norm": None,
+            "reference_target_l2": None,
+        })
+    else:
+        target_score_acc = target_score.to(reference_mean.dtype)
+        metrics.update({
+            "target_score_sq_norm": float(
+                target_score_acc.square().sum(dim=-1).mean().item()
+            ),
+            "reference_target_l2": float(
+                (
+                    (reference_mean - target_score_acc)
+                    .square()
+                    .sum(dim=-1)
+                    .mean()
+                ).item()
+            ),
+        })
     if method_score is None:
         metrics.update({
             "method_l2": None,
+            "method_relative_l2": None,
+            "method_target_l2": None,
             "method_l2_z_sd": None,
             "method_score_sq_norm": None,
         })
@@ -908,6 +940,30 @@ def compute_score_metrics(
     )
     metrics.update({
         "method_l2": float(method_point_l2.mean().item()),
+        "method_relative_l2": float(
+            method_point_l2.mean().item()
+            / max(
+                float(
+                    reference_mean.square().sum(dim=-1).mean().item()
+                ),
+                torch.finfo(reference_mean.dtype).eps,
+            )
+        ),
+        "method_target_l2": (
+            float(
+                (
+                    (
+                        method_score.to(reference_mean.dtype)
+                        - target_score.to(reference_mean.dtype)
+                    )
+                    .square()
+                    .sum(dim=-1)
+                    .mean()
+                ).item()
+            )
+            if target_score is not None
+            else None
+        ),
         "method_l2_z_sd": float(
             method_point_l2.std(unbiased=True).item()
             if method_point_l2.numel() > 1
@@ -1066,7 +1122,13 @@ def evaluate_cell(
         reference_runtime / reference_num_chains
     ] * reference_num_chains
 
-    metrics = compute_score_metrics(method_score, reference_scores)
+    with torch.no_grad():
+        target_score = runner.target_model.score(z).detach()
+    metrics = compute_score_metrics(
+        method_score,
+        reference_scores,
+        target_score,
+    )
     total_runtime = method_runtime + reference_runtime
 
     gpu_name = ""
@@ -1232,16 +1294,41 @@ def _summary_rows(
 
     rows: list[dict[str, Any]] = []
     for (target, method, progress, epoch), items in sorted(groups.items()):
-        method_values = np.asarray([
-            float(item["method_l2"])
-            for item in items
-            if item.get("method_l2") is not None
-            and math.isfinite(float(item["method_l2"]))
-        ], dtype=np.float64)
-        internal_values = np.asarray(
-            [float(item["reference_internal_l2"]) for item in items],
-            dtype=np.float64,
+        def finite_values(key: str) -> np.ndarray:
+            return np.asarray([
+                float(item[key])
+                for item in items
+                if item.get(key) is not None
+                and math.isfinite(float(item[key]))
+            ], dtype=np.float64)
+
+        method_values = finite_values("method_l2")
+        method_relative_values = finite_values("method_relative_l2")
+        method_target_values = finite_values("method_target_l2")
+        reference_target_values = finite_values("reference_target_l2")
+        internal_values = finite_values("reference_internal_l2")
+        mcse_values = finite_values("reference_mean_mcse_l2")
+
+        def mean_sd(
+            values: np.ndarray,
+        ) -> tuple[float | None, float | None]:
+            if len(values) == 0:
+                return None, None
+            return (
+                float(values.mean()),
+                float(values.std(ddof=1)) if len(values) > 1 else 0.0,
+            )
+
+        method_mean, method_sd = mean_sd(method_values)
+        relative_mean, relative_sd = mean_sd(method_relative_values)
+        method_target_mean, method_target_sd = mean_sd(
+            method_target_values
         )
+        reference_target_mean, reference_target_sd = mean_sd(
+            reference_target_values
+        )
+        internal_mean, internal_sd = mean_sd(internal_values)
+        mcse_mean, mcse_sd = mean_sd(mcse_values)
         rows.append({
             "target": target,
             "method": method,
@@ -1250,24 +1337,18 @@ def _summary_rows(
             "n_seeds": len(items),
             "method_n_valid": int(len(method_values)),
             "method_n_failed": int(len(items) - len(method_values)),
-            "method_l2_mean": (
-                float(method_values.mean())
-                if len(method_values)
-                else None
-            ),
-            "method_l2_sd": (
-                float(method_values.std(ddof=1))
-                if len(method_values) > 1
-                else (0.0 if len(method_values) == 1 else None)
-            ),
-            "reference_internal_l2_mean": float(
-                internal_values.mean()
-            ),
-            "reference_internal_l2_sd": float(
-                internal_values.std(ddof=1)
-                if len(internal_values) > 1
-                else 0.0
-            ),
+            "method_l2_mean": method_mean,
+            "method_l2_sd": method_sd,
+            "method_relative_l2_mean": relative_mean,
+            "method_relative_l2_sd": relative_sd,
+            "method_target_l2_mean": method_target_mean,
+            "method_target_l2_sd": method_target_sd,
+            "reference_target_l2_mean": reference_target_mean,
+            "reference_target_l2_sd": reference_target_sd,
+            "reference_internal_l2_mean": internal_mean,
+            "reference_internal_l2_sd": internal_sd,
+            "reference_mean_mcse_l2_mean": mcse_mean,
+            "reference_mean_mcse_l2_sd": mcse_sd,
             "method_runtime_sec_mean": float(
                 np.mean(
                     [float(item["method_runtime_sec"]) for item in items]
@@ -1303,6 +1384,21 @@ def _method_metric_text(row: dict[str, Any]) -> str:
     return metric
 
 
+def _named_method_metric_text(
+    row: dict[str, Any],
+    name: str,
+) -> str:
+    metric = _metric_text(
+        row.get(f"{name}_mean"),
+        row.get(f"{name}_sd"),
+    )
+    n_valid = int(row["method_n_valid"])
+    n_seeds = int(row["n_seeds"])
+    if n_valid != n_seeds:
+        metric += f" (n={n_valid}/{n_seeds})"
+    return metric
+
+
 def _write_markdown_table(
     path: Path,
     summary_rows: list[dict[str, Any]],
@@ -1314,21 +1410,31 @@ def _write_markdown_table(
         "The reference internal L2 is calculated across posterior-HMC chain "
         "means.",
         "",
-        "| Target | Method | Stage | Epoch | Method L2 | HMC-chain internal L2 |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Target | Method | Stage | Epoch | Method vs HMC q | "
+        "Method vs target p | HMC q vs target p | HMC-chain internal L2 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in summary_rows:
         lines.append(
-            "| {target} | {method} | {stage:.0f}% | {epoch} | {method_l2} | "
+            "| {target} | {method} | {stage:.0f}% | {epoch} | "
+            "{method_l2} | {method_target_l2} | {reference_target_l2} | "
             "{internal_l2} |".format(
                 target=row["target"],
                 method=row["method"],
                 stage=100.0 * float(row["progress"]),
                 epoch=row["epoch"],
                 method_l2=_method_metric_text(row),
+                method_target_l2=_named_method_metric_text(
+                    row,
+                    "method_target_l2",
+                ),
+                reference_target_l2=_metric_text(
+                    row.get("reference_target_l2_mean"),
+                    row.get("reference_target_l2_sd"),
+                ),
                 internal_l2=_metric_text(
-                    float(row["reference_internal_l2_mean"]),
-                    float(row["reference_internal_l2_sd"]),
+                    row.get("reference_internal_l2_mean"),
+                    row.get("reference_internal_l2_sd"),
                 ),
             )
         )
@@ -1345,9 +1451,10 @@ def _write_latex_table(
     summary_rows: list[dict[str, Any]],
 ) -> None:
     lines = [
-        r"\begin{tabular}{llrrcc}",
+        r"\begin{tabular}{llrrcccc}",
         r"\toprule",
-        r"Target & Method & Stage & Epoch & Method L2 & HMC-chain L2 \\",
+        r"Target & Method & Stage & Epoch & Method--HMC & Method--target "
+        r"& HMC--target & HMC-chain L2 \\",
         r"\midrule",
     ]
     for row in summary_rows:
@@ -1363,6 +1470,14 @@ def _write_latex_table(
                 f" ($n={int(row['method_n_valid'])}/"
                 f"{int(row['n_seeds'])}$)"
             )
+        method_target_metric = _named_method_metric_text(
+            row,
+            "method_target_l2",
+        ).replace("±", r"$\pm$")
+        reference_target_metric = _metric_text(
+            row.get("reference_target_l2_mean"),
+            row.get("reference_target_l2_sd"),
+        ).replace("±", r"$\pm$")
         internal_metric = (
             f"{float(row['reference_internal_l2_mean']):.4e} "
             rf"$\pm$ {float(row['reference_internal_l2_sd']):.4e}"
@@ -1372,11 +1487,363 @@ def _write_latex_table(
             f"{_latex_escape(str(row['method']))} & "
             f"{100.0 * float(row['progress']):.0f}\\% & "
             f"{int(row['epoch'])} & {method_metric} & "
+            f"{method_target_metric} & {reference_target_metric} & "
             f"{internal_metric} \\\\"
         )
     lines.extend([r"\bottomrule", r"\end{tabular}"])
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+_SCORE_METHOD_COLORS = {
+    "SIVI": "#9467bd",
+    "UIVI": "#1f77b4",
+    "AISIVI": "#ff7f0e",
+    "DSIVI": "#2ca02c",
+}
+
+
+def _score_display_method(method: str) -> str:
+    return "DIVI" if method.upper() == "DSIVI" else method.upper()
+
+
+def _save_score_figure(
+    figure: Any,
+    path_stem: Path,
+) -> list[Path]:
+    png_path = path_stem.with_suffix(".png")
+    pdf_path = path_stem.with_suffix(".pdf")
+    figure.savefig(png_path, dpi=300, bbox_inches="tight")
+    figure.savefig(pdf_path, bbox_inches="tight")
+    return [png_path, pdf_path]
+
+
+def _plot_summary_metrics(
+    cfg: DictConfig,
+    summary_rows: list[dict[str, Any]],
+    *,
+    report_dir: Path,
+    filename: str,
+    metric_rows: list[tuple[str, str]],
+) -> list[Path]:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    targets = [str(value) for value in cfg.selection.targets]
+    methods = [str(value).upper() for value in cfg.selection.methods]
+    figure, axes = plt.subplots(
+        len(metric_rows),
+        len(targets),
+        figsize=(5.0 * len(targets), 3.25 * len(metric_rows)),
+        squeeze=False,
+    )
+    for column, target in enumerate(targets):
+        for row_index, (metric, label) in enumerate(metric_rows):
+            axis = axes[row_index, column]
+            for method_index, method in enumerate(methods):
+                selected = sorted(
+                    (
+                        row
+                        for row in summary_rows
+                        if str(row["target"]) == target
+                        and str(row["method"]).upper() == method
+                        and row.get(f"{metric}_mean") is not None
+                    ),
+                    key=lambda row: float(row["progress"]),
+                )
+                if not selected:
+                    continue
+                x = np.asarray(
+                    [int(row["epoch"]) for row in selected],
+                    dtype=np.float64,
+                )
+                mean = np.asarray(
+                    [float(row[f"{metric}_mean"]) for row in selected],
+                    dtype=np.float64,
+                )
+                sd = np.asarray(
+                    [float(row[f"{metric}_sd"]) for row in selected],
+                    dtype=np.float64,
+                )
+                finite_positive = (
+                    np.isfinite(mean)
+                    & np.isfinite(sd)
+                    & (mean > 0)
+                )
+                if not finite_positive.any():
+                    continue
+                x = x[finite_positive]
+                mean = mean[finite_positive]
+                sd = sd[finite_positive]
+                color = _SCORE_METHOD_COLORS.get(
+                    method,
+                    f"C{method_index}",
+                )
+                axis.plot(
+                    x,
+                    mean,
+                    color=color,
+                    marker="o",
+                    linewidth=1.8,
+                    markersize=4,
+                    label=_score_display_method(method),
+                )
+                lower = np.maximum(
+                    mean - sd,
+                    np.maximum(mean * 1.0e-3, 1.0e-12),
+                )
+                upper = mean + sd
+                axis.fill_between(
+                    x,
+                    lower,
+                    upper,
+                    color=color,
+                    alpha=0.16,
+                    linewidth=0,
+                )
+            axis.set_yscale("log")
+            axis.grid(True, which="both", alpha=0.22, linewidth=0.6)
+            axis.set_xlabel("Checkpoint epoch")
+            if column == 0:
+                axis.set_ylabel(label)
+            if row_index == 0:
+                axis.set_title(target.replace("_", " "))
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        figure.legend(
+            handles,
+            labels,
+            loc="lower center",
+            ncol=len(handles),
+            frameon=False,
+            bbox_to_anchor=(0.5, -0.01),
+        )
+    figure.tight_layout(rect=(0, 0.05, 1, 1))
+    paths = _save_score_figure(figure, report_dir / filename)
+    plt.close(figure)
+    return paths
+
+
+def _diagnostic_summary(
+    records: list[dict[str, Any]],
+    *,
+    diagnostic: str,
+) -> dict[tuple[str, str, int], tuple[float, float]]:
+    grouped: dict[tuple[str, str, int], list[float]] = {}
+    for record in records:
+        value = record.get("diagnostics", {}).get(diagnostic)
+        if value is None or not math.isfinite(float(value)):
+            continue
+        key = (
+            str(record["target"]),
+            str(record["method"]).upper(),
+            int(record["epoch"]),
+        )
+        grouped.setdefault(key, []).append(float(value))
+    result: dict[tuple[str, str, int], tuple[float, float]] = {}
+    for key, values in grouped.items():
+        array = np.asarray(values, dtype=np.float64)
+        result[key] = (
+            float(array.mean()),
+            float(array.std(ddof=1)) if len(array) > 1 else 0.0,
+        )
+    return result
+
+
+def _plot_hmc_diagnostics(
+    cfg: DictConfig,
+    records: list[dict[str, Any]],
+    *,
+    report_dir: Path,
+) -> list[Path]:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    targets = [str(value) for value in cfg.selection.targets]
+    methods = [str(value).upper() for value in cfg.selection.methods]
+    diagnostic_rows = [
+        (
+            "hmc_post_burn_acceptance_rate",
+            "Post-warmup acceptance",
+            "linear",
+            0.8,
+        ),
+        (
+            "hmc_score_rhat_p95",
+            "Score R-hat (95th percentile)",
+            "linear",
+            1.1,
+        ),
+        (
+            "hmc_final_step_size_median",
+            "Final step size (median)",
+            "log",
+            None,
+        ),
+    ]
+    summaries = {
+        diagnostic: _diagnostic_summary(
+            records,
+            diagnostic=diagnostic,
+        )
+        for diagnostic, _, _, _ in diagnostic_rows
+    }
+    figure, axes = plt.subplots(
+        len(diagnostic_rows),
+        len(targets),
+        figsize=(5.0 * len(targets), 3.0 * len(diagnostic_rows)),
+        squeeze=False,
+    )
+    for column, target in enumerate(targets):
+        for row_index, (
+            diagnostic,
+            label,
+            scale,
+            guide,
+        ) in enumerate(diagnostic_rows):
+            axis = axes[row_index, column]
+            summary = summaries[diagnostic]
+            for method_index, method in enumerate(methods):
+                values = sorted(
+                    (
+                        (epoch, mean, sd)
+                        for (
+                            value_target,
+                            value_method,
+                            epoch,
+                        ), (mean, sd) in summary.items()
+                        if value_target == target
+                        and value_method == method
+                    ),
+                    key=lambda item: item[0],
+                )
+                if not values:
+                    continue
+                x = np.asarray(
+                    [value[0] for value in values],
+                    dtype=np.float64,
+                )
+                mean = np.asarray(
+                    [value[1] for value in values],
+                    dtype=np.float64,
+                )
+                sd = np.asarray(
+                    [value[2] for value in values],
+                    dtype=np.float64,
+                )
+                color = _SCORE_METHOD_COLORS.get(
+                    method,
+                    f"C{method_index}",
+                )
+                axis.plot(
+                    x,
+                    mean,
+                    color=color,
+                    marker="o",
+                    linewidth=1.8,
+                    markersize=4,
+                    label=_score_display_method(method),
+                )
+                lower = mean - sd
+                if scale == "log":
+                    lower = np.maximum(
+                        lower,
+                        np.maximum(mean * 1.0e-3, 1.0e-12),
+                    )
+                axis.fill_between(
+                    x,
+                    lower,
+                    mean + sd,
+                    color=color,
+                    alpha=0.16,
+                    linewidth=0,
+                )
+            if guide is not None:
+                axis.axhline(
+                    guide,
+                    color="#555555",
+                    linestyle="--",
+                    linewidth=1.0,
+                )
+            if scale == "log":
+                axis.set_yscale("log")
+            if diagnostic == "hmc_post_burn_acceptance_rate":
+                axis.set_ylim(0, 1.02)
+            axis.grid(True, which="both", alpha=0.22, linewidth=0.6)
+            axis.set_xlabel("Checkpoint epoch")
+            if column == 0:
+                axis.set_ylabel(label)
+            if row_index == 0:
+                axis.set_title(target.replace("_", " "))
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    if handles:
+        figure.legend(
+            handles,
+            labels,
+            loc="lower center",
+            ncol=len(handles),
+            frameon=False,
+            bbox_to_anchor=(0.5, -0.005),
+        )
+    figure.tight_layout(rect=(0, 0.04, 1, 1))
+    paths = _save_score_figure(
+        figure,
+        report_dir / "score_hmc_diagnostics",
+    )
+    plt.close(figure)
+    return paths
+
+
+def render_score_approximation_figures(
+    cfg: DictConfig,
+    records: list[dict[str, Any]],
+    summary_rows: list[dict[str, Any]],
+    *,
+    report_dir: Path,
+) -> list[Path]:
+    """Render error decomposition and sampler-quality figures."""
+    paths = _plot_summary_metrics(
+        cfg,
+        summary_rows,
+        report_dir=report_dir,
+        filename="score_error_comparison",
+        metric_rows=[
+            ("method_l2", r"Method vs HMC $q_\phi$ score L2"),
+            ("method_target_l2", "Method vs target score L2"),
+        ],
+    )
+    paths.extend(
+        _plot_summary_metrics(
+            cfg,
+            summary_rows,
+            report_dir=report_dir,
+            filename="score_reference_quality",
+            metric_rows=[
+                (
+                    "reference_target_l2",
+                    r"HMC $q_\phi$ vs target score L2",
+                ),
+                (
+                    "reference_internal_l2",
+                    "HMC-chain internal L2",
+                ),
+            ],
+        )
+    )
+    paths.extend(
+        _plot_hmc_diagnostics(
+            cfg,
+            records,
+            report_dir=report_dir,
+        )
+    )
+    return paths
 
 
 def _git_commit() -> str:
@@ -1479,6 +1946,12 @@ def aggregate_results(
         report_dir / "score_approximation_table.tex",
         summary_rows,
     )
+    figure_paths = render_score_approximation_figures(
+        cfg,
+        records,
+        summary_rows,
+        report_dir=report_dir,
+    )
     metadata = {
         "analysis_fingerprint": fingerprint,
         "git_commit": _git_commit(),
@@ -1490,6 +1963,10 @@ def aggregate_results(
             record.get("method_status", "ok") != "ok"
             for record in records
         ),
+        "figures": [
+            path.relative_to(report_dir).as_posix()
+            for path in figure_paths
+        ],
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
     atomic_write_json(report_dir / "run_metadata.json", metadata)

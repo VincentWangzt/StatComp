@@ -44,7 +44,8 @@ Its defaults are defined in
 `configs/finalization/score_approximation.yaml`. The reference sampler uses
 posterior HMC for `q_phi(epsilon | z)`, initialized from each fixed sample's
 generating epsilon. Its ten chain means form the reference replicates, and the
-reports include acceptance, step-size, divergence, and R-hat diagnostics.
+reports include the training-style method-to-target comparison, log-scale
+figures, and acceptance, step-size, divergence, and R-hat diagnostics.
 Runtime cell metrics remain under
 `results/default_config_grid/score_approximation/`; aggregate CSV, Markdown,
 LaTeX, and metadata files are generated under

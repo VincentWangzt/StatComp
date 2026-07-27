@@ -25,6 +25,7 @@ from finalization.score_approximation import (
     native_sivi_score,
     pending_cell_specs,
     posterior_hmc_reference_scores,
+    render_score_approximation_figures,
     select_progress_checkpoints,
     streamed_reference_score,
 )
@@ -362,9 +363,14 @@ class ScoreApproximationTest(unittest.TestCase):
             [[0.0, 0.0], [0.0, 0.0]],
             [[2.0, 0.0], [0.0, 2.0]],
         ])
-        metrics = compute_score_metrics(method, references)
+        target = torch.zeros_like(method)
+        metrics = compute_score_metrics(method, references, target)
         self.assertAlmostEqual(metrics["method_l2"], 0.0)
+        self.assertAlmostEqual(metrics["method_relative_l2"], 0.0)
+        self.assertAlmostEqual(metrics["method_target_l2"], 1.0)
+        self.assertAlmostEqual(metrics["reference_target_l2"], 1.0)
         self.assertAlmostEqual(metrics["reference_internal_l2"], 1.0)
+        self.assertAlmostEqual(metrics["reference_mean_mcse_l2"], 1.0)
         self.assertEqual(
             metrics["reference_repeat_internal_l2"],
             [1.0, 1.0],
@@ -398,6 +404,56 @@ class ScoreApproximationTest(unittest.TestCase):
         self.assertEqual(summary[0]["n_seeds"], 5)
         self.assertEqual(summary[0]["method_n_valid"], 4)
         self.assertEqual(summary[0]["method_n_failed"], 1)
+
+    def test_score_figures_render_from_summary_and_diagnostics(self) -> None:
+        cfg = OmegaConf.create({
+            "selection": {
+                "targets": ["x_shaped"],
+                "methods": ["SIVI"],
+            },
+        })
+        summary_rows = [
+            {
+                "target": "x_shaped",
+                "method": "SIVI",
+                "progress": progress,
+                "epoch": epoch,
+                "method_l2_mean": value,
+                "method_l2_sd": value / 10,
+                "method_target_l2_mean": value / 2,
+                "method_target_l2_sd": value / 20,
+                "reference_target_l2_mean": value / 3,
+                "reference_target_l2_sd": value / 30,
+                "reference_internal_l2_mean": value / 20,
+                "reference_internal_l2_sd": value / 200,
+            }
+            for progress, epoch, value in [
+                (0.2, 2000, 2.0),
+                (1.0, 10000, 1.0),
+            ]
+        ]
+        records = [
+            {
+                "target": "x_shaped",
+                "method": "SIVI",
+                "epoch": epoch,
+                "diagnostics": {
+                    "hmc_post_burn_acceptance_rate": 0.85,
+                    "hmc_score_rhat_p95": 1.03,
+                    "hmc_final_step_size_median": 0.02,
+                },
+            }
+            for epoch in [2000, 10000]
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            paths = render_score_approximation_figures(
+                cfg,
+                records,
+                summary_rows,
+                report_dir=Path(temp_dir),
+            )
+            self.assertEqual(len(paths), 6)
+            self.assertTrue(all(path.stat().st_size > 0 for path in paths))
 
     def test_csv_reports_use_lf_line_endings(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
