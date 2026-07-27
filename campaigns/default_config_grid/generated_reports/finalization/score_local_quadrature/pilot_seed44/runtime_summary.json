@@ -1,0 +1,17 @@
+{
+  "cell_count": 40,
+  "cell_runtime_max_sec": 0.44663567282259464,
+  "cell_runtime_median_sec": 0.20073861349374056,
+  "cell_runtime_p95_sec": 0.23869838919490521,
+  "estimated_five_seed_runtime_hours": 0.010352309252549376,
+  "estimated_five_seed_runtime_sec": 37.268313309177756,
+  "observed_seed_runtime_sec": 7.453662661835551,
+  "peak_gpu_reserved_bytes": 257949696,
+  "peak_gpu_reserved_gib": 0.240234375,
+  "projected_200_cell_runtime_hours": 0.010352309252549376,
+  "projected_200_cell_runtime_sec": 37.268313309177756,
+  "quadrature_conditional_evaluations": 6922240,
+  "quadrature_nodes_per_second": 1350514.3209579305,
+  "quadrature_runtime_total_sec": 5.125632429495454,
+  "total_runtime_sec": 7.453662661835551
+}

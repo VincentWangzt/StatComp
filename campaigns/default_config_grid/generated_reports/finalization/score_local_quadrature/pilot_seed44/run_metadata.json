@@ -1,0 +1,68 @@
+{
+  "analysis_fingerprint": "1974d2f536ed51a0b74ae17412dd14f4bcf1be4dfcdb9842c799c7e7146bfb7f",
+  "analysis_kind": "local_box_score",
+  "completed_cells": 40,
+  "config": {
+    "analysis_kind": "local_box_score",
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "quadrature": {
+        "accumulator_dtype": "float64",
+        "boundary_inner_half_width": 3.5,
+        "epsilon_dim": "auto_from_checkpoint",
+        "estimator": "local_fisher_gauss_legendre",
+        "max_fisher_eigenvalue": 1000000.0,
+        "min_gpu_headroom_gib": 2.0,
+        "node_chunk_size": 4096,
+        "order": 13,
+        "scaling_batch_size": 256,
+        "standardized_half_width": 4.0,
+        "z_chunk_size": 8,
+        "z_dim": 2
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_local_quadrature",
+      "runtime_dir": "results/default_config_grid/score_local_quadrature",
+      "scratch_results_dir": "results/default_config_grid/score_local_quadrature/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_local_quadrature/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "methods": [
+        "SIVI",
+        "UIVI",
+        "AISIVI",
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "targets": [
+        "x_shaped",
+        "8_gaussians"
+      ]
+    }
+  },
+  "generated_at": "2026-07-27T15:35:17.101828+00:00",
+  "git_commit": "64511cd85feb481183dfddd9fd20639a8abebc41",
+  "native_score_failures": 0,
+  "report_label": "pilot_seed44",
+  "selected_cells": 40,
+  "summary_rows": 40
+}
