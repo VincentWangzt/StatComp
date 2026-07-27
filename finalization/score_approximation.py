@@ -1,7 +1,7 @@
 """Checkpoint-based analysis of marginal-score approximations.
 
-The analysis compares the score used by each training method with a high-budget
-Monte Carlo estimate of the marginal score of the checkpointed variational
+The analysis compares the score used by each training method with a multi-chain
+posterior-HMC estimate of the marginal score of the checkpointed variational
 distribution.  It is intentionally post-hoc: checkpoints are loaded read-only
 and no optimizer, scheduler, or reverse-model updates are performed.
 """
@@ -354,6 +354,331 @@ def autograd_mixture_score(
     return torch.autograd.grad(log_mixture.sum(), z_grad)[0].detach()
 
 
+def posterior_log_prob(
+    vi_model: torch.nn.Module,
+    epsilon: torch.Tensor,
+    z: torch.Tensor,
+) -> torch.Tensor:
+    """Unnormalised ``log q_phi(epsilon | z)`` for posterior HMC."""
+    return vi_model.log_q_epsilon(epsilon) + vi_model.logp(z, epsilon)
+
+
+def posterior_log_prob_and_grad(
+    vi_model: torch.nn.Module,
+    epsilon: torch.Tensor,
+    z: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate the posterior log density and its epsilon gradient."""
+    with torch.enable_grad():
+        epsilon_grad = epsilon.detach().requires_grad_(True)
+        log_prob = posterior_log_prob(vi_model, epsilon_grad, z)
+        gradient = torch.autograd.grad(
+            log_prob.sum(),
+            epsilon_grad,
+            create_graph=False,
+            retain_graph=False,
+        )[0]
+    return log_prob.detach(), gradient.detach()
+
+
+def gelman_rubin_rhat(samples: torch.Tensor) -> torch.Tensor:
+    """Classical Gelman--Rubin R-hat over ``[N,C,S,D]`` samples."""
+    if samples.ndim != 4:
+        raise ValueError("samples must have shape [N,C,S,D].")
+    _, chains, draws, _ = samples.shape
+    if chains < 2 or draws < 2:
+        raise ValueError("R-hat requires at least two chains and two draws.")
+
+    chain_means = samples.mean(dim=2)
+    between = draws * chain_means.var(dim=1, unbiased=True)
+    within = samples.var(dim=2, unbiased=True).mean(dim=1)
+    variance_hat = ((draws - 1.0) / draws) * within + between / draws
+    positive_within = within > 0
+    rhat = torch.empty_like(within)
+    rhat[positive_within] = torch.sqrt(
+        (variance_hat[positive_within] / within[positive_within]).clamp_min(0)
+    )
+    both_constant = (~positive_within) & (between == 0)
+    rhat[both_constant] = 1.0
+    rhat[(~positive_within) & (~both_constant)] = float("inf")
+    return rhat
+
+
+def _finite_tensor_summary(
+    values: torch.Tensor,
+    *,
+    prefix: str,
+) -> dict[str, float | None]:
+    flat = values.detach().reshape(-1).to(dtype=torch.float64, device="cpu")
+    finite = flat[torch.isfinite(flat)]
+    result: dict[str, float | None] = {
+        f"{prefix}_nonfinite_fraction": float(
+            1.0 - finite.numel() / max(1, flat.numel())
+        ),
+    }
+    if finite.numel() == 0:
+        result.update({
+            f"{prefix}_median": None,
+            f"{prefix}_p95": None,
+            f"{prefix}_max": None,
+        })
+        return result
+    result.update({
+        f"{prefix}_median": float(finite.median().item()),
+        f"{prefix}_p95": float(
+            torch.quantile(finite, 0.95).item()
+        ),
+        f"{prefix}_max": float(finite.max().item()),
+    })
+    return result
+
+
+def posterior_hmc_reference_scores(
+    vi_model: torch.nn.Module,
+    z: torch.Tensor,
+    generating_epsilon: torch.Tensor,
+    *,
+    total_samples: int,
+    num_chains: int,
+    burn_in_steps: int,
+    thinning: int,
+    step_size: float,
+    leapfrog_steps: int,
+    init_jitter_scale: float,
+    adapt_step_size: bool,
+    target_acceptance: float,
+    adaptation_rate: float,
+    min_step_size: float,
+    max_step_size: float,
+    divergence_threshold: float,
+    accumulator_dtype: torch.dtype = torch.float64,
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Estimate the marginal score with batched posterior HMC.
+
+    The returned tensor has shape ``[C,N,Dz]``.  Each entry along the first
+    axis is a chain-mean score and therefore serves as one independent
+    reference replicate in the internal-L2 calculation.
+    """
+    if z.ndim != 2 or generating_epsilon.ndim != 2:
+        raise ValueError("z and generating_epsilon must both be rank two.")
+    if z.shape[0] != generating_epsilon.shape[0]:
+        raise ValueError("z and generating_epsilon batch sizes must match.")
+    if total_samples < 1 or num_chains < 2:
+        raise ValueError(
+            "HMC requires positive total_samples and at least two chains."
+        )
+    if total_samples % num_chains != 0:
+        raise ValueError("total_samples must be divisible by num_chains.")
+    if burn_in_steps < 0 or thinning < 1:
+        raise ValueError("Invalid HMC burn-in or thinning.")
+    if step_size <= 0 or leapfrog_steps < 1:
+        raise ValueError("Invalid HMC step size or leapfrog count.")
+    if init_jitter_scale < 0:
+        raise ValueError("init_jitter_scale must be non-negative.")
+    if not 0 < target_acceptance < 1:
+        raise ValueError("target_acceptance must be in (0, 1).")
+    if adaptation_rate < 0:
+        raise ValueError("adaptation_rate must be non-negative.")
+    if not 0 < min_step_size <= step_size <= max_step_size:
+        raise ValueError(
+            "Require min_step_size <= step_size <= max_step_size."
+        )
+    if divergence_threshold <= 0:
+        raise ValueError("divergence_threshold must be positive.")
+
+    draws_per_chain = total_samples // num_chains
+    batch_size, z_dim = z.shape
+    epsilon_dim = generating_epsilon.shape[-1]
+    device = z.device
+    dtype = generating_epsilon.dtype
+
+    z_chains = z.detach().unsqueeze(1).expand(
+        batch_size,
+        num_chains,
+        z_dim,
+    )
+    epsilon_current = generating_epsilon.detach().unsqueeze(1).expand(
+        batch_size,
+        num_chains,
+        epsilon_dim,
+    ).clone()
+    if init_jitter_scale:
+        jitter = torch.randn_like(epsilon_current) * init_jitter_scale
+        jitter[:, 0, :].zero_()
+        epsilon_current = epsilon_current + jitter
+
+    log_step = torch.full(
+        (batch_size, num_chains, 1),
+        math.log(step_size),
+        device=device,
+        dtype=dtype,
+    )
+    min_log_step = math.log(min_step_size)
+    max_log_step = math.log(max_step_size)
+    accepted_sum = torch.zeros(
+        batch_size,
+        num_chains,
+        device=device,
+        dtype=torch.float64,
+    )
+    retained_accept_sum = torch.zeros_like(accepted_sum)
+    retained_transitions = 0
+    divergence_count = torch.zeros_like(accepted_sum)
+    squared_jump_sum = torch.zeros_like(accepted_sum)
+    epsilon_samples: list[torch.Tensor] = []
+    score_samples: list[torch.Tensor] = []
+
+    total_transitions = burn_in_steps + draws_per_chain * thinning
+    for transition in range(total_transitions):
+        transition_step = log_step.exp()
+        epsilon_before = epsilon_current
+        momentum_initial = torch.randn_like(epsilon_current)
+        log_prob_initial, gradient = posterior_log_prob_and_grad(
+            vi_model,
+            epsilon_current,
+            z_chains,
+        )
+        kinetic_initial = 0.5 * momentum_initial.square().sum(dim=-1)
+
+        momentum = (
+            momentum_initial
+            + 0.5 * transition_step * gradient
+        )
+        epsilon_proposed = epsilon_current
+        log_prob_proposed = log_prob_initial
+        for leapfrog_index in range(leapfrog_steps):
+            epsilon_proposed = (
+                epsilon_proposed + transition_step * momentum
+            )
+            log_prob_proposed, gradient = posterior_log_prob_and_grad(
+                vi_model,
+                epsilon_proposed,
+                z_chains,
+            )
+            if leapfrog_index != leapfrog_steps - 1:
+                momentum = momentum + transition_step * gradient
+        momentum = momentum + 0.5 * transition_step * gradient
+        kinetic_proposed = 0.5 * momentum.square().sum(dim=-1)
+
+        delta_h = (
+            kinetic_proposed - log_prob_proposed
+            - kinetic_initial + log_prob_initial
+        )
+        finite_transition = (
+            torch.isfinite(delta_h)
+            & torch.isfinite(log_prob_initial)
+            & torch.isfinite(log_prob_proposed)
+        )
+        log_acceptance = torch.where(
+            finite_transition,
+            (-delta_h).clamp(max=0),
+            torch.full_like(delta_h, -torch.inf),
+        )
+        acceptance_probability = torch.exp(log_acceptance)
+        accept = (
+            torch.log(torch.rand_like(log_acceptance))
+            < log_acceptance
+        )
+        epsilon_current = torch.where(
+            accept.unsqueeze(-1),
+            epsilon_proposed,
+            epsilon_current,
+        ).detach()
+
+        accepted_sum += accept.to(torch.float64)
+        divergence_count += (
+            (~finite_transition) | (delta_h.abs() > divergence_threshold)
+        ).to(torch.float64)
+        squared_jump_sum += (
+            epsilon_current - epsilon_before
+        ).square().sum(dim=-1).to(torch.float64)
+
+        if adapt_step_size and transition < burn_in_steps:
+            gain = adaptation_rate / math.sqrt(transition + 1.0)
+            log_step = (
+                log_step
+                + gain
+                * (
+                    acceptance_probability.detach().unsqueeze(-1)
+                    - target_acceptance
+                )
+            ).clamp(min=min_log_step, max=max_log_step)
+
+        if transition >= burn_in_steps:
+            retained_accept_sum += accept.to(torch.float64)
+            retained_transitions += 1
+            retained_index = transition - burn_in_steps
+            if retained_index % thinning == 0:
+                epsilon_samples.append(epsilon_current)
+                with torch.no_grad():
+                    score_samples.append(
+                        vi_model.score(z_chains, epsilon_current).detach()
+                    )
+
+    if len(score_samples) != draws_per_chain:
+        raise RuntimeError(
+            "Posterior HMC retained an unexpected number of samples."
+        )
+    stacked_epsilon = torch.stack(epsilon_samples, dim=2)
+    stacked_score = torch.stack(score_samples, dim=2)
+    chain_score_means = stacked_score.mean(
+        dim=2,
+        dtype=accumulator_dtype,
+    ).permute(1, 0, 2).contiguous()
+
+    epsilon_rhat = gelman_rubin_rhat(stacked_epsilon)
+    score_rhat = gelman_rubin_rhat(stacked_score)
+    post_burn_acceptance = retained_accept_sum / max(
+        1,
+        retained_transitions,
+    )
+    total_acceptance = accepted_sum / total_transitions
+    final_step_size = log_step.exp().squeeze(-1)
+    diagnostics: dict[str, Any] = {
+        "hmc_num_chains": num_chains,
+        "hmc_samples_per_chain": draws_per_chain,
+        "hmc_total_samples": total_samples,
+        "hmc_burn_in_steps": burn_in_steps,
+        "hmc_thinning": thinning,
+        "hmc_leapfrog_steps": leapfrog_steps,
+        "hmc_acceptance_rate": float(total_acceptance.mean().item()),
+        "hmc_post_burn_acceptance_rate": float(
+            post_burn_acceptance.mean().item()
+        ),
+        "hmc_post_burn_acceptance_min": float(
+            post_burn_acceptance.min().item()
+        ),
+        "hmc_divergence_fraction": float(
+            divergence_count.sum().item()
+            / (total_transitions * batch_size * num_chains)
+        ),
+        "hmc_mean_squared_jump_distance": float(
+            (
+                squared_jump_sum
+                / total_transitions
+            ).mean().item()
+        ),
+        "hmc_final_step_size_median": float(
+            final_step_size.median().item()
+        ),
+        "hmc_final_step_size_p05": float(
+            torch.quantile(final_step_size, 0.05).item()
+        ),
+        "hmc_final_step_size_p95": float(
+            torch.quantile(final_step_size, 0.95).item()
+        ),
+        **_finite_tensor_summary(
+            epsilon_rhat,
+            prefix="hmc_epsilon_rhat",
+        ),
+        **_finite_tensor_summary(
+            score_rhat,
+            prefix="hmc_score_rhat",
+        ),
+    }
+    return chain_score_means, diagnostics
+
+
 def native_sivi_score(
     runner: Any,
     z: torch.Tensor,
@@ -647,9 +972,24 @@ def evaluate_cell(
     use_cuda = device.type == "cuda"
     forward_count = int(cfg.evaluation.forward_batch_size)
     reference_cfg = cfg.evaluation.reference
-    reverse_batch_size = int(reference_cfg.reverse_batch_size)
-    reference_batches = int(reference_cfg.num_batches)
-    reference_repeats = int(reference_cfg.repeats)
+    reference_estimator = str(reference_cfg.estimator).lower()
+    if reference_estimator != "posterior_hmc":
+        raise ValueError(
+            "The production score reference must use posterior_hmc."
+        )
+    reference_total_samples = int(reference_cfg.total_samples)
+    reference_num_chains = int(reference_cfg.num_chains)
+    if (
+        reference_num_chains < 1
+        or reference_total_samples % reference_num_chains != 0
+    ):
+        raise ValueError(
+            "reference.total_samples must be divisible by a positive "
+            "reference.num_chains."
+        )
+    reference_samples_per_chain = (
+        reference_total_samples // reference_num_chains
+    )
     accumulator_dtype = _accumulator_dtype(
         str(reference_cfg.accumulator_dtype)
     )
@@ -666,7 +1006,7 @@ def evaluate_cell(
     method_status = "ok"
     method_error = ""
     try:
-        method_score, diagnostics = method_native_score(
+        method_score, method_diagnostics = method_native_score(
             runner,
             spec.record.method,
             z,
@@ -685,7 +1025,7 @@ def evaluate_cell(
         # the cell and reference diagnostics rather than silently replacing
         # the score with a different estimator.
         method_score = None
-        diagnostics = {"native_auxiliary_samples": int(
+        method_diagnostics = {"native_auxiliary_samples": int(
             runner.training_reverse_sample_num
         )}
         method_status = "unavailable"
@@ -693,31 +1033,41 @@ def evaluate_cell(
     _sync(device)
     method_runtime = time.perf_counter() - method_started
 
-    reference_scores: list[torch.Tensor] = []
-    reference_runtimes: list[float] = []
-    reference_seeds: list[int] = []
-    for repeat in range(reference_repeats):
-        repeat_seed = stable_seed(spec.key, "reference", repeat)
-        reference_seeds.append(repeat_seed)
-        seed_everything(repeat_seed, use_cuda=use_cuda)
-        _sync(device)
-        reference_started = time.perf_counter()
-        reference_score = streamed_reference_score(
+    reference_seed = stable_seed(spec.key, "reference_hmc")
+    seed_everything(reference_seed, use_cuda=use_cuda)
+    _sync(device)
+    reference_started = time.perf_counter()
+    reference_scores, reference_diagnostics = (
+        posterior_hmc_reference_scores(
             runner.vi_model,
             z,
-            reverse_batch_size=reverse_batch_size,
-            num_batches=reference_batches,
+            generating_epsilon,
+            total_samples=reference_total_samples,
+            num_chains=reference_num_chains,
+            burn_in_steps=int(reference_cfg.burn_in_steps),
+            thinning=int(reference_cfg.thinning),
+            step_size=float(reference_cfg.step_size),
+            leapfrog_steps=int(reference_cfg.leapfrog_steps),
+            init_jitter_scale=float(reference_cfg.init_jitter_scale),
+            adapt_step_size=bool(reference_cfg.adapt_step_size),
+            target_acceptance=float(reference_cfg.target_acceptance),
+            adaptation_rate=float(reference_cfg.adaptation_rate),
+            min_step_size=float(reference_cfg.min_step_size),
+            max_step_size=float(reference_cfg.max_step_size),
+            divergence_threshold=float(
+                reference_cfg.divergence_threshold
+            ),
             accumulator_dtype=accumulator_dtype,
         )
-        _sync(device)
-        reference_runtimes.append(
-            time.perf_counter() - reference_started
-        )
-        reference_scores.append(reference_score)
+    )
+    _sync(device)
+    reference_runtime = time.perf_counter() - reference_started
+    reference_replicate_runtimes = [
+        reference_runtime / reference_num_chains
+    ] * reference_num_chains
 
-    stacked_reference = torch.stack(reference_scores, dim=0)
-    metrics = compute_score_metrics(method_score, stacked_reference)
-    total_runtime = method_runtime + sum(reference_runtimes)
+    metrics = compute_score_metrics(method_score, reference_scores)
+    total_runtime = method_runtime + reference_runtime
 
     gpu_name = ""
     if use_cuda:
@@ -734,25 +1084,28 @@ def evaluate_cell(
         "epoch": spec.epoch,
         "checkpoint_dir": spec.checkpoint_dir.as_posix(),
         "forward_batch_size": forward_count,
-        "reference_reverse_batch_size": reverse_batch_size,
-        "reference_num_batches": reference_batches,
-        "reference_total_auxiliaries": (
-            reverse_batch_size * reference_batches
-        ),
-        "reference_repeats": reference_repeats,
+        "reference_estimator": reference_estimator,
+        "reference_total_samples": reference_total_samples,
+        "reference_num_chains": reference_num_chains,
+        "reference_samples_per_chain": reference_samples_per_chain,
+        "reference_repeats": reference_num_chains,
+        "reference_replication_unit": "hmc_chain",
         "accumulator_dtype": str(accumulator_dtype),
         "forward_seed": forward_seed,
         "method_seed": method_seed,
-        "reference_seeds": reference_seeds,
+        "reference_seed": reference_seed,
         "method_runtime_sec": method_runtime,
         "method_status": method_status,
         "method_error": method_error,
-        "reference_runtime_sec": sum(reference_runtimes),
-        "reference_repeat_runtime_sec": reference_runtimes,
+        "reference_runtime_sec": reference_runtime,
+        "reference_repeat_runtime_sec": reference_replicate_runtimes,
         "total_runtime_sec": total_runtime,
         "device": str(device),
         "gpu_name": gpu_name,
-        "diagnostics": diagnostics,
+        "diagnostics": {
+            **method_diagnostics,
+            **reference_diagnostics,
+        },
         **metrics,
         "completed_at": utc_now(),
     }
@@ -849,7 +1202,6 @@ def _flatten_cell(record: dict[str, Any]) -> dict[str, Any]:
     excluded = {
         "reference_repeat_internal_l2",
         "reference_repeat_runtime_sec",
-        "reference_seeds",
         "diagnostics",
     }
     row = {
@@ -959,8 +1311,10 @@ def _write_markdown_table(
         "# Score-Approximation Analysis",
         "",
         "All values are mean ± sample standard deviation across seeds 42–46.",
+        "The reference internal L2 is calculated across posterior-HMC chain "
+        "means.",
         "",
-        "| Target | Method | Stage | Epoch | Method L2 | Reference internal L2 |",
+        "| Target | Method | Stage | Epoch | Method L2 | HMC-chain internal L2 |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for row in summary_rows:
@@ -993,7 +1347,7 @@ def _write_latex_table(
     lines = [
         r"\begin{tabular}{llrrcc}",
         r"\toprule",
-        r"Target & Method & Stage & Epoch & Method L2 & Internal L2 \\",
+        r"Target & Method & Stage & Epoch & Method L2 & HMC-chain L2 \\",
         r"\midrule",
     ]
     for row in summary_rows:
@@ -1070,9 +1424,10 @@ def aggregate_results(
     for record in records:
         repeat_l2 = record["reference_repeat_internal_l2"]
         repeat_runtime = record["reference_repeat_runtime_sec"]
-        repeat_seeds = record["reference_seeds"]
-        for index, (value, runtime, seed) in enumerate(
-            zip(repeat_l2, repeat_runtime, repeat_seeds, strict=True)
+        reference_seed = int(record["reference_seed"])
+        replication_unit = str(record["reference_replication_unit"])
+        for index, (value, runtime) in enumerate(
+            zip(repeat_l2, repeat_runtime, strict=True)
         ):
             repeat_rows.append({
                 "run_id": record["run_id"],
@@ -1082,7 +1437,9 @@ def aggregate_results(
                 "progress": record["progress"],
                 "epoch": record["epoch"],
                 "repeat": index,
-                "reference_seed": seed,
+                "chain": index,
+                "replication_unit": replication_unit,
+                "reference_seed": reference_seed,
                 "reference_internal_l2": value,
                 "runtime_sec": runtime,
             })

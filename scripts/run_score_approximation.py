@@ -66,20 +66,39 @@ def main(argv: list[str] | None = None) -> int:
     fingerprint = config_fingerprint(cfg)
     if args.dry_run:
         reference = cfg.evaluation.reference
-        per_z = int(reference.reverse_batch_size) * int(
-            reference.num_batches
+        total_samples = int(reference.total_samples)
+        num_chains = int(reference.num_chains)
+        if total_samples % num_chains != 0:
+            raise ValueError(
+                "reference.total_samples must be divisible by "
+                "reference.num_chains."
+            )
+        draws_per_chain = total_samples // num_chains
+        transitions = int(reference.burn_in_steps) + (
+            draws_per_chain * int(reference.thinning)
         )
-        pair_evaluations = (
+        state_transitions = (
             len(specs)
             * int(cfg.evaluation.forward_batch_size)
-            * per_z
-            * int(reference.repeats)
+            * num_chains
+            * transitions
+        )
+        gradient_point_evaluations = state_transitions * (
+            int(reference.leapfrog_steps) + 1
         )
         print(f"analysis_fingerprint={fingerprint}")
         print(f"runs={len({cell.record.run_id for cell in specs})}")
         print(f"cells={len(specs)}")
-        print(f"reference_auxiliaries_per_z_repeat={per_z}")
-        print(f"reference_conditional_pair_evaluations={pair_evaluations}")
+        print(f"reference_estimator={reference.estimator}")
+        print(f"reference_total_samples_per_z={total_samples}")
+        print(f"reference_chains={num_chains}")
+        print(f"reference_samples_per_chain={draws_per_chain}")
+        print(f"reference_transitions_per_chain={transitions}")
+        print(f"hmc_state_transitions={state_transitions}")
+        print(
+            "hmc_gradient_point_evaluations="
+            f"{gradient_point_evaluations}"
+        )
         return 0
 
     completed, summaries = run_analysis(

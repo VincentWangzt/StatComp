@@ -19,10 +19,12 @@ from finalization.score_approximation import (
     cell_record_path,
     compute_score_metrics,
     diagonal_gaussian_mixture_block,
+    gelman_rubin_rhat,
     mixture_block_summary,
     native_aisivi_score,
     native_sivi_score,
     pending_cell_specs,
+    posterior_hmc_reference_scores,
     select_progress_checkpoints,
     streamed_reference_score,
 )
@@ -61,6 +63,49 @@ class FakeReverse:
             raise AssertionError("Unexpected sample count")
         z_aux = z.unsqueeze(1).expand(-1, num_samples, -1)
         return z_aux, self.epsilon, self.log_prob_value
+
+
+class LinearGaussianVI(torch.nn.Module):
+    """One-dimensional model with an analytic epsilon posterior."""
+
+    def __init__(self, conditional_variance: float = 0.5) -> None:
+        super().__init__()
+        self.conditional_variance = conditional_variance
+        self.epsilon_dim = 1
+
+    def log_q_epsilon(self, epsilon: torch.Tensor) -> torch.Tensor:
+        return -0.5 * (
+            torch.log(
+                torch.tensor(
+                    2.0 * torch.pi,
+                    dtype=epsilon.dtype,
+                    device=epsilon.device,
+                )
+            )
+            + epsilon.square().sum(dim=-1)
+        )
+
+    def logp(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        variance = torch.as_tensor(
+            self.conditional_variance,
+            dtype=z.dtype,
+            device=z.device,
+        )
+        return -0.5 * (
+            torch.log(2.0 * torch.pi * variance)
+            + ((z - epsilon).square() / variance).sum(dim=-1)
+        )
+
+    def score(
+        self,
+        z: torch.Tensor,
+        epsilon: torch.Tensor,
+    ) -> torch.Tensor:
+        return -(z - epsilon) / self.conditional_variance
 
 
 class ScoreApproximationTest(unittest.TestCase):
@@ -116,6 +161,115 @@ class ScoreApproximationTest(unittest.TestCase):
             rtol=1.0e-10,
             atol=1.0e-10,
         )
+
+    def test_posterior_hmc_recovers_linear_gaussian_score(self) -> None:
+        torch.manual_seed(321)
+        model = LinearGaussianVI().to(dtype=torch.float64)
+        z = torch.tensor(
+            [[-1.5], [-0.5], [0.5], [1.5]],
+            dtype=torch.float64,
+        )
+        posterior_variance = 0.5 / 1.5
+        posterior_mean = z / 1.5
+        generating_epsilon = (
+            posterior_mean
+            + posterior_variance**0.5 * torch.randn_like(z)
+        )
+        chain_scores, diagnostics = posterior_hmc_reference_scores(
+            model,
+            z,
+            generating_epsilon,
+            total_samples=800,
+            num_chains=4,
+            burn_in_steps=100,
+            thinning=1,
+            step_size=0.1,
+            leapfrog_steps=5,
+            init_jitter_scale=0.1,
+            adapt_step_size=True,
+            target_acceptance=0.8,
+            adaptation_rate=0.1,
+            min_step_size=0.01,
+            max_step_size=0.2,
+            divergence_threshold=1000.0,
+            accumulator_dtype=torch.float64,
+        )
+        expected = -z / 1.5
+        actual = chain_scores.mean(dim=0)
+        torch.testing.assert_close(
+            actual,
+            expected,
+            rtol=0.0,
+            atol=0.16,
+        )
+        self.assertEqual(tuple(chain_scores.shape), (4, 4, 1))
+        self.assertGreater(
+            diagnostics["hmc_post_burn_acceptance_rate"],
+            0.6,
+        )
+        self.assertLess(
+            diagnostics["hmc_score_rhat_p95"],
+            1.2,
+        )
+        self.assertEqual(diagnostics["hmc_divergence_fraction"], 0.0)
+
+    def test_posterior_hmc_rejects_nondivisible_sample_budget(self) -> None:
+        model = LinearGaussianVI().to(dtype=torch.float64)
+        z = torch.zeros(2, 1, dtype=torch.float64)
+        with self.assertRaisesRegex(ValueError, "divisible"):
+            posterior_hmc_reference_scores(
+                model,
+                z,
+                z.clone(),
+                total_samples=101,
+                num_chains=4,
+                burn_in_steps=1,
+                thinning=1,
+                step_size=0.05,
+                leapfrog_steps=1,
+                init_jitter_scale=0.0,
+                adapt_step_size=False,
+                target_acceptance=0.8,
+                adaptation_rate=0.0,
+                min_step_size=0.01,
+                max_step_size=0.1,
+                divergence_threshold=1000.0,
+            )
+
+    def test_posterior_hmc_conditional_gaussian_cpu_smoke(self) -> None:
+        model = make_model(dtype=torch.float32)
+        generating_epsilon, z = model.sampling(num=8)
+        chain_scores, diagnostics = posterior_hmc_reference_scores(
+            model,
+            z,
+            generating_epsilon,
+            total_samples=40,
+            num_chains=4,
+            burn_in_steps=5,
+            thinning=1,
+            step_size=0.02,
+            leapfrog_steps=2,
+            init_jitter_scale=0.01,
+            adapt_step_size=True,
+            target_acceptance=0.8,
+            adaptation_rate=0.1,
+            min_step_size=0.001,
+            max_step_size=0.05,
+            divergence_threshold=1000.0,
+            accumulator_dtype=torch.float64,
+        )
+        self.assertEqual(tuple(chain_scores.shape), (4, 8, 2))
+        self.assertTrue(torch.isfinite(chain_scores).all())
+        self.assertTrue(
+            0.0 <= diagnostics["hmc_acceptance_rate"] <= 1.0
+        )
+
+    def test_rhat_detects_shifted_chain(self) -> None:
+        stable = torch.randn(2, 4, 100, 1, dtype=torch.float64)
+        shifted = stable.clone()
+        shifted[:, 0] += 4.0
+        self.assertLess(float(gelman_rubin_rhat(stable).max()), 1.1)
+        self.assertGreater(float(gelman_rubin_rhat(shifted).min()), 2.0)
 
     def test_native_sivi_score_matches_training_mixture_autograd(self) -> None:
         model = make_model()

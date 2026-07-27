@@ -34,7 +34,7 @@ Use these scripts for the current workflow:
 | --- | --- | --- |
 | `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid and independent variants based on those configs. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--variant`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
-| `run_score_approximation.py` | Compares native checkpoint score approximations with a streamed high-budget marginal-score reference. | `--config`, `--set`, `--dry-run`, `--limit`, `--resume/--no-resume`, `--aggregate-only` |
+| `run_score_approximation.py` | Compares native checkpoint score approximations with a multi-chain posterior-HMC marginal-score reference. | `--config`, `--set`, `--dry-run`, `--limit`, `--resume/--no-resume`, `--aggregate-only` |
 | `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
 ## Examples
@@ -122,7 +122,10 @@ python scripts/run_finalization.py \
 
 Validate and run the score-approximation study. The production configuration
 selects SIVI/UIVI/AISIVI/DSIVI, the `x_shaped` and `8_gaussians` targets,
-seeds 42--46, and five checkpoint stages:
+seeds 42--46, and five checkpoint stages. For every fixed `z`, the reference
+targets `q_phi(epsilon | z)` with ten HMC chains and averages 1,000 retained
+posterior samples. Chain-level score means provide the ten internal-L2
+replicates:
 
 ```
 python scripts/run_score_approximation.py --dry-run
