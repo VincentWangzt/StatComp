@@ -1,0 +1,57 @@
+{
+  "analysis_fingerprint": "a94b2f384176aef7190c8812ae363adc5478387b42c70450a4b684e21fe7531e",
+  "completed_cells": 200,
+  "config": {
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "num_batches": 100,
+        "repeats": 10,
+        "reverse_batch_size": 1024
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_approximation",
+      "runtime_dir": "results/default_config_grid/score_approximation",
+      "scratch_results_dir": "results/default_config_grid/score_approximation/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_approximation/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0
+      ],
+      "methods": [
+        "SIVI",
+        "UIVI",
+        "AISIVI",
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "targets": [
+        "x_shaped",
+        "8_gaussians"
+      ]
+    }
+  },
+  "expected_cells": 200,
+  "generated_at": "2026-07-27T07:59:07.518127+00:00",
+  "git_commit": "049cc99cfa81f45ca09bb8691f5736a90b2e6fd8",
+  "native_score_failures": 4,
+  "summary_rows": 40
+}
