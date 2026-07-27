@@ -123,10 +123,12 @@ python scripts/run_finalization.py \
 Validate and run the score-approximation study. The production configuration
 selects SIVI/UIVI/AISIVI/DSIVI, the `x_shaped` and `8_gaussians` targets,
 seeds 42--46, and five checkpoint stages. For every fixed `z`, the reference
-targets `q_phi(epsilon | z)` with ten HMC chains and averages 1,000 retained
-posterior samples. Chain-level score means provide the ten internal-L2
-replicates. The report places the training-style method-to-target L2 next to
-the method-to-HMC-reference L2 and renders sampler-diagnostic figures:
+targets `q_phi(epsilon | z)` with ten HMC chains and retains 1,000 posterior
+samples per chain after 500 warm-up transitions. Chain-level score means
+provide the ten internal-L2 replicates. The report places the training-style
+method-to-target L2 next to the method-to-HMC-reference L2 and renders
+sampler-diagnostic figures. Quality-threshold misses are retained and flagged
+rather than silently discarded:
 
 ```
 python scripts/run_score_approximation.py --dry-run

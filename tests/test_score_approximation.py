@@ -14,6 +14,7 @@ from finalization.score_approximation import (
     CellSpec,
     _summary_rows,
     _write_csv,
+    assess_hmc_reference_quality,
     atomic_write_json,
     autograd_mixture_score,
     cell_record_path,
@@ -271,6 +272,29 @@ class ScoreApproximationTest(unittest.TestCase):
         shifted[:, 0] += 4.0
         self.assertLess(float(gelman_rubin_rhat(stable).max()), 1.1)
         self.assertGreater(float(gelman_rubin_rhat(shifted).min()), 2.0)
+
+    def test_hmc_quality_checks_warn_without_dropping_metrics(self) -> None:
+        quality = OmegaConf.create({
+            "max_divergence_fraction": 0.01,
+            "max_score_rhat_p95": 1.1,
+            "max_epsilon_rhat_p95": 2.0,
+            "min_post_burn_acceptance_rate": 0.6,
+            "min_worst_chain_acceptance_rate": 0.05,
+        })
+        diagnostics = {
+            "hmc_divergence_fraction": 0.0,
+            "hmc_score_rhat_p95": 1.2,
+            "hmc_epsilon_rhat_p95": 1.5,
+            "hmc_post_burn_acceptance_rate": 0.8,
+            "hmc_post_burn_acceptance_min": 0.1,
+        }
+        status, issues = assess_hmc_reference_quality(
+            diagnostics,
+            quality,
+        )
+        self.assertEqual(status, "warning")
+        self.assertEqual(len(issues), 1)
+        self.assertIn("hmc_score_rhat_p95", issues[0])
 
     def test_native_sivi_score_matches_training_mixture_autograd(self) -> None:
         model = make_model()

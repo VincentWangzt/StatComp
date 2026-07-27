@@ -433,6 +433,57 @@ def _finite_tensor_summary(
     return result
 
 
+def assess_hmc_reference_quality(
+    diagnostics: dict[str, Any],
+    quality_cfg: DictConfig,
+) -> tuple[str, list[str]]:
+    """Apply configured sampler-quality checks without discarding a cell."""
+    checks = [
+        (
+            "hmc_divergence_fraction",
+            "<=",
+            float(quality_cfg.max_divergence_fraction),
+        ),
+        (
+            "hmc_score_rhat_p95",
+            "<=",
+            float(quality_cfg.max_score_rhat_p95),
+        ),
+        (
+            "hmc_epsilon_rhat_p95",
+            "<=",
+            float(quality_cfg.max_epsilon_rhat_p95),
+        ),
+        (
+            "hmc_post_burn_acceptance_rate",
+            ">=",
+            float(quality_cfg.min_post_burn_acceptance_rate),
+        ),
+        (
+            "hmc_post_burn_acceptance_min",
+            ">=",
+            float(quality_cfg.min_worst_chain_acceptance_rate),
+        ),
+    ]
+    issues: list[str] = []
+    for key, operator, threshold in checks:
+        value = diagnostics.get(key)
+        if value is None or not math.isfinite(float(value)):
+            issues.append(f"{key}=nonfinite")
+            continue
+        numeric = float(value)
+        passed = (
+            numeric <= threshold
+            if operator == "<="
+            else numeric >= threshold
+        )
+        if not passed:
+            issues.append(
+                f"{key}={numeric:.6g} {operator} {threshold:.6g} failed"
+            )
+    return ("pass" if not issues else "warning"), issues
+
+
 def posterior_hmc_reference_scores(
     vi_model: torch.nn.Module,
     z: torch.Tensor,
@@ -1121,6 +1172,12 @@ def evaluate_cell(
     reference_replicate_runtimes = [
         reference_runtime / reference_num_chains
     ] * reference_num_chains
+    reference_quality_status, reference_quality_issues = (
+        assess_hmc_reference_quality(
+            reference_diagnostics,
+            reference_cfg.quality,
+        )
+    )
 
     with torch.no_grad():
         target_score = runner.target_model.score(z).detach()
@@ -1152,6 +1209,8 @@ def evaluate_cell(
         "reference_samples_per_chain": reference_samples_per_chain,
         "reference_repeats": reference_num_chains,
         "reference_replication_unit": "hmc_chain",
+        "reference_quality_status": reference_quality_status,
+        "reference_quality_issues": reference_quality_issues,
         "accumulator_dtype": str(accumulator_dtype),
         "forward_seed": forward_seed,
         "method_seed": method_seed,
@@ -1349,6 +1408,14 @@ def _summary_rows(
             "reference_internal_l2_sd": internal_sd,
             "reference_mean_mcse_l2_mean": mcse_mean,
             "reference_mean_mcse_l2_sd": mcse_sd,
+            "reference_quality_n_pass": sum(
+                item.get("reference_quality_status") == "pass"
+                for item in items
+            ),
+            "reference_quality_n_warning": sum(
+                item.get("reference_quality_status") != "pass"
+                for item in items
+            ),
             "method_runtime_sec_mean": float(
                 np.mean(
                     [float(item["method_runtime_sec"]) for item in items]
@@ -1961,6 +2028,10 @@ def aggregate_results(
         "summary_rows": len(summary_rows),
         "native_score_failures": sum(
             record.get("method_status", "ok") != "ok"
+            for record in records
+        ),
+        "reference_quality_warnings": sum(
+            record.get("reference_quality_status") != "pass"
             for record in records
         ),
         "figures": [

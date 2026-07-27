@@ -13,20 +13,26 @@ evaluation:
   aisivi_z_chunk_size: 128
   reference:
     estimator: posterior_hmc
-    total_samples: 1000
+    total_samples: 10000
     num_chains: 10
-    burn_in_steps: 100
+    burn_in_steps: 500
     thinning: 1
-    step_size: 0.02
+    step_size: 0.002
     leapfrog_steps: 20
     init_jitter_scale: 0.01
     adapt_step_size: true
-    target_acceptance: 0.8
-    adaptation_rate: 0.15
-    min_step_size: 0.0005
-    max_step_size: 0.05
+    target_acceptance: 0.9
+    adaptation_rate: 0.3
+    min_step_size: 0.00001
+    max_step_size: 0.01
     divergence_threshold: 1000.0
     accumulator_dtype: float64
+    quality:
+      max_divergence_fraction: 0.01
+      max_score_rhat_p95: 1.1
+      max_epsilon_rhat_p95: 2.0
+      min_post_burn_acceptance_rate: 0.6
+      min_worst_chain_acceptance_rate: 0.05
 
 output:
   runtime_dir: results/default_config_grid/score_approximation

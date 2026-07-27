@@ -43,9 +43,12 @@ python -u scripts/run_score_approximation.py
 Its defaults are defined in
 `configs/finalization/score_approximation.yaml`. The reference sampler uses
 posterior HMC for `q_phi(epsilon | z)`, initialized from each fixed sample's
-generating epsilon. Its ten chain means form the reference replicates, and the
-reports include the training-style method-to-target comparison, log-scale
-figures, and acceptance, step-size, divergence, and R-hat diagnostics.
+generating epsilon. Each of ten chains retains 1,000 samples after 500 warm-up
+transitions. The ten chain means form the reference replicates, and the reports
+include the training-style method-to-target comparison, log-scale figures, and
+acceptance, step-size, divergence, and R-hat diagnostics. Cells that miss the
+configured sampler-quality thresholds remain resumable records but are marked
+with a reference-quality warning.
 Runtime cell metrics remain under
 `results/default_config_grid/score_approximation/`; aggregate CSV, Markdown,
 LaTeX, and metadata files are generated under
