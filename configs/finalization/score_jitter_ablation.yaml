@@ -1,0 +1,43 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [DSIVI]
+  targets: [8_gaussians]
+  seeds: [42, 43, 44]
+  checkpoint_progress: [1.0]
+
+ablation:
+  jitter_scales: [0.0, 0.0001, 0.001, 0.01]
+
+evaluation:
+  device: cuda
+  forward_batch_size: 1024
+  aisivi_z_chunk_size: 128
+  reference:
+    estimator: posterior_hmc
+    total_samples: 10000
+    num_chains: 10
+    burn_in_steps: 500
+    thinning: 1
+    step_size: 0.002
+    leapfrog_steps: 20
+    adapt_step_size: true
+    target_acceptance: 0.9
+    adaptation_rate: 0.3
+    min_step_size: 0.00001
+    max_step_size: 0.01
+    divergence_threshold: 1000.0
+    accumulator_dtype: float64
+    quality:
+      max_divergence_fraction: 0.01
+      max_score_rhat_p95: 1.1
+      max_epsilon_rhat_p95: 2.0
+      min_post_burn_acceptance_rate: 0.6
+      min_worst_chain_acceptance_rate: 0.05
+
+output:
+  runtime_dir: results/default_config_grid/score_jitter_ablation
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/score_jitter_ablation
+  scratch_results_dir: results/default_config_grid/score_jitter_ablation/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/score_jitter_ablation/scratch

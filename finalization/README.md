@@ -53,3 +53,21 @@ Runtime cell metrics remain under
 `results/default_config_grid/score_approximation/`; aggregate CSV, Markdown,
 LaTeX, and metadata files are generated under
 `campaigns/default_config_grid/generated_reports/finalization/score_approximation/`.
+
+### HMC initialization-jitter ablation
+
+The focused jitter ablation uses DSIVI on `8_gaussians` at epoch 10,000 and
+seeds 42--44:
+
+```bash
+python scripts/run_score_jitter_ablation.py --dry-run
+python -u scripts/run_score_jitter_ablation.py
+```
+
+It evaluates jitter scales 0, 1e-4, 1e-3, and 1e-2 with the production HMC
+budget. Forward samples and all HMC random draws are common across scales, so
+the resulting differences isolate chain initialization. In addition to the
+method-to-HMC and internal L2 metrics, it reports pairwise L2 distances between
+the four HMC reference means. Runtime records are resumable by seed under
+`results/default_config_grid/score_jitter_ablation/`; aggregate tables and
+figures are written to the matching finalization report directory.

@@ -553,10 +553,14 @@ def posterior_hmc_reference_scores(
         num_chains,
         epsilon_dim,
     ).clone()
-    if init_jitter_scale:
-        jitter = torch.randn_like(epsilon_current) * init_jitter_scale
-        jitter[:, 0, :].zero_()
-        epsilon_current = epsilon_current + jitter
+    # Always consume the jitter draw, including when its scale is zero.  This
+    # permits controlled initialization ablations to use common random numbers
+    # for all subsequent HMC momenta and accept/reject uniforms.
+    jitter = torch.randn_like(epsilon_current)
+    jitter[:, 0, :].zero_()
+    epsilon_current = (
+        epsilon_current + jitter * init_jitter_scale
+    )
 
     log_step = torch.full(
         (batch_size, num_chains, 1),

@@ -266,6 +266,36 @@ class ScoreApproximationTest(unittest.TestCase):
             0.0 <= diagnostics["hmc_acceptance_rate"] <= 1.0
         )
 
+    def test_hmc_jitter_scales_consume_identical_rng_budget(self) -> None:
+        model = LinearGaussianVI().to(dtype=torch.float64)
+        z = torch.tensor([[-0.5], [0.5]], dtype=torch.float64)
+        kwargs = {
+            "total_samples": 4,
+            "num_chains": 2,
+            "burn_in_steps": 1,
+            "thinning": 1,
+            "step_size": 0.05,
+            "leapfrog_steps": 1,
+            "adapt_step_size": False,
+            "target_acceptance": 0.8,
+            "adaptation_rate": 0.0,
+            "min_step_size": 0.01,
+            "max_step_size": 0.1,
+            "divergence_threshold": 1000.0,
+        }
+        states = []
+        for jitter_scale in (0.0, 0.1):
+            torch.manual_seed(999)
+            posterior_hmc_reference_scores(
+                model,
+                z,
+                z.clone(),
+                init_jitter_scale=jitter_scale,
+                **kwargs,
+            )
+            states.append(torch.get_rng_state())
+        torch.testing.assert_close(states[0], states[1])
+
     def test_rhat_detects_shifted_chain(self) -> None:
         stable = torch.randn(2, 4, 100, 1, dtype=torch.float64)
         shifted = stable.clone()

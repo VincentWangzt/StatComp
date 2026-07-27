@@ -35,6 +35,7 @@ Use these scripts for the current workflow:
 | `run_default_config_grid_sweep.py` | Dynamic GPU scheduler for the default `<method>_<target>` grid and independent variants based on those configs. | `--campaign-slug`, `--results-dir`, `--tb-dir`, `--seeds`, `--methods`, `--exclude-methods`, `--targets`, `--variant`, `--gpus`, `--limit`, `--dry-run`, `--resume/--no-resume`, `--retry-failed`, `--rerun-stale`, `--hash-existing-artifacts`, `--poll-interval`, `--extra-override`, finalization knobs |
 | `run_finalization.py` | Runs final evaluation, figures, and tables for the default campaign. | `--config`, `--set`, `--only` |
 | `run_score_approximation.py` | Compares native checkpoint score approximations with a multi-chain posterior-HMC marginal-score reference. | `--config`, `--set`, `--dry-run`, `--limit`, `--resume/--no-resume`, `--aggregate-only` |
+| `run_score_jitter_ablation.py` | Measures DSIVI/8-Gaussians posterior-HMC score sensitivity to chain-initialization jitter with common random numbers. | `--config`, `--set`, `--dry-run`, `--limit`, `--resume/--no-resume`, `--aggregate-only` |
 | `fetch_grid_benchmark_artifacts.py` | Fetches compact runtime metadata for inspection only; not the primary workflow for final figures/tables. | `--host`, `--port`, `--remote-repo`, `--campaign-slug`, `--remote-artifact-root` |
 
 ## Examples
@@ -138,6 +139,17 @@ python -u scripts/run_score_approximation.py
 Cell records are resumable under
 `results/default_config_grid/score_approximation/`. Final CSV, Markdown, and
 LaTeX reports are written under the default finalization report directory.
+
+Run the three-seed DSIVI/8-Gaussians initialization-jitter ablation with:
+
+```
+python scripts/run_score_jitter_ablation.py --dry-run
+python -u scripts/run_score_jitter_ablation.py
+```
+
+The four jitter settings reuse the same fixed `z` samples, momenta, and
+accept/reject uniforms. Its report includes pairwise HMC-reference L2 distances
+to distinguish a changed reference mean from chain-level internal dispersion.
 
 ## Utility Scripts
 
