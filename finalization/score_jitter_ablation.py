@@ -398,6 +398,7 @@ def _metric_text(mean: float, sd: float) -> str:
 
 def _write_markdown(
     report_dir: Path,
+    jitter_rows: list[dict[str, Any]],
     jitter_summary: list[dict[str, Any]],
     pairwise_summary: list[dict[str, Any]],
 ) -> None:
@@ -461,6 +462,50 @@ def _write_markdown(
         "it only has a literal MCSE interpretation for independent, "
         "equally distributed chain means.",
         "",
+        "## Seed-level metrics",
+        "",
+        "| Seed | Jitter | Method–HMC L2 | Internal L2 | "
+        "HMC score energy | Internal / energy | Method–target L2 | "
+        "HMC–target L2 | Score R-hat p95 | Acceptance |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ])
+    for row in sorted(
+        jitter_rows,
+        key=lambda value: (
+            int(value["seed"]),
+            float(value["jitter_scale"]),
+        ),
+    ):
+        score_energy = float(row["reference_mean_score_sq_norm"])
+        relative_internal = (
+            float(row["reference_internal_l2"])
+            / max(score_energy, np.finfo(np.float64).eps)
+        )
+        lines.append(
+            "| {seed} | {jitter:.1e} | {method:.4e} | "
+            "{internal:.4e} | {energy:.4e} | {relative:.2%} | "
+            "{method_target:.4e} | {target:.4e} | {rhat:.4f} | "
+            "{acceptance:.3f} |".format(
+                seed=int(row["seed"]),
+                jitter=float(row["jitter_scale"]),
+                method=float(row["method_l2"]),
+                internal=float(row["reference_internal_l2"]),
+                energy=score_energy,
+                relative=relative_internal,
+                method_target=float(row["method_target_l2"]),
+                target=float(row["reference_target_l2"]),
+                rhat=float(
+                    row["diagnostic_hmc_score_rhat_p95"]
+                ),
+                acceptance=float(
+                    row[
+                        "diagnostic_hmc_post_burn_acceptance_rate"
+                    ]
+                ),
+            )
+        )
+    lines.extend([
+        "",
         "## Pairwise HMC-reference sensitivity",
         "",
         "| Jitter A | Jitter B | Reference-mean L2 | RMS gap | "
@@ -500,6 +545,9 @@ def _render_plot(
     report_dir: Path,
     jitter_summary: list[dict[str, Any]],
     pairwise_summary: list[dict[str, Any]],
+    *,
+    jitter_rows: list[dict[str, Any]] | None = None,
+    pairwise_rows: list[dict[str, Any]] | None = None,
 ) -> list[Path]:
     import matplotlib
 
@@ -525,9 +573,16 @@ def _render_plot(
     figure, axes = plt.subplots(
         2,
         2,
-        figsize=(9.0, 6.8),
+        figsize=(9.6, 7.2),
         squeeze=False,
     )
+    seeds = sorted({
+        int(row["seed"]) for row in (jitter_rows or [])
+    })
+    color_map = {
+        seed: plt.get_cmap("tab10")(index)
+        for index, seed in enumerate(seeds)
+    }
     for axis, (metric, title, log_scale) in zip(
         axes.reshape(-1)[:3],
         panels,
@@ -537,25 +592,63 @@ def _render_plot(
             float(row[f"{metric}_mean"])
             for row in jitter_summary
         ])
-        sd = np.asarray([
-            float(row[f"{metric}_sd"])
-            for row in jitter_summary
-        ])
-        axis.errorbar(
-            x,
-            mean,
-            yerr=sd,
-            marker="o",
-            linewidth=1.8,
-            capsize=3,
-            color="#2f6f9f",
-        )
+        if jitter_rows:
+            for seed in seeds:
+                selected = {
+                    float(row["jitter_scale"]): row
+                    for row in jitter_rows
+                    if int(row["seed"]) == seed
+                }
+                axis.plot(
+                    x,
+                    [
+                        float(
+                            selected[
+                                float(summary["jitter_scale"])
+                            ][metric]
+                        )
+                        for summary in jitter_summary
+                    ],
+                    marker="o",
+                    linewidth=1.4,
+                    color=color_map[seed],
+                    label=f"seed {seed}",
+                )
+            axis.plot(
+                x,
+                mean,
+                marker="D",
+                linewidth=2.0,
+                linestyle="--",
+                color="#222222",
+                label="mean",
+            )
+        else:
+            sd = np.asarray([
+                float(row[f"{metric}_sd"])
+                for row in jitter_summary
+            ])
+            axis.errorbar(
+                x,
+                mean,
+                yerr=sd,
+                marker="o",
+                linewidth=1.8,
+                capsize=3,
+                color="#2f6f9f",
+            )
         if log_scale:
             axis.set_yscale("log")
         axis.set_title(title)
         axis.set_xticks(x, labels)
         axis.set_xlabel("Initialization jitter scale")
         axis.grid(True, which="both", alpha=0.25)
+    if seeds:
+        axes[0, 0].legend(
+            fontsize=8,
+            ncol=2,
+            frameon=False,
+        )
     axes[1, 0].axhline(
         1.1,
         color="#555555",
@@ -577,19 +670,50 @@ def _render_plot(
         float(row["reference_mean_l2_mean"])
         for row in zero_pairs
     ])
-    pair_sd = np.asarray([
-        float(row["reference_mean_l2_sd"])
-        for row in zero_pairs
-    ])
-    axis.errorbar(
-        pair_x,
-        pair_mean,
-        yerr=pair_sd,
-        marker="o",
-        linewidth=1.8,
-        capsize=3,
-        color="#b45f38",
-    )
+    if pairwise_rows:
+        for seed in seeds:
+            selected = {
+                float(row["jitter_b"]): row
+                for row in pairwise_rows
+                if int(row["seed"]) == seed
+                and float(row["jitter_a"]) == 0.0
+            }
+            axis.plot(
+                pair_x,
+                [
+                    float(
+                        selected[float(row["jitter_b"])][
+                            "reference_mean_l2"
+                        ]
+                    )
+                    for row in zero_pairs
+                ],
+                marker="o",
+                linewidth=1.4,
+                color=color_map[seed],
+            )
+        axis.plot(
+            pair_x,
+            pair_mean,
+            marker="D",
+            linewidth=2.0,
+            linestyle="--",
+            color="#222222",
+        )
+    else:
+        pair_sd = np.asarray([
+            float(row["reference_mean_l2_sd"])
+            for row in zero_pairs
+        ])
+        axis.errorbar(
+            pair_x,
+            pair_mean,
+            yerr=pair_sd,
+            marker="o",
+            linewidth=1.8,
+            capsize=3,
+            color="#b45f38",
+        )
     axis.set_yscale("log")
     axis.set_xticks(
         pair_x,
@@ -693,6 +817,7 @@ def aggregate_results(
     )
     _write_markdown(
         report_dir,
+        jitter_rows,
         jitter_summary,
         pairwise_summary,
     )
@@ -700,6 +825,8 @@ def aggregate_results(
         report_dir,
         jitter_summary,
         pairwise_summary,
+        jitter_rows=jitter_rows,
+        pairwise_rows=pairwise_rows,
     )
     metadata = {
         "analysis_fingerprint": fingerprint,

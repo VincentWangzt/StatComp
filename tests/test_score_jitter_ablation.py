@@ -183,9 +183,10 @@ class ScoreJitterAblationTest(unittest.TestCase):
         )
 
     def test_ablation_plot_renders(self) -> None:
+        jitter_scales = (0.0, 0.0001, 0.001, 0.01)
         jitter_summary = []
         for index, jitter_scale in enumerate(
-            (0.0, 0.0001, 0.001, 0.01),
+            jitter_scales,
             start=1,
         ):
             row = {"jitter_scale": jitter_scale}
@@ -209,11 +210,44 @@ class ScoreJitterAblationTest(unittest.TestCase):
                 start=1,
             )
         ]
+        jitter_rows = [
+            {
+                "seed": seed,
+                "jitter_scale": jitter_scale,
+                "method_l2": float(index * seed_index),
+                "reference_internal_l2": float(
+                    index * seed_index
+                ),
+                "diagnostic_hmc_score_rhat_p95": (
+                    1.0 + index * seed_index / 100.0
+                ),
+            }
+            for seed_index, seed in enumerate((42, 43, 44), start=1)
+            for index, jitter_scale in enumerate(
+                jitter_scales,
+                start=1,
+            )
+        ]
+        pairwise_rows = [
+            {
+                "seed": seed,
+                "jitter_a": 0.0,
+                "jitter_b": jitter_scale,
+                "reference_mean_l2": float(index * seed_index),
+            }
+            for seed_index, seed in enumerate((42, 43, 44), start=1)
+            for index, jitter_scale in enumerate(
+                (0.0001, 0.001, 0.01),
+                start=1,
+            )
+        ]
         with tempfile.TemporaryDirectory() as temp_dir:
             paths = _render_plot(
                 Path(temp_dir),
                 jitter_summary,
                 pairwise_summary,
+                jitter_rows=jitter_rows,
+                pairwise_rows=pairwise_rows,
             )
             self.assertEqual(len(paths), 2)
             self.assertTrue(
