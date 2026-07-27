@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import torch
-from finalization.artifacts import normalize_target
+from finalization.artifacts import RunRecord, normalize_target
 from omegaconf import OmegaConf
 
 from finalization.plots import langevin_panel_labels
-from finalization.runner_eval import constrained_w2, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
+from finalization.runner_eval import constrained_w2, prepare_config, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
 from finalization.tables import render_bnn_table, render_langevin_table, render_toy_method_grid
 
 
@@ -108,6 +109,7 @@ class FinalizationTests(unittest.TestCase):
             },
         ]
         [summary] = summarize(rows)
+        self.assertEqual(summary["variant"], "default")
         self.assertEqual(summary["seed_count"], 2)
         self.assertAlmostEqual(summary["elbo_mean"], 2.0)
         self.assertAlmostEqual(summary["elbo_se"], 1.0)
@@ -139,6 +141,54 @@ class FinalizationTests(unittest.TestCase):
         self.assertAlmostEqual(summary["elbo_mean"], 2.0)
         self.assertAlmostEqual(summary["wall_clock_sec_mean"], 22.0)
         self.assertAlmostEqual(summary["duration_sec_mean"], 22.0)
+
+    def test_summarize_keeps_scheduler_variants_separate(self) -> None:
+        rows = [
+            {"target": "banana", "method": "DSIVI", "variant": "baseline", "seed": 42, "elbo": 1.0},
+            {"target": "banana", "method": "DSIVI", "variant": "baseline", "seed": 43, "elbo": 3.0},
+            {"target": "banana", "method": "DSIVI", "variant": "reverse_steps_1", "seed": 42, "elbo": 5.0},
+            {"target": "banana", "method": "DSIVI", "variant": "reverse_steps_1", "seed": 43, "elbo": 7.0},
+        ]
+
+        summaries = {row["variant"]: row for row in summarize(rows)}
+
+        self.assertEqual(set(summaries), {"baseline", "reverse_steps_1"})
+        self.assertEqual(summaries["baseline"]["seed_count"], 2)
+        self.assertAlmostEqual(summaries["baseline"]["elbo_mean"], 2.0)
+        self.assertAlmostEqual(summaries["reverse_steps_1"]["elbo_mean"], 6.0)
+
+    def test_prepare_config_applies_manifest_overrides_and_seed(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        rec = RunRecord(
+            run_id="seed46_dsivi_banana_reverse_steps_1",
+            seed=46,
+            method="DSIVI",
+            target="banana",
+            runner_type="DSIVI",
+            config_path=repo_root / "configs" / "dsivi_banana.yaml",
+            result_path=repo_root / "results" / "unused",
+            duration_sec=None,
+            status="completed",
+            entry={
+                "variant": "reverse_steps_1",
+                "extra_overrides": [
+                    "train.reverse.epochs=1",
+                    "train.reverse.batch_size=512",
+                ],
+            },
+        )
+
+        cfg = prepare_config(
+            rec,
+            device="cpu",
+            scratch_results="results/test_finalization",
+            scratch_tb="tb_logs/test_finalization",
+        )
+
+        self.assertEqual(cfg.seed, 46)
+        self.assertEqual(cfg.train.reverse.epochs, 1)
+        self.assertEqual(cfg.train.reverse.batch_size, 512)
+        self.assertEqual(rec.variant, "reverse_steps_1")
 
     def test_toy_method_grid_filters_targets_methods_and_pools_training_time(self) -> None:
         rows = [

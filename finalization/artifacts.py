@@ -31,6 +31,11 @@ class RunRecord:
     status: str
     entry: dict[str, Any]
 
+    @property
+    def variant(self) -> str:
+        """Return the scheduler variant, with legacy manifests as ``default``."""
+        return str(self.entry.get("variant") or "default")
+
 
 def normalize_target(target: str) -> str:
     return TARGET_ALIASES.get(str(target), str(target))

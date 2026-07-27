@@ -42,3 +42,28 @@ python scripts/run_default_config_grid_sweep.py \
   --finalize-mode async \
   --finalize-workers 1
 ```
+
+## Checkpoint re-evaluation
+
+Re-evaluate every final checkpoint with the paper finalization protocol
+(ELBO: 5,000 model samples and 20 batches of 2,048 auxiliary samples; W2:
+10,000 samples and 5,000 projections):
+
+```bash
+python scripts/run_finalization.py \
+  --only evaluate \
+  --set campaign.slug=dsivi_reverse_axis_sweep_20260726 \
+  --set campaign.manifest_path=campaigns/dsivi_reverse_axis_sweep_20260726/manifest.json \
+  --set campaign.output_dir=campaigns/dsivi_reverse_axis_sweep_20260726/generated_reports/finalization \
+  --set campaign.scratch_results_dir=results/dsivi_reverse_axis_sweep_20260726/finalization_scratch \
+  --set campaign.scratch_tb_dir=tb_logs/dsivi_reverse_axis_sweep_20260726/finalization_scratch \
+  --set 'selection.seeds=[42,43,44,45,46]' \
+  --set 'selection.methods=[DSIVI]' \
+  --set 'selection.evaluation_targets=[banana]' \
+  --set evaluation.device=cuda \
+  --set evaluation.overwrite=true
+```
+
+The evaluator applies each manifest entry's overrides before constructing the
+runner and groups `reevaluation_summary.csv` by variant, so each row contains
+exactly the five seeds for one sweep setting.

@@ -137,6 +137,15 @@ def remove_file_handlers() -> None:
 
 def prepare_config(rec: RunRecord, *, device: str, scratch_results: str, scratch_tb: str):
     cfg = OmegaConf.load(rec.config_path)
+    extra_overrides = rec.entry.get("extra_overrides") or []
+    if isinstance(extra_overrides, str):
+        extra_overrides = [extra_overrides]
+    if extra_overrides:
+        cfg = OmegaConf.merge(
+            cfg,
+            OmegaConf.from_dotlist([str(item) for item in extra_overrides]),
+        )
+    cfg.seed = rec.seed
     cfg.config_path = rec.config_path.as_posix()
     if device == "cpu":
         resolved_device = "cpu"
@@ -365,6 +374,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
                         warning_callback=record_metric_warning(name),
                         warning_context={
                             "run_id": rec.run_id,
+                            "variant": rec.variant,
                             "method": rec.method,
                             "target": rec.target,
                             "metric": name,
@@ -387,6 +397,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
                         warning_callback=record_metric_warning(name),
                         warning_context={
                             "run_id": rec.run_id,
+                            "variant": rec.variant,
                             "method": rec.method,
                             "target": rec.target,
                             "metric": name,
@@ -421,6 +432,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
                 {
                     "run_id": rec.run_id,
                     "seed": rec.seed,
+                    "variant": rec.variant,
                     "method": rec.method,
                     "target": rec.target,
                     "metric": name,
@@ -434,6 +446,7 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
         summary = {
             "run_id": rec.run_id,
             "seed": rec.seed,
+            "variant": rec.variant,
             "method": rec.method,
             "target": rec.target,
             "checkpoint_epoch": ckpt_epoch,
@@ -455,12 +468,14 @@ def evaluate_one_run(rec: RunRecord, cfg: Any) -> tuple[dict[str, Any], list[dic
 
 
 def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
     for row in rows:
-        grouped.setdefault((row["target"], row["method"]), []).append(row)
+        variant = str(row.get("variant") or "default")
+        grouped.setdefault((row["target"], row["method"], variant), []).append(row)
     out: list[dict[str, Any]] = []
     excluded = {
         "seed",
+        "variant",
         "duration_sec",
         "wall_clock_sec",
         "training_time_sec",
@@ -475,10 +490,11 @@ def summarize(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if key not in excluded and _finite_float(value) is not None
         }
     )
-    for (target, method), items in sorted(grouped.items()):
+    for (target, method, variant), items in sorted(grouped.items()):
         summary: dict[str, Any] = {
             "target": target,
             "method": method,
+            "variant": variant,
             "seed_count": len({int(item["seed"]) for item in items}),
         }
         durations = [
@@ -561,6 +577,7 @@ def evaluate_langevin_sgld_baseline(cfg: Any) -> tuple[dict[str, Any], list[dict
     summary = {
         "run_id": "langevin_sgld_kde_baseline",
         "seed": int(sgld_cfg.get("seed", 0)),
+        "variant": "default",
         "method": "SGLD",
         "target": "Langevin_post",
         "checkpoint_epoch": "",
@@ -574,6 +591,7 @@ def evaluate_langevin_sgld_baseline(cfg: Any) -> tuple[dict[str, Any], list[dict
         {
             "run_id": summary["run_id"],
             "seed": summary["seed"],
+            "variant": "default",
             "method": "SGLD",
             "target": "Langevin_post",
             "metric": "kde_elm",
@@ -646,6 +664,7 @@ def warning_rows_from_run_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any
                 {
                     "run_id": row.get("run_id", ""),
                     "seed": row.get("seed", ""),
+                    "variant": row.get("variant", "default"),
                     "method": row.get("method", ""),
                     "target": row.get("target", ""),
                     "metric": metric,
@@ -657,22 +676,24 @@ def warning_rows_from_run_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any
 
 
 def summarize_warning_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
     for row in rows:
         grouped.setdefault(
             (
                 str(row.get("target", "")),
                 str(row.get("method", "")),
+                str(row.get("variant") or "default"),
                 str(row.get("metric", "")),
             ),
             [],
         ).append(row)
     out: list[dict[str, Any]] = []
-    for (target, method, metric), items in sorted(grouped.items()):
+    for (target, method, variant, metric), items in sorted(grouped.items()):
         out.append(
             {
                 "target": target,
                 "method": method,
+                "variant": variant,
                 "metric": metric,
                 "warning": "sampling process failed; edge-length fallback used",
                 "count": len(items),
@@ -697,9 +718,10 @@ def log_warning_summary(run_rows: list[dict[str, Any]]) -> None:
     logger.warning("Sampling process failed for %d constrained W2 metric(s).", len(warning_rows))
     for row in summary_rows:
         logger.warning(
-            "Sampling failure summary: target=%s method=%s metric=%s count=%s",
+            "Sampling failure summary: target=%s method=%s variant=%s metric=%s count=%s",
             row["target"],
             row["method"],
+            row["variant"],
             row["metric"],
             row["count"],
         )
