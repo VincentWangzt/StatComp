@@ -17,6 +17,7 @@ from finalization.score_approximation import (  # noqa: E402
     config_fingerprint,
     load_score_config,
     run_analysis,
+    select_cell_specs,
     shard_cell_specs,
 )
 
@@ -77,6 +78,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "after all shards finish."
         ),
     )
+    parser.add_argument(
+        "--cell-key",
+        dest="cell_keys",
+        action="append",
+        default=[],
+        help=(
+            "Evaluate only an exact cell key; repeat for multiple cells. "
+            "This runtime filter does not alter the analysis fingerprint."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -91,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
         shard_count=args.shard_count,
         shard_index=args.shard_index,
     )
+    cell_keys = set(args.cell_keys) or None
+    specs = select_cell_specs(specs, cell_keys)
     fingerprint = config_fingerprint(cfg)
     if args.dry_run:
         reference = cfg.evaluation.reference
@@ -141,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
         shard_count=args.shard_count,
         shard_index=args.shard_index,
         aggregate_after_run=not bool(args.worker_only),
+        cell_keys=cell_keys,
     )
     print(f"completed_cells={completed}")
     if summaries:

@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 from finalization.artifacts import RunRecord
 from finalization.score_approximation import (
     CellSpec,
+    _nonfinite_parameter_names,
     _summary_rows,
     _write_csv,
     assess_hmc_reference_quality,
@@ -28,6 +29,7 @@ from finalization.score_approximation import (
     pending_cell_specs,
     posterior_hmc_reference_scores,
     render_score_approximation_figures,
+    select_cell_specs,
     select_progress_checkpoints,
     shard_cell_specs,
     streamed_reference_score,
@@ -550,6 +552,31 @@ class ScoreApproximationTest(unittest.TestCase):
         self.assertEqual(
             [epoch for _, epoch, _ in selected],
             [2000, 4000, 6000, 8000, 10000],
+        )
+
+    def test_select_cell_specs_uses_exact_keys(self) -> None:
+        specs = [
+            SimpleNamespace(key="cell-a"),
+            SimpleNamespace(key="cell-b"),
+            SimpleNamespace(key="cell-c"),
+        ]
+        selected = select_cell_specs(specs, {"cell-b", "cell-c"})
+        self.assertEqual(
+            [spec.key for spec in selected],
+            ["cell-b", "cell-c"],
+        )
+        with self.assertRaisesRegex(ValueError, "missing-cell"):
+            select_cell_specs(specs, {"missing-cell"})
+
+    def test_nonfinite_parameter_names_finds_nan_checkpoint_tensors(
+        self,
+    ) -> None:
+        model = torch.nn.Linear(2, 2)
+        with torch.no_grad():
+            model.weight[0, 0] = torch.nan
+        self.assertEqual(
+            _nonfinite_parameter_names(model),
+            ["weight"],
         )
 
     def test_score_metric_definitions(self) -> None:

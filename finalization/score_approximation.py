@@ -1221,6 +1221,14 @@ def _load_checkpoint(runner: Any, spec: CellSpec) -> None:
     runner.curr_epoch = spec.epoch
 
 
+def _nonfinite_parameter_names(model: torch.nn.Module) -> list[str]:
+    return [
+        name
+        for name, parameter in model.named_parameters()
+        if not torch.isfinite(parameter).all()
+    ]
+
+
 def _accumulator_dtype(name: str) -> torch.dtype:
     normalized = str(name).lower()
     if normalized in {"float64", "double", "torch.float64"}:
@@ -1275,31 +1283,58 @@ def evaluate_cell(
     method_score: torch.Tensor | None
     method_status = "ok"
     method_error = ""
-    try:
-        method_score, method_diagnostics = method_native_score(
-            runner,
-            spec.record.method,
-            z,
-            generating_epsilon,
-            aisivi_z_chunk_size=int(
-                cfg.evaluation.get("aisivi_z_chunk_size", forward_count)
-            ),
-        )
-    except RuntimeError as exc:
-        if (
-            spec.record.method.upper() != "AISIVI"
-            or "Failed to obtain finite samples from RealNVP" not in str(exc)
-        ):
-            raise
-        # This is the method's native training-time failure mode. Preserve
-        # the cell and reference diagnostics rather than silently replacing
-        # the score with a different estimator.
+    nonfinite_reverse_parameters = (
+        _nonfinite_parameter_names(runner.reverse_model)
+        if spec.record.method.upper() == "AISIVI"
+        else []
+    )
+    if nonfinite_reverse_parameters:
         method_score = None
-        method_diagnostics = {"native_auxiliary_samples": int(
-            runner.training_reverse_sample_num
-        )}
+        method_diagnostics = {
+            "native_auxiliary_samples": int(
+                runner.training_reverse_sample_num
+            ),
+            "nonfinite_reverse_parameter_tensors": len(
+                nonfinite_reverse_parameters
+            ),
+        }
         method_status = "unavailable"
-        method_error = f"{type(exc).__name__}: {exc}"
+        method_error = (
+            "FloatingPointError: AISIVI reverse checkpoint contains "
+            f"{len(nonfinite_reverse_parameters)} non-finite parameter "
+            "tensors."
+        )
+    else:
+        try:
+            method_score, method_diagnostics = method_native_score(
+                runner,
+                spec.record.method,
+                z,
+                generating_epsilon,
+                aisivi_z_chunk_size=int(
+                    cfg.evaluation.get(
+                        "aisivi_z_chunk_size",
+                        forward_count,
+                    )
+                ),
+            )
+        except RuntimeError as exc:
+            if (
+                spec.record.method.upper() != "AISIVI"
+                or "Failed to obtain finite samples from RealNVP"
+                not in str(exc)
+            ):
+                raise
+            # Preserve the cell and reference diagnostics rather than
+            # silently replacing the native score with another estimator.
+            method_score = None
+            method_diagnostics = {
+                "native_auxiliary_samples": int(
+                    runner.training_reverse_sample_num
+                )
+            }
+            method_status = "unavailable"
+            method_error = f"{type(exc).__name__}: {exc}"
     _sync(device)
     method_runtime = time.perf_counter() - method_started
 
@@ -1479,6 +1514,23 @@ def shard_cell_specs(
         for spec in materialized
         if spec.record.run_id in assigned_runs
     ]
+
+
+def select_cell_specs(
+    specs: Iterable[CellSpec],
+    cell_keys: set[str] | None,
+) -> list[CellSpec]:
+    materialized = list(specs)
+    if not cell_keys:
+        return materialized
+    known_keys = {spec.key for spec in materialized}
+    unknown_keys = sorted(cell_keys - known_keys)
+    if unknown_keys:
+        raise ValueError(
+            "Unknown score-analysis cell keys: "
+            + ", ".join(unknown_keys)
+        )
+    return [spec for spec in materialized if spec.key in cell_keys]
 
 
 def _build_runner(rec: RunRecord, cfg: DictConfig) -> Any:
@@ -2250,6 +2302,7 @@ def run_analysis(
     shard_count: int = 1,
     shard_index: int = 0,
     aggregate_after_run: bool = True,
+    cell_keys: set[str] | None = None,
 ) -> tuple[int, int]:
     fingerprint = config_fingerprint(cfg)
     all_specs = build_cell_specs(cfg)
@@ -2271,6 +2324,7 @@ def run_analysis(
         shard_count=shard_count,
         shard_index=shard_index,
     )
+    specs = select_cell_specs(specs, cell_keys)
 
     device_name = str(cfg.evaluation.device)
     if device_name == "cuda" and not torch.cuda.is_available():
