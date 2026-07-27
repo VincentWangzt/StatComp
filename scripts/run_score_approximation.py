@@ -17,6 +17,7 @@ from finalization.score_approximation import (  # noqa: E402
     config_fingerprint,
     load_score_config,
     run_analysis,
+    shard_cell_specs,
 )
 
 
@@ -56,13 +57,40 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Regenerate reports from a complete set of cell records.",
     )
+    parser.add_argument(
+        "--shard-count",
+        type=int,
+        default=1,
+        help="Number of deterministic run-level worker shards.",
+    )
+    parser.add_argument(
+        "--shard-index",
+        type=int,
+        default=0,
+        help="Zero-based worker shard index.",
+    )
+    parser.add_argument(
+        "--worker-only",
+        action="store_true",
+        help=(
+            "Evaluate this shard without aggregating; run --aggregate-only "
+            "after all shards finish."
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.aggregate_only and args.worker_only:
+        raise ValueError("--aggregate-only and --worker-only are incompatible.")
     cfg = load_score_config(args.config, args.overrides)
-    specs = build_cell_specs(cfg)
+    all_specs = build_cell_specs(cfg)
+    specs = shard_cell_specs(
+        all_specs,
+        shard_count=args.shard_count,
+        shard_index=args.shard_index,
+    )
     fingerprint = config_fingerprint(cfg)
     if args.dry_run:
         reference = cfg.evaluation.reference
@@ -87,8 +115,12 @@ def main(argv: list[str] | None = None) -> int:
             int(reference.leapfrog_steps) + 1
         )
         print(f"analysis_fingerprint={fingerprint}")
-        print(f"runs={len({cell.record.run_id for cell in specs})}")
-        print(f"cells={len(specs)}")
+        print(f"total_runs={len({cell.record.run_id for cell in all_specs})}")
+        print(f"total_cells={len(all_specs)}")
+        print(f"shard_count={args.shard_count}")
+        print(f"shard_index={args.shard_index}")
+        print(f"shard_runs={len({cell.record.run_id for cell in specs})}")
+        print(f"shard_cells={len(specs)}")
         print(f"reference_estimator={reference.estimator}")
         print(f"reference_total_samples_per_z={total_samples}")
         print(f"reference_chains={num_chains}")
@@ -106,6 +138,9 @@ def main(argv: list[str] | None = None) -> int:
         limit=args.limit,
         resume=bool(args.resume),
         aggregate_only=bool(args.aggregate_only),
+        shard_count=args.shard_count,
+        shard_index=args.shard_index,
+        aggregate_after_run=not bool(args.worker_only),
     )
     print(f"completed_cells={completed}")
     if summaries:

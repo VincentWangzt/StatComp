@@ -21,6 +21,7 @@ from finalization.score_approximation import (
     compute_score_metrics,
     diagonal_gaussian_mixture_block,
     gelman_rubin_rhat,
+    gelman_rubin_rhat_from_moments,
     mixture_block_summary,
     native_aisivi_score,
     native_sivi_score,
@@ -28,6 +29,7 @@ from finalization.score_approximation import (
     posterior_hmc_reference_scores,
     render_score_approximation_figures,
     select_progress_checkpoints,
+    shard_cell_specs,
     streamed_reference_score,
 )
 from models.vi_model import ConditionalGaussian
@@ -303,6 +305,20 @@ class ScoreApproximationTest(unittest.TestCase):
         self.assertLess(float(gelman_rubin_rhat(stable).max()), 1.1)
         self.assertGreater(float(gelman_rubin_rhat(shifted).min()), 2.0)
 
+    def test_streaming_rhat_moments_match_full_samples(self) -> None:
+        samples = torch.randn(3, 5, 17, 2, dtype=torch.float64)
+        chain_means = samples.mean(dim=2)
+        chain_m2 = (
+            samples - chain_means.unsqueeze(2)
+        ).square().sum(dim=2)
+        expected = gelman_rubin_rhat(samples)
+        actual = gelman_rubin_rhat_from_moments(
+            chain_means,
+            chain_m2,
+            draws=samples.shape[2],
+        )
+        torch.testing.assert_close(actual, expected)
+
     def test_hmc_quality_checks_warn_without_dropping_metrics(self) -> None:
         quality = OmegaConf.create({
             "max_divergence_fraction": 0.01,
@@ -564,6 +580,52 @@ class ScoreApproximationTest(unittest.TestCase):
                 ),
                 [spec],
             )
+
+    def test_sharding_keeps_complete_runs_together(self) -> None:
+        specs: list[CellSpec] = []
+        for run_index in range(7):
+            rec = RunRecord(
+                run_id=f"run-{run_index}",
+                seed=42 + run_index,
+                method="SIVI",
+                target="x_shaped",
+                runner_type="SIVI",
+                config_path=Path("config.yaml"),
+                result_path=Path("results"),
+                duration_sec=None,
+                status="completed",
+                entry={},
+            )
+            for epoch in (2000, 4000, 6000):
+                specs.append(
+                    CellSpec(
+                        record=rec,
+                        progress=epoch / 10000,
+                        epoch=epoch,
+                        checkpoint_dir=Path(f"checkpoint-{epoch}"),
+                    )
+                )
+
+        shards = [
+            shard_cell_specs(
+                specs,
+                shard_count=3,
+                shard_index=index,
+            )
+            for index in range(3)
+        ]
+        assigned_keys = [spec.key for shard in shards for spec in shard]
+        self.assertCountEqual(assigned_keys, [spec.key for spec in specs])
+        for run_index in range(7):
+            holders = [
+                index
+                for index, shard in enumerate(shards)
+                if any(
+                    spec.record.run_id == f"run-{run_index}"
+                    for spec in shard
+                )
+            ]
+            self.assertEqual(len(holders), 1)
 
 
 if __name__ == "__main__":

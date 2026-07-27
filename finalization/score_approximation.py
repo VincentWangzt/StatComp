@@ -390,8 +390,32 @@ def gelman_rubin_rhat(samples: torch.Tensor) -> torch.Tensor:
         raise ValueError("R-hat requires at least two chains and two draws.")
 
     chain_means = samples.mean(dim=2)
+    centered = samples - chain_means.unsqueeze(2)
+    chain_m2 = centered.square().sum(dim=2)
+    return gelman_rubin_rhat_from_moments(
+        chain_means,
+        chain_m2,
+        draws=draws,
+    )
+
+
+def gelman_rubin_rhat_from_moments(
+    chain_means: torch.Tensor,
+    chain_m2: torch.Tensor,
+    *,
+    draws: int,
+) -> torch.Tensor:
+    """Classical R-hat from per-chain means and centered sums of squares."""
+    if chain_means.ndim != 3 or chain_m2.shape != chain_means.shape:
+        raise ValueError(
+            "chain_means and chain_m2 must both have shape [N,C,D]."
+        )
+    chains = chain_means.shape[1]
+    if chains < 2 or draws < 2:
+        raise ValueError("R-hat requires at least two chains and two draws.")
+
     between = draws * chain_means.var(dim=1, unbiased=True)
-    within = samples.var(dim=2, unbiased=True).mean(dim=1)
+    within = (chain_m2 / (draws - 1.0)).mean(dim=1)
     variance_hat = ((draws - 1.0) / draws) * within + between / draws
     positive_within = within > 0
     rhat = torch.empty_like(within)
@@ -580,8 +604,23 @@ def posterior_hmc_reference_scores(
     retained_transitions = 0
     divergence_count = torch.zeros_like(accepted_sum)
     squared_jump_sum = torch.zeros_like(accepted_sum)
-    epsilon_samples: list[torch.Tensor] = []
-    score_samples: list[torch.Tensor] = []
+    epsilon_mean = torch.zeros(
+        batch_size,
+        num_chains,
+        epsilon_dim,
+        device=device,
+        dtype=accumulator_dtype,
+    )
+    epsilon_m2 = torch.zeros_like(epsilon_mean)
+    score_mean = torch.zeros(
+        batch_size,
+        num_chains,
+        z_dim,
+        device=device,
+        dtype=accumulator_dtype,
+    )
+    score_m2 = torch.zeros_like(score_mean)
+    retained_draws = 0
 
     total_transitions = burn_in_steps + draws_per_chain * thinning
     for transition in range(total_transitions):
@@ -664,25 +703,44 @@ def posterior_hmc_reference_scores(
             retained_transitions += 1
             retained_index = transition - burn_in_steps
             if retained_index % thinning == 0:
-                epsilon_samples.append(epsilon_current)
                 with torch.no_grad():
-                    score_samples.append(
-                        vi_model.score(z_chains, epsilon_current).detach()
+                    epsilon_value = epsilon_current.to(
+                        dtype=accumulator_dtype,
+                    )
+                    score_value = vi_model.score(
+                        z_chains,
+                        epsilon_current,
+                    ).detach().to(
+                        dtype=accumulator_dtype,
+                    )
+                    retained_draws += 1
+                    epsilon_delta = epsilon_value - epsilon_mean
+                    epsilon_mean += epsilon_delta / retained_draws
+                    epsilon_m2 += epsilon_delta * (
+                        epsilon_value - epsilon_mean
+                    )
+                    score_delta = score_value - score_mean
+                    score_mean += score_delta / retained_draws
+                    score_m2 += score_delta * (
+                        score_value - score_mean
                     )
 
-    if len(score_samples) != draws_per_chain:
+    if retained_draws != draws_per_chain:
         raise RuntimeError(
             "Posterior HMC retained an unexpected number of samples."
         )
-    stacked_epsilon = torch.stack(epsilon_samples, dim=2)
-    stacked_score = torch.stack(score_samples, dim=2)
-    chain_score_means = stacked_score.mean(
-        dim=2,
-        dtype=accumulator_dtype,
-    ).permute(1, 0, 2).contiguous()
+    chain_score_means = score_mean.permute(1, 0, 2).contiguous()
 
-    epsilon_rhat = gelman_rubin_rhat(stacked_epsilon)
-    score_rhat = gelman_rubin_rhat(stacked_score)
+    epsilon_rhat = gelman_rubin_rhat_from_moments(
+        epsilon_mean,
+        epsilon_m2,
+        draws=retained_draws,
+    )
+    score_rhat = gelman_rubin_rhat_from_moments(
+        score_mean,
+        score_m2,
+        draws=retained_draws,
+    )
     post_burn_acceptance = retained_accept_sum / max(
         1,
         retained_transitions,
@@ -1286,6 +1344,40 @@ def pending_cell_specs(
                 continue
         pending.append(spec)
     return pending
+
+
+def shard_cell_specs(
+    specs: Iterable[CellSpec],
+    *,
+    shard_count: int,
+    shard_index: int,
+) -> list[CellSpec]:
+    """Assign complete checkpoint runs to a deterministic worker shard."""
+    if shard_count < 1:
+        raise ValueError("shard_count must be positive.")
+    if not 0 <= shard_index < shard_count:
+        raise ValueError(
+            "shard_index must satisfy 0 <= shard_index < shard_count."
+        )
+
+    materialized = list(specs)
+    run_order: list[str] = []
+    seen_runs: set[str] = set()
+    for spec in materialized:
+        run_id = spec.record.run_id
+        if run_id not in seen_runs:
+            seen_runs.add(run_id)
+            run_order.append(run_id)
+    assigned_runs = {
+        run_id
+        for index, run_id in enumerate(run_order)
+        if index % shard_count == shard_index
+    }
+    return [
+        spec
+        for spec in materialized
+        if spec.record.run_id in assigned_runs
+    ]
 
 
 def _build_runner(rec: RunRecord, cfg: DictConfig) -> Any:
@@ -2054,9 +2146,12 @@ def run_analysis(
     limit: int | None = None,
     resume: bool = True,
     aggregate_only: bool = False,
+    shard_count: int = 1,
+    shard_index: int = 0,
+    aggregate_after_run: bool = True,
 ) -> tuple[int, int]:
     fingerprint = config_fingerprint(cfg)
-    specs = build_cell_specs(cfg)
+    all_specs = build_cell_specs(cfg)
     runtime_root = repo_path(str(cfg.output.runtime_dir))
     assert runtime_root is not None
     run_root = runtime_root / fingerprint[:16]
@@ -2064,11 +2159,17 @@ def run_analysis(
     if aggregate_only:
         records, summary = aggregate_results(
             cfg,
-            specs,
+            all_specs,
             fingerprint=fingerprint,
             require_complete=True,
         )
         return len(records), len(summary)
+
+    specs = shard_cell_specs(
+        all_specs,
+        shard_count=shard_count,
+        shard_index=shard_index,
+    )
 
     device_name = str(cfg.evaluation.device)
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -2136,10 +2237,10 @@ def run_analysis(
     finally:
         _release_runner(runner)
 
-    if limit is None:
+    if limit is None and aggregate_after_run:
         records, summary = aggregate_results(
             cfg,
-            specs,
+            all_specs,
             fingerprint=fingerprint,
             require_complete=True,
         )
