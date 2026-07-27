@@ -610,6 +610,8 @@ def _append_langevin_sgld_if_needed(
 ) -> list[dict[str, Any]]:
     if not _sgld_enabled(cfg):
         return run_rows
+    if not any(row.get("target") == "Langevin_post" for row in run_rows):
+        return run_rows
     if any(row.get("target") == "Langevin_post" and str(row.get("method")).upper() == "SGLD" for row in run_rows):
         return run_rows
     try:

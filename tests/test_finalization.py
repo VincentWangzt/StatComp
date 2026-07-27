@@ -8,7 +8,7 @@ from finalization.artifacts import RunRecord, normalize_target
 from omegaconf import OmegaConf
 
 from finalization.plots import langevin_panel_labels
-from finalization.runner_eval import constrained_w2, prepare_config, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
+from finalization.runner_eval import _append_langevin_sgld_if_needed, constrained_w2, prepare_config, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
 from finalization.tables import render_bnn_table, render_langevin_table, render_toy_method_grid
 
 
@@ -189,6 +189,29 @@ class FinalizationTests(unittest.TestCase):
         self.assertEqual(cfg.train.reverse.epochs, 1)
         self.assertEqual(cfg.train.reverse.batch_size, 512)
         self.assertEqual(rec.variant, "reverse_steps_1")
+
+    def test_sgld_baseline_is_not_added_without_langevin_runs(self) -> None:
+        rows = [
+            {
+                "run_id": "seed42_dsivi_banana_baseline",
+                "seed": 42,
+                "variant": "baseline",
+                "method": "DSIVI",
+                "target": "banana",
+            }
+        ]
+        cfg = OmegaConf.create(
+            {
+                "evaluation": {
+                    "langevin_kde_elm": {
+                        "enabled": True,
+                        "sgld": {"enabled": True},
+                    }
+                }
+            }
+        )
+
+        self.assertEqual(_append_langevin_sgld_if_needed(rows, [], cfg), rows)
 
     def test_toy_method_grid_filters_targets_methods_and_pools_training_time(self) -> None:
         rows = [
