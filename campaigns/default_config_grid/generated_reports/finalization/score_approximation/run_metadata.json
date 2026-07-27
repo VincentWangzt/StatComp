@@ -1,5 +1,5 @@
 {
-  "analysis_fingerprint": "a94b2f384176aef7190c8812ae363adc5478387b42c70450a4b684e21fe7531e",
+  "analysis_fingerprint": "56b6adf45ddf66b402a550f972cd244053dd93556779031afec633781db0fe3f",
   "completed_cells": 200,
   "config": {
     "campaign": {
@@ -11,9 +11,27 @@
       "forward_batch_size": 1024,
       "reference": {
         "accumulator_dtype": "float64",
-        "num_batches": 100,
-        "repeats": 10,
-        "reverse_batch_size": 1024
+        "adapt_step_size": true,
+        "adaptation_rate": 0.3,
+        "burn_in_steps": 500,
+        "divergence_threshold": 1000.0,
+        "estimator": "posterior_hmc",
+        "init_jitter_scale": 0.01,
+        "leapfrog_steps": 20,
+        "max_step_size": 0.01,
+        "min_step_size": 1e-05,
+        "num_chains": 10,
+        "quality": {
+          "max_divergence_fraction": 0.01,
+          "max_epsilon_rhat_p95": 2.0,
+          "max_score_rhat_p95": 1.1,
+          "min_post_burn_acceptance_rate": 0.6,
+          "min_worst_chain_acceptance_rate": 0.05
+        },
+        "step_size": 0.002,
+        "target_acceptance": 0.9,
+        "thinning": 1,
+        "total_samples": 10000
       }
     },
     "output": {
@@ -50,8 +68,17 @@
     }
   },
   "expected_cells": 200,
-  "generated_at": "2026-07-27T07:59:07.518127+00:00",
-  "git_commit": "049cc99cfa81f45ca09bb8691f5736a90b2e6fd8",
+  "figures": [
+    "score_error_comparison.png",
+    "score_error_comparison.pdf",
+    "score_reference_quality.png",
+    "score_reference_quality.pdf",
+    "score_hmc_diagnostics.png",
+    "score_hmc_diagnostics.pdf"
+  ],
+  "generated_at": "2026-07-27T15:13:31.401813+00:00",
+  "git_commit": "7cd61fdcc82fdc7b393f74b3ea2420689c03f75e",
   "native_score_failures": 4,
+  "reference_quality_warnings": 6,
   "summary_rows": 40
 }
