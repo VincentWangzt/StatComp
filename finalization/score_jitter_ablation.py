@@ -133,7 +133,7 @@ def evaluate_seed(
     """Evaluate every jitter scale with common forward and HMC randomness."""
     total_started = time.perf_counter()
     score_analysis._load_checkpoint(runner, spec)
-    device = runner.device
+    device = torch.device(runner.device)
     use_cuda = device.type == "cuda"
     forward_count = int(cfg.evaluation.forward_batch_size)
 

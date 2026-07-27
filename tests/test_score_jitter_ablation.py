@@ -3,11 +3,17 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import torch
 
+from finalization.artifacts import RunRecord
+from finalization.score_approximation import CellSpec
 from finalization.score_jitter_ablation import (
     _render_plot,
+    evaluate_seed,
+    load_jitter_config,
     pairwise_reference_l2,
     summarize_jitter_rows,
     summarize_pairwise_rows,
@@ -15,6 +21,92 @@ from finalization.score_jitter_ablation import (
 
 
 class ScoreJitterAblationTest(unittest.TestCase):
+
+    def test_evaluate_seed_accepts_string_runner_device(self) -> None:
+        cfg = load_jitter_config(
+            None,
+            [
+                "evaluation.device=cpu",
+                "evaluation.forward_batch_size=2",
+                "evaluation.reference.total_samples=4",
+                "evaluation.reference.num_chains=2",
+            ],
+        )
+        vi_model = SimpleNamespace(
+            sampling=lambda num: (
+                torch.zeros(num, 1),
+                torch.zeros(num, 2),
+            ),
+        )
+        runner = SimpleNamespace(
+            device="cpu",
+            vi_model=vi_model,
+            target_model=SimpleNamespace(
+                score=lambda z: torch.zeros_like(z),
+            ),
+        )
+        record = RunRecord(
+            run_id="run-1",
+            seed=42,
+            method="DSIVI",
+            target="8_gaussians",
+            runner_type="DSIVI",
+            config_path=Path("config.yaml"),
+            result_path=Path("results"),
+            duration_sec=None,
+            status="completed",
+            entry={},
+        )
+        spec = CellSpec(
+            record=record,
+            progress=1.0,
+            epoch=10000,
+            checkpoint_dir=Path("checkpoint"),
+        )
+
+        def fake_reference(
+            _model: object,
+            z: torch.Tensor,
+            _epsilon: torch.Tensor,
+            **_kwargs: object,
+        ) -> tuple[torch.Tensor, dict[str, float]]:
+            return (
+                torch.zeros(
+                    2,
+                    z.shape[0],
+                    z.shape[1],
+                    dtype=torch.float64,
+                ),
+                {},
+            )
+
+        with (
+            patch(
+                "finalization.score_approximation._load_checkpoint",
+            ),
+            patch(
+                "finalization.score_approximation.method_native_score",
+                return_value=(torch.zeros(2, 2), {}),
+            ),
+            patch(
+                "finalization.score_approximation."
+                "posterior_hmc_reference_scores",
+                side_effect=fake_reference,
+            ),
+            patch(
+                "finalization.score_approximation."
+                "assess_hmc_reference_quality",
+                return_value=("pass", []),
+            ),
+        ):
+            result = evaluate_seed(
+                runner,
+                spec,
+                cfg,
+                fingerprint="fingerprint",
+            )
+        self.assertEqual(len(result["jitter_metrics"]), 4)
+        self.assertEqual(len(result["pairwise_reference_l2"]), 6)
 
     def test_pairwise_reference_l2_uses_per_sample_vector_loss(self) -> None:
         references = {
