@@ -13,6 +13,7 @@ from finalization.artifacts import RunRecord
 from finalization.score_approximation import (
     CellSpec,
     _summary_rows,
+    _write_csv,
     atomic_write_json,
     autograd_mixture_score,
     cell_record_path,
@@ -243,6 +244,14 @@ class ScoreApproximationTest(unittest.TestCase):
         self.assertEqual(summary[0]["n_seeds"], 5)
         self.assertEqual(summary[0]["method_n_valid"], 4)
         self.assertEqual(summary[0]["method_n_failed"], 1)
+
+    def test_csv_reports_use_lf_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "report.csv"
+            _write_csv(path, [{"value": 1}, {"value": 2}])
+            payload = path.read_bytes()
+        self.assertNotIn(b"\r\n", payload)
+        self.assertEqual(payload.count(b"\n"), 3)
 
     def test_resume_skips_matching_atomic_cell(self) -> None:
         rec = RunRecord(
