@@ -69,6 +69,39 @@ class FakeReverse:
         return z_aux, self.epsilon, self.log_prob_value
 
 
+class BatchLimitedReverse:
+
+    def __init__(self, *, epsilon_dim: int) -> None:
+        self.epsilon_dim = epsilon_dim
+
+    def sample(
+        self,
+        z: torch.Tensor,
+        *,
+        num_samples: int,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if z.shape[0] > 1:
+            raise RuntimeError(
+                "Failed to obtain finite samples from RealNVP after "
+                "3 attempts."
+            )
+        z_aux = z.unsqueeze(1).expand(-1, num_samples, -1)
+        epsilon = torch.zeros(
+            z.shape[0],
+            num_samples,
+            self.epsilon_dim,
+            dtype=z.dtype,
+            device=z.device,
+        )
+        log_prob = torch.zeros(
+            z.shape[0],
+            num_samples,
+            dtype=z.dtype,
+            device=z.device,
+        )
+        return z_aux, epsilon, log_prob
+
+
 class LinearGaussianVI(torch.nn.Module):
     """One-dimensional model with an analytic epsilon posterior."""
 
@@ -411,6 +444,32 @@ class ScoreApproximationTest(unittest.TestCase):
             atol=1.0e-10,
         )
         self.assertEqual(diagnostics["native_auxiliary_samples"], k)
+
+    def test_native_aisivi_adaptively_splits_failed_z_chunks(self) -> None:
+        model = make_model()
+        z = torch.randn(4, 2, dtype=torch.float64)
+        runner = SimpleNamespace(
+            vi_model=model,
+            reverse_model=BatchLimitedReverse(epsilon_dim=4),
+            training_reverse_sample_num=3,
+            normalize_reverse_score=False,
+        )
+        actual, diagnostics = native_aisivi_score(
+            runner,
+            z,
+            z_chunk_size=4,
+        )
+        self.assertEqual(tuple(actual.shape), (4, 2))
+        self.assertTrue(torch.isfinite(actual).all())
+        self.assertEqual(diagnostics["native_auxiliary_samples"], 3)
+        self.assertEqual(
+            diagnostics["aisivi_min_effective_z_chunk_size"],
+            1,
+        )
+        self.assertEqual(
+            diagnostics["aisivi_adaptive_split_count"],
+            3,
+        )
 
     def test_checkpoint_progress_selects_exact_epochs(self) -> None:
         checkpoints = [

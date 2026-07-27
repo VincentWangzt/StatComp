@@ -901,23 +901,48 @@ def native_aisivi_score(
     *,
     z_chunk_size: int | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
-    if z_chunk_size is None or z_chunk_size >= z.shape[0]:
-        return _native_aisivi_score_chunk(runner, z)
+    if z_chunk_size is None:
+        z_chunk_size = z.shape[0]
     if z_chunk_size < 1:
         raise ValueError("AISIVI z chunk size must be positive.")
 
     scores: list[torch.Tensor] = []
     diagnostics: list[tuple[int, dict[str, float]]] = []
+
+    def evaluate_with_adaptive_splitting(
+        chunk: torch.Tensor,
+    ) -> list[tuple[torch.Tensor, dict[str, float]]]:
+        try:
+            return [_native_aisivi_score_chunk(runner, chunk)]
+        except RuntimeError as error:
+            is_reverse_sampling_failure = (
+                "Failed to obtain finite samples from RealNVP"
+                in str(error)
+            )
+            if not is_reverse_sampling_failure or chunk.shape[0] <= 1:
+                raise
+            midpoint = chunk.shape[0] // 2
+            return [
+                *evaluate_with_adaptive_splitting(chunk[:midpoint]),
+                *evaluate_with_adaptive_splitting(chunk[midpoint:]),
+            ]
+
     for start in range(0, z.shape[0], z_chunk_size):
         chunk = z[start:start + z_chunk_size]
-        chunk_score, chunk_diagnostics = _native_aisivi_score_chunk(
-            runner,
-            chunk,
-        )
-        scores.append(chunk_score)
-        diagnostics.append((chunk.shape[0], chunk_diagnostics))
+        chunk_results = evaluate_with_adaptive_splitting(chunk)
+        offset = 0
+        for chunk_score, chunk_diagnostics in chunk_results:
+            effective_size = int(chunk_score.shape[0])
+            scores.append(chunk_score)
+            diagnostics.append((effective_size, chunk_diagnostics))
+            offset += effective_size
+        if offset != chunk.shape[0]:
+            raise RuntimeError(
+                "AISIVI adaptive chunks did not cover the input batch."
+            )
 
     total = sum(size for size, _ in diagnostics)
+    configured_chunks = math.ceil(z.shape[0] / z_chunk_size)
     merged = {
         "native_auxiliary_samples": int(
             diagnostics[0][1]["native_auxiliary_samples"]
@@ -935,6 +960,12 @@ def native_aisivi_score(
             for _, values in diagnostics
         ),
         "aisivi_z_chunk_size": z_chunk_size,
+        "aisivi_min_effective_z_chunk_size": min(
+            size for size, _ in diagnostics
+        ),
+        "aisivi_adaptive_split_count": (
+            len(diagnostics) - configured_chunks
+        ),
     }
     return torch.cat(scores, dim=0), merged
 
