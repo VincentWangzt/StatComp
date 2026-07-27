@@ -840,15 +840,73 @@ def native_uivi_score(
     }
 
 
+def _sample_aisivi_reverse_adaptively(
+    runner: Any,
+    z: torch.Tensor,
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    list[int],
+]:
+    sample_count = int(runner.training_reverse_sample_num)
+
+    def sample_chunk(
+        count: int,
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        list[int],
+    ]:
+        try:
+            sampled_z, sampled_epsilon, sampled_log_prob = (
+                runner.reverse_model.sample(
+                    z,
+                    num_samples=count,
+                )
+            )
+            return (
+                sampled_z,
+                sampled_epsilon,
+                sampled_log_prob,
+                [count],
+            )
+        except RuntimeError as error:
+            is_reverse_sampling_failure = (
+                "Failed to obtain finite samples from RealNVP"
+                in str(error)
+            )
+            if not is_reverse_sampling_failure or count <= 1:
+                raise
+            left_count = count // 2
+            right_count = count - left_count
+            left = sample_chunk(left_count)
+            right = sample_chunk(right_count)
+            return (
+                torch.cat([left[0], right[0]], dim=1),
+                torch.cat([left[1], right[1]], dim=1),
+                torch.cat([left[2], right[2]], dim=1),
+                [*left[3], *right[3]],
+            )
+
+    return sample_chunk(sample_count)
+
+
 def _native_aisivi_score_chunk(
     runner: Any,
     z: torch.Tensor,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     sample_count = int(runner.training_reverse_sample_num)
     with torch.no_grad():
-        z_aux, epsilon_aux, log_q_reverse = runner.reverse_model.sample(
+        (
+            z_aux,
+            epsilon_aux,
+            log_q_reverse,
+            auxiliary_chunks,
+        ) = _sample_aisivi_reverse_adaptively(
+            runner,
             z,
-            num_samples=sample_count,
         )
         raw_importance = (
             runner.vi_model.log_q_epsilon(epsilon_aux) - log_q_reverse
@@ -892,6 +950,10 @@ def _native_aisivi_score_chunk(
         "importance_clipped_fraction": float(clipped_fraction.item()),
         "importance_ess_mean": float(ess.mean().item()),
         "importance_ess_min": float(ess.min().item()),
+        "aisivi_min_effective_auxiliary_chunk_size": min(
+            auxiliary_chunks
+        ),
+        "aisivi_auxiliary_split_count": len(auxiliary_chunks) - 1,
     }
 
 
@@ -965,6 +1027,14 @@ def native_aisivi_score(
         ),
         "aisivi_adaptive_split_count": (
             len(diagnostics) - configured_chunks
+        ),
+        "aisivi_min_effective_auxiliary_chunk_size": min(
+            values["aisivi_min_effective_auxiliary_chunk_size"]
+            for _, values in diagnostics
+        ),
+        "aisivi_auxiliary_split_count": sum(
+            int(values["aisivi_auxiliary_split_count"])
+            for _, values in diagnostics
         ),
     }
     return torch.cat(scores, dim=0), merged
