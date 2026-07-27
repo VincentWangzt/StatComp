@@ -68,21 +68,31 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         quad = cfg.evaluation.quadrature
         order = int(quad.order)
-        nodes_per_z = order ** int(quad.epsilon_dim)
         forward_count = int(cfg.evaluation.forward_batch_size)
         print(f"analysis_fingerprint={fingerprint}")
         print(f"full_cells={len(full_specs)}")
         print(f"selected_cells={len(selected)}")
         print(f"quadrature_order={order}")
-        print(f"quadrature_nodes_per_z={nodes_per_z}")
-        print(
-            "conditional_evaluations_per_cell="
-            f"{nodes_per_z * forward_count}"
-        )
-        print(
-            "selected_conditional_evaluations="
-            f"{nodes_per_z * forward_count * len(selected)}"
-        )
+        print(f"quadrature_epsilon_dim={quad.epsilon_dim}")
+        if str(quad.epsilon_dim).lower() in {
+            "auto",
+            "checkpoint",
+            "auto_from_checkpoint",
+        }:
+            print("quadrature_nodes_per_z=checkpoint_dependent")
+            print("conditional_evaluations_per_cell=checkpoint_dependent")
+            print("selected_conditional_evaluations=checkpoint_dependent")
+        else:
+            nodes_per_z = order ** int(quad.epsilon_dim)
+            print(f"quadrature_nodes_per_z={nodes_per_z}")
+            print(
+                "conditional_evaluations_per_cell="
+                f"{nodes_per_z * forward_count}"
+            )
+            print(
+                "selected_conditional_evaluations="
+                f"{nodes_per_z * forward_count * len(selected)}"
+            )
         return 0
 
     completed, summaries = run_local_quadrature_analysis(

@@ -170,6 +170,31 @@ def _validate_vi_model(
         raise ValueError("Unexpected z dimension for local quadrature.")
 
 
+def resolve_quadrature_epsilon_dim(
+    vi_model: torch.nn.Module,
+    configured_dimension: Any,
+) -> int:
+    """Resolve the integration dimension from the checkpoint-built VI model."""
+    actual_dimension = int(getattr(vi_model, "epsilon_dim", -1))
+    if actual_dimension < 1:
+        raise ValueError("The VI model does not expose a valid epsilon dimension.")
+    normalized = str(configured_dimension).strip().lower()
+    if normalized in {
+        "auto",
+        "checkpoint",
+        "auto_from_checkpoint",
+    }:
+        return actual_dimension
+    expected_dimension = int(configured_dimension)
+    if expected_dimension != actual_dimension:
+        raise ValueError(
+            "Configured quadrature epsilon dimension "
+            f"{expected_dimension} does not match checkpoint dimension "
+            f"{actual_dimension}."
+        )
+    return actual_dimension
+
+
 def fisher_gauss_newton_scales(
     vi_model: torch.nn.Module,
     epsilon: torch.Tensor,
@@ -681,7 +706,10 @@ def evaluate_local_quadrature_cell(
     use_cuda = device.type == "cuda"
     forward_count = int(cfg.evaluation.forward_batch_size)
     quad = cfg.evaluation.quadrature
-    epsilon_dim = int(quad.epsilon_dim)
+    epsilon_dim = resolve_quadrature_epsilon_dim(
+        runner.vi_model,
+        quad.epsilon_dim,
+    )
     z_dim = int(quad.z_dim)
     order = int(quad.order)
     half_width = float(quad.standardized_half_width)
@@ -830,6 +858,7 @@ def evaluate_local_quadrature_cell(
         "method_status": method_status,
         "method_error": method_error,
         "quadrature_estimator": str(quad.estimator),
+        "quadrature_epsilon_dim": epsilon_dim,
         "quadrature_order": order,
         "quadrature_standardized_half_width": half_width,
         "quadrature_boundary_inner_half_width": float(
@@ -987,6 +1016,14 @@ def _summary_rows(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 item.get("method_l2") is not None for item in items
             ),
         }
+        epsilon_dimensions = {
+            int(item["quadrature_epsilon_dim"]) for item in items
+        }
+        if len(epsilon_dimensions) != 1:
+            raise RuntimeError(
+                "A summary group contains mixed epsilon dimensions."
+            )
+        row["quadrature_epsilon_dim"] = epsilon_dimensions.pop()
         for key in metric_keys:
             values = [
                 float(item[key])
@@ -1029,22 +1066,24 @@ def _write_markdown_table(
     lines = [
         title,
         "",
-        "Reference: Fisher-standardized `[-4,4]^4`, order-13 tensor "
-        "Gauss–Legendre quadrature.",
+        "Reference: Fisher-standardized `[-4,4]^{d_epsilon}`, order-13 "
+        "tensor Gauss–Legendre quadrature; `d_epsilon` is read from each "
+        "checkpoint and listed below.",
         "",
-        "| Target | Method | Stage | Epoch | Method L2 | Local–target L2 | "
-        "Runtime (s) | ESS | Boundary p95 |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Target | Method | Stage | Epoch | dε | Method L2 | "
+        "Local–target L2 | Runtime (s) | ESS | Boundary p95 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
         lines.append(
-            "| {target} | {method} | {stage:.0f}% | {epoch} | "
+            "| {target} | {method} | {stage:.0f}% | {epoch} | {epsilon_dim} | "
             "{method_l2} | {target_l2} | {runtime} | {ess} | "
             "{boundary} |".format(
                 target=row["target"],
                 method=row["method"],
                 stage=100.0 * float(row["progress"]),
                 epoch=int(row["epoch"]),
+                epsilon_dim=int(row["quadrature_epsilon_dim"]),
                 method_l2=_metric_text(
                     row["method_l2_mean"],
                     row["method_l2_sd"],
@@ -1088,9 +1127,10 @@ def _write_latex_table(
     rows: list[dict[str, Any]],
 ) -> None:
     lines = [
-        r"\begin{tabular}{llrrccc}",
+        r"\begin{tabular}{llrrrccc}",
         r"\toprule",
-        r"Target & Method & Stage & Epoch & Method L2 & Local--target L2 "
+        r"Target & Method & Stage & Epoch & $d_\epsilon$ & Method L2 "
+        r"& Local--target L2 "
         r"& Runtime (s) \\",
         r"\midrule",
     ]
@@ -1100,6 +1140,7 @@ def _write_latex_table(
             f"{_latex_escape(str(row['method']))} & "
             f"{100.0 * float(row['progress']):.0f}\\% & "
             f"{int(row['epoch'])} & "
+            f"{int(row['quadrature_epsilon_dim'])} & "
             f"{_latex_metric_text(row['method_l2_mean'], row['method_l2_sd'])} & "
             f"{_latex_metric_text(row['local_target_l2_mean'], row['local_target_l2_sd'])} & "
             f"{_latex_metric_text(row['total_runtime_sec_mean'], row['total_runtime_sec_sd'])} \\\\"
@@ -1177,6 +1218,10 @@ def aggregate_local_quadrature_results(
         [float(record["quadrature_runtime_sec"]) for record in records],
         dtype=np.float64,
     )
+    conditional_evaluations = sum(
+        int(record["diagnostics"]["quadrature_conditional_evaluations"])
+        for record in records
+    )
     peak_reserved = max(
         int(record["peak_gpu_reserved_bytes"]) for record in records
     )
@@ -1190,6 +1235,18 @@ def aggregate_local_quadrature_results(
         "cell_runtime_max_sec": float(total_runtimes.max()),
         "quadrature_runtime_total_sec": float(
             quadrature_runtimes.sum()
+        ),
+        "quadrature_conditional_evaluations": conditional_evaluations,
+        "quadrature_nodes_per_second": float(
+            conditional_evaluations
+            / max(float(quadrature_runtimes.sum()), 1.0e-12)
+        ),
+        "observed_seed_runtime_sec": float(total_runtimes.sum()),
+        "estimated_five_seed_runtime_sec": float(
+            total_runtimes.sum() * 5.0
+        ),
+        "estimated_five_seed_runtime_hours": float(
+            total_runtimes.sum() * 5.0 / 3600.0
         ),
         "projected_200_cell_runtime_sec": float(
             total_runtimes.mean() * 200

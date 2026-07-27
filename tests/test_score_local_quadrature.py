@@ -22,6 +22,7 @@ from finalization.score_local_quadrature import (
     load_local_quadrature_config,
     local_box_quadrature_score,
     pending_cell_specs,
+    resolve_quadrature_epsilon_dim,
 )
 from models.vi_model import ConditionalGaussian
 
@@ -92,6 +93,25 @@ class LocalQuadratureTest(unittest.TestCase):
             4.0,
         )
         self.assertEqual(list(cfg.selection.seeds), [42, 43, 44, 45, 46])
+        self.assertEqual(
+            str(cfg.evaluation.quadrature.epsilon_dim),
+            "auto_from_checkpoint",
+        )
+
+    def test_quadrature_dimension_is_checkpoint_derived(self) -> None:
+        model = make_model()
+        self.assertEqual(
+            resolve_quadrature_epsilon_dim(
+                model,
+                "auto_from_checkpoint",
+            ),
+            4,
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "does not match checkpoint dimension",
+        ):
+            resolve_quadrature_epsilon_dim(model, 2)
 
     def test_tensor_rule_has_expected_mass_and_node_count(self) -> None:
         nodes, log_weights = gauss_legendre_tensor_rule(
@@ -338,6 +358,7 @@ class LocalQuadratureTest(unittest.TestCase):
                 "method": method,
                 "progress": 1.0,
                 "epoch": 10000,
+                "quadrature_epsilon_dim": 2,
                 "method_l2": 1.0,
                 "method_relative_l2": 0.5,
                 "method_target_l2": 2.0,
