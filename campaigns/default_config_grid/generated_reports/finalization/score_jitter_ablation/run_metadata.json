@@ -1,0 +1,78 @@
+{
+  "analysis_fingerprint": "4b920322821c2943fac0a3ae60f8a77fcee64d1e6766d235109a2ab00544337b",
+  "completed_seeds": 3,
+  "config": {
+    "ablation": {
+      "jitter_scales": [
+        0.0,
+        0.0001,
+        0.001,
+        0.01
+      ]
+    },
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "adapt_step_size": true,
+        "adaptation_rate": 0.3,
+        "burn_in_steps": 500,
+        "divergence_threshold": 1000.0,
+        "estimator": "posterior_hmc",
+        "leapfrog_steps": 20,
+        "max_step_size": 0.01,
+        "min_step_size": 1e-05,
+        "num_chains": 10,
+        "quality": {
+          "max_divergence_fraction": 0.01,
+          "max_epsilon_rhat_p95": 2.0,
+          "max_score_rhat_p95": 1.1,
+          "min_post_burn_acceptance_rate": 0.6,
+          "min_worst_chain_acceptance_rate": 0.05
+        },
+        "step_size": 0.002,
+        "target_acceptance": 0.9,
+        "thinning": 1,
+        "total_samples": 10000
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_jitter_ablation",
+      "runtime_dir": "results/default_config_grid/score_jitter_ablation",
+      "scratch_results_dir": "results/default_config_grid/score_jitter_ablation/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_jitter_ablation/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        1.0
+      ],
+      "methods": [
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "targets": [
+        "8_gaussians"
+      ]
+    }
+  },
+  "figures": [
+    "score_jitter_ablation.png",
+    "score_jitter_ablation.pdf"
+  ],
+  "generated_at": "2026-07-27T14:49:39.417427+00:00",
+  "git_commit": "b7acad3089631eec914453b56747196fef47b00c",
+  "jitter_rows": 12,
+  "jitter_summary_rows": 4,
+  "pairwise_rows": 18,
+  "pairwise_summary_rows": 6,
+  "quality_warnings": 0
+}
