@@ -1718,11 +1718,15 @@ def _named_method_metric_text(
 def _write_markdown_table(
     path: Path,
     summary_rows: list[dict[str, Any]],
+    *,
+    seeds: Iterable[int],
 ) -> None:
+    seed_text = ", ".join(str(int(seed)) for seed in seeds)
     lines = [
         "# Score-Approximation Analysis",
         "",
-        "All values are mean ± sample standard deviation across seeds 42–46.",
+        "All values are mean ± sample standard deviation across seeds "
+        f"{seed_text}.",
         "The reference internal L2 is calculated across posterior-HMC chain "
         "means.",
         "",
@@ -2257,6 +2261,7 @@ def aggregate_results(
     _write_markdown_table(
         report_dir / "score_approximation_table.md",
         summary_rows,
+        seeds=cfg.selection.seeds,
     )
     _write_latex_table(
         report_dir / "score_approximation_table.tex",
