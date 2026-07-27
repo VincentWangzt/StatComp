@@ -1,0 +1,32 @@
+{
+  "created_at": "2026-07-27T09:23:04.164346+00:00",
+  "device": "cuda",
+  "device_name": "NVIDIA GeForce RTX 3090",
+  "metric_order": [
+    "elbo",
+    "w2"
+  ],
+  "seed_timing": "before runner construction, matching official finalization",
+  "elbo": {
+    "num_z_samples": 5000,
+    "marginal_density": "exact normalizing-flow log density",
+    "official_semi_implicit_batch_size": 2048,
+    "official_semi_implicit_num_batches": 20
+  },
+  "w2": {
+    "num_samples": 10000,
+    "num_projections": 5000,
+    "baseline_sampling": "official evaluate_w2_budgeted"
+  },
+  "methods": [
+    "NFVI-4",
+    "NFVI-8"
+  ],
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ]
+}
