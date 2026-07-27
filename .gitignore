@@ -50,5 +50,7 @@ campaigns/default_config_grid/generated_reports/finalization/**
 !campaigns/default_config_grid/generated_reports/finalization/tables/*.tex
 !campaigns/default_config_grid/generated_reports/finalization/score_approximation/
 !campaigns/default_config_grid/generated_reports/finalization/score_approximation/**
+!campaigns/default_config_grid/generated_reports/finalization/score_local_quadrature/
+!campaigns/default_config_grid/generated_reports/finalization/score_local_quadrature/**
 campaigns/**/.ipynb_checkpoints/
 campaigns/**/.ipynb_checkpoints/**
