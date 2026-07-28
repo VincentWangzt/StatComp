@@ -1,0 +1,117 @@
+{
+  "analysis_fingerprint": "978da4d11304dbd0e786e30043c9d8daec1351e2821a5bea07b3ac4d2b47c9ba",
+  "config": {
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_refit": {
+        "batch_size": 1024,
+        "checkpoint_every": 500,
+        "log_every": 250,
+        "steps": 10000
+      },
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "adapt_step_size": true,
+        "adaptation_rate": 0.3,
+        "burn_in_steps": 1000,
+        "divergence_threshold": 1000.0,
+        "estimator": "posterior_hmc",
+        "init_jitter_scale": 0.01,
+        "leapfrog_steps": 20,
+        "max_step_size": 0.01,
+        "min_step_size": 1e-05,
+        "num_chains": 20,
+        "quality": {
+          "max_divergence_fraction": 0.01,
+          "max_epsilon_rhat_p95": 2.0,
+          "max_score_rhat_p95": 1.1,
+          "min_post_burn_acceptance_rate": 0.6,
+          "min_worst_chain_acceptance_rate": 0.05
+        },
+        "step_size": 0.002,
+        "target_acceptance": 0.9,
+        "thinning": 1,
+        "total_samples": 100000
+      }
+    },
+    "output": {
+      "reference_cache_dir": "results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache",
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_approximation_dsivi_shared_x_shaped_grid",
+      "runtime_dir": "results/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid",
+      "scratch_results_dir": "results/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        1.0,
+        0.8,
+        0.6,
+        0.4,
+        0.2
+      ],
+      "methods": [
+        "SIVI",
+        "UIVI",
+        "AISIVI",
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        45,
+        49,
+        50
+      ],
+      "source_method": "DSIVI",
+      "targets": [
+        "x_shaped"
+      ]
+    }
+  },
+  "generated_at": "2026-07-28T12:05:22.844884+00:00",
+  "git_commit": "89f4e495c0a8eb49f5c7b43d689297675af2da8e",
+  "hmc_reference_paths": [
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_10000/hmc_2228085552679786.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_8000/hmc_6f5a94d681c22cff.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_6000/hmc_9ac0b380ed40e20f.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_4000/hmc_a27b1a94313dc3a0.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_2000/hmc_00e2946555a75b5f.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_43/epoch_10000/hmc_eb40fabd81ae11ec.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_43/epoch_8000/hmc_6f0fb5f94e8d0731.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_43/epoch_6000/hmc_58d2449e2b6bed92.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_43/epoch_4000/hmc_79031fff86cf8216.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_43/epoch_2000/hmc_771485ad438b0bee.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_45/epoch_10000/hmc_f263d261ccf87d20.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_45/epoch_8000/hmc_948c15eec92e0734.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_45/epoch_6000/hmc_acffff3b700c4555.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_45/epoch_4000/hmc_b1031304dbda258d.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_45/epoch_2000/hmc_09a6d1e421984ba1.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_49/epoch_10000/hmc_f2406cb536129d84.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_49/epoch_8000/hmc_bf6e331b7acd0248.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_49/epoch_6000/hmc_fad78f48f4898ed0.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_49/epoch_4000/hmc_b08142c622b1712c.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_49/epoch_2000/hmc_177f8711b313ad79.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_50/epoch_10000/hmc_ac96d8e509dac267.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_50/epoch_8000/hmc_d9c38743120badf5.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_50/epoch_6000/hmc_74299a371bb50399.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_50/epoch_4000/hmc_ced970a2da330430.pt",
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_50/epoch_2000/hmc_a726ace4565d2f49.pt"
+  ],
+  "hmc_scores_persisted": true,
+  "hmc_summary_rows": 5,
+  "method_summary_rows": 20,
+  "methods": [
+    "SIVI",
+    "UIVI",
+    "AISIVI",
+    "DSIVI"
+  ],
+  "rows": 100,
+  "schema_version": 1,
+  "source_cells": 25
+}
