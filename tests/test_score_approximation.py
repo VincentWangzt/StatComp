@@ -26,6 +26,7 @@ from finalization.score_approximation import (
     mixture_block_summary,
     native_aisivi_score,
     native_sivi_score,
+    native_uivi_score,
     pending_cell_specs,
     posterior_hmc_reference_scores,
     render_score_approximation_figures,
@@ -451,6 +452,62 @@ class ScoreApproximationTest(unittest.TestCase):
             atol=1.0e-10,
         )
         self.assertEqual(diagnostics["native_auxiliary_samples"], 6)
+
+    def test_native_uivi_acceptance_has_method_specific_key(self) -> None:
+        z = torch.randn(3, 2)
+        epsilon = torch.randn(3, 4)
+
+        class FakeUIVIVI:
+
+            @staticmethod
+            def score(
+                z_aux: torch.Tensor,
+                epsilon_aux: torch.Tensor,
+            ) -> torch.Tensor:
+                return z_aux + epsilon_aux[..., :2]
+
+        class FakeUIVIRunner:
+            vi_model = FakeUIVIVI()
+            training_reverse_sample_num = 5
+            hmc_burn_in_steps = 5
+            hmc_step_size = 0.2
+            hmc_leapfrog_steps = 5
+
+            @staticmethod
+            def sample_epsilon_hmc(
+                z_value: torch.Tensor,
+                *,
+                eps_init: torch.Tensor,
+                num_samples: int,
+                burn_in_steps: int,
+                step_size: float,
+                leapfrog_steps: int,
+            ) -> tuple[torch.Tensor, torch.Tensor, float]:
+                del burn_in_steps, step_size, leapfrog_steps
+                z_aux = z_value.unsqueeze(1).expand(
+                    -1,
+                    num_samples,
+                    -1,
+                )
+                epsilon_aux = eps_init.unsqueeze(1).expand(
+                    -1,
+                    num_samples,
+                    -1,
+                )
+                return z_aux, epsilon_aux, 0.375
+
+        score, diagnostics = native_uivi_score(
+            FakeUIVIRunner(),
+            z,
+            epsilon,
+        )
+        self.assertEqual(tuple(score.shape), (3, 2))
+        self.assertEqual(diagnostics["native_auxiliary_samples"], 5)
+        self.assertAlmostEqual(
+            diagnostics["uivi_hmc_acceptance_rate"],
+            0.375,
+        )
+        self.assertNotIn("hmc_acceptance_rate", diagnostics)
 
     def test_native_aisivi_score_matches_detached_weight_autograd(self) -> None:
         model = make_model()

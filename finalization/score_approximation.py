@@ -836,7 +836,7 @@ def native_uivi_score(
         score = runner.vi_model.score(z_aux, epsilon_aux).mean(dim=1)
     return score, {
         "native_auxiliary_samples": int(runner.training_reverse_sample_num),
-        "hmc_acceptance_rate": float(acceptance_rate),
+        "uivi_hmc_acceptance_rate": float(acceptance_rate),
     }
 
 
