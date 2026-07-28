@@ -1,0 +1,50 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  source_method: DSIVI
+  methods: [SIVI, UIVI, AISIVI, DSIVI]
+  targets: [x_shaped]
+  seeds: [42, 43, 45, 49, 50]
+  checkpoint_progress: [1.0, 0.8, 0.6, 0.4, 0.2]
+
+evaluation:
+  device: cuda
+  forward_batch_size: 1024
+  aisivi_z_chunk_size: 128
+  aisivi_refit:
+    steps: 10000
+    batch_size: 1024
+    checkpoint_every: 500
+    log_every: 250
+  reference:
+    estimator: posterior_hmc
+    total_samples: 100000
+    num_chains: 20
+    burn_in_steps: 1000
+    thinning: 1
+    step_size: 0.002
+    leapfrog_steps: 20
+    init_jitter_scale: 0.01
+    adapt_step_size: true
+    target_acceptance: 0.9
+    adaptation_rate: 0.3
+    min_step_size: 0.00001
+    max_step_size: 0.01
+    divergence_threshold: 1000.0
+    accumulator_dtype: float64
+    quality:
+      max_divergence_fraction: 0.01
+      max_score_rhat_p95: 1.1
+      max_epsilon_rhat_p95: 2.0
+      min_post_burn_acceptance_rate: 0.6
+      min_worst_chain_acceptance_rate: 0.05
+
+output:
+  # Reuse the persisted seed-42/epoch-10K HMC reference from the
+  # validated one-cell run while keeping new method artifacts separate.
+  reference_cache_dir: results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache
+  runtime_dir: results/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/score_approximation_dsivi_shared_x_shaped_grid
+  scratch_results_dir: results/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/score_approximation_dsivi_shared_x_shaped_grid/scratch

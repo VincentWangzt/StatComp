@@ -11,10 +11,11 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import math
 import os
 import subprocess
 import time
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,7 +51,7 @@ DEFAULT_CONFIG = (
     REPO_ROOT
     / "configs"
     / "finalization"
-    / "score_approximation_dsivi_shared_x_shaped_10k.yaml"
+    / "score_approximation_dsivi_shared_x_shaped_grid.yaml"
 )
 SCHEMA_VERSION = 1
 
@@ -277,11 +278,72 @@ def build_shared_checkpoint_specs(
     return specs
 
 
+def select_shared_checkpoint_specs(
+    specs: Iterable[SharedCheckpointSpec],
+    *,
+    seeds: Iterable[int] | None = None,
+    epochs: Iterable[int] | None = None,
+) -> list[SharedCheckpointSpec]:
+    """Select worker cells without changing the analysis configuration.
+
+    Runtime filters deliberately operate on already-built specs.  They
+    therefore leave the full OmegaConf object, and hence the artifact
+    fingerprint shared by all workers, unchanged.
+    """
+
+    materialized = list(specs)
+    seed_filter = (
+        None if seeds is None else {int(value) for value in seeds}
+    )
+    epoch_filter = (
+        None if epochs is None else {int(value) for value in epochs}
+    )
+    if seed_filter:
+        available = {
+            int(spec.source_record.seed) for spec in materialized
+        }
+        missing = seed_filter - available
+        if missing:
+            raise ValueError(
+                "Requested worker seeds are not configured: "
+                + ", ".join(str(value) for value in sorted(missing))
+            )
+    if epoch_filter:
+        available = {int(spec.epoch) for spec in materialized}
+        missing = epoch_filter - available
+        if missing:
+            raise ValueError(
+                "Requested worker epochs are not configured: "
+                + ", ".join(str(value) for value in sorted(missing))
+            )
+    return [
+        spec
+        for spec in materialized
+        if (
+            not seed_filter
+            or int(spec.source_record.seed) in seed_filter
+        )
+        and (not epoch_filter or int(spec.epoch) in epoch_filter)
+    ]
+
+
 def _runtime_root(cfg: DictConfig) -> Path:
     root = repo_path(str(cfg.output.runtime_dir))
     if root is None:
         raise ValueError("output.runtime_dir must be configured.")
     return root
+
+
+def _reference_cache_root(cfg: DictConfig) -> Path:
+    configured = cfg.output.get("reference_cache_dir")
+    if configured:
+        root = repo_path(str(configured))
+        if root is None:
+            raise ValueError(
+                "output.reference_cache_dir must be a valid path."
+            )
+        return root
+    return _runtime_root(cfg) / "reference_cache"
 
 
 def artifact_paths(
@@ -319,8 +381,7 @@ def artifact_paths(
     reference_fingerprint = _json_fingerprint(reference_payload)
     config_fingerprint = analysis_fingerprint(cfg)
     cache_dir = (
-        _runtime_root(cfg)
-        / "reference_cache"
+        _reference_cache_root(cfg)
         / spec.source_record.target
         / f"seed_{spec.source_record.seed}"
         / f"epoch_{spec.epoch}"
@@ -1064,46 +1125,359 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def _mean_sample_sd(
+    values: Iterable[float],
+) -> tuple[float | None, float | None]:
+    materialized = [float(value) for value in values]
+    if not materialized:
+        return None, None
+    if not all(math.isfinite(value) for value in materialized):
+        raise FloatingPointError(
+            "Cannot summarize a metric containing non-finite values."
+        )
+    mean = sum(materialized) / len(materialized)
+    if len(materialized) == 1:
+        return mean, 0.0
+    variance = sum(
+        (value - mean) ** 2 for value in materialized
+    ) / (len(materialized) - 1)
+    return mean, math.sqrt(variance)
+
+
+def summarize_shared_results(
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Summarize method rows and unique HMC source cells across seeds."""
+
+    method_groups: dict[
+        tuple[str, float, int, str],
+        list[dict[str, Any]],
+    ] = defaultdict(list)
+    for row in rows:
+        key = (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+            str(row["method"]).upper(),
+        )
+        method_groups[key].append(row)
+
+    method_summary: list[dict[str, Any]] = []
+    for key, items in sorted(method_groups.items()):
+        target, progress, epoch, method = key
+        method_mean, method_sd = _mean_sample_sd(
+            float(item["method_hmc_l2"]) for item in items
+        )
+        relative_mean, relative_sd = _mean_sample_sd(
+            float(item["method_hmc_relative_l2"]) for item in items
+        )
+        runtime_mean, runtime_sd = _mean_sample_sd(
+            float(item["method_runtime_sec"]) for item in items
+        )
+        acceptance_values = [
+            float(item["uivi_average_acceptance_rate"])
+            for item in items
+            if item.get("uivi_average_acceptance_rate") is not None
+        ]
+        acceptance_mean, acceptance_sd = _mean_sample_sd(
+            acceptance_values
+        )
+        native_budgets = {
+            int(item["native_auxiliary_samples"]) for item in items
+        }
+        if len(native_budgets) != 1:
+            raise RuntimeError(
+                f"Inconsistent native sample budgets for {key}: "
+                f"{sorted(native_budgets)}"
+            )
+        method_summary.append({
+            "target": target,
+            "progress": progress,
+            "epoch": epoch,
+            "method": method,
+            "n_seeds": len(items),
+            "seeds": ",".join(
+                str(value)
+                for value in sorted(
+                    int(item["seed"]) for item in items
+                )
+            ),
+            "method_hmc_l2_mean": method_mean,
+            "method_hmc_l2_sd": method_sd,
+            "method_hmc_relative_l2_mean": relative_mean,
+            "method_hmc_relative_l2_sd": relative_sd,
+            "method_runtime_sec_mean": runtime_mean,
+            "method_runtime_sec_sd": runtime_sd,
+            "native_auxiliary_samples": next(iter(native_budgets)),
+            "uivi_average_acceptance_rate_mean": acceptance_mean,
+            "uivi_average_acceptance_rate_sd": acceptance_sd,
+        })
+
+    unique_cells: dict[
+        tuple[str, int, int],
+        dict[str, Any],
+    ] = {}
+    invariant_fields = (
+        "progress",
+        "hmc_internal_l2",
+        "hmc_mean_mcse_l2",
+        "hmc_runtime_sec",
+        "hmc_quality_status",
+        "hmc_quality_issues",
+        "hmc_average_acceptance_rate",
+        "hmc_post_burn_acceptance_rate",
+        "hmc_score_rhat_p95",
+        "hmc_reference_path",
+    )
+    for row in rows:
+        cell_key = (
+            str(row["target"]),
+            int(row["seed"]),
+            int(row["epoch"]),
+        )
+        existing = unique_cells.get(cell_key)
+        if existing is None:
+            unique_cells[cell_key] = row
+            continue
+        for field in invariant_fields:
+            left = existing.get(field)
+            right = row.get(field)
+            if isinstance(left, (float, int)) and isinstance(
+                right,
+                (float, int),
+            ):
+                equal = math.isclose(
+                    float(left),
+                    float(right),
+                    rel_tol=1.0e-12,
+                    abs_tol=0.0,
+                )
+            else:
+                equal = left == right
+            if not equal:
+                raise RuntimeError(
+                    "Method rows disagree about shared HMC field "
+                    f"{field!r} for {cell_key}."
+                )
+
+    hmc_groups: dict[
+        tuple[str, float, int],
+        list[dict[str, Any]],
+    ] = defaultdict(list)
+    for row in unique_cells.values():
+        key = (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+        )
+        hmc_groups[key].append(row)
+
+    hmc_summary: list[dict[str, Any]] = []
+    metric_fields = (
+        "hmc_internal_l2",
+        "hmc_mean_mcse_l2",
+        "hmc_runtime_sec",
+        "hmc_average_acceptance_rate",
+        "hmc_post_burn_acceptance_rate",
+        "hmc_score_rhat_p95",
+    )
+    for key, items in sorted(hmc_groups.items()):
+        target, progress, epoch = key
+        summary: dict[str, Any] = {
+            "target": target,
+            "progress": progress,
+            "epoch": epoch,
+            "n_seeds": len(items),
+            "seeds": ",".join(
+                str(value)
+                for value in sorted(
+                    int(item["seed"]) for item in items
+                )
+            ),
+            "hmc_quality_n_pass": sum(
+                item["hmc_quality_status"] == "pass"
+                for item in items
+            ),
+            "hmc_quality_n_warning": sum(
+                item["hmc_quality_status"] != "pass"
+                for item in items
+            ),
+        }
+        for field in metric_fields:
+            mean, sd = _mean_sample_sd(
+                float(item[field]) for item in items
+            )
+            summary[f"{field}_mean"] = mean
+            summary[f"{field}_sd"] = sd
+        hmc_summary.append(summary)
+    return method_summary, hmc_summary
+
+
+def _metric_text(
+    mean: float | None,
+    sd: float | None,
+    *,
+    percent: bool = False,
+) -> str:
+    if mean is None or sd is None:
+        return "—"
+    scale = 100.0 if percent else 1.0
+    suffix = "%" if percent else ""
+    if percent:
+        return f"{scale * mean:.2f} ± {scale * sd:.2f}{suffix}"
+    return f"{mean:.4e} ± {sd:.4e}"
+
+
+def _method_markdown_lines(
+    method_summary: list[dict[str, Any]],
+    methods: list[str],
+) -> list[str]:
+    lines = [
+        "## Method–HMC L2 over training",
+        "",
+        "| Checkpoint | " + " | ".join(methods) + " |",
+        "|---:|" + "|".join("---:" for _ in methods) + "|",
+    ]
+    stage_keys = sorted({
+        (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+        )
+        for row in method_summary
+    })
+    lookup = {
+        (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+            str(row["method"]).upper(),
+        ): row
+        for row in method_summary
+    }
+    multiple_targets = len({key[0] for key in stage_keys}) > 1
+    for target, progress, epoch in stage_keys:
+        checkpoint = f"{epoch:,} ({100.0 * progress:.0f}%)"
+        if multiple_targets:
+            checkpoint = f"{target}: {checkpoint}"
+        cells = []
+        for method in methods:
+            row = lookup.get((target, progress, epoch, method))
+            cells.append(
+                "—"
+                if row is None
+                else _metric_text(
+                    row["method_hmc_l2_mean"],
+                    row["method_hmc_l2_sd"],
+                )
+            )
+        lines.append(f"| {checkpoint} | " + " | ".join(cells) + " |")
+    return lines
+
+
+def _hmc_markdown_lines(
+    hmc_summary: list[dict[str, Any]],
+) -> list[str]:
+    lines = [
+        "## HMC internal L2 over training",
+        "",
+        (
+            "| Checkpoint | HMC internal L2 | HMC mean MCSE L2 | "
+            "Post-burn acceptance | Score R-hat p95 | Quality |"
+        ),
+        "|---:|---:|---:|---:|---:|---:|",
+    ]
+    multiple_targets = (
+        len({str(row["target"]) for row in hmc_summary}) > 1
+    )
+    for row in sorted(
+        hmc_summary,
+        key=lambda value: (
+            str(value["target"]),
+            int(value["epoch"]),
+        ),
+    ):
+        checkpoint = (
+            f"{int(row['epoch']):,} "
+            f"({100.0 * float(row['progress']):.0f}%)"
+        )
+        if multiple_targets:
+            checkpoint = f"{row['target']}: {checkpoint}"
+        quality = (
+            f"{int(row['hmc_quality_n_pass'])}/"
+            f"{int(row['n_seeds'])} pass"
+        )
+        lines.append(
+            f"| {checkpoint} | "
+            f"{_metric_text(row['hmc_internal_l2_mean'], row['hmc_internal_l2_sd'])} | "
+            f"{_metric_text(row['hmc_mean_mcse_l2_mean'], row['hmc_mean_mcse_l2_sd'])} | "
+            f"{_metric_text(row['hmc_post_burn_acceptance_rate_mean'], row['hmc_post_burn_acceptance_rate_sd'], percent=True)} | "
+            f"{_metric_text(row['hmc_score_rhat_p95_mean'], row['hmc_score_rhat_p95_sd'])} | "
+            f"{quality} |"
+        )
+    return lines
+
+
+def _uivi_markdown_lines(
+    method_summary: list[dict[str, Any]],
+) -> list[str]:
+    rows = [
+        row for row in method_summary if row["method"] == "UIVI"
+    ]
+    lines = [
+        "## Native UIVI acceptance over training",
+        "",
+        "| Checkpoint | Average acceptance |",
+        "|---:|---:|",
+    ]
+    for row in sorted(
+        rows,
+        key=lambda value: (
+            str(value["target"]),
+            int(value["epoch"]),
+        ),
+    ):
+        lines.append(
+            f"| {int(row['epoch']):,} "
+            f"({100.0 * float(row['progress']):.0f}%) | "
+            f"{_metric_text(row['uivi_average_acceptance_rate_mean'], row['uivi_average_acceptance_rate_sd'], percent=True)} |"
+        )
+    return lines
+
+
 def _write_markdown_report(
     path: Path,
-    rows: list[dict[str, Any]],
+    method_summary: list[dict[str, Any]],
+    hmc_summary: list[dict[str, Any]],
     *,
-    hmc_path: Path,
-    source_checkpoint: Path,
+    methods: list[str],
+    seeds: list[int],
 ) -> None:
+    seed_text = ", ".join(str(seed) for seed in seeds)
     lines = [
         "# Shared-DSIVI score approximation",
         "",
         (
-            "All method-native estimators use the same x_shaped DSIVI "
-            f"variational checkpoint: `{source_checkpoint.as_posix()}`."
+            "At each seed and training stage, all method-native estimators "
+            "use that cell's x_shaped DSIVI variational checkpoint."
         ),
         (
             "The posterior-HMC reference uses 20 chains, 1,000 burn-in "
-            "transitions, and 5,000 retained samples per chain. Its saved "
-            f"per-chain score means are in `{hmc_path.as_posix()}`."
+            "transitions, and 5,000 retained samples per chain. Per-chain "
+            "score means are persisted at the paths in checkpoint_metrics.csv."
         ),
         "",
         (
-            "| Method | Method–HMC L2 | HMC internal L2 | "
-            "Native auxiliaries | UIVI acceptance |"
+            "Values are mean ± sample standard deviation across seeds "
+            f"{seed_text}."
         ),
-        "|---|---:|---:|---:|---:|",
+        "",
     ]
-    for row in rows:
-        acceptance = row.get("uivi_average_acceptance_rate")
-        acceptance_text = (
-            "—"
-            if acceptance is None
-            else f"{100.0 * float(acceptance):.2f}%"
-        )
-        lines.append(
-            f"| {row['method']} | "
-            f"{float(row['method_hmc_l2']):.6e} | "
-            f"{float(row['hmc_internal_l2']):.6e} | "
-            f"{int(row['native_auxiliary_samples'])} | "
-            f"{acceptance_text} |"
-        )
+    lines.extend(_method_markdown_lines(method_summary, methods))
+    lines.extend([""])
+    lines.extend(_hmc_markdown_lines(hmc_summary))
+    lines.extend([""])
+    lines.extend(_uivi_markdown_lines(method_summary))
     lines.extend([
         "",
         (
@@ -1128,30 +1502,92 @@ def _write_markdown_report(
 
 def _write_latex_report(
     path: Path,
-    rows: list[dict[str, Any]],
+    method_summary: list[dict[str, Any]],
+    hmc_summary: list[dict[str, Any]],
+    *,
+    methods: list[str],
 ) -> None:
     lines = [
-        r"\begin{tabular}{lrrrr}",
+        r"\begin{tabular}{r" + "c" * len(methods) + "}",
         r"\toprule",
-        (
-            r"Method & Method--HMC L2 & HMC internal L2 & "
-            r"Auxiliaries & UIVI acceptance \\"
-        ),
+        "Checkpoint & " + " & ".join(methods) + r" \\",
         r"\midrule",
     ]
-    for row in rows:
-        acceptance = row.get("uivi_average_acceptance_rate")
-        acceptance_text = (
-            "--"
-            if acceptance is None
-            else f"{100.0 * float(acceptance):.2f}\\%"
+    stage_keys = sorted({
+        (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
         )
+        for row in method_summary
+    })
+    lookup = {
+        (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+            str(row["method"]).upper(),
+        ): row
+        for row in method_summary
+    }
+    for target, progress, epoch in stage_keys:
+        cells = []
+        for method in methods:
+            row = lookup[(target, progress, epoch, method)]
+            cells.append(
+                f"{float(row['method_hmc_l2_mean']):.4e} "
+                rf"$\pm$ {float(row['method_hmc_l2_sd']):.4e}"
+            )
         lines.append(
-            f"{row['method']} & "
-            f"{float(row['method_hmc_l2']):.6e} & "
-            f"{float(row['hmc_internal_l2']):.6e} & "
-            f"{int(row['native_auxiliary_samples'])} & "
-            f"{acceptance_text} \\\\"
+            f"{epoch} ({100.0 * progress:.0f}\\%) & "
+            + " & ".join(cells)
+            + r" \\"
+        )
+    lines.extend([
+        r"\bottomrule",
+        r"\end{tabular}",
+        "",
+        r"\begin{tabular}{rccc}",
+        r"\toprule",
+        (
+            r"Checkpoint & HMC internal L2 & HMC mean MCSE L2 & "
+            r"UIVI acceptance \\"
+        ),
+        r"\midrule",
+    ])
+    uivi_lookup = {
+        (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+        ): row
+        for row in method_summary
+        if row["method"] == "UIVI"
+    }
+    for row in sorted(
+        hmc_summary,
+        key=lambda value: (
+            str(value["target"]),
+            int(value["epoch"]),
+        ),
+    ):
+        key = (
+            str(row["target"]),
+            float(row["progress"]),
+            int(row["epoch"]),
+        )
+        uivi = uivi_lookup[key]
+        lines.append(
+            f"{int(row['epoch'])} "
+            f"({100.0 * float(row['progress']):.0f}\\%) & "
+            f"{float(row['hmc_internal_l2_mean']):.4e} "
+            rf"$\pm$ {float(row['hmc_internal_l2_sd']):.4e} & "
+            f"{float(row['hmc_mean_mcse_l2_mean']):.4e} "
+            rf"$\pm$ {float(row['hmc_mean_mcse_l2_sd']):.4e} & "
+            f"{100.0 * float(uivi['uivi_average_acceptance_rate_mean']):.2f}"
+            rf"\% $\pm$ "
+            f"{100.0 * float(uivi['uivi_average_acceptance_rate_sd']):.2f}"
+            r"\% \\"
         )
     lines.extend([r"\bottomrule", r"\end{tabular}", ""])
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1288,16 +1724,43 @@ def aggregate_shared_results(
     if report_dir is None:
         raise ValueError("output.report_dir must be configured.")
     report_dir.mkdir(parents=True, exist_ok=True)
+    method_summary, hmc_summary = summarize_shared_results(rows)
+    methods = [
+        str(value).upper() for value in cfg.selection.methods
+    ]
+    seeds = [int(value) for value in cfg.selection.seeds]
     _write_csv(report_dir / "checkpoint_metrics.csv", rows)
+    _write_csv(
+        report_dir / "checkpoint_summary.csv",
+        method_summary,
+    )
+    _write_csv(
+        report_dir / "hmc_checkpoint_summary.csv",
+        hmc_summary,
+    )
     _write_markdown_report(
         report_dir / "score_approximation_table.md",
-        rows,
-        hmc_path=hmc_paths[0],
-        source_checkpoint=specs[0].checkpoint_dir,
+        method_summary,
+        hmc_summary,
+        methods=methods,
+        seeds=seeds,
+    )
+    (report_dir / "method_hmc_l2_table.md").write_text(
+        "\n".join(_method_markdown_lines(method_summary, methods))
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    (report_dir / "hmc_internal_l2_table.md").write_text(
+        "\n".join(_hmc_markdown_lines(hmc_summary)) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
     _write_latex_report(
         report_dir / "score_approximation_table.tex",
-        rows,
+        method_summary,
+        hmc_summary,
+        methods=methods,
     )
     metadata = {
         "schema_version": SCHEMA_VERSION,
@@ -1307,6 +1770,8 @@ def aggregate_shared_results(
         "rows": len(rows),
         "source_cells": len(specs),
         "methods": methods,
+        "method_summary_rows": len(method_summary),
+        "hmc_summary_rows": len(hmc_summary),
         "hmc_reference_paths": [
             path.as_posix() for path in hmc_paths
         ],

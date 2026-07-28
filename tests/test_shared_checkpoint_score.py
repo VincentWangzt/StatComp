@@ -19,6 +19,8 @@ from finalization.shared_checkpoint_score import (
     build_shared_checkpoint_specs,
     method_artifact_fingerprint,
     refit_aisivi_flow,
+    select_shared_checkpoint_specs,
+    summarize_shared_results,
 )
 
 
@@ -92,6 +94,44 @@ class TinyReverse(torch.nn.Module):
 
 
 class SharedCheckpointScoreTest(unittest.TestCase):
+
+    def test_worker_filters_select_configured_cells(self) -> None:
+        records = []
+        specs = []
+        for seed in (42, 43):
+            record = RunRecord(
+                run_id=f"seed{seed}_dsivi_x_shaped",
+                seed=seed,
+                method="DSIVI",
+                target="x_shaped",
+                runner_type="DSIVI",
+                config_path=Path(f"seed_{seed}.yaml"),
+                result_path=Path(f"seed_{seed}"),
+                duration_sec=None,
+                status="completed",
+                entry={},
+            )
+            records.append(record)
+            for epoch in (2000, 10000):
+                specs.append(SharedCheckpointSpec(
+                    source_record=record,
+                    method_records=(record,),
+                    progress=epoch / 10000,
+                    epoch=epoch,
+                    checkpoint_dir=Path(
+                        f"seed_{seed}/checkpoints/epoch_{epoch}"
+                    ),
+                ))
+        selected = select_shared_checkpoint_specs(
+            specs,
+            seeds=[43],
+            epochs=[2000],
+        )
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0].source_record.seed, 43)
+        self.assertEqual(selected[0].epoch, 2000)
+        with self.assertRaisesRegex(ValueError, "not configured"):
+            select_shared_checkpoint_specs(specs, seeds=[44])
 
     def test_method_fingerprint_tracks_config_and_dsivi_reverse(
         self,
@@ -380,6 +420,18 @@ class SharedCheckpointScoreTest(unittest.TestCase):
             self.assertTrue(
                 (report_dir / "score_approximation_table.md").is_file()
             )
+            self.assertTrue(
+                (report_dir / "checkpoint_summary.csv").is_file()
+            )
+            self.assertTrue(
+                (report_dir / "hmc_checkpoint_summary.csv").is_file()
+            )
+            self.assertTrue(
+                (report_dir / "method_hmc_l2_table.md").is_file()
+            )
+            self.assertTrue(
+                (report_dir / "hmc_internal_l2_table.md").is_file()
+            )
             for row in rows:
                 self.assertAlmostEqual(row["method_hmc_l2"], 0.0)
                 self.assertAlmostEqual(row["hmc_internal_l2"], 1.0)
@@ -388,6 +440,60 @@ class SharedCheckpointScoreTest(unittest.TestCase):
                 uivi["uivi_average_acceptance_rate"],
                 0.375,
             )
+
+    def test_summaries_use_sample_sd_and_deduplicate_hmc(
+        self,
+    ) -> None:
+        rows: list[dict[str, object]] = []
+        for seed, method_l2, internal_l2 in (
+            (42, 1.0, 2.0),
+            (43, 3.0, 4.0),
+        ):
+            for method in ("SIVI", "UIVI"):
+                rows.append({
+                    "target": "x_shaped",
+                    "progress": 1.0,
+                    "epoch": 10000,
+                    "seed": seed,
+                    "method": method,
+                    "method_hmc_l2": method_l2,
+                    "method_hmc_relative_l2": method_l2 / 10.0,
+                    "method_runtime_sec": 1.0,
+                    "native_auxiliary_samples": 5,
+                    "uivi_average_acceptance_rate": (
+                        0.2 * (seed - 41)
+                        if method == "UIVI"
+                        else None
+                    ),
+                    "hmc_internal_l2": internal_l2,
+                    "hmc_mean_mcse_l2": internal_l2 / 20.0,
+                    "hmc_runtime_sec": 2.0,
+                    "hmc_quality_status": "pass",
+                    "hmc_quality_issues": "[]",
+                    "hmc_average_acceptance_rate": 0.9,
+                    "hmc_post_burn_acceptance_rate": 0.8,
+                    "hmc_score_rhat_p95": 1.01,
+                    "hmc_reference_path": f"hmc_{seed}.pt",
+                })
+        method_summary, hmc_summary = summarize_shared_results(rows)
+        self.assertEqual(len(method_summary), 2)
+        self.assertEqual(len(hmc_summary), 1)
+        sivi = next(
+            row for row in method_summary if row["method"] == "SIVI"
+        )
+        self.assertAlmostEqual(sivi["method_hmc_l2_mean"], 2.0)
+        self.assertAlmostEqual(
+            sivi["method_hmc_l2_sd"],
+            2.0 ** 0.5,
+        )
+        self.assertAlmostEqual(
+            hmc_summary[0]["hmc_internal_l2_mean"],
+            3.0,
+        )
+        self.assertAlmostEqual(
+            hmc_summary[0]["hmc_internal_l2_sd"],
+            2.0 ** 0.5,
+        )
 
 
 if __name__ == "__main__":

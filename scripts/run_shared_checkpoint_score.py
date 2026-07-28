@@ -21,6 +21,7 @@ from finalization.shared_checkpoint_score import (  # noqa: E402
     prepare_forward_bank,
     run_hmc_reference,
     run_method_score,
+    select_shared_checkpoint_specs,
     validate_production_budget,
 )
 
@@ -63,6 +64,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Required for --task method.",
     )
     parser.add_argument(
+        "--seed",
+        dest="worker_seeds",
+        action="append",
+        type=int,
+        default=[],
+        help=(
+            "Restrict this worker to a configured seed. Repeatable; "
+            "does not alter the analysis fingerprint."
+        ),
+    )
+    parser.add_argument(
+        "--epoch",
+        dest="worker_epochs",
+        action="append",
+        type=int,
+        default=[],
+        help=(
+            "Restrict this worker to a configured checkpoint epoch. "
+            "Repeatable; does not alter the analysis fingerprint."
+        ),
+    )
+    parser.add_argument(
         "--resume",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -77,15 +100,29 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("--task method requires --method.")
     if args.task != "method" and args.method:
         raise ValueError("--method is only valid with --task method.")
+    if (
+        args.task in {"aggregate", "all-serial"}
+        and (args.worker_seeds or args.worker_epochs)
+    ):
+        raise ValueError(
+            "--seed/--epoch worker filters are not valid for aggregate "
+            "or all-serial tasks."
+        )
 
     cfg = load_shared_score_config(args.config, args.overrides)
-    specs = build_shared_checkpoint_specs(cfg)
+    all_specs = build_shared_checkpoint_specs(cfg)
+    specs = select_shared_checkpoint_specs(
+        all_specs,
+        seeds=args.worker_seeds or None,
+        epochs=args.worker_epochs or None,
+    )
     validate_production_budget(cfg)
     if not specs:
         raise RuntimeError("No shared checkpoint cells were selected.")
 
     print(f"analysis_fingerprint={analysis_fingerprint(cfg)}")
-    print(f"source_cells={len(specs)}")
+    print(f"configured_source_cells={len(all_specs)}")
+    print(f"selected_source_cells={len(specs)}")
     print(
         "methods="
         + ",".join(str(value).upper() for value in cfg.selection.methods)
