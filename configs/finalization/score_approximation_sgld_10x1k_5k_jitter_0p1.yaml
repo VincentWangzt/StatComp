@@ -1,0 +1,34 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [DSIVI]
+  targets: [x_shaped, 8_gaussians]
+  seeds: [42, 43, 45, 49, 50]
+  checkpoint_progress: [1.0]
+
+evaluation:
+  device: cuda
+  forward_batch_size: 1024
+  reference:
+    estimator: posterior_sgld_terminal
+    implementation_version: posterior-sgld-terminal-v1
+    num_groups: 10
+    chains_per_group: 1000
+    num_steps: 5000
+    step_size: 0.0001
+    init_jitter_scale: 0.1
+    z_chunk_size: 800
+    diagnostic_steps: [1000, 2500, 5000]
+    finite_check_interval: 500
+    checkpoint_interval: 500
+    accumulator_dtype: float64
+    quality:
+      max_nonfinite_fraction: 0.0
+      max_horizon_drift_to_mcse: 4.0
+
+output:
+  runtime_dir: results/default_config_grid/score_approximation_sgld_10x1k_5k_jitter_0p1
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/score_approximation_sgld_10x1k_5k_jitter_0p1
+  scratch_results_dir: results/default_config_grid/score_approximation_sgld_10x1k_5k_jitter_0p1/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/score_approximation_sgld_10x1k_5k_jitter_0p1/scratch

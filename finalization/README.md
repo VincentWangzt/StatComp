@@ -72,6 +72,13 @@ state. Each group mean is one reference replicate. Completed z tiles and the
 active tile state are fingerprinted and resumable. The 1,000-, 2,500-, and
 5,000-step score snapshots diagnose finite-horizon drift.
 
+The matched small-initialization-noise run uses
+`configs/finalization/score_approximation_sgld_10x1k_5k_jitter_0p1.yaml`.
+It changes only the initialization jitter from unit standard-normal noise to
+0.1 times standard-normal noise and writes to a separate runtime and report
+namespace. Forward samples, initial standard-normal draws, and Langevin noise
+use the same deterministic seeds as the unit-jitter run.
+
 This sampler uses exact posterior gradients, so it is technically fixed-step
 unadjusted Langevin (ULA), despite the conventional SGLD label. A small
 within-SGLD L2 measures agreement among group means but does not certify

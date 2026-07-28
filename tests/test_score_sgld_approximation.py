@@ -244,6 +244,38 @@ class ScoreSGLDApproximationTests(unittest.TestCase):
             SGLD_IMPLEMENTATION_VERSION,
         )
 
+    def test_small_jitter_config_changes_only_jitter_and_outputs(self) -> None:
+        baseline = load_sgld_score_config(None)
+        small_jitter = load_sgld_score_config(
+            Path(
+                "configs/finalization/"
+                "score_approximation_sgld_10x1k_5k_jitter_0p1.yaml"
+            )
+        )
+        baseline_container = OmegaConf.to_container(
+            baseline,
+            resolve=True,
+        )
+        small_jitter_container = OmegaConf.to_container(
+            small_jitter,
+            resolve=True,
+        )
+        baseline_container["evaluation"]["reference"]["init_jitter_scale"] = (
+            0.1
+        )
+        baseline_container["output"] = small_jitter_container["output"]
+        self.assertEqual(baseline_container, small_jitter_container)
+        self.assertEqual(
+            float(
+                small_jitter.evaluation.reference.init_jitter_scale
+            ),
+            0.1,
+        )
+        self.assertIn(
+            "jitter_0p1",
+            str(small_jitter.output.runtime_dir),
+        )
+
     def test_group_replicates_give_requested_internal_l2_and_mcse(
         self,
     ) -> None:
