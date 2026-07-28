@@ -1,0 +1,82 @@
+{
+  "analysis_fingerprint": "7dd3b9e2b988b41824a379a82ead8b3495026cd53f41de1aa71278dba9eaf547",
+  "config": {
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "aisivi_refit": {
+        "batch_size": 1024,
+        "checkpoint_every": 500,
+        "log_every": 250,
+        "steps": 10000
+      },
+      "aisivi_z_chunk_size": 128,
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "adapt_step_size": true,
+        "adaptation_rate": 0.3,
+        "burn_in_steps": 1000,
+        "divergence_threshold": 1000.0,
+        "estimator": "posterior_hmc",
+        "init_jitter_scale": 0.01,
+        "leapfrog_steps": 20,
+        "max_step_size": 0.01,
+        "min_step_size": 1e-05,
+        "num_chains": 20,
+        "quality": {
+          "max_divergence_fraction": 0.01,
+          "max_epsilon_rhat_p95": 2.0,
+          "max_score_rhat_p95": 1.1,
+          "min_post_burn_acceptance_rate": 0.6,
+          "min_worst_chain_acceptance_rate": 0.05
+        },
+        "step_size": 0.002,
+        "target_acceptance": 0.9,
+        "thinning": 1,
+        "total_samples": 100000
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_approximation_dsivi_shared_x_shaped_10k",
+      "runtime_dir": "results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k",
+      "scratch_results_dir": "results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        1.0
+      ],
+      "methods": [
+        "SIVI",
+        "UIVI",
+        "AISIVI",
+        "DSIVI"
+      ],
+      "seeds": [
+        42
+      ],
+      "source_method": "DSIVI",
+      "targets": [
+        "x_shaped"
+      ]
+    }
+  },
+  "generated_at": "2026-07-28T10:30:19.067833+00:00",
+  "git_commit": "555d3fbfb091aa579db8f9bbefc6c99215dc1b5b",
+  "hmc_reference_paths": [
+    "/root/ruivi/results/default_config_grid/score_approximation_dsivi_shared_x_shaped_10k/reference_cache/x_shaped/seed_42/epoch_10000/hmc_2228085552679786.pt"
+  ],
+  "hmc_scores_persisted": true,
+  "methods": [
+    "SIVI",
+    "UIVI",
+    "AISIVI",
+    "DSIVI"
+  ],
+  "rows": 4,
+  "schema_version": 1,
+  "source_cells": 1
+}
