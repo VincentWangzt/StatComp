@@ -99,10 +99,15 @@ def file_sha256(path: Path) -> str:
 
 
 def relative_path(path: Path) -> str:
+    absolute = path.absolute()
     try:
-        return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+        return absolute.relative_to(REPO_ROOT.absolute()).as_posix()
     except ValueError:
-        return path.resolve().as_posix()
+        for anchor in ("results", "tb_logs", "campaigns", "configs"):
+            if anchor in absolute.parts:
+                index = absolute.parts.index(anchor)
+                return Path(*absolute.parts[index:]).as_posix()
+        return absolute.as_posix()
 
 
 def stable_seed(*parts: object) -> int:
@@ -276,14 +281,67 @@ def uivi_score(
 ) -> torch.Tensor:
     """Estimate the UIVI score with its native posterior HMC."""
 
-    z_aux, epsilon_aux, _ = runner.sample_epsilon_hmc(
-        z,
-        eps_init=generating_epsilon,
-        num_samples=int(runner.training_reverse_sample_num),
-        burn_in_steps=int(runner.hmc_burn_in_steps),
-        step_size=float(runner.hmc_step_size),
-        leapfrog_steps=int(runner.hmc_leapfrog_steps),
-    )
+    batch_size, z_dim = z.shape
+    epsilon_dim = int(runner.epsilon_dim)
+    retained_samples = int(runner.training_reverse_sample_num)
+    burn_in_steps = int(runner.hmc_burn_in_steps)
+    step_size = float(runner.hmc_step_size)
+    leapfrog_steps = int(runner.hmc_leapfrog_steps)
+    device = torch.device(runner.device)
+
+    z_aux = z.unsqueeze(1).expand(
+        batch_size,
+        retained_samples,
+        z_dim,
+    ).clone().detach()
+    epsilon_current = generating_epsilon.clone().detach().to(device)
+    samples: list[torch.Tensor] = []
+    for step in range(burn_in_steps + retained_samples):
+        initial_momentum = torch.randn(
+            batch_size,
+            epsilon_dim,
+            device=device,
+        )
+        initial_logp = runner._log_q_phi_eps_given_z(
+            epsilon_current,
+            z,
+        )
+        initial_kinetic = 0.5 * initial_momentum.square().sum(dim=-1)
+
+        momentum = initial_momentum + 0.5 * step_size * (
+            runner._grad_log_q_phi(epsilon_current, z)
+        )
+        epsilon_proposal = epsilon_current
+        for leapfrog_index in range(leapfrog_steps):
+            epsilon_proposal = epsilon_proposal + step_size * momentum
+            gradient = runner._grad_log_q_phi(epsilon_proposal, z)
+            if leapfrog_index != leapfrog_steps - 1:
+                momentum = momentum + step_size * gradient
+        momentum = momentum + 0.5 * step_size * gradient
+
+        proposal_logp = runner._log_q_phi_eps_given_z(
+            epsilon_proposal,
+            z,
+        )
+        proposal_kinetic = 0.5 * momentum.square().sum(dim=-1)
+        energy_change = (
+            proposal_kinetic - proposal_logp
+        ) - (initial_kinetic - initial_logp)
+        acceptance_probability = torch.exp(
+            (-energy_change).clamp(max=0)
+        )
+        accept = torch.rand_like(acceptance_probability) < (
+            acceptance_probability
+        )
+        epsilon_current = torch.where(
+            accept.unsqueeze(-1),
+            epsilon_proposal,
+            epsilon_current,
+        )
+        if step >= burn_in_steps:
+            samples.append(epsilon_current.clone().detach())
+
+    epsilon_aux = torch.stack(samples, dim=0).transpose(0, 1)
     with torch.no_grad():
         return runner.vi_model.score(z_aux, epsilon_aux).mean(
             dim=1
@@ -557,7 +615,7 @@ def write_markdown_report(
         lines.extend([
             f"## Batch size {batch_size}",
             "",
-            "| Method | Mean ± SD (ms) | ms per z | z / second |",
+            "| Method | Mean ± SD (ms) | Amortized ms / z | z / second |",
             "|---|---:|---:|---:|",
         ])
         lookup = {
