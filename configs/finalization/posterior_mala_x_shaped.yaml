@@ -1,0 +1,29 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [DSIVI]
+  targets: [x_shaped]
+  seeds: [45]
+  checkpoint_progress: [1.0]
+
+evaluation:
+  device: cuda
+  z_index: 0
+  sampler:
+    num_chains: 64
+    num_steps: 10000
+    burn_in_steps: 5000
+    thinning: 10
+    step_size: 0.0001
+    init_jitter_scale: 1.0
+    trace_interval: 50
+    snapshot_steps: [0, 1000, 2500, 5000, 7500, 10000]
+
+output:
+  runtime_dir: results/default_config_grid/posterior_mala_x_shaped
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/posterior_mala_x_shaped
+  scratch_results_dir: results/default_config_grid/posterior_mala_x_shaped/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/posterior_mala_x_shaped/scratch
+  max_plot_samples: 10000
+  max_csv_samples: 10000
