@@ -1,0 +1,20 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [SIVI, UIVI, AISIVI, DSIVI]
+  targets: [x_shaped]
+  seeds: [42]
+  checkpoint_epoch: 10000
+
+evaluation:
+  device: cuda
+  seed: 20260728
+  batch_sizes: [1, 128]
+  warmup_calls: 10
+  timed_calls: 100
+
+output:
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/score_estimator_timing_x_shaped
+  scratch_results_dir: results/default_config_grid/score_estimator_timing_x_shaped/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/score_estimator_timing_x_shaped/scratch
