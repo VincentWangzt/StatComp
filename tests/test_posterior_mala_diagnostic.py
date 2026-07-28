@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 
 from finalization.posterior_mala_diagnostic import (
+    _write_report,
     classical_effective_sample_size,
     posterior_mala_samples,
 )
@@ -74,6 +77,74 @@ class PosteriorMalaDiagnosticTests(unittest.TestCase):
                 step_size=0.01,
                 init_jitter_scale=1.0,
                 trace_interval=1,
+            )
+
+    def test_two_dimensional_report_uses_raw_epsilon_projection(self) -> None:
+        torch.manual_seed(11)
+        samples = torch.randn(4, 20, 2, dtype=torch.float64)
+        diagnostics = {
+            "initial_chain_epsilon": torch.randn(4, 2).tolist(),
+            "generating_epsilon": [0.1, -0.2],
+            "split_rhat": [1.01, 1.02],
+            "split_rhat_max": 1.02,
+            "ess_min": 50.0,
+            "early_late_standardized_drift_max": 0.2,
+            "acceptance_rate": 0.95,
+            "post_burn_acceptance_rate": 0.96,
+            "invalid_proposal_fraction": 0.0,
+            "convergence_pass": False,
+        }
+        trace = [
+            {
+                "step": 0.0,
+                "acceptance_rate": 0.0,
+                "window_acceptance_rate": 0.0,
+                "mean_log_posterior": -2.0,
+                "epsilon_mean_norm": 0.5,
+                "epsilon_sd_mean": 1.0,
+            },
+            {
+                "step": 10.0,
+                "acceptance_rate": 0.95,
+                "window_acceptance_rate": 0.95,
+                "mean_log_posterior": -1.5,
+                "epsilon_mean_norm": 0.2,
+                "epsilon_sd_mean": 0.9,
+            },
+        ]
+        metadata = {
+            "method": "DSIVI",
+            "target": "x_shaped",
+            "seed": 45,
+            "epoch": 10000,
+            "checkpoint_dir": "checkpoint",
+            "epsilon_dim": 2,
+            "z_dim": 2,
+            "z": [0.3, -0.4],
+            "forward_seed": 1,
+            "sampler_seed": 2,
+            "gpu_name": "test",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            report_dir = Path(directory)
+            _write_report(
+                report_dir,
+                samples,
+                diagnostics,
+                trace,
+                metadata=metadata,
+                max_plot_samples=80,
+                max_csv_samples=80,
+            )
+            self.assertEqual(
+                diagnostics["projection_kind"],
+                "raw_epsilon",
+            )
+            self.assertTrue(
+                (report_dir / "posterior_epsilon_diagnostic.png").is_file()
+            )
+            self.assertTrue(
+                (report_dir / "posterior_mala_metrics.json").is_file()
             )
 
 

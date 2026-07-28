@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from finalization.posterior_mala_diagnostic import (  # noqa: E402
     load_posterior_mala_config,
+    regenerate_posterior_mala_report,
     run_posterior_mala_diagnostic,
 )
 
@@ -34,13 +35,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=[],
         help="OmegaConf dotlist override.",
     )
+    parser.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Regenerate reports from the saved runtime trajectory.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     cfg = load_posterior_mala_config(args.config, args.overrides)
-    result = run_posterior_mala_diagnostic(cfg)
+    result = (
+        regenerate_posterior_mala_report(cfg)
+        if args.report_only
+        else run_posterior_mala_diagnostic(cfg)
+    )
     summary = {
         "acceptance_rate": result["acceptance_rate"],
         "post_burn_acceptance_rate": result[

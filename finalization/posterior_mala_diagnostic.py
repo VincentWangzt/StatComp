@@ -6,7 +6,7 @@ The target density is the conditional auxiliary posterior
 
 This module intentionally keeps the diagnostic small: it selects one
 reproducible ``(epsilon, z)`` pair, evolves multiple MALA chains for that fixed
-``z``, and writes convergence diagnostics plus a four-dimensional epsilon
+``z``, and writes convergence diagnostics plus a dimension-aware epsilon
 visualization.
 """
 
@@ -482,7 +482,7 @@ def _write_visualization(
     epoch: int,
     z: torch.Tensor,
     max_plot_samples: int,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, str]:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -496,10 +496,32 @@ def _write_visualization(
         diagnostics["generating_epsilon"],
         dtype=torch.float64,
     )
-    projected, projected_generating, projected_initial, explained = (
-        _pca_projection(samples, generating, initial)
-    )
     flat = samples.reshape(-1, samples.shape[-1]).numpy()
+    dimensions = flat.shape[-1]
+    if dimensions == 2:
+        projected = flat.copy()
+        projected_generating = generating.numpy().reshape(1, -1)
+        projected_initial = initial.numpy()
+        coordinate_variance = flat.var(axis=0)
+        explained = coordinate_variance / coordinate_variance.sum()
+        projection_kind = "raw_epsilon"
+        projection_x_label = "epsilon[0]"
+        projection_y_label = "epsilon[1]"
+        projection_title = "Posterior epsilon samples"
+    else:
+        projected, projected_generating, projected_initial, explained = (
+            _pca_projection(samples, generating, initial)
+        )
+        projection_kind = "pca"
+        projection_x_label = (
+            f"PC1 ({100 * explained[0]:.1f}% variance)"
+        )
+        projection_y_label = (
+            f"PC2 ({100 * explained[1]:.1f}% variance)"
+        )
+        projection_title = (
+            f"{dimensions}-dimensional posterior projected to PCA"
+        )
     draws = samples.shape[1]
     flat_draw = np.tile(np.arange(draws), samples.shape[0])
     early_mask = flat_draw < draws // 2
@@ -513,11 +535,14 @@ def _write_visualization(
     else:
         selected = np.arange(len(flat))
 
+    histogram_rows = math.ceil(dimensions / 2)
+    figure_rows = 1 + histogram_rows
     fig, axes = plt.subplots(
-        3,
+        figure_rows,
         2,
-        figsize=(13, 12),
+        figsize=(13, 4.0 + 3.6 * histogram_rows),
         constrained_layout=True,
+        squeeze=False,
     )
     ax = axes[0, 0]
     early_selected = selected[early_mask[selected]]
@@ -554,9 +579,9 @@ def _write_visualization(
         label="generating epsilon",
         zorder=5,
     )
-    ax.set_xlabel(f"PC1 ({100 * explained[0]:.1f}% variance)")
-    ax.set_ylabel(f"PC2 ({100 * explained[1]:.1f}% variance)")
-    ax.set_title("Four-dimensional posterior projected to PCA")
+    ax.set_xlabel(projection_x_label)
+    ax.set_ylabel(projection_y_label)
+    ax.set_title(projection_title)
     ax.legend(frameon=False, fontsize=8)
 
     ax = axes[0, 1]
@@ -586,7 +611,9 @@ def _write_visualization(
         fontsize=8,
     )
 
-    for dimension, ax in enumerate(axes[1:].reshape(-1)):
+    histogram_axes = axes.reshape(-1)[2:]
+    for dimension in range(dimensions):
+        ax = histogram_axes[dimension]
         ax.hist(
             flat[early_mask, dimension],
             bins=55,
@@ -616,6 +643,8 @@ def _write_visualization(
         )
         if dimension == 0:
             ax.legend(frameon=False, fontsize=8)
+    for ax in histogram_axes[dimensions:]:
+        ax.axis("off")
 
     fig.suptitle(
         "Posterior MALA: DSIVI x_shaped "
@@ -625,7 +654,7 @@ def _write_visualization(
     figure_path = report_dir / "posterior_epsilon_diagnostic.png"
     fig.savefig(figure_path, dpi=180)
     plt.close(fig)
-    return projected, explained
+    return projected, explained, projection_kind
 
 
 def _write_report(
@@ -639,7 +668,7 @@ def _write_report(
     max_csv_samples: int,
 ) -> None:
     report_dir.mkdir(parents=True, exist_ok=True)
-    projected, explained = _write_visualization(
+    projected, explained, projection_kind = _write_visualization(
         report_dir,
         samples,
         diagnostics,
@@ -649,7 +678,13 @@ def _write_report(
         z=torch.tensor([metadata["z"]], dtype=torch.float64),
         max_plot_samples=max_plot_samples,
     )
-    diagnostics["pca_explained_variance_ratio"] = explained.tolist()
+    diagnostics["projection_kind"] = projection_kind
+    if projection_kind == "pca":
+        diagnostics["pca_explained_variance_ratio"] = explained.tolist()
+    else:
+        diagnostics["epsilon_coordinate_variance_ratio"] = (
+            explained.tolist()
+        )
     payload = {**metadata, **diagnostics}
     with (report_dir / "posterior_mala_metrics.json").open(
         "w",
@@ -828,3 +863,55 @@ def run_posterior_mala_diagnostic(cfg: DictConfig) -> dict[str, Any]:
         return {**metadata, **diagnostics}
     finally:
         _release_runner(runner)
+
+
+def regenerate_posterior_mala_report(cfg: DictConfig) -> dict[str, Any]:
+    """Regenerate report artifacts from a successfully saved MALA trajectory."""
+    specs = build_cell_specs(cfg)
+    if len(specs) != 1:
+        raise RuntimeError(
+            f"Posterior MALA diagnostic requires exactly one cell; got "
+            f"{len(specs)}."
+        )
+    spec = specs[0]
+    runtime_dir = REPO_ROOT / str(cfg.output.runtime_dir)
+    report_dir = REPO_ROOT / str(cfg.output.report_dir)
+    payload = torch.load(
+        runtime_dir / "posterior_mala_samples.pt",
+        map_location="cpu",
+        weights_only=False,
+    )
+    samples = payload["samples"]
+    z = payload["z"]
+    diagnostics = payload["diagnostics"]
+    trace = payload["trace"]
+    if samples.ndim != 3 or not torch.isfinite(samples).all():
+        raise FloatingPointError("Saved MALA samples are invalid.")
+
+    metadata = {
+        "method": spec.record.method,
+        "target": spec.record.target,
+        "seed": spec.record.seed,
+        "epoch": spec.epoch,
+        "checkpoint_dir": spec.checkpoint_dir.as_posix(),
+        "epsilon_dim": int(samples.shape[-1]),
+        "z_dim": int(z.shape[-1]),
+        "z": z[0].tolist(),
+        "forward_seed": stable_seed(spec.key, "posterior_mala_forward"),
+        "sampler_seed": stable_seed(spec.key, "posterior_mala_sampler"),
+        "gpu_name": (
+            torch.cuda.get_device_name()
+            if torch.cuda.is_available()
+            else "not queried during report regeneration"
+        ),
+    }
+    _write_report(
+        report_dir,
+        samples,
+        diagnostics,
+        trace,
+        metadata=metadata,
+        max_plot_samples=int(cfg.output.max_plot_samples),
+        max_csv_samples=int(cfg.output.max_csv_samples),
+    )
+    return {**metadata, **diagnostics}
