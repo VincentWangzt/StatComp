@@ -54,6 +54,29 @@ Runtime cell metrics remain under
 LaTeX, and metadata files are generated under
 `campaigns/default_config_grid/generated_reports/finalization/score_approximation/`.
 
+### Terminal-particle SGLD score reference
+
+The DSIVI-only SGLD analysis uses the epoch-10,000 checkpoints for
+`x_shaped` and `8_gaussians`:
+
+```bash
+python scripts/run_score_sgld_approximation.py --dry-run
+python -u scripts/run_score_sgld_approximation.py
+```
+
+Its production configuration is
+`configs/finalization/score_approximation_sgld_20x10k_20k.yaml`. For each
+fixed z, it evolves 20 groups of 10,000 posterior-epsilon particles for 20,000
+fixed-size Langevin steps and retains only the terminal state. Each group mean
+is one reference replicate. Completed z tiles and the active tile state are
+fingerprinted and resumable. The 5,000-, 10,000-, and 20,000-step score
+snapshots diagnose finite-horizon drift.
+
+This sampler uses exact posterior gradients, so it is technically fixed-step
+unadjusted Langevin (ULA), despite the conventional SGLD label. A small
+within-SGLD L2 measures agreement among group means but does not certify
+mixing or rule out shared finite-horizon and discretization bias.
+
 ### HMC initialization-jitter ablation
 
 The focused jitter ablation uses DSIVI on `8_gaussians` at epoch 10,000 and
