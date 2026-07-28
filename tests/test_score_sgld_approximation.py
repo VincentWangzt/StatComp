@@ -233,12 +233,12 @@ class ScoreSGLDApproximationTests(unittest.TestCase):
         )
         self.assertEqual(list(cfg.selection.checkpoint_progress), [1.0])
         self.assertEqual(int(cfg.evaluation.forward_batch_size), 1024)
-        self.assertEqual(int(reference.num_groups), 20)
-        self.assertEqual(int(reference.chains_per_group), 10000)
-        self.assertEqual(int(reference.num_steps), 20000)
-        self.assertEqual(float(reference.step_size), 0.0001)
+        self.assertEqual(int(reference.num_groups), 10)
+        self.assertEqual(int(reference.chains_per_group), 1000)
+        self.assertEqual(int(reference.num_steps), 5000)
+        self.assertEqual(float(reference.step_size), 0.0005)
         self.assertEqual(float(reference.init_jitter_scale), 1.0)
-        self.assertEqual(int(reference.z_chunk_size), 40)
+        self.assertEqual(int(reference.z_chunk_size), 800)
         self.assertEqual(
             str(reference.implementation_version),
             SGLD_IMPLEMENTATION_VERSION,

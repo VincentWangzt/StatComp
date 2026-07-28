@@ -65,12 +65,12 @@ python -u scripts/run_score_sgld_approximation.py
 ```
 
 Its production configuration is
-`configs/finalization/score_approximation_sgld_20x10k_20k.yaml`. For each
-fixed z, it evolves 20 groups of 10,000 posterior-epsilon particles for 20,000
-fixed-size Langevin steps and retains only the terminal state. Each group mean
-is one reference replicate. Completed z tiles and the active tile state are
-fingerprinted and resumable. The 5,000-, 10,000-, and 20,000-step score
-snapshots diagnose finite-horizon drift.
+`configs/finalization/score_approximation_sgld_10x1k_5k.yaml`. For each fixed
+z, it evolves 10 groups of 1,000 posterior-epsilon particles for 5,000
+fixed-size Langevin steps at step size 0.0005 and retains only the terminal
+state. Each group mean is one reference replicate. Completed z tiles and the
+active tile state are fingerprinted and resumable. The 1,000-, 2,500-, and
+5,000-step score snapshots diagnose finite-horizon drift.
 
 This sampler uses exact posterior gradients, so it is technically fixed-step
 unadjusted Langevin (ULA), despite the conventional SGLD label. A small

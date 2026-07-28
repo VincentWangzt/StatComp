@@ -55,7 +55,7 @@ DEFAULT_CONFIG = (
     REPO_ROOT
     / "configs"
     / "finalization"
-    / "score_approximation_sgld_20x10k_20k.yaml"
+    / "score_approximation_sgld_10x1k_5k.yaml"
 )
 SGLD_IMPLEMENTATION_VERSION = "posterior-sgld-terminal-v1"
 
