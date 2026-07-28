@@ -1,0 +1,39 @@
+campaign:
+  manifest_path: campaigns/default_config_grid/manifest.json
+
+selection:
+  methods: [DSIVI]
+  targets: [x_shaped]
+  seeds: [45]
+  checkpoint_progress: [1.0]
+
+input:
+  mala_runtime_path: results/default_config_grid/posterior_mala_x_shaped/posterior_mala_samples.pt
+
+evaluation:
+  device: cuda
+  z_index: 0
+  mala_tail_draws_per_chain: 50
+  hmc:
+    num_chains: 20
+    burn_in_steps: 1000
+    samples_per_chain: 5000
+    thinning: 1
+    step_size: 0.002
+    leapfrog_steps: 20
+    init_jitter_scale: 1.0
+    adapt_step_size: true
+    target_acceptance: 0.9
+    adaptation_rate: 0.3
+    min_step_size: 0.00001
+    max_step_size: 0.01
+    divergence_threshold: 1000.0
+    trace_interval: 50
+
+output:
+  runtime_dir: results/default_config_grid/posterior_mala_hmc_x_shaped
+  report_dir: campaigns/default_config_grid/generated_reports/finalization/posterior_mala_hmc_x_shaped
+  scratch_results_dir: results/default_config_grid/posterior_mala_hmc_x_shaped/scratch
+  scratch_tb_dir: tb_logs/default_config_grid/posterior_mala_hmc_x_shaped/scratch
+  max_plot_samples: 12000
+  max_csv_samples: 12000
