@@ -16,7 +16,7 @@ evaluation:
     num_groups: 10
     chains_per_group: 1000
     num_steps: 5000
-    step_size: 0.0005
+    step_size: 0.0001
     init_jitter_scale: 1.0
     z_chunk_size: 800
     diagnostic_steps: [1000, 2500, 5000]

@@ -236,7 +236,7 @@ class ScoreSGLDApproximationTests(unittest.TestCase):
         self.assertEqual(int(reference.num_groups), 10)
         self.assertEqual(int(reference.chains_per_group), 1000)
         self.assertEqual(int(reference.num_steps), 5000)
-        self.assertEqual(float(reference.step_size), 0.0005)
+        self.assertEqual(float(reference.step_size), 0.0001)
         self.assertEqual(float(reference.init_jitter_scale), 1.0)
         self.assertEqual(int(reference.z_chunk_size), 800)
         self.assertEqual(

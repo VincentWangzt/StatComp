@@ -67,7 +67,7 @@ python -u scripts/run_score_sgld_approximation.py
 Its production configuration is
 `configs/finalization/score_approximation_sgld_10x1k_5k.yaml`. For each fixed
 z, it evolves 10 groups of 1,000 posterior-epsilon particles for 5,000
-fixed-size Langevin steps at step size 0.0005 and retains only the terminal
+fixed-size Langevin steps at step size 0.0001 and retains only the terminal
 state. Each group mean is one reference replicate. Completed z tiles and the
 active tile state are fingerprinted and resumable. The 1,000-, 2,500-, and
 5,000-step score snapshots diagnose finite-horizon drift.
