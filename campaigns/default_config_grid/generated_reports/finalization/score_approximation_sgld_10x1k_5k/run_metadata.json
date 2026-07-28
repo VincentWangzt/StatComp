@@ -1,0 +1,66 @@
+{
+  "analysis_fingerprint": "51ab99526a080175c4f4880b0d4041711c8d3bd8bd724cf30b2141640369bb80",
+  "completed_cells": 10,
+  "config": {
+    "campaign": {
+      "manifest_path": "campaigns/default_config_grid/manifest.json"
+    },
+    "evaluation": {
+      "device": "cuda",
+      "forward_batch_size": 1024,
+      "reference": {
+        "accumulator_dtype": "float64",
+        "chains_per_group": 1000,
+        "checkpoint_interval": 500,
+        "diagnostic_steps": [
+          1000,
+          2500,
+          5000
+        ],
+        "estimator": "posterior_sgld_terminal",
+        "finite_check_interval": 500,
+        "implementation_version": "posterior-sgld-terminal-v1",
+        "init_jitter_scale": 1.0,
+        "num_groups": 10,
+        "num_steps": 5000,
+        "quality": {
+          "max_horizon_drift_to_mcse": 4.0,
+          "max_nonfinite_fraction": 0.0
+        },
+        "step_size": 0.0001,
+        "z_chunk_size": 800
+      }
+    },
+    "output": {
+      "report_dir": "campaigns/default_config_grid/generated_reports/finalization/score_approximation_sgld_10x1k_5k",
+      "runtime_dir": "results/default_config_grid/score_approximation_sgld_10x1k_5k",
+      "scratch_results_dir": "results/default_config_grid/score_approximation_sgld_10x1k_5k/scratch",
+      "scratch_tb_dir": "tb_logs/default_config_grid/score_approximation_sgld_10x1k_5k/scratch"
+    },
+    "selection": {
+      "checkpoint_progress": [
+        1.0
+      ],
+      "methods": [
+        "DSIVI"
+      ],
+      "seeds": [
+        42,
+        43,
+        45,
+        49,
+        50
+      ],
+      "targets": [
+        "x_shaped",
+        "8_gaussians"
+      ]
+    }
+  },
+  "estimator_note": "Fixed-step terminal-particle ULA/SGLD reference; between-group agreement of group means does not certify convergence.",
+  "expected_cells": 10,
+  "generated_at": "2026-07-28T07:39:09.479522+00:00",
+  "git_commit": "db38b2c1be293625915dc3bc59528fc521ddca76",
+  "reference_quality_warnings": 1,
+  "summary_rows": 2
+}
