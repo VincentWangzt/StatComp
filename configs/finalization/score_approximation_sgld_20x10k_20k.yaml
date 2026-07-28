@@ -18,7 +18,7 @@ evaluation:
     num_steps: 20000
     step_size: 0.0001
     init_jitter_scale: 1.0
-    z_chunk_size: 4
+    z_chunk_size: 40
     diagnostic_steps: [5000, 10000, 20000]
     finite_check_interval: 1000
     checkpoint_interval: 1000

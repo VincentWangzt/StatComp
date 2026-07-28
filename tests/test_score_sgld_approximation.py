@@ -238,6 +238,7 @@ class ScoreSGLDApproximationTests(unittest.TestCase):
         self.assertEqual(int(reference.num_steps), 20000)
         self.assertEqual(float(reference.step_size), 0.0001)
         self.assertEqual(float(reference.init_jitter_scale), 1.0)
+        self.assertEqual(int(reference.z_chunk_size), 40)
         self.assertEqual(
             str(reference.implementation_version),
             SGLD_IMPLEMENTATION_VERSION,
