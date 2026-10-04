@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
+mkdir -p results/toy_scatter_grid tb_logs/toy_scatter_grid
 
 python scripts/run_default_config_grid_sweep.py \
   --campaign-slug toy_scatter_grid \
