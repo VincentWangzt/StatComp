@@ -82,8 +82,8 @@ for $k=1,\ldots,20$ and $\sigma=0.1$.  The inference target is therefore $p(x \m
   \frac{1}{\sqrt{2\pi\sigma^2}}
   \exp\left\{-\frac{(y_{5k\Delta t}-x_{5k\Delta t})^2}{2\sigma^2}\right\}.
 \end{equation}
-This benchmark is useful because posterior quality is visible not only through the mean path, but also through the marginal uncertainty band. Following \citet{cheng2024kernel}, we approximate the posterior by running stochastic gradient Langevin dynamics (SGLD) with 1000 particles, 100,000 iterations and a step size of $10^{-4}$, and use the resulting samples as a high-quality reference for evaluation.
-In the evaluation, we include SIVI and KSIVI as additional baselines. We train SIVI, UIVI, AISIVI, and DIVI for 10,000 main VI iterations with learning rate $10^{-3}$ and batch size 128; KSIVI is trained for 100,000 iterations with the same learning rate and batch size but with a slower learning rate decay schedule. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Further method configurations are in Appendix~\ref{app:diffusion-details}.
+Posterior quality can be assessed through the mean path and the marginal uncertainty band. Following \citet{cheng2024kernel}, we approximate the posterior by running stochastic gradient Langevin dynamics (SGLD) with 1000 particles, 100,000 iterations and a step size of $10^{-4}$, and use the resulting samples as a high-quality reference for evaluation.
+In the evaluation, we include SIVI and KSIVI as additional baselines. We train SIVI, UIVI, AISIVI, and DIVI for 10,000 main VI iterations with learning rate $10^{-3}$ and batch size 128; KSIVI is trained for 100,000 iterations with the same learning rate and batch size and a slower learning rate decay schedule. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Further method configurations are in Appendix~\ref{app:diffusion-details}.
 
 \begin{figure}[t]
   \centering
