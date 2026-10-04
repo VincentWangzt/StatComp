@@ -19,7 +19,7 @@ All SIVI variants use a conditional Gaussian semi-implicit variational family.  
 For two-dimensional targets, $\epsilon \in \mathbb{R}^{4}$ is drawn from a standard Gaussian prior, and $\mu_\phi$ and the diagonal variance are produced by a two-hidden-layer MLP with hidden width 128.  For the conditioned diffusion task, $\epsilon \in [0,1]^{100}$ uses a uniform prior, $\mu_\phi$ is a two-hidden-layer ReLU MLP with hidden width 128, and the conditional covariance is a learned global diagonal variance initialized near $0.01725$.  For BNN regression, $\epsilon \in \mathbb{R}^{3}$ uses a standard Gaussian prior, $\mu_\phi$ and the diagonal log variance are produced by a two-hidden-layer ReLU MLP with hidden width 10, and the log variance is initialized at $-8$ with a lower clamp at $-20$.  These BNN choices follow the compact semi-implicit architecture used in the KSIVI and SIVI-SM comparisons.
 
 \paragraph{Common training protocol.}
-All reported runs use ten random seeds; tables report the mean and standard error.  Unless otherwise noted, SIVI, UIVI, AISIVI, and DIVI use 10,000 main VI iterations with batch size 128, Adam optimization, and a step learning-rate scheduler. And unless otherwise noted, all methods are trained with annealing enabled, for half of the total training iterations. All experiments are conducted on a Linux server with Nvidia RTX 4090 GPUs and Intel Xeon Gold 6430 @ 2.10GHz.
+Unless otherwise noted, quantitative results use ten random seeds and report the mean and standard error. The toy scatter figure uses one seed per method and target. The supplementary score-error comparisons use five seeds and report sample standard deviations; the reverse-update ablations and RealNVP comparison use five seeds and report standard errors. Unless otherwise noted, SIVI, UIVI, AISIVI, and DIVI use 10,000 main VI iterations with batch size 128, Adam optimization, and a step learning-rate scheduler. Unless otherwise noted, all methods are trained with annealing enabled for half of the total training iterations. The main experiments are conducted on a Linux server with Nvidia RTX 4090 GPUs and Intel Xeon Gold 6430 @ 2.10GHz; the supplementary score-evaluation timings use an RTX 3090.
 
 \paragraph{SIVI.}
 SIVI approximates the semi-implicit marginal $\log q_\phi(z)$ using Monte Carlo averages over auxiliary $\epsilon$ samples.  We draw 4,096 auxiliary samples on diffusion targets and 2,048 on BNN targets due to GPU memory constraints.
@@ -78,7 +78,7 @@ For BNN targets, evaluation draws 2,000 posterior samples (network weights) from
 \subsection{Two-dimensional targets}
 \label{app:toy-details}
 
-The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  Visual panels use 2,000 samples per method and overlay the samples on target-density contours.
+The main text displays and summarizes \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}. Visual panels use 2,000 samples per method and overlay the samples on target-density contours. The figure is generated from 15 targeted runs, using seed 42 for SIVI, KSIVI, UIVI, and DIVI, and seed 44 for AISIVI on each target. Intermediate metric evaluation and contour plots are disabled for these figure runs. The quantitative table retains the ten-seed evaluation protocol.
 
 \paragraph{Target density definitions.}
 We now state the precise density for each of the three two-dimensional synthetic targets used in Section~\ref{subsec:toy-experiments}.
@@ -150,7 +150,10 @@ Table~\ref{tab:toy-target-summary} collects the key parameters of each target.
 
 
 \paragraph{Training configuration details.}
-All methods use 10,000 iterations, VI learning rate $10^{-3}$, batch size 128, and a step scheduler with decay factor 0.7 every 1,000 iterations (0.9 on \texttt{8\_gaussians}).  Linear annealing over 5,000 steps is applied on all targets except \texttt{student\_uc}, where annealing is disabled for all methods.
+SIVI, UIVI, AISIVI, and DIVI use 10,000 iterations, VI learning rate $10^{-3}$, batch size 128, and a step scheduler with decay factor 0.7 every 1,000 iterations (0.9 on \texttt{8\_gaussians}). Linear annealing over 5,000 steps is applied on all targets except \texttt{student\_uc}, where annealing is disabled for all methods.
+
+\subparagraph{SIVI.}
+SIVI uses 4,096 auxiliary samples from the mixing prior to approximate the semi-implicit marginal density.
 
 \subparagraph{AISIVI.}
 AISIVI uses a conditional RealNVP reverse model with 8 coupling layers and hidden width 12.  Before joint training, the flow is pre-trained on initial VI samples for 500 warmup epochs with learning rate $10^{-2}$ and batch size 8,192.  During main training, the flow uses 1,024 reverse samples, reverse learning rate $10^{-3}$, and one reverse update per VI step.
@@ -158,11 +161,11 @@ AISIVI uses a conditional RealNVP reverse model with 8 coupling layers and hidde
 \subparagraph{DIVI.}
 The proxy score MLP has hidden width 64 and three hidden layers.  The proxy is warm-started for 500 epochs with learning rate $10^{-3}$ and batch size 8,192.  During main training the proxy uses reverse batch size 2,048, reverse learning rate $10^{-3}$, and 5 updates per VI step.
 
-% \paragraph{KSIVI.}
-% KSIVI is trained for 50,000 iterations with 25,000-step linear annealing (except on \texttt{student\_uc}), a step-decay schedule with factor 0.9 every 1,000 iterations, and the default settings from \citet{cheng2024kernel}.  We use a Gaussian kernel on most targets, an IMQ kernel on \texttt{multimodal}, and a Riesz kernel on \texttt{student\_uc}.
+\subparagraph{KSIVI.}
+KSIVI is trained for 50,000 iterations with batch size 128, learning rate $10^{-3}$, 25,000-step linear annealing (except on \texttt{student\_uc}), and a step-decay schedule with factor 0.9 every 1,000 iterations, following \citet{cheng2024kernel}. We use a Gaussian kernel on \texttt{x\_shaped} and \texttt{8\_gaussians}, and an affine-invariant Riesz kernel on \texttt{student\_uc}.
 
 \paragraph{Quantitative results.}
-We here present the quantitative results in Table~\ref{tab:toy-method-grid}. It can be seen from the table that, DIVI obtains the best metric on all targets in terms of KL divergence and Wasserstein-2 distance. Here the W2 distance evaluation follows the protocol in Appendix~\ref{app:metric-details}. We are observing divergence on \texttt{8_gaussians} for AISIVI, as a result of drifting support. The same divergence behavior has been observed in the official code of AISIVI, indicating a potential weakness in training stability.  
+Table~\ref{tab:toy-method-grid} presents the quantitative results across all five methods. DIVI obtains the lowest mean on four of the six quality metrics and the second-lowest on the remaining two, while SIVI is strongest on the Student UC and eight-Gaussian KL-style metrics. DIVI also has the lowest mean end-to-end wall-clock time. The Wasserstein-2 evaluation follows the protocol in Appendix~\ref{app:metric-details}. AISIVI exhibits support drift on \texttt{8\_gaussians}, resulting in a large KL-style objective and variability across seeds.
 
 \input{\finalizationtabledir/toy_method_grid.tex}
 
@@ -205,6 +208,119 @@ KSIVI is trained for 100,000 iterations without annealing, using a Gaussian kern
 
 \paragraph{Evaluation.}
 BNN evaluation draws 2,000 posterior samples and reports test RMSE and NLL as described in Appendix~\ref{app:metric-details}.
+
+\subsection{Direct score-estimation evaluation}
+\label{app:score-estimation}
+
+We evaluate the marginal-score error on fixed variational models obtained after 2,000, 4,000, 6,000, 8,000, and 10,000 DIVI training steps on the X-shaped target. For each model, we generate $N=1{,}024$ evaluation pairs by sampling $\epsilon_i^{(0)}\sim\mathcal{N}(0,I)$ and then $z_i\sim q_\phi(z\mid\epsilon_i^{(0)})$. Following the reverse-conditional score identity used in UIVI~\citep{titsias2019unbiased},
+\begin{equation}
+  \nabla_z\log q_\phi(z)
+  = \mathbb{E}_{q_\phi(\epsilon\mid z)}
+    \left[\nabla_z\log q_\phi(z\mid\epsilon)\right],
+  \qquad
+  q_\phi(\epsilon\mid z)\propto q(\epsilon)q_\phi(z\mid\epsilon),
+\end{equation}
+we construct a reference score $s_{\mathrm{HMC}}(z_i)$ by sampling the reverse conditional. For each $z_i$, we run 20 HMC chains initialized at the generating $\epsilon_i^{(0)}$, with 1,000 burn-in steps and 5,000 retained samples per chain. We pool the retained samples and average their conditional Gaussian scores. The reported HMC diagnostic is $\hat{R}=1.0065$. The empirical squared score-estimation error is
+\begin{equation}
+  \widehat{\mathcal{E}}^2
+  = \frac{1}{N}\sum_{i=1}^{N}
+    \left\|\widehat{s}_{\mathrm{method}}(z_i)-s_{\mathrm{HMC}}(z_i)\right\|_2^2.
+\end{equation}
+
+Every estimator is applied to the same fixed DIVI variational model at each checkpoint. SIVI uses 4,096 mixing-prior samples; UIVI uses its native posterior-HMC estimator with five burn-in transitions and five auxiliary samples; AISIVI uses 1,024 importance samples from a normalizing-flow proposal optimized for 10,000 steps separately for each fixed variational distribution; and DIVI uses its checkpointed denoising score network. Table~\ref{tab:score-estimation-error} reports the mean and sample standard deviation across five seeds. Score-evaluation time is measured for a batch of 128 over 100 synchronized calls on an RTX 3090, after fitting the score network or proposal.
+
+\subsection{Discrepancy from the target score}
+\label{app:target-score-discrepancy}
+
+We also evaluate the squared $L^2$ discrepancy between each method's estimated variational score and the analytic score of the X-shaped target throughout training. At each checkpoint, we use the variational model obtained by that method and evaluate
+\begin{equation}
+  D_{\mathrm{target}}
+  = \mathbb{E}_{z\sim q_\phi}
+    \left\|\widehat{s}_{\mathrm{method}}(z)-\nabla_z\log p(z)\right\|_2^2.
+\end{equation}
+This diagnostic measures the joint effect of variational approximation and score estimation along each method's own training trajectory. Table~\ref{tab:target-score-discrepancy} reports the mean and sample standard deviation across five seeds. DIVI obtains the lowest mean target-score discrepancy at every reported checkpoint.
+
+\begin{table}[t]
+\centering
+\caption{Squared $L^2$ discrepancy from the analytic X-shaped target score along each method's training trajectory (mean $\pm$ sample standard deviation over five seeds). Bold indicates the lowest mean.}
+\label{tab:target-score-discrepancy}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lccccc}
+\toprule
+Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps \\
+\midrule
+SIVI & $4.479\pm2.653$ & $0.546\pm0.684$ & $0.298\pm0.554$ & $0.270\pm0.495$ & $0.190\pm0.339$ \\
+UIVI & $5.062\pm0.505$ & $3.265\pm1.512$ & $3.023\pm0.618$ & $3.052\pm0.717$ & $3.040\pm0.796$ \\
+AISIVI & $1704.846\pm3716.351$ & $282.647\pm362.166$ & $581.071\pm961.327$ & $100.476\pm62.395$ & $88.381\pm86.784$ \\
+DIVI & $\mathbf{3.694\pm0.448}$ & $\mathbf{0.411\pm0.109}$ & $\mathbf{0.148\pm0.063}$ & $\mathbf{0.142\pm0.086}$ & $\mathbf{0.079\pm0.037}$ \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsection{Effect and selection of score-update steps and batch size}
+\label{app:reverse-updates}
+
+The number of inner score updates per outer VI update, $L_\psi$ (reverse steps), and the score batch size, $B_\psi$ (reverse batch size), control the accuracy and computational cost of score tracking. DIVI warm-starts $\psi$ from the preceding iteration, so each inner loop tracks the score of the current variational distribution. On the experiments considered here, two to five inner updates work consistently well. The appropriate choice depends on dimension, network capacity, batch size, and how rapidly $q_\phi$ changes. A practical selection rule starts with a larger update count, such as $L_\psi=10$, and halves it while monitoring a distributional metric such as the ELBO or Wasserstein-2 distance. The selected value balances distributional accuracy and computation.
+
+Tables~\ref{tab:reverse-steps} and~\ref{tab:reverse-batch-size} give ablations on the X-shaped target over five seeds, with the remaining training settings fixed. The first varies $L_\psi$ with $B_\psi=2{,}048$; the second varies $B_\psi$ with $L_\psi=5$. Increasing the update count improves both metrics and increases runtime. Larger score batches improve both metrics with similar measured runtimes over the tested range. The main toy experiments use $L_\psi=5$ and $B_\psi=2{,}048$.
+
+\begin{table}[t]
+\centering
+\caption{Effect of reverse steps on the X-shaped target with reverse batch size 2,048 (mean $\pm$ standard error over five seeds). Bold indicates the lowest mean quality metric.}
+\label{tab:reverse-steps}
+\small
+\begin{tabular}{lccc}
+\toprule
+Reverse steps & $D_{\mathrm{KL}}\downarrow$ & W2 $\downarrow$ & Runtime (s) \\
+\midrule
+1 & $0.2083\pm0.1503$ & $0.2517\pm0.0526$ & $171.6\pm1.1$ \\
+2 & $0.02253\pm0.00725$ & $0.2402\pm0.0375$ & $216.5\pm3.4$ \\
+5 (default) & $0.004619\pm0.001524$ & $0.1127\pm0.0279$ & $352.8\pm4.8$ \\
+10 & $\mathbf{0.002708\pm0.000824}$ & $\mathbf{0.07333\pm0.00553}$ & $571.7\pm7.2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Effect of reverse batch size on the X-shaped target with five reverse steps (mean $\pm$ standard error over five seeds). Bold indicates the lowest mean quality metric.}
+\label{tab:reverse-batch-size}
+\small
+\begin{tabular}{lccc}
+\toprule
+Reverse batch size & $D_{\mathrm{KL}}\downarrow$ & W2 $\downarrow$ & Runtime (s) \\
+\midrule
+512 & $0.01058\pm0.00520$ & $0.1592\pm0.0387$ & $339.6\pm3.6$ \\
+1,024 & $0.008070\pm0.001921$ & $0.1480\pm0.0249$ & $339.4\pm5.5$ \\
+2,048 (default) & $0.004619\pm0.001524$ & $0.1127\pm0.0279$ & $352.8\pm4.8$ \\
+4,096 & $0.004079\pm0.001026$ & $0.07773\pm0.01072$ & $351.1\pm4.1$ \\
+8,192 & $\mathbf{0.001978\pm0.000539}$ & $\mathbf{0.06823\pm0.00606}$ & $344.7\pm5.2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Comparison with a RealNVP variational family}
+\label{app:flow-comparison}
+
+Normalizing-flow VI uses invertible transformations with tractable densities and scores. Semi-implicit VI represents complex multimodal structure through an implicit mixture and learns its marginal score. As a concrete comparison, we train a four-layer RealNVP for 10,000 optimization steps with batch size 128 on the eight-Gaussian target and aggregate the results across five seeds. Table~\ref{tab:realnvp-comparison} reports ELBO, Wasserstein-2 distance, and parameter count. DIVI achieves a higher mean ELBO and a lower mean Wasserstein-2 distance in this benchmark with fewer parameters.
+
+\begin{table}[t]
+\centering
+\caption{DIVI and a four-layer RealNVP variational family on the eight-Gaussian target (mean $\pm$ standard error over five seeds). Bold indicates the best mean or lowest parameter count.}
+\label{tab:realnvp-comparison}
+\small
+\begin{tabular}{lccc}
+\toprule
+Method & ELBO $\uparrow$ & W2 $\downarrow$ & Parameter count \\
+\midrule
+DIVI & $\mathbf{-0.355\pm0.082}$ & $\mathbf{0.327\pm0.060}$ & \textbf{26,054} \\
+RealNVP & $-0.374\pm0.006$ & $0.402\pm0.053$ & 137,236 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % \subsection{Reproducibility}
 % \label{app:reproducibility-details}

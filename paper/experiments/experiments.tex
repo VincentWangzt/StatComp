@@ -16,18 +16,43 @@ We first use low-dimensional  unnormalized distribution targets to check whether
 %Done
 
 
-Following previous works~\citep{yu2023semi,li2023samplingmollifiedinteractionenergy, yu2023hierarchical}, we focus on the three plotted targets in Figure~\ref{fig:toy-scatter-grid}: \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  These targets probe for intersecting ridges, heavy-tailed dependence, and multi-modal coverage. We train all methods for 10,000 iterations with learning rate $10^{-3}$ and batch size 128. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Full per-method configurations and quantitative diagnostics are given in Appendix~\ref{app:toy-details}.
+Following previous works~\citep{yu2023semi,li2023samplingmollifiedinteractionenergy, yu2023hierarchical}, we focus on the three plotted targets in Figure~\ref{fig:toy-scatter-grid}: \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}.  These targets probe for intersecting ridges, heavy-tailed dependence, and multi-modal coverage. We compare SIVI, KSIVI, AISIVI, UIVI, and DIVI. We train SIVI, AISIVI, UIVI, and DIVI for 10,000 iterations and KSIVI for 50,000 iterations, with learning rate $10^{-3}$ and batch size 128. For DIVI, we train the proxy score MLP for 5 steps using 2048 samples and learning rate $10^{-3}$ after each update to the main VI model. Full per-method configurations and quantitative diagnostics are given in Appendix~\ref{app:toy-details}.
 
 
 Figure~\ref{fig:toy-scatter-grid} shows that DIVI preserves the main geometry across the plotted targets, with sample clouds that closely follow the target contours in these visual comparisons.
-The quantitative diagnostics in Appendix~\ref{app:toy-details} show the same pattern for the reported KL-style and Wasserstein metrics.
+The quantitative diagnostics in Appendix~\ref{app:toy-details} show that DIVI obtains the lowest mean on four of the six KL-style and Wasserstein metrics and the second-lowest on the remaining two. Additional comparisons with a RealNVP variational family and ablations of the score-update count and batch size are given in Appendices~\ref{app:flow-comparison} and~\ref{app:reverse-updates}.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.8\linewidth]{toy_scatter_grid.png}
-  \caption{Qualitative comparison on two-dimensional targets.  Each panel is generated from 2,000 samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density.}
+  \includegraphics[width=\linewidth]{../../campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.pdf}
+  \caption{Qualitative comparison on two-dimensional targets. Rows correspond to \texttt{x\_shaped}, \texttt{student\_uc}, and \texttt{8\_gaussians}; columns show ground truth, SIVI, KSIVI, AISIVI, UIVI, and DIVI. Each panel contains 2,000 samples; blue contours show the target density. The learned distributions use one seed per method and target (42, with 44 for AISIVI), giving 15 training runs.}
   \label{fig:toy-scatter-grid}
 \end{figure}
+
+\subsection{Direct comparison of score estimation}
+\label{subsec:score-estimation}
+
+We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy from a reverse-conditional HMC reference, together with score-evaluation time. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. The reference construction, error definition, and timing protocol are given in Appendix~\ref{app:score-estimation}; Appendix~\ref{app:target-score-discrepancy} also reports the discrepancy from the analytic target score along each method's own training trajectory.
+
+\begin{table}[t]
+\centering
+\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ sample standard deviation over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
+\label{tab:score-estimation-error}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lcccccc}
+\toprule
+Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps & Time (ms) \\
+\midrule
+SIVI & $154.381\pm152.642$ & $113.301\pm60.589$ & $78.763\pm39.973$ & $81.909\pm61.060$ & $107.791\pm49.088$ & $5.316\pm0.183$ \\
+UIVI & $1188.717\pm1139.425$ & $889.808\pm535.711$ & $880.869\pm703.761$ & $972.443\pm801.781$ & $899.236\pm611.035$ & $204.523\pm23.199$ \\
+AISIVI & $45.529\pm76.908$ & $13.478\pm18.378$ & $7.249\pm4.671$ & $20.203\pm15.426$ & $6.881\pm6.990$ & $8.096\pm0.222$ \\
+DIVI & $\mathbf{0.899\pm0.908}$ & $\mathbf{0.802\pm0.867}$ & $\mathbf{0.407\pm0.471}$ & $\mathbf{0.303\pm0.307}$ & $\mathbf{0.331\pm0.548}$ & $\mathbf{0.134\pm0.003}$ \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
 
 \subsection{Conditioned diffusion process}
 \label{subsec:langevin-experiments}
