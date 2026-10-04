@@ -9,6 +9,9 @@ build/
 .venv/
 venv/
 
+# Local environment settings
+.env
+
 # IDE
 .vscode/
 .idea/
