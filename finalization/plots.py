@@ -204,6 +204,7 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     panel_w, panel_h = [float(x) for x in cfg.plots.scatter.figsize_per_panel]
     title_fontsize = int(cfg.plots.scatter.get("title_fontsize", 12))
     label_fontsize = int(cfg.plots.scatter.get("label_fontsize", 12))
+    tick_fontsize = int(cfg.plots.scatter.get("tick_fontsize", 7))
     w_pad = float(cfg.plots.scatter.get("w_pad", 0.8))
     h_pad = float(cfg.plots.scatter.get("h_pad", 0.35))
 
@@ -248,7 +249,7 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
             if bbox is not None:
                 ax.set_xlim(bbox[0], bbox[1])
                 ax.set_ylim(bbox[2], bbox[3])
-            ax.tick_params(axis="both", labelsize=7, length=2, width=0.5)
+            ax.tick_params(axis="both", labelsize=tick_fontsize, length=2, width=0.5)
             if col_idx != 0:
                 ax.tick_params(labelleft=False)
     fig.tight_layout(pad=0.35, w_pad=w_pad, h_pad=h_pad)

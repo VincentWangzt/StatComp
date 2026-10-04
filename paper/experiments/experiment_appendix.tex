@@ -305,7 +305,7 @@ Reverse batch size & $D_{\mathrm{KL}}\downarrow$ & W2 $\downarrow$ & Runtime (s)
 \subsection{Comparison with a RealNVP variational family}
 \label{app:flow-comparison}
 
-Normalizing-flow VI uses invertible transformations with tractable densities and scores. Semi-implicit VI represents complex multimodal structure through an implicit mixture and learns its marginal score. As a concrete comparison, we train a four-layer RealNVP for 10,000 optimization steps with batch size 128 on the eight-Gaussian target and aggregate the results across five seeds. Table~\ref{tab:realnvp-comparison} reports ELBO, Wasserstein-2 distance, and parameter count. DIVI achieves a higher mean ELBO and a lower mean Wasserstein-2 distance in this benchmark with fewer parameters.
+Normalizing-flow VI uses invertible transformations with tractable densities and scores. Semi-implicit VI represents complex multimodal structure through an implicit mixture and learns its marginal score. As a concrete comparison, we train a four-layer RealNVP~\citep{dinh2016density} for 10,000 optimization steps with batch size 128 on the eight-Gaussian target and aggregate the results across five seeds. Table~\ref{tab:realnvp-comparison} reports ELBO, Wasserstein-2 distance, and parameter count. DIVI achieves a higher mean ELBO and a lower mean Wasserstein-2 distance in this benchmark with fewer parameters.
 
 \begin{table}[t]
 \centering

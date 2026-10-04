@@ -136,8 +136,9 @@ plots:
     figsize_per_panel: [2.25, 2.1]
     alpha: 0.45
     point_size: 3
-    title_fontsize: 13
-    label_fontsize: 13
+    title_fontsize: 18
+    label_fontsize: 18
+    tick_fontsize: 14
     w_pad: 0.9
     h_pad: 0.35
   scatter_hist:
