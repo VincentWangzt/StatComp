@@ -14,7 +14,7 @@ All SIVI variants use a conditional Gaussian semi-implicit variational family.  
   \qquad
   q_\phi(z \mid \epsilon)
   =
-  \mathcal{N}\!\left(z;\mu_\phi(\epsilon),\Sigma_\phi\right).
+  \mathcal{N}\!\left(z;\mu_\phi(\epsilon),\Sigma_\phi(\epsilon)\right).
 \end{equation}
 For two-dimensional targets, $\epsilon \in \mathbb{R}^{4}$ is drawn from a standard Gaussian prior, and $\mu_\phi$ and the diagonal variance are produced by a two-hidden-layer MLP with hidden width 128.  For the conditioned diffusion task, $\epsilon \in [0,1]^{100}$ uses a uniform prior, $\mu_\phi$ is a two-hidden-layer ReLU MLP with hidden width 128, and the conditional covariance is a learned global diagonal variance initialized near $0.01725$.  For BNN regression, $\epsilon \in \mathbb{R}^{3}$ uses a standard Gaussian prior, $\mu_\phi$ and the diagonal log variance are produced by a two-hidden-layer ReLU MLP with hidden width 10, and the log variance is initialized at $-8$ with a lower clamp at $-20$.  These BNN choices follow the compact semi-implicit architecture used in the KSIVI and SIVI-SM comparisons.
 
