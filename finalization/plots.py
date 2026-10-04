@@ -241,6 +241,18 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                     color="#ff7f0e",
                     alpha=float(cfg.plots.scatter.alpha),
                 )
+                if bbox is not None:
+                    in_range = (
+                        (points[:, 0] >= bbox[0]) & (points[:, 0] <= bbox[1])
+                        & (points[:, 1] >= bbox[2]) & (points[:, 1] <= bbox[3])
+                    ).mean()
+                    if in_range < 0.1:
+                        ax.text(
+                            0.5, 0.96, f"{in_range:.1%} in range",
+                            transform=ax.transAxes, ha="center", va="top",
+                            fontsize=tick_fontsize,
+                            bbox={"facecolor": "white", "alpha": 0.9, "edgecolor": "none"},
+                        )
             except Exception as exc:  # noqa: BLE001
                 if bool(cfg.evaluation.get("fail_fast", True)):
                     plt.close(fig)
