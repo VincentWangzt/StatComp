@@ -240,7 +240,7 @@ We also evaluate the squared $L^2$ discrepancy between each method's estimated v
 \end{equation}
 This diagnostic measures the joint effect of variational approximation and score estimation along each method's own training trajectory. Table~\ref{tab:target-score-discrepancy} reports the mean and sample standard deviation across five seeds. DIVI obtains the lowest mean target-score discrepancy at every reported checkpoint.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Squared $L^2$ discrepancy from the analytic X-shaped target score along each method's training trajectory (mean $\pm$ sample standard deviation over five seeds). Bold indicates the lowest mean.}
 \label{tab:target-score-discrepancy}
@@ -267,7 +267,7 @@ The number of inner score updates per outer VI update, $L_\psi$ (reverse steps),
 
 Tables~\ref{tab:reverse-steps} and~\ref{tab:reverse-batch-size} give ablations on the X-shaped target over five seeds, with the remaining training settings fixed. The first varies $L_\psi$ with $B_\psi=2{,}048$; the second varies $B_\psi$ with $L_\psi=5$. Increasing the update count improves both metrics and increases runtime. Larger score batches improve both metrics with similar measured runtimes over the tested range. The main toy experiments use $L_\psi=5$ and $B_\psi=2{,}048$.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Effect of reverse steps on the X-shaped target with reverse batch size 2,048 (mean $\pm$ standard error over five seeds). Bold indicates the lowest mean quality metric.}
 \label{tab:reverse-steps}
@@ -284,7 +284,7 @@ Reverse steps & $D_{\mathrm{KL}}\downarrow$ & W2 $\downarrow$ & Runtime (s) \\
 \end{tabular}
 \end{table}
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Effect of reverse batch size on the X-shaped target with five reverse steps (mean $\pm$ standard error over five seeds). Bold indicates the lowest mean quality metric.}
 \label{tab:reverse-batch-size}
@@ -307,7 +307,7 @@ Reverse batch size & $D_{\mathrm{KL}}\downarrow$ & W2 $\downarrow$ & Runtime (s)
 
 Normalizing-flow VI uses invertible transformations with tractable densities and scores. Semi-implicit VI represents complex multimodal structure through an implicit mixture. DIVI learns the marginal score of this family. As a concrete comparison, we train a four-layer RealNVP~\citep{dinh2016density} for 10,000 optimization steps with batch size 128 on the eight-Gaussian target and aggregate the results across five seeds. Table~\ref{tab:realnvp-comparison} reports ELBO, Wasserstein-2 distance, and parameter count. DIVI achieves a higher mean ELBO and a lower mean Wasserstein-2 distance in this benchmark with fewer parameters.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{DIVI and a four-layer RealNVP variational family on the eight-Gaussian target (mean $\pm$ standard error over five seeds). Bold indicates the best mean or lowest parameter count.}
 \label{tab:realnvp-comparison}
