@@ -190,6 +190,16 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     configured_columns = [str(method) for method in cfg.selection.scatter_methods]
     columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
     idx = run_index(records)
+    missing = [
+        (target, column, _method_seed(cfg, column))
+        for target in targets
+        for column in columns
+        if not _is_truth_column(column)
+        and (_method_seed(cfg, column), column.upper(), target) not in idx
+    ]
+    if missing and bool(cfg.evaluation.get("fail_fast", True)):
+        raise ValueError(f"Missing scatter-grid runs: {missing}")
+    torch.manual_seed(int(cfg.selection.seed_for_figures))
     num_points = int(cfg.plots.scatter.num_points)
     panel_w, panel_h = [float(x) for x in cfg.plots.scatter.figsize_per_panel]
     title_fontsize = int(cfg.plots.scatter.get("title_fontsize", 12))
@@ -231,6 +241,9 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                     alpha=float(cfg.plots.scatter.alpha),
                 )
             except Exception as exc:  # noqa: BLE001
+                if bool(cfg.evaluation.get("fail_fast", True)):
+                    plt.close(fig)
+                    raise RuntimeError(f"Could not render {column} on {target}") from exc
                 ax.text(0.5, 0.5, f"missing\n{type(exc).__name__}", ha="center", va="center", fontsize=7)
             if bbox is not None:
                 ax.set_xlim(bbox[0], bbox[1])

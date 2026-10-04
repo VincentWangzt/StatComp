@@ -52,3 +52,13 @@ campaigns/default_config_grid/generated_reports/finalization/**
 !campaigns/default_config_grid/generated_reports/finalization/tables/*.tex
 campaigns/**/.ipynb_checkpoints/
 campaigns/**/.ipynb_checkpoints/**
+
+# Targeted camera-ready toy scatter figure
+!campaigns/toy_scatter_grid/generated_reports/
+campaigns/toy_scatter_grid/generated_reports/*
+!campaigns/toy_scatter_grid/generated_reports/finalization/
+campaigns/toy_scatter_grid/generated_reports/finalization/**
+!campaigns/toy_scatter_grid/generated_reports/finalization/finalization_report.md
+!campaigns/toy_scatter_grid/generated_reports/finalization/figures/
+!campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.png
+!campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.pdf

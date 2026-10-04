@@ -10,7 +10,7 @@ selection:
   methods: [SIVI, UIVI, AISIVI, DSIVI, KSIVI]
   evaluation_targets: [banana, multimodal, x_shaped, student_uc, 8_gaussians, Langevin_post]
   scatter_targets: [x_shaped, student_uc, 8_gaussians]
-  scatter_methods: [GroundTruth, AISIVI, UIVI, DSIVI]
+  scatter_methods: [GroundTruth, SIVI, KSIVI, AISIVI, UIVI, DSIVI]
   kl_curve_targets: [x_shaped, student_uc, 8_gaussians]
   kl_curve_methods: [UIVI, AISIVI, DSIVI]
   grad_norm_targets: [x_shaped, Langevin_post]

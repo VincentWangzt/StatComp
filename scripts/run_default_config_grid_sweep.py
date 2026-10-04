@@ -505,12 +505,21 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
                 "No default configs matched --targets: "
                 + ", ".join(sorted(selected_targets))
             )
+    seed_overrides: dict[str, int] = {}
+    for override in getattr(args, "seed_override", []):
+        method, separator, seed_text = override.partition("=")
+        if not separator or method not in selected_methods_from_args(args):
+            raise ValueError(f"Invalid --seed-override {override!r}; use a selected method=seed.")
+        if len(args.seeds) != 1:
+            raise ValueError("--seed-override requires exactly one default --seeds value.")
+        seed_overrides[method] = int(seed_text)
     entries: list[dict[str, Any]] = []
     for seed in args.seeds:
         for base in base_entries:
             entry = dict(base)
-            entry["seed"] = seed
-            entry["run_id"] = run_id_for(seed, entry["method_slug"], entry["target_slug"])
+            entry_seed = seed_overrides.get(entry["method_slug"], seed)
+            entry["seed"] = entry_seed
+            entry["run_id"] = run_id_for(entry_seed, entry["method_slug"], entry["target_slug"])
             entry["campaign_slug"] = args.campaign_slug
             entry["results_dir"] = args.results_dir
             entry["tb_dir"] = args.tb_dir
@@ -520,7 +529,7 @@ def build_manifest_entries(args: argparse.Namespace) -> list[dict[str, Any]]:
             entry["config_hash_version"] = CONFIG_HASH_VERSION
             entry["config_hash"] = effective_config_hash(
                 entry["config_path"],
-                seed=seed,
+                seed=entry_seed,
                 extra_overrides=entry["extra_overrides"],
             )
             entry["config_hash_basis"] = (
@@ -1265,6 +1274,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", default=f"results/{DEFAULT_CAMPAIGN_SLUG}")
     parser.add_argument("--tb-dir", default=f"tb_logs/{DEFAULT_CAMPAIGN_SLUG}")
     parser.add_argument("--seeds", nargs="+", type=int, default=[42])
+    parser.add_argument(
+        "--seed-override", action="append", default=[],
+        help="Per-method seed for a single-seed campaign, e.g. aisivi=44. May be repeated.",
+    )
     parser.add_argument("--methods", nargs="+", choices=DEFAULT_METHODS, default=list(DEFAULT_METHODS))
     parser.add_argument("--exclude-methods", nargs="+", choices=DEFAULT_METHODS, default=[])
     parser.add_argument(
