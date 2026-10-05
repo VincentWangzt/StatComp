@@ -90,7 +90,7 @@ We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed v
 
 \begin{table}[!htbp]
 \centering
-\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ sample standard deviation over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
+\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ standard error over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
 \label{tab:score-estimation-error}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -99,10 +99,10 @@ We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed v
 \toprule
 Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps & Time (ms) \\
 \midrule
-SIVI & \makecell{$154.381$\\$\pm152.642$} & \makecell{$113.301$\\$\pm60.589$} & \makecell{$78.763$\\$\pm39.973$} & \makecell{$81.909$\\$\pm61.060$} & \makecell{$107.791$\\$\pm49.088$} & \makecell{$5.316$\\$\pm0.183$} \\[2pt]
-UIVI & \makecell{$1188.717$\\$\pm1139.425$} & \makecell{$889.808$\\$\pm535.711$} & \makecell{$880.869$\\$\pm703.761$} & \makecell{$972.443$\\$\pm801.781$} & \makecell{$899.236$\\$\pm611.035$} & \makecell{$204.523$\\$\pm23.199$} \\[2pt]
-AISIVI & \makecell{$45.529$\\$\pm76.908$} & \makecell{$13.478$\\$\pm18.378$} & \makecell{$7.249$\\$\pm4.671$} & \makecell{$20.203$\\$\pm15.426$} & \makecell{$6.881$\\$\pm6.990$} & \makecell{$8.096$\\$\pm0.222$} \\[2pt]
-DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.908}$} & \makecell{$\mathbf{0.802}$\\$\mathbf{\pm0.867}$} & \makecell{$\mathbf{0.407}$\\$\mathbf{\pm0.471}$} & \makecell{$\mathbf{0.303}$\\$\mathbf{\pm0.307}$} & \makecell{$\mathbf{0.331}$\\$\mathbf{\pm0.548}$} & \makecell{$\mathbf{0.134}$\\$\mathbf{\pm0.003}$} \\
+SIVI & \makecell{$154.381$\\$\pm68.264$} & \makecell{$113.301$\\$\pm27.096$} & \makecell{$78.763$\\$\pm17.876$} & \makecell{$81.909$\\$\pm27.307$} & \makecell{$107.791$\\$\pm21.953$} & \makecell{$5.316$\\$\pm0.082$} \\[2pt]
+UIVI & \makecell{$1188.717$\\$\pm509.566$} & \makecell{$889.808$\\$\pm239.577$} & \makecell{$880.869$\\$\pm314.731$} & \makecell{$972.443$\\$\pm358.567$} & \makecell{$899.236$\\$\pm273.263$} & \makecell{$204.523$\\$\pm10.375$} \\[2pt]
+AISIVI & \makecell{$45.529$\\$\pm34.394$} & \makecell{$13.478$\\$\pm8.219$} & \makecell{$7.249$\\$\pm2.089$} & \makecell{$20.203$\\$\pm6.899$} & \makecell{$6.881$\\$\pm3.126$} & \makecell{$8.096$\\$\pm0.099$} \\[2pt]
+DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.406}$} & \makecell{$\mathbf{0.802}$\\$\mathbf{\pm0.388}$} & \makecell{$\mathbf{0.407}$\\$\mathbf{\pm0.211}$} & \makecell{$\mathbf{0.303}$\\$\mathbf{\pm0.137}$} & \makecell{$\mathbf{0.331}$\\$\mathbf{\pm0.245}$} & \makecell{$\mathbf{0.134}$\\$\mathbf{\pm0.001}$} \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
