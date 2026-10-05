@@ -59,6 +59,7 @@ campaigns/toy_scatter_grid/generated_reports/*
 !campaigns/toy_scatter_grid/generated_reports/finalization/
 campaigns/toy_scatter_grid/generated_reports/finalization/**
 !campaigns/toy_scatter_grid/generated_reports/finalization/finalization_report.md
+!campaigns/toy_scatter_grid/generated_reports/finalization/seed_trials.csv
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.png
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.pdf
