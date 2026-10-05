@@ -29,31 +29,6 @@ The quantitative diagnostics in Appendix~\ref{app:toy-details} show that DIVI ob
   \label{fig:toy-scatter-grid}
 \end{figure}
 
-\subsection{Direct comparison of score estimation}
-\label{subsec:score-estimation}
-
-We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy from a reverse-conditional HMC reference, together with score-evaluation time. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. The reference construction, error definition, and timing protocol are given in Appendix~\ref{app:score-estimation}; Appendix~\ref{app:target-score-discrepancy} also reports the discrepancy from the analytic target score along each method's own training trajectory.
-
-\begin{table}[t]
-\centering
-\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ sample standard deviation over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
-\label{tab:score-estimation-error}
-\small
-\setlength{\tabcolsep}{3pt}
-\begin{adjustbox}{max width=\linewidth}
-\begin{tabular}{lcccccc}
-\toprule
-Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps & Time (ms) \\
-\midrule
-SIVI & \makecell{$154.381$\\$\pm152.642$} & \makecell{$113.301$\\$\pm60.589$} & \makecell{$78.763$\\$\pm39.973$} & \makecell{$81.909$\\$\pm61.060$} & \makecell{$107.791$\\$\pm49.088$} & \makecell{$5.316$\\$\pm0.183$} \\[2pt]
-UIVI & \makecell{$1188.717$\\$\pm1139.425$} & \makecell{$889.808$\\$\pm535.711$} & \makecell{$880.869$\\$\pm703.761$} & \makecell{$972.443$\\$\pm801.781$} & \makecell{$899.236$\\$\pm611.035$} & \makecell{$204.523$\\$\pm23.199$} \\[2pt]
-AISIVI & \makecell{$45.529$\\$\pm76.908$} & \makecell{$13.478$\\$\pm18.378$} & \makecell{$7.249$\\$\pm4.671$} & \makecell{$20.203$\\$\pm15.426$} & \makecell{$6.881$\\$\pm6.990$} & \makecell{$8.096$\\$\pm0.222$} \\[2pt]
-DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.908}$} & \makecell{$\mathbf{0.802}$\\$\mathbf{\pm0.867}$} & \makecell{$\mathbf{0.407}$\\$\mathbf{\pm0.471}$} & \makecell{$\mathbf{0.303}$\\$\mathbf{\pm0.307}$} & \makecell{$\mathbf{0.331}$\\$\mathbf{\pm0.548}$} & \makecell{$\mathbf{0.134}$\\$\mathbf{\pm0.003}$} \\
-\bottomrule
-\end{tabular}
-\end{adjustbox}
-\end{table}
-
 \subsection{Conditioned diffusion process}
 \label{subsec:langevin-experiments}
 
@@ -105,3 +80,31 @@ We finally evaluate posterior inference for Bayesian neural networks (BNN) on si
 \input{\finalizationtabledir/bnn_rmse_nll.tex}
 
 Table~\ref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, UIVI, AISIVI, KSIVI, and DIVI.  DIVI is best or second-best on most reported RMSE and NLL entries, with particularly strong performance on Power and Protein.  The results also show cases where KSIVI remains stronger, such as Wine Red and Yacht RMSE.  Overall, DIVI remains competitive with the strongest baselines while requiring the lowest average wall-clock training time.
+
+\subsection{Ablations and score estimation}
+\label{subsec:score-estimation}
+
+We study the effect of the number of score updates and their batch size on the X-shaped target. Appendix~\ref{app:reverse-updates} reports the ablations and selection guidance.
+
+We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy from a reverse-conditional HMC reference, together with score-evaluation time. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. The reference construction, error definition, and timing protocol are given in Appendix~\ref{app:score-estimation}; Appendix~\ref{app:target-score-discrepancy} also reports the discrepancy from the analytic target score along each method's own training trajectory.
+
+\begin{table}[t]
+\centering
+\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ sample standard deviation over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
+\label{tab:score-estimation-error}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lcccccc}
+\toprule
+Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps & Time (ms) \\
+\midrule
+SIVI & \makecell{$154.381$\\$\pm152.642$} & \makecell{$113.301$\\$\pm60.589$} & \makecell{$78.763$\\$\pm39.973$} & \makecell{$81.909$\\$\pm61.060$} & \makecell{$107.791$\\$\pm49.088$} & \makecell{$5.316$\\$\pm0.183$} \\[2pt]
+UIVI & \makecell{$1188.717$\\$\pm1139.425$} & \makecell{$889.808$\\$\pm535.711$} & \makecell{$880.869$\\$\pm703.761$} & \makecell{$972.443$\\$\pm801.781$} & \makecell{$899.236$\\$\pm611.035$} & \makecell{$204.523$\\$\pm23.199$} \\[2pt]
+AISIVI & \makecell{$45.529$\\$\pm76.908$} & \makecell{$13.478$\\$\pm18.378$} & \makecell{$7.249$\\$\pm4.671$} & \makecell{$20.203$\\$\pm15.426$} & \makecell{$6.881$\\$\pm6.990$} & \makecell{$8.096$\\$\pm0.222$} \\[2pt]
+DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.908}$} & \makecell{$\mathbf{0.802}$\\$\mathbf{\pm0.867}$} & \makecell{$\mathbf{0.407}$\\$\mathbf{\pm0.471}$} & \makecell{$\mathbf{0.303}$\\$\mathbf{\pm0.307}$} & \makecell{$\mathbf{0.331}$\\$\mathbf{\pm0.548}$} & \makecell{$\mathbf{0.134}$\\$\mathbf{\pm0.003}$} \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
