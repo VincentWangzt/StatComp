@@ -13,5 +13,9 @@ and deterministic 2,000-point subsets as the paper grid, with no in-range labels
 `--full-range` plot shows the full plotted cloud for runs that drift outside the
 target axes.
 
+The four final VI models and their saved samples are finite. Seeds 45 and 46 have
+non-finite final reverse-flow parameters and exhibit support drift. The summary
+records the finiteness of both models for every seed.
+
 Generate and commit the reports on the experiment server from pushed code, then
 pull the artifacts locally through Git.

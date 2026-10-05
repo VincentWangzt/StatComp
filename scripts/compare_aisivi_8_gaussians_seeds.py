@@ -16,7 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 
-from finalization.artifacts import completed_runs, find_final_samples, load_manifest, load_sample_z
+from finalization.artifacts import completed_runs, find_final_checkpoint, find_final_samples, load_manifest, load_sample_z
 from finalization.config import repo_path
 from finalization.plots import _draw_toy_contours, _scatter_generator, _take_points, _target_bbox
 
@@ -45,6 +45,13 @@ def main() -> None:
         path, epoch = find_final_samples(record.result_path)
         samples = load_sample_z(path)
         assert epoch == 10000 and len(samples) == 10000 and torch.isfinite(samples).all()
+        checkpoint_dir, checkpoint_epoch = find_final_checkpoint(record.result_path)
+        assert checkpoint_epoch == epoch
+        checkpoint_finite = {}
+        for name in ("vi_model", "reverse_model"):
+            state = torch.load(checkpoint_dir / f"{name}.pt", map_location="cpu", weights_only=True)
+            checkpoint_finite[name] = all(bool(torch.isfinite(value).all()) for value in state.values())
+        assert checkpoint_finite["vi_model"], seed
         points = _take_points(samples[:, :2], 2000, generator=_scatter_generator(42, target, "AISIVI"))
         points_by_seed[seed] = points
         inside = ((samples[:, 0] >= bbox[0]) & (samples[:, 0] <= bbox[1])
@@ -54,9 +61,12 @@ def main() -> None:
             "fraction_in_plot_bounds": float(inside.float().mean()),
             "mean_x": float(samples[:, 0].mean()), "mean_y": float(samples[:, 1].mean()),
             "std_x": float(samples[:, 0].std()), "std_y": float(samples[:, 1].std()),
+            "vi_checkpoint_finite": checkpoint_finite["vi_model"],
+            "reverse_checkpoint_finite": checkpoint_finite["reverse_model"],
             "result_path": record.entry["result_path"],
         })
-        print(f"Seed {seed}: {rows[-1]['fraction_in_plot_bounds']:.2%} of saved samples in target bounds")
+        print(f"Seed {seed}: {rows[-1]['fraction_in_plot_bounds']:.2%} of saved samples in target bounds; "
+              f"finite reverse checkpoint: {checkpoint_finite['reverse_model']}")
 
     out_dir = repo_path(args.output_dir)
     assert out_dir is not None
