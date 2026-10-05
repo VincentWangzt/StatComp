@@ -37,7 +37,7 @@ def main() -> None:
                 "fraction_in_plot_bounds": float(inside.float().mean()),
                 "mean_x": float(samples[:, 0].mean()), "mean_y": float(samples[:, 1].mean()),
                 "std_x": float(samples[:, 0].std()), "std_y": float(samples[:, 1].std()),
-                "result_path": str(record.result_path.relative_to(REPO_ROOT)),
+                "result_path": record.entry["result_path"],
             })
     rows.sort(key=lambda row: (row["method"], row["seed"]))
     out_dir = REPO_ROOT / "campaigns/toy_scatter_grid/generated_reports/finalization"
