@@ -12,7 +12,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 
 from finalization.artifacts import completed_runs, find_final_samples, load_manifest, load_sample_z
@@ -21,7 +20,7 @@ from finalization.plots import _draw_toy_contours, _scatter_generator, _take_poi
 
 def main() -> None:
     target = "8_gaussians"
-    seeds = (0, 1, 2, 44)
+    seeds = (0, 1, 2)
     bbox = _target_bbox(target)
     assert bbox is not None
     records = {}
@@ -43,12 +42,12 @@ def main() -> None:
 
     out_dir = REPO_ROOT / "campaigns/toy_scatter_grid/generated_reports/finalization/figures"
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, len(seeds), figsize=(11.2, 3.4), squeeze=False)
+    fig, axes = plt.subplots(1, len(seeds), figsize=(8.4, 3.4), squeeze=False)
     for ax, seed in zip(axes[0], seeds):
         _draw_toy_contours(ax, target, bbox)
         points = points_by_seed[seed]
         ax.plot(points[:, 0], points[:, 1], ".", markersize=3, color="#ff7f0e", alpha=0.45)
-        ax.set_title(f"Seed {seed}" if seed != 44 else "Seed 44 (current rerun)", fontsize=12)
+        ax.set_title(f"Seed {seed}", fontsize=12)
         ax.set_xlabel("x")
         ax.set_xticks([-5, 0, 5])
         ax.set_yticks([-5, 0, 5])
@@ -60,27 +59,7 @@ def main() -> None:
     fig.savefig(comparison, dpi=240, facecolor="white")
     plt.close(fig)
 
-    points = points_by_seed[44]
-    fig, ax = plt.subplots(figsize=(8, 3.8))
-    _draw_toy_contours(ax, target, bbox)
-    ax.plot(points[:, 0], points[:, 1], ".", markersize=3, color="#ff7f0e", alpha=0.45)
-    ax.plot(0, 0, "+", color="#164d82", markersize=9, markeredgewidth=1.5, label="Target centre")
-    lower = np.minimum(points.min(axis=0), [bbox[0], bbox[2]])
-    upper = np.maximum(points.max(axis=0), [bbox[1], bbox[3]])
-    padding = 0.06 * (upper - lower)
-    ax.set_xlim(lower[0] - padding[0], upper[0] + padding[0])
-    ax.set_ylim(lower[1] - padding[1], upper[1] + padding[1])
-    ax.set_aspect("equal", adjustable="box")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_title("AISIVI seed 44: full sample extent (2,000 points)", fontsize=13)
-    ax.legend(loc="lower right", fontsize=10)
-    fig.tight_layout()
-    full_extent = out_dir / "aisivi_8_gaussians_seed44_full_extent.png"
-    fig.savefig(full_extent, dpi=240, facecolor="white")
-    plt.close(fig)
     print(f"Wrote {comparison.relative_to(REPO_ROOT)}")
-    print(f"Wrote {full_extent.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
