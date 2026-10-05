@@ -40,6 +40,11 @@ python scripts/summarize_toy_scatter_seed_trials.py
 python scripts/run_finalization.py --config configs/finalization/toy_scatter_grid.yaml --only scatter_grid
 ```
 
+`python scripts/plot_aisivi_seed_trials.py` generates a comparison of AISIVI seeds
+0, 1, 2, and the current seed-44 rerun on the same target axes, plus a view of the
+full sample extent for seed 44. Both plots use the same 2,000-point subsets as
+the paper grid, with no in-range annotations.
+
 The older figure campaign performed periodic metric and plot sampling. These
 calls consume the same PyTorch random stream as training, so disabling them
 changes the stochastic training trajectory even with the same initial seed.

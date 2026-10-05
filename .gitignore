@@ -63,3 +63,5 @@ campaigns/toy_scatter_grid/generated_reports/finalization/**
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.png
 !campaigns/toy_scatter_grid/generated_reports/finalization/figures/toy_scatter_grid.pdf
+!campaigns/toy_scatter_grid/generated_reports/finalization/figures/aisivi_8_gaussians_seed_comparison.png
+!campaigns/toy_scatter_grid/generated_reports/finalization/figures/aisivi_8_gaussians_seed44_full_extent.png
