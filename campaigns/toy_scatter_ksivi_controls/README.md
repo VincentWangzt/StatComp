@@ -27,6 +27,18 @@ Training outputs and TensorBoard logs stay under the corresponding existing
 `results/` and `tb_logs/` folders. Periodic metrics and contour sampling are disabled
 as in the earlier qualitative runs.
 
+The launcher now selects seeds 42, 43, 44, 45, and 46 for both setups. Resume
+reuses the completed seed 43 runs and adds exactly eight new runs. One job per
+setup runs concurrently on the GPU, with separate controller logs under each
+campaign's `runtime/` folder.
+
+After all ten condition-seed pairs complete,
+`scripts/compare_ksivi_student_control_seeds.py` produces a two-row comparison
+across the five seeds, a view of each full plotted cloud, and a comparison of
+the minimum empirical sliced-W1 seed within each setup. The per-seed CSV retains
+every run. The aggregate CSV reports mean and standard error across five seeds,
+using sample standard deviation divided by the square root of five.
+
 `scripts/compare_ksivi_student_controls.py` checks the effective saved configs
 before comparing final 10,000-sample files. It reuses the seed comparison's target
 reference, 256 projection directions for empirical sliced-W1, and deterministic
