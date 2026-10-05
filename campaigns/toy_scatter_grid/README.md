@@ -25,14 +25,18 @@ Additional qualitative seed trials are run with
 `bash scripts/run_toy_scatter_seed_trials.sh`. The default seeds are 0, 1, and 2,
 on only AISIVI / `8_gaussians` and KSIVI / `student_uc`. Their separate manifests
 preserve every trial independently of the original 15-run campaign. Selected
-panels use per-target seed overrides: seed 0 for AISIVI / `8_gaussians` and seed 1
+panels use per-target seed overrides: seed 43 for AISIVI / `8_gaussians` and seed 1
 for KSIVI / `student_uc`. All three AISIVI trials have samples within the plotting
 bounds. KSIVI seed 1 has the largest in-bounds fraction among its three trials
 (2.22% of the 10,000 saved samples), with 46 of the 2,000 plotted points visible;
 the run still exhibits support drift. `scripts/summarize_toy_scatter_seed_trials.py`
 records all completed trials and the original two panels in `seed_trials.csv`.
 
-After the original campaign and the six additional trials complete, generate the
+Four further AISIVI / `8_gaussians` runs with seeds 45, 43, 42, and 46 are recorded
+in `campaigns/toy_scatter_aisivi_additional/manifest.json`. The selected seed 43 has
+finite final model parameters and 99.95% of saved samples within the plot bounds.
+
+After the original campaign and both sets of additional trials complete, generate the
 selected figure and audit report with:
 
 ```bash
