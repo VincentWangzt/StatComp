@@ -46,7 +46,8 @@ def sample_summary(samples: torch.Tensor, bbox: list[float]) -> dict:
 
 
 def draw_comparison(panels: list[tuple[str, np.ndarray]], target: str,
-                    bbox: list[float], path: Path, *, full_range: bool) -> None:
+                    bbox: list[float], path: Path, *, full_range: bool,
+                    title: str = "KSIVI on Student-t: Riesz kernel, 50,000 training iterations, 2,000 plotted samples") -> None:
     fig, axes = plt.subplots(1, len(panels), figsize=(3.0 * len(panels), 3.6), squeeze=False)
     for ax, (label, points) in zip(axes[0], panels):
         _draw_toy_contours(ax, target, bbox)
@@ -65,7 +66,7 @@ def draw_comparison(panels: list[tuple[str, np.ndarray]], target: str,
         ax.set_xlabel("x")
         ax.tick_params(labelsize=10)
     axes[0, 0].set_ylabel("y")
-    fig.suptitle("KSIVI on Student-t: Riesz kernel, 50,000 training iterations, 2,000 plotted samples", fontsize=13)
+    fig.suptitle(title, fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.91), w_pad=1.1)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
