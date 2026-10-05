@@ -30,4 +30,8 @@ expected = {(44 if method == "AISIVI" else 42, method, target)
 actual = {(r.seed, r.method, r.target) for r in records}
 assert len(manifest) == len(records) == 15 and actual == expected, (len(manifest), len(records), actual)
 PY
-python scripts/run_finalization.py --config configs/finalization/toy_scatter_grid.yaml --only scatter_grid
+# Render the original 15 runs independently of the additional seed trials.
+python scripts/run_finalization.py --config configs/finalization/toy_scatter_grid.yaml --only scatter_grid \
+  --set 'campaign.additional_manifest_paths=[]' \
+  --set selection.target_seed_overrides.AISIVI.8_gaussians=44 \
+  --set selection.target_seed_overrides.KSIVI.student_uc=42

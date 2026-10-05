@@ -1,6 +1,9 @@
 campaign:
   slug: toy_scatter_grid
   manifest_path: campaigns/toy_scatter_grid/manifest.json
+  additional_manifest_paths:
+    - campaigns/toy_scatter_seed_aisivi/manifest.json
+    - campaigns/toy_scatter_seed_ksivi/manifest.json
   output_dir: campaigns/toy_scatter_grid/generated_reports/finalization
   scratch_results_dir: results/toy_scatter_grid/finalization_scratch
   scratch_tb_dir: tb_logs/toy_scatter_grid/finalization_scratch
@@ -14,6 +17,11 @@ selection:
   seed_for_figures: 42
   seed_overrides:
     AISIVI: 44
+  target_seed_overrides:
+    AISIVI:
+      8_gaussians: 0
+    KSIVI:
+      student_uc: 1
 
 modules:
   scatter_grid: true

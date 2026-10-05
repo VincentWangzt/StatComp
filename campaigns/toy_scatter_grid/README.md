@@ -2,7 +2,7 @@
 
 The original camera-ready campaign contains exactly 15 targeted training runs: SIVI,
 KSIVI, AISIVI, UIVI, and DIVI on `x_shaped`, `student_uc`, and `8_gaussians`.
-Each method-target pair uses one seed. The existing figure selection is retained:
+Each original method-target pair uses one seed:
 seed 42 for SIVI, KSIVI, UIVI, and DIVI; seed 44 for AISIVI.
 
 Run `bash scripts/run_toy_scatter_grid.sh` under the `ruivi` environment in tmux.
@@ -25,8 +25,20 @@ Additional qualitative seed trials are run with
 `bash scripts/run_toy_scatter_seed_trials.sh`. The default seeds are 0, 1, and 2,
 on only AISIVI / `8_gaussians` and KSIVI / `student_uc`. Their separate manifests
 preserve every trial independently of the original 15-run campaign. Selected
-panels use per-target seed overrides. `scripts/summarize_toy_scatter_seed_trials.py`
+panels use per-target seed overrides: seed 0 for AISIVI / `8_gaussians` and seed 1
+for KSIVI / `student_uc`. All three AISIVI trials have samples within the plotting
+bounds. KSIVI seed 1 has the largest in-bounds fraction among its three trials
+(2.22% of the 10,000 saved samples), with 46 of the 2,000 plotted points visible;
+the run still exhibits support drift. `scripts/summarize_toy_scatter_seed_trials.py`
 records all completed trials and the original two panels in `seed_trials.csv`.
+
+After the original campaign and the six additional trials complete, generate the
+selected figure and audit report with:
+
+```bash
+python scripts/summarize_toy_scatter_seed_trials.py
+python scripts/run_finalization.py --config configs/finalization/toy_scatter_grid.yaml --only scatter_grid
+```
 
 The older figure campaign performed periodic metric and plot sampling. These
 calls consume the same PyTorch random stream as training, so disabling them
