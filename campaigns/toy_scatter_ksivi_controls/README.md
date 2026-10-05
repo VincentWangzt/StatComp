@@ -35,3 +35,16 @@ the second view shows the full extent of each plotted subset.
 
 Generate the reports remotely from pushed code, commit and push the completed
 manifests and reports there, then pull them into the local checkout.
+
+Both additional runs completed with finite final VI parameters and samples. The
+single-seed comparison at 50,000 iterations is:
+
+| Condition | Samples within [-5, 5]^2 | Empirical sliced-W1 |
+| --- | ---: | ---: |
+| Original setup | 1.04% | 28.691 |
+| Annealing + warmup regularization | 41.32% | 4.920 |
+| Always-on regularization, annealing disabled | 67.43% | 3.062 |
+
+Both controls reduce drift in this seed. Persistent regularization gives the
+smaller empirical distance. The final sample clouds remain displaced from the
+target; the exact baseline has 99.34% of its samples within the same plot bounds.
