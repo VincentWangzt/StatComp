@@ -25,3 +25,19 @@ is separate from the manuscript's quantitative tables.
 
 Generate the report artifacts remotely from pushed code, commit and push the
 completed manifests, figures, and CSV there, then pull them into the local checkout.
+
+All three additional runs completed at 50,000 iterations with finite final VI
+parameters and samples. Their final comparisons against the current paper seed
+are:
+
+| Seed | Samples within [-5, 5]^2 | Empirical sliced-W1 |
+| --- | ---: | ---: |
+| 1 (current) | 2.22% | 28.784 |
+| 43 | 1.04% | 28.691 |
+| 45 | 7.64% | 29.453 |
+| 46 | 2.53% | 22.248 |
+
+The exact target baseline has 99.34% of its samples within these bounds. Each
+additional run exhibits substantial drift from the target. Seed 45 has the largest
+in-bounds fraction, and seed 46 has the smallest empirical distance among these
+four runs. The manuscript grid continues to use seed 1.

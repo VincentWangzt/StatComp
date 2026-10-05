@@ -36,6 +36,13 @@ Four further AISIVI / `8_gaussians` runs with seeds 45, 43, 42, and 46 are recor
 in `campaigns/toy_scatter_aisivi_additional/manifest.json`. The selected seed 43 has
 finite final model parameters and 99.95% of saved samples within the plot bounds.
 
+Three further KSIVI / `student_uc` runs with seeds 43, 45, and 46 are recorded in
+`campaigns/toy_scatter_ksivi_additional/manifest.json`. They use the same Riesz
+kernel and training setup as the earlier Student-t trials. All have finite final
+VI parameters and samples, with in-bounds fractions of 1.04%, 7.64%, and 2.53%,
+respectively. Each run exhibits substantial drift from the target. The seed audit
+includes these trials; the selected Student-t panel continues to use seed 1.
+
 After the original campaign and both sets of additional trials complete, generate the
 selected figure and audit report with:
 
