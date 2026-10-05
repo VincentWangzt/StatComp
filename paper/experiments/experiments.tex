@@ -81,14 +81,14 @@ We finally evaluate posterior inference for Bayesian neural networks (BNN) on si
 
 Table~\ref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, UIVI, AISIVI, KSIVI, and DIVI.  DIVI is best or second-best on most reported RMSE and NLL entries, with particularly strong performance on Power and Protein.  The results also show cases where KSIVI remains stronger, such as Wine Red and Yacht RMSE.  Overall, DIVI remains competitive with the strongest baselines while requiring the lowest average wall-clock training time.
 
-\subsection{Ablations and score estimation}
+\subsection{Ablation studies}
 \label{subsec:score-estimation}
 
 We study the effect of the number of score updates and their batch size on the X-shaped target. Appendix~\ref{app:reverse-updates} reports the ablations and selection guidance.
 
 We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy from a reverse-conditional HMC reference, together with score-evaluation time. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. The reference construction, error definition, and timing protocol are given in Appendix~\ref{app:score-estimation}; Appendix~\ref{app:target-score-discrepancy} also reports the discrepancy from the analytic target score along each method's own training trajectory.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ sample standard deviation over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
 \label{tab:score-estimation-error}
