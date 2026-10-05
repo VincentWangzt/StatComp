@@ -93,14 +93,17 @@ First we ablate on the effect of the score estimators of each method. We evaluat
 \small
 \setlength{\tabcolsep}{3pt}
 \begin{adjustbox}{max width=\linewidth}
-\begin{tabular}{lcccccc}
+\begin{tabular}{lcccc}
 \toprule
-Method & 2K steps & 4K steps & 6K steps & 8K steps & 10K steps & Time (ms) \\
+Checkpoint & SIVI & UIVI & AISIVI & DIVI \\
 \midrule
-SIVI & \makecell{$154.381$\\$\pm68.264$} & \makecell{$113.301$\\$\pm27.096$} & \makecell{$78.763$\\$\pm17.876$} & \makecell{$81.909$\\$\pm27.307$} & \makecell{$107.791$\\$\pm21.953$} & \makecell{$5.316$\\$\pm0.082$} \\[2pt]
-UIVI & \makecell{$1188.717$\\$\pm509.566$} & \makecell{$889.808$\\$\pm239.577$} & \makecell{$880.869$\\$\pm314.731$} & \makecell{$972.443$\\$\pm358.567$} & \makecell{$899.236$\\$\pm273.263$} & \makecell{$204.523$\\$\pm10.375$} \\[2pt]
-AISIVI & \makecell{$45.529$\\$\pm34.394$} & \makecell{$13.478$\\$\pm8.219$} & \makecell{$7.249$\\$\pm2.089$} & \makecell{$20.203$\\$\pm6.899$} & \makecell{$6.881$\\$\pm3.126$} & \makecell{$8.096$\\$\pm0.099$} \\[2pt]
-DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.406}$} & \makecell{$\mathbf{0.802}$\\$\mathbf{\pm0.388}$} & \makecell{$\mathbf{0.407}$\\$\mathbf{\pm0.211}$} & \makecell{$\mathbf{0.303}$\\$\mathbf{\pm0.137}$} & \makecell{$\mathbf{0.331}$\\$\mathbf{\pm0.245}$} & \makecell{$\mathbf{0.134}$\\$\mathbf{\pm0.001}$} \\
+2,000 steps & 154.381 {\footnotesize $\pm$ 68.264} & 1188.717 {\footnotesize $\pm$ 509.566} & 45.529 {\footnotesize $\pm$ 34.394} & \textbf{0.899} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.406}} \\[2pt]
+4,000 steps & 113.301 {\footnotesize $\pm$ 27.096} & 889.808 {\footnotesize $\pm$ 239.577} & 13.478 {\footnotesize $\pm$ 8.219} & \textbf{0.802} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.388}} \\[2pt]
+6,000 steps & 78.763 {\footnotesize $\pm$ 17.876} & 880.869 {\footnotesize $\pm$ 314.731} & 7.249 {\footnotesize $\pm$ 2.089} & \textbf{0.407} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.211}} \\[2pt]
+8,000 steps & 81.909 {\footnotesize $\pm$ 27.307} & 972.443 {\footnotesize $\pm$ 358.567} & 20.203 {\footnotesize $\pm$ 6.899} & \textbf{0.303} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.137}} \\[2pt]
+10,000 steps & 107.791 {\footnotesize $\pm$ 21.953} & 899.236 {\footnotesize $\pm$ 273.263} & 6.881 {\footnotesize $\pm$ 3.126} & \textbf{0.331} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.245}} \\[2pt]
+\midrule
+Time (ms) & 5.316 {\footnotesize $\pm$ 0.082} & 204.523 {\footnotesize $\pm$ 10.375} & 8.096 {\footnotesize $\pm$ 0.099} & \textbf{0.134} {\footnotesize $\boldsymbol{\pm}$ \textbf{0.001}} \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
