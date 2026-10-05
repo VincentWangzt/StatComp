@@ -20,12 +20,12 @@ Following previous works~\citep{yu2023semi,li2023samplingmollifiedinteractionene
 
 
 Figure~\ref{fig:toy-scatter-grid} shows that DIVI preserves the main geometry across the plotted targets, with sample clouds that closely follow the target contours in these visual comparisons.
-The quantitative diagnostics in Appendix~\ref{app:toy-details} show that DIVI obtains the lowest mean on four of the six KL-style and Wasserstein metrics and the second-lowest on the remaining two. Additional comparisons with a RealNVP variational family and ablations of the score-update count and batch size are given in Appendices~\ref{app:flow-comparison} and~\ref{app:reverse-updates}.
+The quantitative diagnostics in Appendix~\ref{app:toy-details} show that DIVI obtains the lowest mean on four of the six KL-style and Wasserstein metrics and the second-lowest on the remaining two. We also provide a comparison of the learned score against the true target distribution score in Appendix~\ref{app:toy-details}, which demonstrates that DIVI achieves the lowest $L^2$ error on all three targets.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{toy_scatter_grid.pdf}
-  \caption{Qualitative comparison on two-dimensional targets.  Each panel is generated from 2,000 samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density. AISIVI on \texttt{8\_gaussians} uses seed 43.}
+  \caption{Qualitative comparison on two-dimensional targets.  Each panel is generated from 2,000 samples from the ground-truth baseline or a learned variational distribution; blue contours show the target density.}
   \label{fig:toy-scatter-grid}
 \end{figure}
 
@@ -84,13 +84,11 @@ Table~\ref{tab:bnn-rmse-nll} gives the full predictive comparison across SIVI, U
 \subsection{Ablation studies}
 \label{subsec:score-estimation}
 
-We study the effect of the number of score updates and their batch size on the X-shaped target. Appendix~\ref{app:reverse-updates} reports the ablations and selection guidance.
-
-We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy from a reverse-conditional HMC reference, together with score-evaluation time. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. The reference construction, error definition, and timing protocol are given in Appendix~\ref{app:score-estimation}; Appendix~\ref{app:target-score-discrepancy} also reports the discrepancy from the analytic target score along each method's own training trajectory.
+First we ablate on the effect of the score estimators of each method. We evaluate SIVI, UIVI, AISIVI, and DIVI as score estimators on the same fixed variational distributions obtained after 2,000 to 10,000 DIVI updates on the X-shaped target. Table~\ref{tab:score-estimation-error} reports the squared $L^2$ discrepancy of the estimated score with respect to a reference score produced by UIVI-styled long HMC chains, together with the score-evaluation time of each method. DIVI achieves the lowest mean score-estimation error at every checkpoint and the lowest score-evaluation latency under the tested configurations. We may also observe that the score estimates of DIVI improves continually throughout the training process. More details of the evaluation are given in Appendix~\ref{app:score-estimation}. We also provide a comparison of the learned score against the true target distribution score along the trajectory of each method in Appendix~\ref{app:toy-details}, which demonstrates that DIVI achieves the lowest $L^2$ error on all three targets.
 
 \begin{table}[!htbp]
 \centering
-\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ standard error over five seeds). Time measures score evaluation for a batch of 128 on an RTX 3090. Bold indicates the lowest mean.}
+\caption{Score-estimation error on fixed DIVI variational checkpoints for the X-shaped target (mean $\pm$ standard error over five seeds). Bold indicates the lowest mean.}
 \label{tab:score-estimation-error}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -107,3 +105,6 @@ DIVI & \makecell{$\mathbf{0.899}$\\$\mathbf{\pm0.406}$} & \makecell{$\mathbf{0.8
 \end{tabular}
 \end{adjustbox}
 \end{table}
+
+
+Additionally, we ablate on the expressiveness of the semi-implicit variational distributional family, providing comparison with a RealNVP variational family in Appendix~\ref{app:flow-comparison}. We also perform ablations of DIVI's choice of score-update count in each variational optimization step and the reverse batch size in Appendix~\ref{app:reverse-updates}. We believe this would provide practical guidance for future users of DIVI, as the score-update count and reverse batch size are two important hyperparameters in the accuracy-computaion tradeoff of DIVI.
