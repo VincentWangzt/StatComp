@@ -88,6 +88,8 @@ def main() -> None:
             cfg.modules[key] = key in set(args.only)
 
     manifest = load_manifest(cfg.campaign.manifest_path)
+    for additional_path in cfg.campaign.get("additional_manifest_paths", []):
+        manifest.extend(load_manifest(str(additional_path)))
     all_records = completed_runs(manifest)
     methods = [str(method) for method in cfg.selection.methods]
     eval_targets = [str(target) for target in cfg.selection.evaluation_targets]
@@ -119,6 +121,8 @@ def main() -> None:
     figure_seeds = {int(cfg.selection.seed_for_figures)}
     for _method, override_seed in cfg.selection.get("seed_overrides", {}).items():
         figure_seeds.add(int(override_seed))
+    for target_overrides in cfg.selection.get("target_seed_overrides", {}).values():
+        figure_seeds.update(int(seed) for seed in target_overrides.values())
     figure_records = select_runs(
         all_records,
         methods=sorted(set(methods) | {str(method) for method in cfg.selection.scatter_methods}),

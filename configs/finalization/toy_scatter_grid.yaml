@@ -31,5 +31,7 @@ plots:
     title_fontsize: 18
     label_fontsize: 18
     tick_fontsize: 14
+    annotate_in_range: false
+    paper_export_dir: paper/experiments
     w_pad: 0.9
     h_pad: 0.35

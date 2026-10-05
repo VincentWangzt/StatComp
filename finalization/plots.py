@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import hashlib
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -58,10 +60,17 @@ def _target_bbox(target: str) -> list[float] | None:
     return list(bbox) if bbox is not None else None
 
 
-def _take_points(samples: torch.Tensor, count: int) -> np.ndarray:
+def _take_points(samples: torch.Tensor, count: int, *, generator: torch.Generator | None = None) -> np.ndarray:
     if samples.shape[0] > count:
-        samples = samples[torch.randperm(samples.shape[0])[:count]]
+        samples = samples[torch.randperm(samples.shape[0], generator=generator)[:count]]
     return samples.detach().cpu().numpy()
+
+
+def _scatter_generator(seed: int, target: str, method: str) -> torch.Generator:
+    """Keep a panel's plotted subset independent of other panels and columns."""
+    key = f"{seed}:{target}:{method.upper()}".encode("utf-8")
+    panel_seed = int.from_bytes(hashlib.sha256(key).digest()[:8], "little")
+    return torch.Generator().manual_seed(panel_seed)
 
 
 def _toy_logp_grid(target: str, bbox: list[float], grid_size: int = 100) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -174,10 +183,13 @@ def _load_plot_samples(column: str, target: str, seed: int, idx: dict[tuple[int,
         return samples
 
 
-def _method_seed(cfg: Any, method: str) -> int:
+def _method_seed(cfg: Any, method: str, target: str | None = None) -> int:
     """Return the seed for *method*, applying any per-method override."""
     default = int(cfg.selection.seed_for_figures)
     overrides = cfg.selection.get("seed_overrides", {})
+    target_overrides = cfg.selection.get("target_seed_overrides", {}).get(method.upper(), {})
+    if target is not None and target in target_overrides:
+        return int(target_overrides[target])
     return int(overrides.get(method.upper(), default))
 
 
@@ -191,11 +203,11 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     columns = configured_columns if any(_is_truth_column(column) for column in configured_columns) else configured_columns + ["GroundTruth"]
     idx = run_index(records)
     missing = [
-        (target, column, _method_seed(cfg, column))
+        (target, column, _method_seed(cfg, column, target))
         for target in targets
         for column in columns
         if not _is_truth_column(column)
-        and (_method_seed(cfg, column), column.upper(), target) not in idx
+        and (_method_seed(cfg, column, target), column.upper(), target) not in idx
     ]
     if missing and bool(cfg.evaluation.get("fail_fast", True)):
         raise ValueError(f"Missing scatter-grid runs: {missing}")
@@ -228,11 +240,14 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                 if _is_truth_column(column):
                     samples = load_baseline_samples(target)
                 else:
-                    seed = _method_seed(cfg, column)
+                    seed = _method_seed(cfg, column, target)
                     rec = idx[(seed, column.upper(), target)]
                     sample_path, _ = find_final_samples(rec.result_path)
                     samples = load_sample_z(sample_path)
-                points = _take_points(samples[:, :2], num_points)
+                points = _take_points(
+                    samples[:, :2], num_points,
+                    generator=_scatter_generator(int(cfg.selection.seed_for_figures), target, column),
+                )
                 ax.plot(
                     points[:, 0],
                     points[:, 1],
@@ -246,7 +261,7 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
                         (points[:, 0] >= bbox[0]) & (points[:, 0] <= bbox[1])
                         & (points[:, 1] >= bbox[2]) & (points[:, 1] <= bbox[3])
                     ).mean()
-                    if in_range < 0.1:
+                    if bool(cfg.plots.scatter.get("annotate_in_range", True)) and in_range < 0.1:
                         ax.text(
                             0.5, 0.96, f"{in_range:.1%} in range",
                             transform=ax.transAxes, ha="center", va="top",
@@ -270,6 +285,12 @@ def render_scatter_grid(records: list[RunRecord], cfg: Any) -> Path:
     fig.savefig(png_path, dpi=300)
     fig.savefig(pdf_path)
     plt.close(fig)
+    paper_export_dir = cfg.plots.scatter.get("paper_export_dir")
+    if paper_export_dir:
+        paper_dir = repo_path(str(paper_export_dir))
+        assert paper_dir is not None
+        paper_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(pdf_path, paper_dir / pdf_path.name)
     return png_path
 
 
