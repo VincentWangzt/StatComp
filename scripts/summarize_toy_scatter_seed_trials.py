@@ -19,7 +19,8 @@ from finalization.plots import _target_bbox
 def main() -> None:
     pairs = {("AISIVI", "8_gaussians"), ("KSIVI", "student_uc")}
     campaigns = ["toy_scatter_grid", "toy_scatter_seed_aisivi", "toy_scatter_seed_ksivi",
-                 "toy_scatter_aisivi_additional", "toy_scatter_ksivi_additional"]
+                 "toy_scatter_aisivi_additional", "toy_scatter_ksivi_additional",
+                 "toy_scatter_ksivi_detached_annealing"]
     rows = []
     for campaign in campaigns:
         for record in completed_runs(load_manifest(f"campaigns/{campaign}/manifest.json")):

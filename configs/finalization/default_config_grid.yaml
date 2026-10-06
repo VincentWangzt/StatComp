@@ -1,6 +1,10 @@
 campaign:
   slug: default_config_grid
   manifest_path: campaigns/default_config_grid/manifest.json
+  run_group_overrides:
+    - method: KSIVI
+      target: student_uc
+      manifest_path: campaigns/toy_scatter_ksivi_detached_annealing/manifest.json
   output_dir: campaigns/default_config_grid/generated_reports/finalization
   scratch_results_dir: results/default_config_grid/finalization_scratch
   scratch_tb_dir: tb_logs/default_config_grid/finalization_scratch

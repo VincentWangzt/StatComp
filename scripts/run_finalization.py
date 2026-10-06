@@ -18,7 +18,7 @@ def _rel(path: Path) -> str:
     except ValueError:
         return path.as_posix()
 
-from finalization.artifacts import completed_runs, load_manifest, select_runs  # noqa: E402
+from finalization.artifacts import completed_runs, load_campaign_manifest, select_runs  # noqa: E402
 from finalization.config import load_config, repo_path  # noqa: E402
 from finalization.plots import render_grad_norm_iteration_grid, render_kl_iteration_grid, render_kl_time_grid, render_langevin_trace_grid, render_m_eps_iteration_grid, render_scatter_grid, render_scatter_hist_grid, render_score_diff_l2_fourth_iteration_grid, render_score_linearity_grid, render_score_norm_linearity_grid, render_score_norm_linearity_uniform_grid, render_score_p_4th_moment_iteration_grid, render_score_q_4th_moment_iteration_grid, render_vi_fourth_moment_iteration_grid, render_weight_norm_iteration_grid  # noqa: E402
 from finalization.runner_eval import augment_run_rows_with_campaign_timing, evaluate_runs, summarize, write_csv  # noqa: E402
@@ -87,9 +87,7 @@ def main() -> None:
         for key in cfg.modules.keys():
             cfg.modules[key] = key in set(args.only)
 
-    manifest = load_manifest(cfg.campaign.manifest_path)
-    for additional_path in cfg.campaign.get("additional_manifest_paths", []):
-        manifest.extend(load_manifest(str(additional_path)))
+    manifest = load_campaign_manifest(cfg.campaign)
     all_records = completed_runs(manifest)
     methods = [str(method) for method in cfg.selection.methods]
     eval_targets = [str(target) for target in cfg.selection.evaluation_targets]

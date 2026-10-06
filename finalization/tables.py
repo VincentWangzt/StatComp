@@ -555,10 +555,18 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
     vp = int(cfg.tables.value_precision)
     sp = int(cfg.tables.se_precision)
     by_target_method = {(row["target"], row["method"]): row for row in summary_rows}
+    seed_description = "ten seeds"
+    for target in TOY_METHOD_GRID_TARGETS:
+        for method in TOY_METHOD_GRID_METHODS:
+            row = by_target_method.get((target, method), {})
+            count = int(row.get("seed_count") or 10)
+            if count != 10:
+                target_tex = target.replace("_", "\\_")
+                seed_description += f"; {_display_method(method)} on \\texttt{{{target_tex}}} uses {count} seeds"
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{Toy target final evaluation metrics (mean $\\pm$ standard error over ten seeds). Wall-clock time is averaged across the three targets; bold indicates the best mean.}",
+        "\\caption{Toy target final evaluation metrics (mean $\\pm$ standard error over " + seed_description + "). Wall-clock time is averaged across the three targets; bold indicates the best mean.}",
         "\\label{tab:toy-method-grid}",
         "\\small",
         "\\setlength{\\tabcolsep}{3pt}",

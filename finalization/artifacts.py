@@ -43,6 +43,23 @@ def load_manifest(path: Path | str) -> list[dict[str, Any]]:
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
+def load_campaign_manifest(campaign: Any) -> list[dict[str, Any]]:
+    """Combine historical manifests and replace explicitly updated result groups."""
+    manifest = load_manifest(campaign.manifest_path)
+    for path in campaign.get("additional_manifest_paths", []):
+        manifest.extend(load_manifest(str(path)))
+    for override in campaign.get("run_group_overrides", []):
+        method, target = str(override.method).upper(), normalize_target(str(override.target))
+        def matches(entry):
+            return (str(entry.get("method") or entry.get("runner_type")).upper(),
+                    normalize_target(str(entry["target"]))) == (method, target)
+        replacement = load_manifest(str(override.manifest_path))
+        if not replacement or not all(matches(entry) for entry in replacement):
+            raise ValueError(f"Invalid replacement manifest for {method}/{target}")
+        manifest = [entry for entry in manifest if not matches(entry)] + replacement
+    return manifest
+
+
 def resolve_repo_path(path: str | Path | None) -> Path | None:
     if not path:
         return None

@@ -99,6 +99,10 @@ def augment_run_rows_with_campaign_timing(rows: list[dict[str, Any]], cfg: Any) 
         return rows
     augmented: list[dict[str, Any]] = []
     for row in rows:
+        source_manifest = row.get("source_manifest")
+        if source_manifest and str(source_manifest) != str(cfg.campaign.manifest_path):
+            augmented.append(dict(row))
+            continue
         next_row = dict(row)
         run_id = str(next_row.get("run_id", ""))
         values = timing.get(run_id)

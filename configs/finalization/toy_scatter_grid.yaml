@@ -5,6 +5,10 @@ campaign:
     - campaigns/toy_scatter_seed_aisivi/manifest.json
     - campaigns/toy_scatter_seed_ksivi/manifest.json
     - campaigns/toy_scatter_aisivi_additional/manifest.json
+  run_group_overrides:
+    - method: KSIVI
+      target: student_uc
+      manifest_path: campaigns/toy_scatter_ksivi_detached_annealing/manifest.json
   output_dir: campaigns/toy_scatter_grid/generated_reports/finalization
   scratch_results_dir: results/toy_scatter_grid/finalization_scratch
   scratch_tb_dir: tb_logs/toy_scatter_grid/finalization_scratch
@@ -22,7 +26,7 @@ selection:
     AISIVI:
       8_gaussians: 43
     KSIVI:
-      student_uc: 1
+      student_uc: 42
 
 modules:
   scatter_grid: true
