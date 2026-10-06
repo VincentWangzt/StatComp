@@ -12,6 +12,7 @@ import json
 import math
 import random
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -254,6 +255,9 @@ def assess_hmc_reference_quality(
             issues.append(
                 f"{key}={numeric:.6g} {operator} {threshold:.6g} failed"
             )
+    for key in ("hmc_epsilon_rhat_nonfinite_fraction", "hmc_score_rhat_nonfinite_fraction"):
+        if float(diagnostics.get(key, 0.0)) > 0:
+            issues.append(f"{key}={diagnostics[key]:.6g}")
     return ("pass" if not issues else "warning"), issues
 
 def posterior_hmc_reference_scores(
@@ -827,7 +831,9 @@ class FrozenCheckpoint:
 
     @property
     def key(self) -> str:
-        return f"{self.target}:seed{self.seed}:epoch{self.epoch}:{file_sha256(self.checkpoint_dir / 'vi_model.pt')}"
+        return fingerprint({"target": self.target, "seed": self.seed, "epoch": self.epoch,
+                            "vi_model": file_sha256(self.checkpoint_dir / "vi_model.pt"),
+                            "saved_config": file_sha256(self.config_path)})
 
 
 def file_sha256(path: Path) -> str:
@@ -840,6 +846,14 @@ def file_sha256(path: Path) -> str:
 
 def fingerprint(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def score_implementation_hashes() -> dict[str, str]:
+    """Include model implementations in cache identity as well as this module."""
+    return {"analysis": file_sha256(Path(__file__)),
+            "vi_model": file_sha256(REPO_ROOT / "models/vi_model.py"),
+            "reverse_model": file_sha256(REPO_ROOT / "models/reverse_model.py"),
+            "torch": str(torch.__version__)}
 
 
 def load_score_config(path: Path | str | None = None, overrides: list[str] | None = None) -> DictConfig:
@@ -952,6 +966,11 @@ def _build_frozen_runner(cfg: DictConfig, checkpoint: FrozenCheckpoint, method: 
     runner_config.seed = checkpoint.seed
     runner_config.device = device
     runner_config.use_cuda = device == "cuda"
+    # Training snapshots resolve ${device}; override nested literal CUDA values
+    # as well, so GPU-trained checkpoints can be evaluated on CPU.
+    for component in ("target", "vi_model", "reverse_model", "hmc"):
+        if component in runner_config:
+            runner_config[component].device = device
     runner_config.config_path = checkpoint.config_path.as_posix()
     runner_config.resume = {"enabled": False}
     if method == "UIVI":
@@ -990,7 +1009,7 @@ def _refit_aisivi(runner: Any, cfg: DictConfig, checkpoint: FrozenCheckpoint) ->
         model_config.pop(key, None)
     fit_key = fingerprint({
         "checkpoint": checkpoint.key, "config": model_config,
-        "fit": OmegaConf.to_container(fit, resolve=True), "code": file_sha256(Path(__file__)),
+        "fit": OmegaConf.to_container(fit, resolve=True), "code": score_implementation_hashes(),
     })
     cache = repo_path(cfg.output.cache_dir) / "aisivi" / f"{fit_key}.pt"
     if bool(cfg.evaluation.get("resume", True)) and cache.is_file():
@@ -1077,9 +1096,12 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 def save_cache(path: Path, payload: dict[str, Any]) -> None:
     """Only publish a complete cache file, so interrupted fits can be retried."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    torch.save(payload, temporary)
-    temporary.replace(path)
+    temporary = path.with_name(f"{path.stem}.{uuid.uuid4().hex}.tmp")
+    try:
+        torch.save(payload, temporary)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def mean_and_se(values: list[float]) -> tuple[float, float]:
@@ -1111,7 +1133,7 @@ def run_analysis(cfg: DictConfig) -> list[dict[str, Any]]:
         epsilon, z = shared_input_bank(source, checkpoint, count=int(cfg.evaluation.forward_batch_size), seed=int(cfg.evaluation.seed))
         reference_key = fingerprint({"checkpoint": checkpoint.key,
                                      "evaluation": OmegaConf.to_container(cfg.evaluation, resolve=True),
-                                     "code": file_sha256(Path(__file__))})
+                                     "code": score_implementation_hashes()})
         cache = repo_path(cfg.output.cache_dir) / "hmc" / f"{reference_key}.pt"
         if bool(cfg.evaluation.get("resume", True)) and cache.is_file():
             payload = torch.load(cache, map_location=source.device, weights_only=True)

@@ -116,6 +116,24 @@ class FrozenCheckpointTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate source checkpoint"):
             select_checkpoints(cfg)
 
+    def test_cpu_evaluation_overrides_devices_in_gpu_training_snapshot(self) -> None:
+        checkpoint = select_checkpoints(self.cfg)[0]
+        snapshot = OmegaConf.load(checkpoint.config_path)
+        original = checkpoint.config_path.read_bytes()
+        snapshot.device = "cuda"
+        snapshot.vi_model.device = "cuda"
+        snapshot.reverse_model.device = "cuda"
+        OmegaConf.save(snapshot, checkpoint.config_path)
+        try:
+            runners = build_frozen_estimators(self.cfg, checkpoint)
+            for runner in runners.values():
+                self.assertEqual(runner.device, "cpu")
+                self.assertEqual(str(runner.vi_model.device), "cpu")
+                epsilon, z = runner.vi_model.sampling(num=2)
+                self.assertEqual(z.device.type, "cpu")
+        finally:
+            checkpoint.config_path.write_bytes(original)
+
     def test_score_error_and_reference_mc_error_definitions(self) -> None:
         method = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
         chains = torch.tensor([[[0.0, 0.0], [0.0, 0.0]], [[2.0, 0.0], [0.0, 2.0]]])
@@ -123,6 +141,27 @@ class FrozenCheckpointTest(unittest.TestCase):
         self.assertEqual(metrics["method_l2"], 0)
         self.assertEqual(metrics["reference_internal_l2"], 1)
         self.assertEqual(metrics["reference_mean_mcse_l2"], 1)
+
+    def test_checkpoint_identity_includes_saved_variational_configuration(self) -> None:
+        checkpoint = select_checkpoints(self.cfg)[0]
+        before = checkpoint.key
+        original = checkpoint.config_path.read_bytes()
+        saved = OmegaConf.load(checkpoint.config_path)
+        saved.vi_model.uniform = True
+        OmegaConf.save(saved, checkpoint.config_path)
+        try:
+            self.assertNotEqual(before, checkpoint.key)
+        finally:
+            checkpoint.config_path.write_bytes(original)
+
+    def test_quality_flags_nonfinite_rhat_even_when_finite_quantiles_pass(self) -> None:
+        diagnostics = {"hmc_divergence_fraction": 0.0, "hmc_score_rhat_p95": 1.0,
+                       "hmc_epsilon_rhat_p95": 1.0, "hmc_post_burn_acceptance_rate": 0.9,
+                       "hmc_post_burn_acceptance_min": 0.8, "hmc_score_rhat_nonfinite_fraction": 0.01}
+        quality, issues = assess_hmc_reference_quality(diagnostics, self.cfg.evaluation.reference.quality)
+        self.assertEqual(quality, "warning")
+        self.assertEqual(len(issues), 1)
+        self.assertIn("nonfinite_fraction", issues[0])
 
 
 

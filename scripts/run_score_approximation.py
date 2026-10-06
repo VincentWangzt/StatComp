@@ -19,7 +19,7 @@ def main() -> None:
     cfg = load_score_config(args.config, args.overrides)
     if args.check_only:
         for checkpoint in select_checkpoints(cfg):
-            print(checkpoint.checkpoint_dir)
+            print(f"{checkpoint.target} seed={checkpoint.seed} epoch={checkpoint.epoch}: {checkpoint.checkpoint_dir}")
     else:
         run_analysis(cfg)
 
