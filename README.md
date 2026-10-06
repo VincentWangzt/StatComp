@@ -50,6 +50,7 @@ All runners implement `runner.learn()`, called by `src.py`.
 | AISIVI | `runner/aisivi.py` | Learned + annealed | Annealed importance sampling |
 | DSIVI | `runner/dsivi.py` | Diffusion | Diffusion-based reverse |
 | KSIVI | `runner/ksivi.py` | None | Kernel Stein discrepancy |
+| NFVI | `runner/nfvi.py` | None | Exact-density RealNVP variational inference |
 
 Runner types are registered in `runner/runners.py` and selected via `runner_type` in config.
 
@@ -92,6 +93,20 @@ python src.py --config configs/sivi_banana.yaml
 python src.py --config configs/sivi_banana.yaml train.epochs=20000 train.vi.lr=0.001
 ```
 
+The RealNVP baseline runs through the same entrypoint:
+
+```bash
+python src.py --config configs/nfvi_8_gaussians.yaml
+```
+
+`configs/vi_models/RealNVP.yaml` defaults to four coupling layers. NFVI optimizes
+the exact flow density and does not use a reverse conditional or score proxy.
+It is available for individual runs without changing the standard config grid.
+
+For KSIVI, `train.ksivi.detach_bandwidth` controls gradients through the fitted
+median bandwidth independently of `detach_kernel`. The Student-UC config uses
+detached bandwidth, 25,000-step annealing, and the existing Riesz-kernel setup.
+
 Monitor with:
 
 ```bash
@@ -101,6 +116,10 @@ tensorboard --logdir tb_logs/
 ### Reproducing Results
 
 For full campaign sweeps, baseline generation, and finalization (evaluation + report generation), see [`scripts/README.md`](scripts/README.md).
+
+For score accuracy and native estimator timing on shared frozen DIVI
+checkpoints, see [`finalization/README.md`](finalization/README.md). These
+entrypoints load existing checkpoints and use posterior HMC as the reference.
 
 ## Output Layout
 

@@ -110,6 +110,22 @@ python scripts/run_finalization.py \
   --only bnn_table
 ```
 
+## Score analysis entrypoints
+
+```bash
+python scripts/run_score_approximation.py --check-only
+python scripts/run_score_approximation.py evaluation.device=cuda
+python scripts/run_score_estimator_timing.py evaluation.device=cuda
+```
+
+These entrypoints compare SIVI, UIVI, AISIVI, and DIVI on the same frozen DIVI
+variational checkpoints. They accept a custom `--config` and OmegaConf dotlist
+overrides. AISIVI's proposal is fitted against the fixed distribution and cached
+for reuse by both entrypoints. Accuracy uses posterior HMC only; timing excludes
+fitting, reference evaluation, and input generation. See
+[`finalization/README.md`](../finalization/README.md) for checkpoint requirements,
+configuration defaults, report definitions, and output locations.
+
 ## Baseline Scripts
 
 | Script | Purpose |
