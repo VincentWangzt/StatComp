@@ -1,0 +1,414 @@
+{
+  "round": "constant_variance_init",
+  "steps": [
+    0,
+    500,
+    1000,
+    1500,
+    2000,
+    2500,
+    3000,
+    3500,
+    4000,
+    4500,
+    5000
+  ],
+  "grid_shape": [
+    3,
+    11
+  ],
+  "total_steps": 5000,
+  "includes_initial_distribution": true,
+  "reporting_preserves_training_rng": true,
+  "source_commit": "dbbe84ad4d56c42c20bdbb0ca37ca142de242990",
+  "vi_model_type": "ConditionalGaussian",
+  "batch_size": 128,
+  "hidden_width": 128,
+  "input_noise_dim": 2,
+  "annealing_enabled": true,
+  "metric_evaluation_temporarily_disabled": true,
+  "annealing_steps": 25000,
+  "final_annealing_factor": 0.28,
+  "variance_init": 1.31326162815094,
+  "variance_remains_trainable": true,
+  "scheduler": {
+    "type": "StepLR",
+    "step_size": 1000,
+    "gamma": 0.9
+  },
+  "runs": [
+    {
+      "key": "seed42",
+      "label": "Seed 42",
+      "seed": 42,
+      "initial_lr": 0.001,
+      "final_lr": 0.00059049,
+      "source_commit": "dbbe84ad4d56c42c20bdbb0ca37ca142de242990",
+      "run_path": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601",
+      "exit_code": 0,
+      "elapsed_seconds": 38.598,
+      "conditional_variance": {
+        "initial_per_dimension": [
+          1.3132617473602295,
+          1.3132617473602295
+        ],
+        "initial_mean": [
+          1.313261866569519,
+          1.313261866569519
+        ],
+        "initial_std_across_epsilon": [
+          0.0,
+          0.0
+        ],
+        "final_mean": [
+          1.1606312990188599,
+          0.7993783950805664
+        ],
+        "final_std_across_epsilon": [
+          0.37264585494995117,
+          0.22728577256202698
+        ],
+        "final_min": [
+          0.0022625287529081106,
+          0.03906169533729553
+        ],
+        "final_max": [
+          1.620298981666565,
+          2.1234629154205322
+        ],
+        "final_variance_head_weight_norm": 0.7509787678718567,
+        "probe_count": 10000
+      },
+      "panels": [
+        {
+          "step": 0,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_0.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "2fd9682f4405c5cd475bc6a32c11bf9cb1d340f229bdf4534468af7c88e9ef8c"
+        },
+        {
+          "step": 500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "e1efd01575ea6ca7acdf0beffea95d330a5ccdf2c783d1b7a7e4c0b860f84099"
+        },
+        {
+          "step": 1000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "c451a41e4ad89b7d751970bdc4db9946cc47ffacb81b5d869389e8521853e064"
+        },
+        {
+          "step": 1500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "fe7c59ba6fadc61654e369961147c6d94384634a29ed866c03c3939a6f2da36c"
+        },
+        {
+          "step": 2000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "5fcb460e25561cd342073138de8f5a4071ac278075f3d51086befc9f24745742"
+        },
+        {
+          "step": 2500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "fa533ff1207ecb394eb33a6c3f7a4c518335e60ee29f4ac183317da7152deee3"
+        },
+        {
+          "step": 3000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "bac9b42b543bca56b3ff4831451566f52f8f7d0de4087836212322abf4fe1321"
+        },
+        {
+          "step": 3500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "5bebd1b4baa9327d17f6aeaefe61d5a639e442c362079c93ec5264f000864195"
+        },
+        {
+          "step": 4000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "576247d96fe461761aab287e5b8879956c795054d486bcae5cb7d6a5aeaba64e"
+        },
+        {
+          "step": 4500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "a32dbc81dd75b8c52c2f5c5405dc80d03c90fcd51a3ec1974896d185d648540e"
+        },
+        {
+          "step": 5000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_5000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "910346a78326c6f11aabb847e33d7ba5c328b7d3ad8948d42df49c13c4bb1058"
+        }
+      ]
+    },
+    {
+      "key": "seed43",
+      "label": "Seed 43",
+      "seed": 43,
+      "initial_lr": 0.001,
+      "final_lr": 0.00059049,
+      "source_commit": "dbbe84ad4d56c42c20bdbb0ca37ca142de242990",
+      "run_path": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601",
+      "exit_code": 0,
+      "elapsed_seconds": 38.36,
+      "conditional_variance": {
+        "initial_per_dimension": [
+          1.3132617473602295,
+          1.3132617473602295
+        ],
+        "initial_mean": [
+          1.313261866569519,
+          1.313261866569519
+        ],
+        "initial_std_across_epsilon": [
+          0.0,
+          0.0
+        ],
+        "final_mean": [
+          0.9060587882995605,
+          1.003393530845642
+        ],
+        "final_std_across_epsilon": [
+          0.3856578469276428,
+          0.2968372404575348
+        ],
+        "final_min": [
+          0.00639496510848403,
+          0.3664492964744568
+        ],
+        "final_max": [
+          1.7204318046569824,
+          2.8126142024993896
+        ],
+        "final_variance_head_weight_norm": 0.8162333369255066,
+        "probe_count": 10000
+      },
+      "panels": [
+        {
+          "step": 0,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_0.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "cf0a18c588ad0618bbbba2078cfe88433940697daee353416ac9309809c14952"
+        },
+        {
+          "step": 500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "dd62b880f325a0dddccddcef52df8621c86ced4bbd6d246484dc78b1ad9ac049"
+        },
+        {
+          "step": 1000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "c6c1bbc9d011ddb07a788ade7da7145df6585b7e0d1cf984d0b0de4b579179af"
+        },
+        {
+          "step": 1500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "6de50d44c90b9a07a4bc2dd1ec50a9fa884bb39a41edd4651513f19b8c9ba106"
+        },
+        {
+          "step": 2000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "95c7c3cfd1144388651184add849b5d6e3e947e48db0d528d056a5dfbad4a048"
+        },
+        {
+          "step": 2500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "459514dd27c4be24265be18179e4e94c5cca6fc7c471d5dd604354070595802c"
+        },
+        {
+          "step": 3000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "663a9c778478366b7536a2be0bfb13ec31c068a819596fe883d73bcbbe6dac8e"
+        },
+        {
+          "step": 3500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "7c700e2958e804cd351bc70790ad92463421dbeb8a8987f8f64752db309910ad"
+        },
+        {
+          "step": 4000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "0ae0a483ae405c800c22e12c469850697b3e985e3a5a45c45395d66a2a3e1cba"
+        },
+        {
+          "step": 4500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "a631ca5556cb003fa380f069853b36e11b40628151646527b847dc56670cda8d"
+        },
+        {
+          "step": 5000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_5000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "2481b8caf7a54884a8b27570ea47c2c187b06a15f87fac0ba24edc4487b0d0e0"
+        }
+      ]
+    },
+    {
+      "key": "seed44",
+      "label": "Seed 44",
+      "seed": 44,
+      "initial_lr": 0.001,
+      "final_lr": 0.00059049,
+      "source_commit": "dbbe84ad4d56c42c20bdbb0ca37ca142de242990",
+      "run_path": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601",
+      "exit_code": 0,
+      "elapsed_seconds": 42.349,
+      "conditional_variance": {
+        "initial_per_dimension": [
+          1.3132617473602295,
+          1.3132617473602295
+        ],
+        "initial_mean": [
+          1.313261866569519,
+          1.313261866569519
+        ],
+        "initial_std_across_epsilon": [
+          0.0,
+          0.0
+        ],
+        "final_mean": [
+          0.9209350347518921,
+          1.0202792882919312
+        ],
+        "final_std_across_epsilon": [
+          0.353473961353302,
+          0.3464091420173645
+        ],
+        "final_min": [
+          0.013491672463715076,
+          0.1052105575799942
+        ],
+        "final_max": [
+          2.823375940322876,
+          3.473475217819214
+        ],
+        "final_variance_head_weight_norm": 0.6486037969589233,
+        "probe_count": 10000
+      },
+      "panels": [
+        {
+          "step": 0,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_0.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "231080a8e26f28c9f3bbc8a47fa33cf5d97aeb3a9810b333019ebaed35caabfe"
+        },
+        {
+          "step": 500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "779402d2698b5c787489cff67659425575b80a33f5aa47c55fc058598e4024cd"
+        },
+        {
+          "step": 1000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "759a61e9056c4ef3b3c9e5b22d564367b8fce4a99ac262080f284fb650aa88ab"
+        },
+        {
+          "step": 1500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_1500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "d301b1bdaee3001a8b67076c8ecd37f1bec89e6f3df6a5290c26cc0bf481f442"
+        },
+        {
+          "step": 2000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "179e3ef2d2623c91e371d386af9ef7cddf4fc74315dbc3d318ca52db5de1db8b"
+        },
+        {
+          "step": 2500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_2500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "f02ade46e2621d1ab99bf75db5b46502f7f0c678596da75080236dc306b25b2e"
+        },
+        {
+          "step": 3000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "d4e4566d2da02aef3926665ae7a2c4736dcbf77ecb80831b33e86d6eb5465829"
+        },
+        {
+          "step": 3500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_3500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "8ce9e7f4b46457a8d5bf2c80705659d80130b829ed139bd364afef9dc338a0e4"
+        },
+        {
+          "step": 4000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "49d63678aede742a6ee32d8b73e59e8992579bf89ea360780f39263b72485782"
+        },
+        {
+          "step": 4500,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_4500.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "84878f2e185bd31d8ea0754265cb0ebc44b95bc0c9778eefd0383f7460f9e3f8"
+        },
+        {
+          "step": 5000,
+          "plot": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44/KSIVI/x_shaped/20261006_211601/plots/contour_epoch_5000.png",
+          "sample_count": 10000,
+          "all_samples_finite": true,
+          "plot_sha256": "ee5c2806e43bf0543ba134484038a7697a50c38b4d0c757f3d37d976e10bc519"
+        }
+      ]
+    }
+  ],
+  "grid": "constant_variance_init_evolution_3x11.png",
+  "pdf": "constant_variance_init_evolution_3x11.pdf",
+  "grid_size": [
+    5984,
+    1696
+  ],
+  "grid_sha256": "c09e65298abb34cea84b486bae042c88ca82cc460ef9190e3e27acf3dde969e7"
+}

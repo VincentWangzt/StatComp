@@ -1,0 +1,87 @@
+{
+  "learning_rates_have_identical_initial_weights_and_samples": true,
+  "constant_variance_mean_initialization_checks": [
+    {
+      "seed": 42,
+      "same_hidden_layers_and_mean_head": true,
+      "constant_variance_head_weights_zero": true
+    },
+    {
+      "seed": 43,
+      "same_hidden_layers_and_mean_head": true,
+      "constant_variance_head_weights_zero": true
+    },
+    {
+      "seed": 44,
+      "same_hidden_layers_and_mean_head": true,
+      "constant_variance_head_weights_zero": true
+    }
+  ],
+  "annealing_steps": 25000,
+  "annealing_factor_at_step_5000": 0.28,
+  "previous_run_checkpoint_comparisons": [
+    {
+      "group": "seeds",
+      "key": "seed42",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed42/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "seeds",
+      "key": "seed43",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed43/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "seeds",
+      "key": "seed44",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed44/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "learning_rates",
+      "key": "lr5e-4",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr5e-4/KSIVI/x_shaped/20261006_202851/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "learning_rates",
+      "key": "lr2e-3",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr2e-3/KSIVI/x_shaped/20261006_202851/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "learning_rates",
+      "key": "lr2e-4",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr2e-4/KSIVI/x_shaped/20261006_202850/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "constant_variance_init",
+      "key": "seed42",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed42/KSIVI/x_shaped/20261006_205057/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "constant_variance_init",
+      "key": "seed43",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed43/KSIVI/x_shaped/20261006_205056/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    },
+    {
+      "group": "constant_variance_init",
+      "key": "seed44",
+      "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed44/KSIVI/x_shaped/20261006_205057/checkpoints/epoch_5000/vi_model.pt",
+      "identical_weights": true,
+      "maximum_absolute_weight_difference": 0.0
+    }
+  ]
+}

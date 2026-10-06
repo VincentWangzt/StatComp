@@ -1,0 +1,485 @@
+{
+  "status": "completed",
+  "source_commit": "dbbe84ad4d56c42c20bdbb0ca37ca142de242990",
+  "round_order": [
+    "seeds",
+    "learning_rates",
+    "constant_variance_init"
+  ],
+  "rounds": {
+    "seeds": {
+      "status": "completed",
+      "runs": [
+        {
+          "key": "seed42",
+          "label": "Seed 42",
+          "seed": 42,
+          "lr": 0.001,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed42",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed42",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=42",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed42",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed42",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "seed43",
+          "label": "Seed 43",
+          "seed": 43,
+          "lr": 0.001,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed43",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed43",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=43",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed43",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed43",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "seed44",
+          "label": "Seed 44",
+          "seed": 44,
+          "lr": 0.001,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed44",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed44",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=44",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/seeds/seed44",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/seeds/seed44",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        }
+      ],
+      "grid": "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/campaigns/ksivi_x_shaped_short_evolution_20261006/generated_reports/seeds/seeds_evolution_3x11.png"
+    },
+    "learning_rates": {
+      "status": "completed",
+      "runs": [
+        {
+          "key": "lr5e-4",
+          "label": "LR 5e-4 | seed 43",
+          "seed": 43,
+          "lr": 0.0005,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr5e-4",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr5e-4",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=43",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr5e-4",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr5e-4",
+            "train.vi.lr=0.0005",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "lr2e-3",
+          "label": "LR 2e-3 | seed 43",
+          "seed": 43,
+          "lr": 0.002,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-3",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-3",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=43",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-3",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-3",
+            "train.vi.lr=0.002",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "lr2e-4",
+          "label": "LR 2e-4 | seed 43",
+          "seed": 43,
+          "lr": 0.0002,
+          "variance_init": null,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-4",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-4",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=43",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-4",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/learning_rates/lr2e-4",
+            "train.vi.lr=0.0002",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        }
+      ],
+      "grid": "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/campaigns/ksivi_x_shaped_short_evolution_20261006/generated_reports/learning_rates/learning_rates_evolution_3x11.png"
+    },
+    "constant_variance_init": {
+      "status": "completed",
+      "runs": [
+        {
+          "key": "seed42",
+          "label": "Seed 42",
+          "seed": 42,
+          "lr": 0.001,
+          "variance_init": 1.31326162815094,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=42",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed42",
+            "vi_model.variance_init=1.31326162815094",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "seed43",
+          "label": "Seed 43",
+          "seed": 43,
+          "lr": 0.001,
+          "variance_init": 1.31326162815094,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=43",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed43",
+            "vi_model.variance_init=1.31326162815094",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        },
+        {
+          "key": "seed44",
+          "label": "Seed 44",
+          "seed": 44,
+          "lr": 0.001,
+          "variance_init": 1.31326162815094,
+          "results_root": "/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44",
+          "tb_root": "/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44",
+          "command": [
+            "/root/miniconda3/envs/ruivi/bin/python",
+            "-u",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/src.py",
+            "--config",
+            "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/configs/ksivi_x_shaped.yaml",
+            "seed=44",
+            "train.log.metric_log_freq=0",
+            "metric.kl_ite.enabled=false",
+            "metric.w2.enabled=false",
+            "metric.elbo.enabled=false",
+            "output.results_dir=/root/ruivi/results/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44",
+            "output.tb_dir=/root/ruivi/tb_logs/ksivi_x_shaped_short_evolution_20261006/constant_variance_init/seed44",
+            "vi_model.variance_init=1.31326162815094",
+            "train.epochs=5000",
+            "train.sample.freq=500",
+            "train.plot.freq=500",
+            "train.plot.initial=true",
+            "train.sample.preserve_rng=true"
+          ],
+          "train_overrides": {
+            "epochs": 5000,
+            "sample": {
+              "freq": 500,
+              "preserve_rng": true
+            },
+            "plot": {
+              "freq": 500,
+              "initial": true
+            }
+          },
+          "exit_code": 0
+        }
+      ],
+      "grid": "/root/ruivi-runs/ksivi-x-shaped-evolution-20261006/campaigns/ksivi_x_shaped_short_evolution_20261006/generated_reports/constant_variance_init/constant_variance_init_evolution_3x11.png"
+    }
+  },
+  "started_at": 1791292458.516231,
+  "current_round": "constant_variance_init",
+  "checks": {
+    "learning_rates_have_identical_initial_weights_and_samples": true,
+    "constant_variance_mean_initialization_checks": [
+      {
+        "seed": 42,
+        "same_hidden_layers_and_mean_head": true,
+        "constant_variance_head_weights_zero": true
+      },
+      {
+        "seed": 43,
+        "same_hidden_layers_and_mean_head": true,
+        "constant_variance_head_weights_zero": true
+      },
+      {
+        "seed": 44,
+        "same_hidden_layers_and_mean_head": true,
+        "constant_variance_head_weights_zero": true
+      }
+    ],
+    "annealing_steps": 25000,
+    "annealing_factor_at_step_5000": 0.28,
+    "previous_run_checkpoint_comparisons": [
+      {
+        "group": "seeds",
+        "key": "seed42",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed42/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "seeds",
+        "key": "seed43",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed43/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "seeds",
+        "key": "seed44",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/seeds/seed44/KSIVI/x_shaped/20261006_202211/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "learning_rates",
+        "key": "lr5e-4",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr5e-4/KSIVI/x_shaped/20261006_202851/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "learning_rates",
+        "key": "lr2e-3",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr2e-3/KSIVI/x_shaped/20261006_202851/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "learning_rates",
+        "key": "lr2e-4",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_evolution_20261006/learning_rates/lr2e-4/KSIVI/x_shaped/20261006_202850/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "constant_variance_init",
+        "key": "seed42",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed42/KSIVI/x_shaped/20261006_205057/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "constant_variance_init",
+        "key": "seed43",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed43/KSIVI/x_shaped/20261006_205056/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      },
+      {
+        "group": "constant_variance_init",
+        "key": "seed44",
+        "previous_checkpoint": "/root/ruivi/results/ksivi_x_shaped_constant_variance_init_20261006/seeds/seed44/KSIVI/x_shaped/20261006_205057/checkpoints/epoch_5000/vi_model.pt",
+        "identical_weights": true,
+        "maximum_absolute_weight_difference": 0.0
+      }
+    ]
+  },
+  "finished_at": 1791292609.5414886
+}
