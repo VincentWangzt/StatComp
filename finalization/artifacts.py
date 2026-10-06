@@ -65,7 +65,7 @@ def resolve_repo_path(path: str | Path | None) -> Path | None:
         return None
     p = Path(path)
     if p.exists():
-        return p
+        return p.resolve()
     for anchor in ("results", "tb_logs", "configs", "campaigns", "baselines"):
         if anchor in p.parts:
             idx = p.parts.index(anchor)
