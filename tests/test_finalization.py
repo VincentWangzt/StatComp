@@ -262,19 +262,22 @@ class FinalizationTests(unittest.TestCase):
 
         table = render_toy_method_grid(rows, cfg)
 
-        self.assertIn("Target & Metric & UIVI & AISIVI & DIVI", table)
+        self.assertIn("Target & Metric & SIVI & KSIVI & AISIVI & UIVI & DIVI", table)
         self.assertIn("UIVI", table)
         self.assertIn("AISIVI", table)
+        self.assertIn("KSIVI", table)
+        self.assertNotIn("ten seeds", table)
+        self.assertNotIn("five seeds", table)
         self.assertIn("DIVI", table)
         self.assertIn("$D_{\\mathrm{KL}}$", table)
         self.assertNotIn("banana", table)
         self.assertIn("Wall-clock time (s)", table)
-        self.assertIn("& W2 &", table)
-        self.assertNotIn("W2 $|x|<8$", table)
-        self.assertNotIn("W2 $|x|<6$", table)
+        self.assertIn("W2 $|x|<8$", table)
+        self.assertIn("W2 $|x|<8$", table)
+        self.assertIn("W2 $|x|<6$", table)
         self.assertIn("\\addlinespace[2pt]", table)
         self.assertIn("\\textbf{0.1} $\\pm$ {\\footnotesize \\textbf{0.00}}", table)
-        self.assertIn("\\multicolumn{2}{l}{Wall-clock time (s)} & 60 & 30 & \\textbf{24}", table)
+        self.assertIn("\\multicolumn{2}{l}{Wall-clock time (s)} & 99 & -- & 30 & 60 & \\textbf{24}", table)
 
     def test_langevin_table_renders_sgld_separator_and_compact_iterations(self) -> None:
         rows = [

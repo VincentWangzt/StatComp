@@ -350,7 +350,7 @@ def _method_metric_table(
     return "\n".join(lines)
 
 
-TOY_METHOD_GRID_METHODS = ["UIVI", "AISIVI", "DSIVI"]
+TOY_METHOD_GRID_METHODS = ["SIVI", "KSIVI", "AISIVI", "UIVI", "DSIVI"]
 TOY_METHOD_GRID_TARGETS = ["x_shaped", "student_uc", "8_gaussians"]
 TOY_METHOD_GRID_W2_METRICS = {
     "student_uc": "w2_trunc_abs_8",
@@ -558,9 +558,12 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{Selected toy target final evaluation metrics by method.}",
+        "\\caption{Toy target final evaluation metrics (mean $\\pm$ standard error). Wall-clock time is averaged across the three targets; bold indicates the best mean.}",
         "\\label{tab:toy-method-grid}",
-        "\\begin{tabular}{llccc}",
+        "\\small",
+        "\\setlength{\\tabcolsep}{3pt}",
+        "\\begin{adjustbox}{max width=\\linewidth}",
+        "\\begin{tabular}{ll" + "c" * len(TOY_METHOD_GRID_METHODS) + "}",
         "\\toprule",
         "Target & Metric & " + " & ".join(_display_method(m) for m in TOY_METHOD_GRID_METHODS) + " \\\\",
         "\\midrule",
@@ -581,7 +584,7 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
         for row_idx, (metric_label, metric_key, best_by_target) in enumerate(
             [
                 ("$D_{\\mathrm{KL}}$", "d_kl", best_d_kl),
-                ("W2", TOY_METHOD_GRID_W2_METRICS[target], best_w2),
+                (_label(TOY_METHOD_GRID_W2_METRICS[target]), TOY_METHOD_GRID_W2_METRICS[target], best_w2),
             ]
         ):
             cells = [target_label if row_idx == 0 else "", metric_label]
@@ -620,7 +623,7 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
         cells.append(_integer_cell(mean, bold=mean is not None and mean == best_time))
     lines.append(" & ".join(cells) + " \\\\")
 
-    lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{table}", ""])
+    lines.extend(["\\bottomrule", "\\end{tabular}", "\\end{adjustbox}", "\\end{table}", ""])
     return "\n".join(lines)
 
 
