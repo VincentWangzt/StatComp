@@ -306,6 +306,33 @@ is a small-$v$ asymptotic, not an assertion of equality at finite $v$. It
 proves a concrete way that small conditional variances can defeat a
 uniform gradient-noise guarantee even at an exact marginal optimum.
 
+\begin{corollary}[Noise can also contaminate mean updates]
+If the same construction dilates only the means,
+$X_\theta=e^\theta M_v+\sqrt v\,U$, while holding variance fixed, the
+conditional-score gradient still has inverse-square variance growth:
+\[
+ \lim_{v\downarrow0}v^2\Var(g^{\rm mean}_v)
+ =\frac{2}{N^2}\E_{p\otimes p}
+   \left[k_h(X,X')^2\frac{\|X-X'\|^4}{h^4}\right]>0.
+\]
+The Stein-estimator mean-direction gradient has bounded second moment as
+$v\downarrow0$ for this target.
+\end{corollary}
+\begin{proof}
+The conditional score no longer differentiates directly, but the kernel
+derivative multiplying the two conditional scores has leading term
+$-k_h(M_0,M'_0)\|M_0-M'_0\|^2U^TU'/(h^2v)$. The preceding $L^2$
+and pair-covariance argument applies. The Stein derivative contains no
+inverse variance and is bounded in $L^2$ by polynomial Gaussian moments.
+\end{proof}
+Dilating mean outputs is an available parameter direction: scale the mean
+rows and biases of the final linear layer, leaving the variance rows
+unchanged. Thus the mechanism is not confined to the variance-head gradient.
+The corollary assumes spatial kernel differentiation, as in the canonical
+implementation. Detaching the entire kernel removes this leading mean-gradient
+term but changes the update away from the full KSD gradient; detaching only
+the bandwidth does not remove it.
+
 The experiment's reported residual second moments use the exact identity
 (\ref{eq:noise}) with the target Fisher information estimated independently
 from 200,000 exact target draws. They should not be confused with the
