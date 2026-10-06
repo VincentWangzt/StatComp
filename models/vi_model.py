@@ -179,18 +179,32 @@ class ConditionalGaussian(BaseVIModel):
             input_dim = self.hidden_dim
         layers.append(nn.Linear(self.hidden_dim, self.out_dim))
         self.net = nn.Sequential(*layers)
-        if self.variance_parameterization == 'logvar':
-            self._init_logvar_head(float(config.get('log_var_init', 0.0)))
+        variance_init = config.get('variance_init', None)
+        if variance_init is not None:
+            variance_init = float(variance_init)
+            if not math.isfinite(variance_init) or variance_init <= 0:
+                raise ValueError("variance_init must be finite and positive")
+            if self.variance_parameterization == 'softplus_var':
+                if variance_init < self.var_min:
+                    raise ValueError("variance_init must be at least var_min")
+                raw_init = variance_init + math.log(-math.expm1(-variance_init))
+            else:
+                raw_init = math.log(variance_init)
+                if raw_init < self.log_var_min:
+                    raise ValueError("log(variance_init) must be at least log_var_min")
+            self._init_variance_head(raw_init)
+        elif self.variance_parameterization == 'logvar':
+            self._init_variance_head(float(config.get('log_var_init', 0.0)))
 
-    def _init_logvar_head(self, log_var_init: float) -> None:
-        """Initialize only the variance head; keep the mean head untouched."""
+    def _init_variance_head(self, raw_init: float) -> None:
+        """Start with constant variance; keep the mean head and all weights trainable."""
         final_layer = self.net[-1]
         if not isinstance(final_layer, nn.Linear):
             return
         with torch.no_grad():
             final_layer.weight[self.z_dim:].zero_()
             if final_layer.bias is not None:
-                final_layer.bias[self.z_dim:].fill_(log_var_init)
+                final_layer.bias[self.z_dim:].fill_(raw_init)
 
     def _variance_from_raw(
         self,

@@ -4,3 +4,4 @@ hidden_dim: 128
 num_layers: 2
 device: ${device}
 uniform: false # Whether to use uniform prior over epsilon
+variance_init: null # Optional constant starting variance; null keeps the default initialization.

@@ -16,7 +16,8 @@ REPO = CAMPAIGN_DIR.parents[1]
 CANONICAL = REPO / "configs/ksivi_x_shaped.yaml"
 
 
-def specifications(results_root: Path, tb_root: Path) -> dict[str, list[dict]]:
+def specifications(results_root: Path, tb_root: Path,
+                   variance_init: float | None = None) -> dict[str, list[dict]]:
     rounds = {
         "seeds": [(f"seed{seed}", f"Seed {seed}", seed, 0.001) for seed in (42, 43, 44)],
         "learning_rates": [("lr5e-4", "LR 5e-4 | seed 43", 43, 5e-4),
@@ -35,7 +36,10 @@ def specifications(results_root: Path, tb_root: Path) -> dict[str, list[dict]]:
                        f"output.tb_dir={row_tb}"]
             if name == "learning_rates":
                 command.append(f"train.vi.lr={lr}")
+            if variance_init is not None:
+                command.append(f"vi_model.variance_init={variance_init}")
             plans[name].append({"key": key, "label": label, "seed": seed, "lr": lr,
+                                "variance_init": variance_init,
                                 "results_root": str(row_results), "tb_root": str(row_tb),
                                 "command": command})
     return plans
@@ -52,6 +56,10 @@ def main() -> None:
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--tb-root", type=Path, required=True)
     parser.add_argument("--report-root", type=Path, default=CAMPAIGN_DIR / "generated_reports")
+    parser.add_argument("--rounds", nargs="+", choices=("seeds", "learning_rates"),
+                        default=["seeds", "learning_rates"])
+    parser.add_argument("--variance-init", type=float,
+                        help="Constant initial conditional variance; remains trainable")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     canonical = OmegaConf.load(CANONICAL)
@@ -60,7 +68,8 @@ def main() -> None:
     assert canonical.train.vi.lr == 0.001 and canonical.train.annealing.enabled
     assert canonical.train.plot.freq == canonical.train.sample.freq == 5000
     assert canonical.train.plot.num == canonical.train.sample.num == 10000
-    plans = specifications(args.results_root, args.tb_root)
+    plans = specifications(args.results_root, args.tb_root, args.variance_init)
+    plans = {name: plans[name] for name in dict.fromkeys(args.rounds)}
     if args.dry_run:
         print(json.dumps(plans, indent=2))
         return

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -20,7 +21,8 @@ from PIL import Image
 STEPS = tuple(range(5000, 50001, 5000))
 
 
-def render_grid(rows: list[dict], output: Path, title: str) -> dict:
+def render_grid(rows: list[dict], output: Path, title: str,
+                initialization: str = "") -> dict:
     """Use the exact native training plots, without resampling the model."""
     if len(rows) != 3 or any(len(row["plots"]) != 10 for row in rows):
         raise ValueError("The evolution grid requires three rows of ten plots")
@@ -30,7 +32,8 @@ def render_grid(rows: list[dict], output: Path, title: str) -> dict:
                         hspace=0.01, wspace=0.01)
     fig.suptitle(title, fontsize=23, y=0.995)
     fig.text(0.5, 0.935,
-             "ConditionalGaussian | width 128 | noise dimension 2 | batch 128 | annealing enabled",
+             "ConditionalGaussian | width 128 | noise dimension 2 | batch 128 | annealing enabled"
+             + initialization,
              ha="center", fontsize=16)
     for row_index, row in enumerate(rows):
         for col, path in enumerate(row["plots"]):
@@ -76,6 +79,7 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
         assert cfg.seed == spec["seed"] and cfg.vi_model_type == "ConditionalGaussian"
         assert cfg.vi_model.hidden_dim == 128 and cfg.vi_model.num_layers == 2
         assert cfg.vi_model.epsilon_dim == cfg.vi_model.z_dim == 2
+        assert cfg.vi_model.get("variance_init", None) == spec.get("variance_init")
         assert not any(v.get("enabled", False) for v in cfg.metric.values())
         model_configs.append(OmegaConf.to_container(cfg.vi_model, resolve=True))
         log = (run_path / "run.log").read_text()
@@ -108,6 +112,33 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
         expected_final_lr = spec["lr"] * 0.9 ** 50
         assert all(abs(group["lr"] - expected_final_lr) < 1e-12
                    for group in optimizer["param_groups"])
+        variance_summary = None
+        if spec.get("variance_init") is not None:
+            sys.path.insert(0, str(canonical_path.resolve().parents[1]))
+            from models.vi_model import ConditionalGaussian
+
+            model_cfg = OmegaConf.create(OmegaConf.to_container(cfg.vi_model, resolve=True))
+            model_cfg.device = "cpu"
+            with torch.random.fork_rng(devices=[]):
+                torch.manual_seed(spec["seed"])
+                model = ConditionalGaussian(model_cfg)
+            probe = samples["epsilon"]
+            with torch.no_grad():
+                initial_var = model.getstd(probe).square()
+                assert torch.count_nonzero(model.net[-1].weight[2:]).item() == 0
+                assert torch.allclose(initial_var, torch.full_like(initial_var, spec["variance_init"]))
+                model.load_state_dict(state)
+                final_var = model.getstd(probe).square()
+                assert torch.isfinite(final_var).all().item()
+                variance_summary = {
+                    "initial_per_dimension": initial_var[0].tolist(),
+                    "final_mean": final_var.mean(0).tolist(),
+                    "final_std_across_epsilon": final_var.std(0).tolist(),
+                    "final_min": final_var.amin(0).tolist(),
+                    "final_max": final_var.amax(0).tolist(),
+                    "final_variance_head_weight_norm": state["net.4.weight"][2:].norm().item(),
+                    "probe_count": len(probe),
+                }
         duration = re.search(r"Training completed\. Total time: ([0-9.]+)s", log)
         rows.append({"label": spec["label"], "plots": [panel["plot"] for panel in panels]})
         summaries.append({"key": spec["key"], "label": spec["label"],
@@ -115,16 +146,26 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
                           "final_lr": expected_final_lr, "source_commit": source_commit,
                           "run_path": str(run_path), "exit_code": exit_code,
                           "elapsed_seconds": float(duration.group(1)) if duration else None,
+                          "conditional_variance": variance_summary,
                           "panels": panels})
         shutil.copy2(paths[0], report_root / f"full_config_{spec['key']}.yaml")
     assert all(model == model_configs[0] for model in model_configs)
     title = ("KSIVI x-shaped: seed evolution, learning rate 0.001" if round_name == "seeds"
              else "KSIVI x-shaped: learning-rate evolution, seed 43")
-    grid = render_grid(rows, report_root / f"{round_name}_evolution_3x10.png", title)
+    variance_init = specs[0].get("variance_init")
+    initialization = ""
+    if variance_init is not None:
+        title = ("KSIVI x-shaped: seed evolution with constant initial variance, LR 0.001"
+                 if round_name == "seeds" else
+                 "KSIVI x-shaped: learning-rate evolution with constant initial variance, seed 43")
+        initialization = f" | initial variance {variance_init:.4f}"
+    grid = render_grid(rows, report_root / f"{round_name}_evolution_3x10.png", title,
+                       initialization)
     manifest = {"round": round_name, "steps": list(STEPS), "grid_shape": [3, 10],
                 "source_commit": source_commit, "vi_model_type": "ConditionalGaussian",
                 "batch_size": 128, "hidden_width": 128, "input_noise_dim": 2,
                 "annealing_enabled": True, "metric_evaluation_temporarily_disabled": True,
+                "variance_init": variance_init, "variance_remains_trainable": True,
                 "scheduler": {"type": "StepLR", "step_size": 1000, "gamma": 0.9},
                 "runs": summaries, **grid}
     (report_root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
