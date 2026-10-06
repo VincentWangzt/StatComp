@@ -66,6 +66,29 @@ def independent_metrics(model, target):
         return dict(m, **kl)
 
 
+def trained_directional_noise(model, target, repeats=128):
+    records=[]
+    with preserve_rng(72183):
+        for _ in range(repeats):
+            with torch.no_grad():
+                x0,b0=model(model.sample_epsilon(128))
+                y0,c0=model(model.sample_epsilon(128))
+            theta=torch.tensor(0.,device=x0.device,requires_grad=True)
+            x,y=x0*theta.exp(),y0*theta.exp()
+            b,c=b0*theta.neg().exp(),c0*theta.neg().exp()
+            k=(-(x[:,None]-y[None]).square().sum(-1)/(2*.75**2)).exp()
+            cond=((target.score(x)+b)@(target.score(y)+c).T*k).mean()
+            stein=stein_matrix(x,y,target,.75).mean()
+            gc=torch.autograd.grad(cond,theta,retain_graph=True)[0].item()
+            gs=torch.autograd.grad(stein,theta)[0].item()
+            records.append((gc,gs))
+    a=np.array(records)
+    return {'direction_repeats':repeats,'direction_cond_grad_mean':float(a[:,0].mean()),
+            'direction_stein_grad_mean':float(a[:,1].mean()),
+            'direction_cond_grad_var':float(a[:,0].var(ddof=1)),
+            'direction_stein_grad_var':float(a[:,1].var(ddof=1))}
+
+
 def load_new(path):
     spec = json.loads((path/'spec.json').read_text())
     cfg = OmegaConf.create(dict(device='cuda' if torch.cuda.is_available() else 'cpu',
@@ -92,12 +115,40 @@ def evaluate(root, output):
         if str(path) in done: continue
         model,target,spec = load_new(path)
         m = independent_metrics(model,target)
+        m.update(trained_directional_noise(model,target))
         m.update(path=str(path), spec=spec)
         previous['rows'].append(m)
         previous['source_commit'] = git_commit()
         write_json(out,previous)
         print(spec['stage'],spec['name'],spec['seed'],round(m['sw2'],3),
               round(m['kl_pq_16384'],3),round(m['ksd2_h0.75'],5),flush=True)
+
+
+def evaluate_old(audit_path, output):
+    torch.set_num_threads(1)
+    rows=json.loads(Path(audit_path).read_text())['rows']
+    selected=[]
+    seen=set()
+    for row in rows:
+        if (row['step'] != 50000 or row['batch'] != 128 or not row['annealing']
+            or row['lr'] != .001 or row['epsilon_dim'] != 2 or row['width'] != 128): continue
+        key=(row['family'],row['seed'],row['constant_init'])
+        if key in seen: continue
+        seen.add(key)
+        selected.append(row)
+    data={'source_commit':git_commit(),'rows':[]}
+    for row in selected:
+        cfg=OmegaConf.load(Path(row['path'])/'full_config.yaml')
+        model=model_from_config(cfg)
+        device=next(model.parameters()).device
+        model.load_state_dict(torch.load(row['checkpoint'],map_location=device,weights_only=True))
+        target=X_shaped(device)
+        m=independent_metrics(model,target)
+        m.update(trained_directional_noise(model,target))
+        data['rows'].append(dict(row,**m))
+        write_json(output,data)
+        print('historical',row['family'],row['seed'],row['constant_init'],round(m['sw2'],3),
+              round(m['kl_pq_16384'],3),flush=True)
 
 
 def exact_batch(n, v, theta, target, heterogeneous=False):
@@ -184,11 +235,12 @@ def probes(output):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action',choices=['evaluate','probes'])
+    p.add_argument('action',choices=['evaluate','probes','evaluate-old'])
     p.add_argument('--root',default='/root/ruivi/results/ksivi_variance_investigation_20261006')
     p.add_argument('--output',required=True)
     a=p.parse_args()
     if a.action=='evaluate': evaluate(a.root,a.output)
+    elif a.action=='evaluate-old': evaluate_old(a.root,a.output)
     else: probes(a.output)
 
 
