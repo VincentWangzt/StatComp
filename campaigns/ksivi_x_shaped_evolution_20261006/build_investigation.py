@@ -112,6 +112,8 @@ def build(root,out,partial=False):
     for metric,color,label in [('conditional_grad_var','#bf403e','Conditional-score estimator'),
                                ('stein_grad_var','#21886b','Stein integration estimator')]:
         axes[0].loglog([r['v'] for r in exact],[r[metric] for r in exact],'-o',color=color,label=label)
+    grid=np.geomspace(.002,.2,80)
+    axes[0].loglog(grid,probe['gradient_asymptotic_coefficient']/grid**2,'--',c='black',label='Analytic asymptotic C / v squared')
     axes[0].set_xlabel('Component variance v');axes[0].set_ylabel('Variance of dilation gradient');axes[0].legend(fontsize=9)
     axes[0].set_title('Exactly the same marginal p in every experiment')
     axes[1].bar(['Constant v=0.11','v=0.02 or 0.2'],

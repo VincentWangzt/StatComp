@@ -253,6 +253,64 @@ constant-$0.11$ comparator. The Stein-estimator variance is approximately
 $0.002$ across these representations. These measured ratios are finite
 Monte Carlo estimates, not universal exponents or constants.
 
+\subsection{An analytic gradient-variance asymptotic, with no fitted coefficient}
+\begin{proposition}[Marginal-preserving gradient-noise explosion]
+In the constant-$v$ construction above, for fixed $N$ and fixed Gaussian
+bandwidth $h>0$, let $g_v$ be the conditional-score estimator's derivative
+under global dilation at zero. Then
+\[
+ \lim_{v\downarrow0}v^2\Var(g_v)
+ =\frac{2}{N^2}\E_{X,X'\sim p}
+   \left[k_h(X,X')^2\left(2+\frac{\|X-X'\|^2}{h^2}\right)^2\right]>0.
+\]
+In contrast, the Stein-estimator dilation gradient has exactly the same
+distribution for every $v$ in this construction, including the heterogeneous
+representation.
+\end{proposition}
+\begin{proof}
+Write $X_i=M_{v,i}+\sqrt v\,U_i$ and $X'_j=M'_{v,j}+\sqrt v\,U'_j$,
+where $M_v$ has the residual Gaussian-mixture law and $U,U'$ are standard
+two-dimensional normals independent of the means. At zero dilation,
+$\partial_\theta k_h=-\|X-X'\|^2k_h/h^2$ and
+$\partial_\theta f=H_p(X)X-U/\sqrt v$. The leading pair-gradient term is
+\[
+ -\frac1v k_h(X,X')\left(2+\frac{\|X-X'\|^2}{h^2}\right)U^TU'.
+\]
+Couple $M_v$ using the same mixture label and Gaussian coordinates as
+$v\downarrow0$, so $M_v\to M_0$ with $M_0\sim p$. The target score and its
+derivatives have polynomial growth and these Gaussian mixtures have all
+polynomial moments. Consequently $v g_v$ converges in $L^2$ to the average
+of these leading terms with $X,X'$ replaced by $M_0,M'_0$. Terms involving
+one conditional score vanish after multiplication by $v$. Distinct pair
+summands have zero covariance even if they share one index, since the
+other centered Gaussian noise has conditional mean zero. Also
+$\E(U^TU')^2=2$. This gives the stated positive limit. Finally, the Stein
+dilation gradient is a deterministic function of $X,X'$, whose independent
+marginal laws are $p$ for every representation. Its entire distribution is
+therefore representation invariant.
+\end{proof}
+The constant can be evaluated by a Gaussian quadratic-form Laplace transform.
+The difference $X-X'$ is a half-half mixture of normals with covariance
+eigenvalues $(7.6,0.4)$ and $(4,4)$. For either covariance $C$, put
+$t=h^{-2}$, $M=\det(I+2tC)^{-1/2}$,
+$A=\tr[C(I+2tC)^{-1}]$, and
+$B=\tr[(C(I+2tC)^{-1})^2]$. The expectation in the limit is the mixture
+average of
+\[
+ M\{4+4tA+t^2(A^2+2B)\}.
+\]
+At $h=0.75$, $N=128$, the resulting asymptotic variance is
+$9.9824\times10^{-5}/v^2$. It predicts $0.2496$ at $v=0.02$, compared with
+the measured $0.2804$; no coefficient was fitted to that measurement. This
+is a small-$v$ asymptotic, not an assertion of equality at finite $v$. It
+proves a concrete way that small conditional variances can defeat a
+uniform gradient-noise guarantee even at an exact marginal optimum.
+
+The experiment's reported residual second moments use the exact identity
+(\ref{eq:noise}) with the target Fisher information estimated independently
+from 200,000 exact target draws. They should not be confused with the
+closed-form gradient-asymptotic coefficient, which requires no such estimate.
+
 \section{Equivalent population objective, alternative estimator}
 Conditional integration by parts yields the conventional Stein integrand
 \[

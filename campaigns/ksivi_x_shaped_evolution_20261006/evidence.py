@@ -190,7 +190,16 @@ def probes(output):
         ref = target.sample(200000)
         fisher = target.score(ref).square().sum(1).mean().item()
     result['target_fisher'] = fisher
-    for v,hetero in [(.2,False),(.11,False),(.05,False),(.02,False),(.11,True)]:
+    N,h=128,.75
+    laplace=[]
+    for eig in [(7.6,.4),(4.,4.)]:
+        t=1/(h*h)
+        M=math.prod(1+2*t*e for e in eig)**(-.5)
+        u=[e/(1+2*t*e) for e in eig]
+        A,B=sum(u),sum(z*z for z in u)
+        laplace.append(M*(4+4*t*A+t*t*(A*A+2*B)))
+    result['gradient_asymptotic_coefficient']=2*np.mean(laplace)/N**2
+    for v,hetero in [(.2,False),(.11,False),(.05,False),(.02,False),(.11,True),(.002,False)]:
         records=[]
         theta=torch.tensor(0.,device=device,requires_grad=True)
         for repeat in range(256):
@@ -211,9 +220,11 @@ def probes(output):
              'stein_grad_var':float(a[:,3].var(ddof=1)),
              'conditional_grad_se':float(a[:,2].std(ddof=1)/16),
              'stein_grad_se':float(a[:,3].std(ddof=1)/16),
-             'theoretical_residual_second':(1/.02+1/.2 if hetero else 2/v)-fisher}
+             'theoretical_residual_second':(1/.02+1/.2 if hetero else 2/v)-fisher,
+             'gradient_asymptotic_prediction':None if hetero else result['gradient_asymptotic_coefficient']/v**2,
+             'raw_repetitions':a.tolist()}
         result['exact_marginal'].append(row)
-        print(row,flush=True)
+        print({k:v for k,v in row.items() if k!='raw_repetitions'},flush=True)
     # Differentiate the empirical median vs an independently fixed bandwidth.
     # Same distribution, same draws, same parameter direction.
     gradients=[]
