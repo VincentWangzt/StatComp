@@ -1,0 +1,74 @@
+[
+  {
+    "source_commit": "caefe06f51ae5d6f9398f706f10692964725becb",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 44,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": false,
+    "only_training_change_is_annealing": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 403.781,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed44_20261006_no_annealing_no_metrics/KSIVI/x_shaped/20261006_181118",
+    "plot": "ksivi_x_shaped_seed44_no_annealing_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "5e96aec1d6c73b326b27b2f722530045e6f76d55646dda59228da53224ed106b",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "caefe06f51ae5d6f9398f706f10692964725becb",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 45,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": false,
+    "only_training_change_is_annealing": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 405.171,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed45_20261006_no_annealing_no_metrics/KSIVI/x_shaped/20261006_181117",
+    "plot": "ksivi_x_shaped_seed45_no_annealing_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "270759ad234c19c73c9c28ec247f3c22ec83367346b4fbdaa7d9c3caac6d2ca8",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "caefe06f51ae5d6f9398f706f10692964725becb",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 46,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": false,
+    "only_training_change_is_annealing": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 397.854,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed46_20261006_no_annealing_no_metrics/KSIVI/x_shaped/20261006_181117",
+    "plot": "ksivi_x_shaped_seed46_no_annealing_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "4f2e1b7366420ea5e3126054742e1775e207cb0cb733285583a5983278e9e24b",
+    "exit_code": 0
+  }
+]
