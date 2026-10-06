@@ -150,7 +150,9 @@ def specs(stage, names=None):
              dict(name='rho05_cond', family='cond', rho=.5),
              dict(name='rho05_global', family='global', rho=.5)]
     broad += [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
-              dict(name='fixed_h_global', family='global', fixed_h=.75)]
+              dict(name='fixed_h_global', family='global', fixed_h=.75),
+              dict(name='fixed_h_stein_cond', family='cond', fixed_h=.75,
+                   estimator='stein',detach_h=True)]
     if stage in ('screen','contrast'):
         entries = core + broad
     else:
@@ -395,7 +397,7 @@ def validate():
                 logger.removeHandler(handler)
                 handler.close()
     print(json.dumps(dict(score_autograd_agrees=True, paired_mean_identical=True,
-                          paired_variance_identical=True, empirical_cross_fourth=cross,
+                          paired_variance_equal_within_float32=True, empirical_cross_fourth=cross,
                           theoretical_cross_fourth=.76, production_gradient_identical=True)))
 
 
@@ -406,7 +408,7 @@ def main():
     p.add_argument('--tbroot', default='/root/ruivi/tb_logs/ksivi_variance_investigation_20261006')
     p.add_argument('--output', default='campaigns/ksivi_x_shaped_evolution_20261006/investigation/existing_audit.json')
     p.add_argument('--spec')
-    p.add_argument('--stage', choices=['screen','confirm','contrast'], default='screen')
+    p.add_argument('--stage', choices=['screen','confirm','contrast','fixed'], default='screen')
     p.add_argument('--names',nargs='+')
     p.add_argument('--workers', type=int, default=3)
     a = p.parse_args()

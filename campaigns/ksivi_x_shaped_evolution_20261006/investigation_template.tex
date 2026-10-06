@@ -63,8 +63,8 @@ optimization choices differ from this repository \cite{cheng,yu}.
 
 The precise empirical comparison is the distribution over random seeds of
 the final approximation error under this policy. In the matched experiments,
-the initial mean functions and variances are equal, and the training noise
-streams are paired. A positive difference
+the initial mean weights are matched, the variance values agree to float32
+roundoff, and the training noise streams are paired. A positive difference
 \[
  \Delta_s=\mathrm{SW}_2(q^{\rm conditional}_{s,50000},p)
               -\mathrm{SW}_2(q^{\rm global}_{s,50000},p)
@@ -282,6 +282,9 @@ KSD. In particular, integration by parts for a jointly data-dependent
 bandwidth would contain additional derivative terms. The equal-objective
 claim is deliberately restricted to independently fixed bandwidths. All
 held-out KSD and exact-marginal mechanism experiments obey that restriction.
+The additional fixed-$h=0.75$ conditional-versus-Stein training contrast
+also removes the adaptive-bandwidth confound; it keeps the same conditional
+architecture, target schedule, initialization, and optimizer.
 
 \section{Empirical evidence and the boundaries actually tested}
 \subsection{Three-seed, 50,000-update comparisons}

@@ -22,10 +22,13 @@ LABELS={'canonical_cond':'Conditional: canonical','canonical_global':'Global: ca
         'no_anneal_const_cond':'Conditional: no anneal, constant LR',
         'no_anneal_const_global':'Global: no anneal, constant LR',
         'detach_h_cond':'Conditional: detach bandwidth'}
+LABELS.update(fixed_h_cond='Conditional: fixed h=0.75',
+              fixed_h_stein_cond='Conditional: fixed h, Stein')
 COLORS={'canonical_cond':'#bf403e','canonical_global':'#2767a0',
         'stein_cond':'#21886b','stein_global':'#6185ae','floor02_cond':'#a06b20',
         'detach_h_cond':'#985ba1','no_anneal_const_cond':'#555555',
         'no_anneal_const_global':'#999999'}
+COLORS.update(fixed_h_cond='#c97663',fixed_h_stein_cond='#56a78c')
 
 
 def csv_export(path,rows):
@@ -53,7 +56,7 @@ def build(root,out,partial=False):
     probe=json.loads((out/'mechanism_probes.json').read_text())
     summaries=[json.loads(p.read_text()) for p in sorted(root.glob('*/*/summary.json'))]
     if not partial:
-        for stage in ['screen','confirm','contrast']:
+        for stage in ['screen','confirm','contrast','fixed']:
             state=json.loads((root/stage/'state.json').read_text())
             assert state['status']=='completed',(stage,state['status'])
         assert len(summaries)==len(data),(len(summaries),len(data))
