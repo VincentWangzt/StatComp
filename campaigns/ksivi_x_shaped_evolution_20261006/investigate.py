@@ -379,7 +379,9 @@ def validate():
                            anneal_steps=25000, use_annealing=True, anneal_scheme='linear',
                            kernel=GaussianKernel(), detach_bandwidth=False)
     import tempfile
-    with tempfile.TemporaryDirectory(dir=REPO/'results') as d:
+    validation_root=Path('/root/ruivi/results') if Path('/root/ruivi/results').exists() else REPO/'results'
+    validation_root.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=validation_root) as d:
         production = create_runner(dict(seed=42, family='cond', steps=1), Path(d)/'r', Path(d)/'tb')
         torch.manual_seed(452)
         raw = loss_at(production, 1)
