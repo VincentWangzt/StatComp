@@ -75,7 +75,7 @@ def build(root,out,partial=False):
 
     fig,axes=plt.subplots(1,3,figsize=(14,4.8),layout='constrained')
     shown=[n for n in LABELS if n in by_name]
-    for ax,metric,title in zip(axes,['sw2','kl_pq_16384','ksd2_h0.75'],
+    for ax,metric,title in zip(axes,['sw2','kl_pq_best','ksd2_h0.75'],
                                ['Sliced Wasserstein distance','Forward KL estimate','Independent fixed-bandwidth KSD squared']):
         for i,n in enumerate(shown):
             vals=[r[metric] for r in by_name[n]]
@@ -179,19 +179,19 @@ def build(root,out,partial=False):
         rows=by_name.get(n,[])
         if not rows:continue
         table.append(' & '.join([tex_escape(LABELS[n]),str(len(rows)),avg_sd([r['sw2'] for r in rows]),
-                                avg_sd([r['kl_pq_16384'] for r in rows]),avg_sd([r['ksd2_h0.75'] for r in rows],4)])+r' \\')
+                                avg_sd([r['kl_pq_best'] for r in rows]),avg_sd([r['ksd2_h0.75'] for r in rows],4)])+r' \\')
     seedtable=[]
     for n,rows in by_name.items():
         for r in rows:
             seedtable.append(' & '.join([tex_escape(n),str(r['spec']['seed']),f"{r['sw2']:.3f}",
-                                        f"{r['kl_pq_16384']:.3f}",f"{r['inverse_v']:.1f}",
+                                        f"{r['kl_pq_best']:.3f}",f"{r['inverse_v']:.1f}",
                                         f"{r['direction_cond_grad_var']:.4f}",f"{r['direction_stein_grad_var']:.4f}"])+r' \\')
     oldtable=[]
     for r in old:
         name=('Global' if r['family']=='ConditionalGaussianGlobal' else 'Conditional')
         init='Matched variance' if r['constant_init'] else 'Default'
         oldtable.append(' & '.join([name,init,str(r['seed']),f"{r['sw2']:.3f}",
-                                   f"{r['kl_pq_16384']:.3f}",f"{r['inverse_v']:.1f}"])+r' \\')
+                                   f"{r['kl_pq_best']:.3f}",f"{r['inverse_v']:.1f}"])+r' \\')
     probetable=[]
     for r in probe['exact_marginal']:
         name='0.02/0.20 mixture' if r['heterogeneous'] else str(r['v'])
@@ -208,7 +208,7 @@ def build(root,out,partial=False):
             differences.append(f"Seed {c1['spec']['seed']}: {c1['sw2']-g1['sw2']:+.3f}")
     diagnostics=[]
     for n,rows in by_name.items():
-        delta=max(abs(r['kl_pq_4096']-r['kl_pq_16384']) for r in rows)
+        delta=max(r['kl_last_change'] for r in rows)
         diagnostics.append(f"{tex_escape(n)}: {delta:.3f}")
     replacements={'@@RESULTS@@':'\n'.join(table),'@@SEEDS@@':'\n'.join(seedtable),
                   '@@HISTORICAL@@':'\n'.join(oldtable),'@@PROBES@@':'\n'.join(probetable),

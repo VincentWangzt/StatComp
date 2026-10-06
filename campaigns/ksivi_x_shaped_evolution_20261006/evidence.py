@@ -37,16 +37,26 @@ def density_log(model, points, eps):
         return torch.cat(result)
 
 
-def independent_metrics(model, target):
+def independent_metrics(model, target, high_precision=False):
     with preserve_rng(46829), torch.no_grad():
         ref = target.sample(4096)
         p_log = target.logp(ref).flatten()
-        eps = model.sample_epsilon(16384)
+        eps = model.sample_epsilon(262144 if high_precision else 16384)
         kl = {}
         for n in (4096, 8192, 16384):
             ell = p_log - density_log(model, ref, eps[:n])
             kl[f'kl_pq_{n}'] = ell.mean().item()
             kl[f'kl_pq_se_{n}'] = (ell.std()/math.sqrt(len(ell))).item()
+        best_n=16384
+        if high_precision and abs(kl['kl_pq_8192']-kl['kl_pq_16384'])>.015:
+            for n in (65536,262144):
+                ell=p_log-density_log(model,ref,eps[:n])
+                kl[f'kl_pq_{n}']=ell.mean().item()
+                kl[f'kl_pq_se_{n}']=(ell.std()/math.sqrt(len(ell))).item()
+            best_n=262144
+        kl['kl_pq_best']=kl[f'kl_pq_{best_n}']
+        kl['kl_mixture_size']=best_n
+        kl['kl_last_change']=abs(kl[f'kl_pq_{best_n}']-kl['kl_pq_65536' if best_n==262144 else 'kl_pq_8192'])
         # Bandwidth is fixed independently of evaluation draws. Two separate
         # sample batches remove diagonal bias; standard errors are over repeats.
         for h in (.5, .75, 1.5):
@@ -109,19 +119,20 @@ def evaluate(root, output):
     torch.set_num_threads(1)
     out = Path(output)
     previous = json.loads(out.read_text()) if out.exists() else {'rows':[]}
+    previous['rows']=[r for r in previous['rows'] if r['spec']['steps']!=50000 or 'kl_pq_best' in r]
     done = {r['path'] for r in previous['rows']}
     for summary in sorted(Path(root).glob('*/*/summary.json')):
         path = summary.parent
         if str(path) in done: continue
         model,target,spec = load_new(path)
-        m = independent_metrics(model,target)
+        m = independent_metrics(model,target,high_precision=spec['steps']==50000)
         m.update(trained_directional_noise(model,target))
         m.update(path=str(path), spec=spec)
         previous['rows'].append(m)
         previous['source_commit'] = git_commit()
         write_json(out,previous)
         print(spec['stage'],spec['name'],spec['seed'],round(m['sw2'],3),
-              round(m['kl_pq_16384'],3),round(m['ksd2_h0.75'],5),flush=True)
+              round(m['kl_pq_best'],3),round(m['ksd2_h0.75'],5),flush=True)
 
 
 def evaluate_old(audit_path, output):
@@ -143,7 +154,7 @@ def evaluate_old(audit_path, output):
         device=next(model.parameters()).device
         model.load_state_dict(torch.load(row['checkpoint'],map_location=device,weights_only=True))
         target=X_shaped(device)
-        m=independent_metrics(model,target)
+        m=independent_metrics(model,target,high_precision=True)
         m.update(trained_directional_noise(model,target))
         data['rows'].append(dict(row,**m))
         write_json(output,data)

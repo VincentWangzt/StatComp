@@ -435,15 +435,18 @@ SW$_2$ is the root mean squared one-dimensional quantile displacement over
 not the full two-dimensional Wasserstein distance. Final independent
 diagnostics also draw 50,000 samples for moments. Forward KL uses 4,096 exact
 target draws and the explicit Gaussian-mixture density integrated over
-4,096, 8,192, and 16,384 independent latent draws. Finite latent integration
+4,096, 8,192, and 16,384 independent latent draws. For final runs with a
+change larger than 0.015 from 8,192 to 16,384, this is increased to 65,536
+and 262,144 latent draws. The table uses the largest evaluated mixture.
+Finite latent integration
 introduces bias in log density, particularly for narrow components; this is
 checked by nested mixture sizes. Evaluation errors are separate from
 between-training-seed variation. KSD uses conventional Stein integrands on
 16 independent pairs of size-256 batches for each of $h=0.5,0.75,1.5$.
 Cross-batch estimates can be slightly negative, especially near zero.
 
-Maximum absolute forward-KL changes from 4,096 to 16,384 latent draws,
-within each confirmation group: @@KL_STABILITY@@.
+Maximum absolute forward-KL changes between the last two evaluated mixture
+sizes, within each confirmation group: @@KL_STABILITY@@.
 
 \appendix
 \section{Per-seed accuracy and trained-model gradient noise}
