@@ -149,6 +149,8 @@ def specs(stage):
              dict(name='gaussian_global', family='global', rho=0.),
              dict(name='rho05_cond', family='cond', rho=.5),
              dict(name='rho05_global', family='global', rho=.5)]
+    broad += [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
+              dict(name='fixed_h_global', family='global', fixed_h=.75)]
     entries = core + broad if stage == 'screen' else core
     seeds = [42] if stage == 'screen' else [42, 43, 44]
     return [dict(s, seed=seed, steps=10000 if stage == 'screen' else 50000,
@@ -256,27 +258,28 @@ def train_one(spec, root, tbroot):
     out = Path(root)/spec['stage']/f"{spec['name']}_s{spec['seed']}"
     if (out/'summary.json').exists():
         return
+    source_commit = git_commit()
     runner = create_runner(spec, out, Path(tbroot)/spec['stage']/out.name)
-    write_json(out/'spec.json', dict(spec, source_commit=git_commit()))
+    write_json(out/'spec.json', dict(spec, source_commit=source_commit))
     with preserve_rng(81273):
         reference = runner.target_model.sample(10000)
     rows = []
     snapshots = {0, 100, 500, 1000, 2000, 5000, 10000, 25000, 50000}
+    snapshots.add(spec['steps'])
     start = time.time()
     for step in range(spec['steps'] + 1):
         if step > 0:
-            if spec.get('estimator') == 'stein':
-                loss = loss_at(runner, step, 'stein')
-                runner.optimizer_vi.zero_grad()
-                loss.backward()
-                runner.optimizer_vi.step()
-                runner.scheduler_vi.step()
-            else:
-                diagnostics = runner._compute_loss_and_step(step)
-                loss = diagnostics['loss']
-            if not torch.isfinite(loss):
-                raise FloatingPointError(f'{out.name} step {step}')
+            # Equivalent production objective/update without per-step logging or
+            # CUDA scalar synchronization; validate() checks its gradient.
+            loss = loss_at(runner, step, spec.get('estimator', 'conditional'),
+                           h_fixed=spec.get('fixed_h'))
+            runner.optimizer_vi.zero_grad()
+            loss.backward()
+            runner.optimizer_vi.step()
+            runner.scheduler_vi.step()
         if step in snapshots:
+            if step and not torch.isfinite(loss):
+                raise FloatingPointError(f'{out.name} step {step}')
             m, x, eps = moments(runner.vi_model, runner.target_model)
             m.update(sample_metrics(x, reference))
             m.update(step=step, alpha=annealing(step, runner.anneal_steps, anneal=runner.use_annealing),
@@ -287,7 +290,7 @@ def train_one(spec, root, tbroot):
             write_json(out/'trajectory.json', rows)
             print(json.dumps(dict(run=out.name, **m)), flush=True)
     runner.writer.close()
-    write_json(out/'summary.json', {'spec': spec, 'source_commit': git_commit(), 'trajectory': rows})
+    write_json(out/'summary.json', {'spec': spec, 'source_commit': source_commit, 'trajectory': rows})
 
 
 def campaign(stage, root, tbroot, workers):
@@ -351,9 +354,34 @@ def validate():
     cross = (((y[:,0]+y[:,1])/math.sqrt(2)).square()*
              ((y[:,0]-y[:,1])/math.sqrt(2)).square()).mean().item()
     assert abs(cross-.76) < .015, cross
+    # Independent-batch conditional and integrated Stein objectives have equal
+    # expectations for a bandwidth chosen independently of the draws.
+    from types import SimpleNamespace
+    from utils.kernels import GaussianKernel
+    mock = SimpleNamespace(vi_model=c, target_model=t, training_batch_size=128,
+                           anneal_steps=25000, use_annealing=True, anneal_scheme='linear',
+                           kernel=GaussianKernel(), detach_bandwidth=False)
+    import tempfile
+    with tempfile.TemporaryDirectory(dir=REPO/'results') as d:
+        production = create_runner(dict(seed=42, family='cond', steps=1), Path(d)/'r', Path(d)/'tb')
+        torch.manual_seed(452)
+        raw = loss_at(production, 1)
+        gradients = torch.autograd.grad(raw, production.vi_model.parameters())
+        torch.manual_seed(452)
+        production._compute_loss_and_step(1)
+        for p, grad in zip(production.vi_model.parameters(), gradients):
+            assert torch.equal(p.grad, grad)
+        production.writer.close()
+        from utils.logging import get_logger
+        import logging
+        logger = get_logger()
+        for handler in logger.handlers.copy():
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+                handler.close()
     print(json.dumps(dict(score_autograd_agrees=True, paired_mean_identical=True,
                           paired_variance_identical=True, empirical_cross_fourth=cross,
-                          theoretical_cross_fourth=.76)))
+                          theoretical_cross_fourth=.76, production_gradient_identical=True)))
 
 
 def main():
