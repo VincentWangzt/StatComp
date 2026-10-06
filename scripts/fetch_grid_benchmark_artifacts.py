@@ -20,7 +20,7 @@ def main() -> None:
         )
     )
     parser.add_argument("--host", default="root@connect.nmb1.seetacloud.com")
-    parser.add_argument("--port", type=int, default=48236)
+    parser.add_argument("--port", type=int, default=37874)
     parser.add_argument("--remote-repo", default="~/ruivi")
     parser.add_argument("--campaign-slug", default=DEFAULT_CAMPAIGN_SLUG)
     parser.add_argument(
