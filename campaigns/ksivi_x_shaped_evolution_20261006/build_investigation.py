@@ -75,13 +75,17 @@ FIGURE_CAPTIONS = {
 
 def report_figures(figures):
     figures=[f for f in figures if not f['name'].startswith('final_samples_s')]
-    pages=[r'\begin{landscape}',r'\section{Scientific figures}']
+    pages=[r'\begin{landscape}',r'\pagestyle{empty}']
     for i,f in enumerate(figures):
         if i:pages.append(r'\clearpage')
-        pages.extend([r'\begin{figure}[!ht]',r'\centering',
-                      rf'\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{{figures/{f["name"]}.pdf}}',
-                      r'\caption{'+FIGURE_CAPTIONS[f['name']]+r'}',r'\end{figure}'])
-    pages.append(r'\end{landscape}')
+        pages.extend([r'\noindent{\small\itshape KSIVI on the X-shaped target}\hfill{\small Scientific evidence}\par',
+                      r'\vspace{3pt}\hrule\vspace{10pt}'])
+        if i==0:pages.append(r'\section{Scientific figures}')
+        pages.extend([r'\begin{center}',
+                      rf'\includegraphics[width=\linewidth,height=.72\textheight,keepaspectratio]{{figures/{f["name"]}.pdf}}',
+                      r'\captionof{figure}{'+FIGURE_CAPTIONS[f['name']]+r'}',r'\end{center}',
+                      r'\vfill\begin{center}\small\thepage\end{center}'])
+    pages.extend([r'\end{landscape}',r'\pagestyle{fancy}'])
     return '\n'.join(pages)
 
 
@@ -137,7 +141,7 @@ def build(root,out,partial=False):
     figures=[]
     def save(fig,name,caption):
         fig.savefig(out/(name+'.png'),dpi=180,bbox_inches='tight')
-        fig.savefig(vectors/(name+'.pdf'),bbox_inches='tight')
+        fig.savefig(vectors/(name+'.pdf'),bbox_inches='tight',metadata={'CreationDate':None,'ModDate':None})
         plt.close(fig)
         figures.append({'name':name,'caption':caption})
 
@@ -283,11 +287,11 @@ def build(root,out,partial=False):
     diagnostics=[]
     for n,rows in by_name.items():
         delta=max(r['kl_last_change'] for r in rows)
-        diagnostics.append(f"{tex_escape(n)}: {delta:.3f}")
+        diagnostics.append(f"{tex_escape(LABELS[n])} & {delta:.3f}"+r' \\')
     replacements={'@@RESULTS@@':'\n'.join(table),'@@SEEDS@@':'\n'.join(seedtable),
                   '@@HISTORICAL@@':'\n'.join(oldtable),'@@PROBES@@':'\n'.join(probetable),
                   '@@SCREEN@@':'\n'.join(screentable),'@@DIFFERENCES@@':'; '.join(differences),
-                  '@@KL_STABILITY@@':'; '.join(diagnostics),
+                  '@@KL_STABILITY@@':'\n'.join(diagnostics),
                   '@@COUNT@@':str(len(summaries)),'@@AUDIT_COUNT@@':str(len(json.loads((out/'existing_audit.json').read_text())['rows'])),
                   '@@FIGURES@@':report_figures(figures),'@@COMMIT@@':git_commit(),'@@STATUS@@':'INTERIM' if partial else 'COMPLETED'}
     replacements['@@OUTCOMES@@']=(

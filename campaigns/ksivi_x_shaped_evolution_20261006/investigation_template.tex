@@ -564,11 +564,11 @@ tmux. Code was committed locally, pushed, and fetched into the requested
 branch's remote worktree. Report data and figures were generated remotely
 and returned through Git. Raw checkpoints, samples, logs, and status files
 are under
-\begin{quote}\small\texttt{/root/ruivi/results/ksivi\_variance\_investigation\_20261006}\end{quote}
+\begin{quote}\small\nolinkurl{/root/ruivi/results/ksivi_variance_investigation_20261006}\end{quote}
 There are @@COUNT@@ completed new training runs. The report source and its
 figures are under the branch's
-\texttt{campaigns/ksivi\_x\_shaped\_evolution\_20261006/investigation}.
-Generation code commit: \texttt{@@COMMIT@@}. Individual run manifests record
+\nolinkurl{campaigns/ksivi_x_shaped_evolution_20261006/investigation}.
+Generation code commit: {\small\texttt{@@COMMIT@@}}. Individual run manifests record
 their own source commits; scripts were extended during the campaign, and
 later launches use those recorded revisions rather than an assumed common
 commit. The governing optimizer/architecture definitions are in
@@ -591,7 +591,13 @@ between-training-seed variation. KSD uses conventional Stein integrands on
 Cross-batch estimates can be slightly negative, especially near zero.
 
 Maximum absolute forward-KL changes between the last two evaluated mixture
-sizes, within each confirmation group: @@KL_STABILITY@@.
+sizes, across seeds within each confirmation group:
+\begin{center}\small
+\begin{tabular}{p{9cm}r}\toprule
+Procedure & Maximum change\\\midrule
+@@KL_STABILITY@@
+\bottomrule\end{tabular}
+\end{center}
 
 \clearpage
 \appendix
