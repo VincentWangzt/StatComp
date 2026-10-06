@@ -1,0 +1,60 @@
+[
+  {
+    "source_commit": "b7e0c3ab3568a5ec5e1080782d1887f947c1253e",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 42,
+    "input_noise_dim": 3,
+    "output_dim": 2,
+    "batch_size": 500,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": true,
+    "same_training_settings_as_previous_batch500_run": true,
+    "only_model_config_change_is_input_noise_dim": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 378.435,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed42_eps3_b500_anneal_on_20261006_no_metrics/KSIVI/x_shaped/20261006_185010",
+    "reference_config": "/root/ruivi/results/ksivi_x_shaped_seed44_b500_anneal_on_20261006_no_metrics/KSIVI/x_shaped/20261006_182946/full_config.yaml",
+    "plot": "ksivi_x_shaped_seed42_noise3_batch500_annealing_on_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "29749379fd0bccd5df50ebebc7b84b842d6025783b9dd550a925cf57b4fe9d77",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "b7e0c3ab3568a5ec5e1080782d1887f947c1253e",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 42,
+    "input_noise_dim": 3,
+    "output_dim": 2,
+    "batch_size": 500,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": false,
+    "same_training_settings_as_previous_batch500_run": true,
+    "only_model_config_change_is_input_noise_dim": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 362.732,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed42_eps3_b500_anneal_off_20261006_no_metrics/KSIVI/x_shaped/20261006_185010",
+    "reference_config": "/root/ruivi/results/ksivi_x_shaped_seed44_b500_anneal_off_20261006_no_metrics/KSIVI/x_shaped/20261006_182946/full_config.yaml",
+    "plot": "ksivi_x_shaped_seed42_noise3_batch500_annealing_off_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "ff5d84df38a1cbb66a8f48f95479015df62833b1c8918f2eccc345b82eb4b832",
+    "exit_code": 0
+  }
+]
