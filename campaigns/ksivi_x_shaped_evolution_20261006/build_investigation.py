@@ -75,7 +75,7 @@ FIGURE_CAPTIONS = {
 
 def report_figures(figures):
     figures=[f for f in figures if not f['name'].startswith('final_samples_s')]
-    pages=[r'\begin{landscape}',r'\pagestyle{empty}']
+    pages=[r'\begin{landscape}',r'\pagestyle{empty}',r'\captionsetup{hypcap=false}']
     for i,f in enumerate(figures):
         if i:pages.append(r'\clearpage')
         pages.extend([r'\noindent{\small\itshape KSIVI on the X-shaped target}\hfill{\small Scientific evidence}\par',

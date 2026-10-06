@@ -558,8 +558,9 @@ than a blanket recommendation to replace the original KSIVI estimator.
 
 \section{Reproduction and measurement}
 All new experiments ran on the server specified by the reloaded
-\texttt{AGENTS.md}: \nolinkurl{connect.nmb1.seetacloud.com}, SSH port 37874,
-RTX 4090, PyTorch 2.9.0+cu126, conda environment \texttt{ruivi}. Jobs ran in
+\texttt{AGENTS.md}. The host was \nolinkurl{connect.nmb1.seetacloud.com}
+(SSH port 37874), with an RTX 4090, PyTorch 2.9.0+cu126, and conda
+environment \texttt{ruivi}. Jobs ran in
 tmux. Code was committed locally, pushed, and fetched into the requested
 branch's remote worktree. Report data and figures were generated remotely
 and returned through Git. Raw checkpoints, samples, logs, and status files
@@ -567,8 +568,9 @@ are under
 \begin{quote}\small\nolinkurl{/root/ruivi/results/ksivi_variance_investigation_20261006}\end{quote}
 There are @@COUNT@@ completed new training runs. The report source and its
 figures are under the branch's
-\nolinkurl{campaigns/ksivi_x_shaped_evolution_20261006/investigation}.
-Generation code commit: {\small\texttt{@@COMMIT@@}}. Individual run manifests record
+\begin{quote}\small\nolinkurl{campaigns/ksivi_x_shaped_evolution_20261006/investigation}\end{quote}
+Generation code commit: {\small\texttt{@@COMMIT@@}}.
+Individual run manifests record
 their own source commits; scripts were extended during the campaign, and
 later launches use those recorded revisions rather than an assumed common
 commit. The governing optimizer/architecture definitions are in
