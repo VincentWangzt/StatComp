@@ -31,7 +31,8 @@ train:
     log_p_reg_mode: warmup_only
     affine_invariant: true
   log:
-    metric_log_freq: 500
+    # Evaluate final checkpoints separately to preserve the training RNG stream.
+    metric_log_freq: 0
     loss_log_freq: 100
     reverse_log_freq: 500
     time_avg_window: 500
@@ -42,7 +43,7 @@ train:
     freq: 5000
     num: 10000
   plot:
-    freq: 5000
+    freq: 1000000000
     num: 10000
 
 metric:

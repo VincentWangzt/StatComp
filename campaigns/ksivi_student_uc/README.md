@@ -9,8 +9,9 @@ enabled. The experiment retains 50,000 iterations, batch size 128, learning rate
 `bash scripts/run_ksivi_student_canonical.sh` completes seeds 42 through 46 in
 `campaigns/toy_scatter_ksivi_detached_annealing/`. Seeds 42, 43, and 44 reuse the
 matching completed controls; their effective configuration hashes are unchanged.
-Seeds 45 and 46 complete the five-seed set. Periodic metrics and plot sampling
-are disabled for all five seeds, matching the qualitative campaign protocol.
+Seeds 45 and 46 complete the five-seed set. The canonical config disables
+periodic metrics and plot sampling, matching all five runs and preserving their
+training random stream. Metrics are evaluated from final checkpoints.
 Saved samples and checkpoints retain their original paths under `results/`.
 
 On the server, run `python scripts/finalize_ksivi_student_uc.py` after training.
