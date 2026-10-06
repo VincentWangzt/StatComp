@@ -1,0 +1,20 @@
+{
+  "engine": "tectonic",
+  "version": "tectonic 0.15.0Tectonic 0.15.0",
+  "outputs": [
+    {
+      "name": "report.pdf",
+      "sha256": "c0f35bc0cd2f40ab06beb3578fb1747ca5e4cfd2f2ddc10e2678606a08038f44",
+      "bytes": 752968
+    },
+    {
+      "name": "evidence_figures.pdf",
+      "sha256": "1974daee8aa6b657c5e83efe9f5eb95e0470cc8f90a5d9688ee97224354082ae",
+      "bytes": 750215
+    }
+  ],
+  "source_sha256": {
+    "report.tex": "94a28fae05fbf813781da55e2f41c8ea1e377a4d66b4eda960948468b7e04a95",
+    "evidence_figures.tex": "8df1fe6a260d057fac9d312b563d1ae57d57909bebf1eff43624f397b3c4eeaa"
+  }
+}
