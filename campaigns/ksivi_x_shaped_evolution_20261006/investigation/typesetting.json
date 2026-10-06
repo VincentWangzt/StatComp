@@ -4,17 +4,17 @@
   "outputs": [
     {
       "name": "report.pdf",
-      "sha256": "edcb81e5529adb359f04ab0c37ccf9893982c1b66780a9d9de0be698336f3002",
-      "bytes": 753318
+      "sha256": "14db7a8898d4960ba329761bdb1c5831f4a93d16abc20294bcbab2fc6f866114",
+      "bytes": 752118
     },
     {
       "name": "evidence_figures.pdf",
-      "sha256": "725f76d0727e2427e600b3f8cd71a909047ca3c85d4a9ec0a0afc1d3f8a4d6d6",
+      "sha256": "f26663bc6126e970be9c3a4051fa572c05101ffdbbb08980ae270edd5cce3591",
       "bytes": 750215
     }
   ],
   "source_sha256": {
-    "report.tex": "516c267a8d65b6ce95d38e8a2064cd1bdcc8132fe79aa8313d453e42021336fe",
+    "report.tex": "2275e162b97c88f80730a159bebd0f6860c39a9fceac511836bec2bef0e0f437",
     "evidence_figures.tex": "8df1fe6a260d057fac9d312b563d1ae57d57909bebf1eff43624f397b3c4eeaa"
   }
 }
