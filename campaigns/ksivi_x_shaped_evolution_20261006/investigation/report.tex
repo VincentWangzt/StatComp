@@ -16,7 +16,7 @@
 \title{When conditional variance harms KSIVI on the X-shaped target\\
 \large Geometry, representation noise, and optimization boundaries}
 \author{Reproducible investigation of the StatComp implementation}
-\date{Campaign initiated 6 October 2026; INTERIM}
+\date{Campaign initiated 6 October 2026; COMPLETED}
 \begin{document}
 \maketitle
 \begin{abstract}
@@ -70,7 +70,7 @@ roundoff, and the training noise streams are paired. A positive difference
               -\mathrm{SW}_2(q^{\rm global}_{s,50000},p)
 \]
 means worse conditional performance for seed $s$. The observed paired
-differences are: Seed 42: +2.380; Seed 43: +2.480. Tables provide additional KL and KSD
+differences are: Seed 42: +2.380; Seed 43: +2.480; Seed 44: +0.391. Tables provide additional KL and KSD
 diagnostics; a discrepancy in one metric alone is not treated as proof.
 
 This is not a statement that every conditional run fails, that every global
@@ -242,7 +242,7 @@ batches. The population loss and its first derivative are zero in every
 row. The numerical variances are:
 \begin{center}
 \begin{tabular}{lrrr}\toprule
-Component variance & Conditional gradient variance & Stein gradient variance & $\E\|f\|^2$\\\midrule
+Component variance & \shortstack{Conditional\\gradient variance} & \shortstack{Stein\\gradient variance} & $\E\|f\|^2$\\\midrule
 0.2 & 0.00253 & 0.00196 & 5.93 \\
 0.11 & 0.01002 & 0.00201 & 14.11 \\
 0.05 & 0.04286 & 0.00204 & 35.93 \\
@@ -389,16 +389,30 @@ fast update has a locally verified gradient equal to the production update.
 \begin{center}\small
 \begin{tabular}{p{6.1cm}rrrr}\toprule
 Procedure & $n$ & SW$_2$ & KL$(p\|q)$ & KSD$^2_{h=0.75}$\\\midrule
-Conditional: canonical & 2 & $2.619\;(0.103)$ & $1.295\;(0.422)$ & $0.0615\;(0.0150)$ \\
-Global: canonical & 2 & $0.189\;(0.174)$ & $0.214\;(0.295)$ & $0.0020\;(0.0023)$ \\
-Conditional: Stein estimator & 1 & 0.086 & 0.022 & 0.0032 \\
-Global: Stein estimator & 1 & 0.383 & 1.051 & 0.0037 \\
-Conditional: variance floor 0.2 & 1 & 0.373 & 0.606 & 0.0062 \\
-Conditional: no anneal, constant LR & 1 & 2.932 & 1.195 & 0.1411 \\
-Global: no anneal, constant LR & 1 & 0.188 & 0.072 & 0.0020 \\
+Conditional: canonical & 3 & $1.965\;(1.136)$ & $1.161\;(0.378)$ & $0.0449\;(0.0307)$ \\
+Global: canonical & 3 & $0.214\;(0.130)$ & $0.275\;(0.233)$ & $0.0025\;(0.0018)$ \\
+Conditional: Stein estimator & 3 & $0.283\;(0.172)$ & $0.357\;(0.298)$ & $0.0038\;(0.0011)$ \\
+Global: Stein estimator & 3 & $0.371\;(0.018)$ & $0.874\;(0.182)$ & $0.0039\;(0.0009)$ \\
+Conditional: variance floor 0.2 & 3 & $0.400\;(0.024)$ & $0.579\;(0.029)$ & $0.0057\;(0.0015)$ \\
+Conditional: no anneal, constant LR & 3 & $1.276\;(1.486)$ & $0.600\;(0.596)$ & $0.0528\;(0.0770)$ \\
+Global: no anneal, constant LR & 3 & $0.167\;(0.022)$ & $0.049\;(0.022)$ & $0.0013\;(0.0008)$ \\
 Conditional: detach bandwidth & 3 & $1.360\;(1.050)$ & $1.004\;(0.420)$ & $0.0193\;(0.0115)$ \\
+Conditional: fixed h=0.75 & 3 & $0.589\;(0.168)$ & $0.693\;(0.277)$ & $0.0061\;(0.0016)$ \\
+Conditional: fixed h, Stein & 3 & $0.565\;(0.188)$ & $0.684\;(0.220)$ & $0.0104\;(0.0067)$ \\
 \bottomrule\end{tabular}
 \end{center}
+The canonical gap appears in all three paired seeds: mean SW$_2$ is 1.965 versus 0.214, and mean forward KL is 1.161 versus 0.275. Raising the conditional variance floor to $0.2$ improves each canonical conditional seed, with mean SW$_2$ 0.400. The adaptive-bandwidth Stein conditional variant also improves each canonical conditional seed, with mean SW$_2$ 0.283; bandwidth detachment alone leaves mean SW$_2$ 1.360.
+
+The fixed-bandwidth comparison sets an important boundary: with $h=0.75$,
+Stein improves SW$_2$ for seeds 42 and 43 but worsens it for seed 44.
+Its mean forward KL is nearly unchanged and mean held-out KSD is worse.
+The adaptive-bandwidth estimator improvement therefore does not establish
+a universal benefit from changing estimators, even when the population
+objectives agree. A successful Stein conditional run also retains a large
+inverse-variance tail: small component variance does not itself imply poor
+marginal approximation. It makes the conditional-score estimator noisy;
+the optimizer and kernel policy determine how that noise affects learning.
+
 The variance-floor intervention restricts every conditional variance to at
 least $0.2$, so the exact construction (\ref{eq:exact}) remains available in
 the flexible-mean closure. It also changes optimization geometry and creates
@@ -493,8 +507,9 @@ non-convergence result as a proof of this two-dimensional failure.
 \section{What is established, and what remains an inference?}
 \textbf{Established analytically:} population representation invariance;
 nested variational families; the exact global Gaussian-noise boundary;
-the inverse-variance identity for representation noise; a marginal-preserving
-heteroscedastic counterfactual; and unbounded target curvature.
+the inverse-variance identity for representation noise; inverse-square
+gradient-variance growth in a marginal-preserving counterfactual, including
+an available mean-parameter direction; and unbounded target curvature.
 
 \textbf{Established empirically in these experiments:} the numerical seed
 comparisons and intervention outcomes in the tables; the gradient-noise
@@ -534,10 +549,10 @@ branch's remote worktree. Report data and figures were generated remotely
 and returned through Git. Raw checkpoints, samples, logs, and status files
 are under
 \begin{quote}\small\texttt{/root/ruivi/results/ksivi\_variance\_investigation\_20261006}\end{quote}
-There are 50 completed new training runs. The report source and its
+There are 53 completed new training runs. The report source and its
 figures are under the branch's
 \texttt{campaigns/ksivi\_x\_shaped\_evolution\_20261006/investigation}.
-Generation code commit: \texttt{83ed3b793f342392f50cda534a9c08ba9fc51f17}. Individual run manifests record
+Generation code commit: \texttt{1fedb81010f999ae7940cd734027379be55b0ade}. Individual run manifests record
 their own source commits; scripts were extended during the campaign, and
 later launches use those recorded revisions rather than an assumed common
 commit. The governing optimizer/architecture definitions are in
@@ -560,7 +575,7 @@ between-training-seed variation. KSD uses conventional Stein integrands on
 Cross-batch estimates can be slightly negative, especially near zero.
 
 Maximum absolute forward-KL changes between the last two evaluated mixture
-sizes, within each confirmation group: canonical\_cond: 0.009; canonical\_global: 0.004; floor02\_cond: 0.003; no\_anneal\_const\_cond: 0.041; no\_anneal\_const\_global: 0.003; stein\_cond: 0.013; stein\_global: 0.001; detach\_h\_cond: 0.009.
+sizes, within each confirmation group: canonical\_cond: 0.038; canonical\_global: 0.004; floor02\_cond: 0.004; no\_anneal\_const\_cond: 0.041; no\_anneal\_const\_global: 0.003; stein\_cond: 0.013; stein\_global: 0.002; detach\_h\_cond: 0.009; fixed\_h\_cond: 0.006; fixed\_h\_stein\_cond: 0.013.
 
 \appendix
 \section{Per-seed accuracy and trained-model gradient noise}
@@ -574,16 +589,34 @@ Procedure & Seed & SW$_2$ & KL$(p\|q)$ & $\E[1/v]$ & $\Var g_c$ & $\Var g_S$\\\m
 \endhead
 canonical\_cond & 42 & 2.692 & 0.997 & 3242.0 & 766.3783 & 0.0017 \\
 canonical\_cond & 43 & 2.546 & 1.593 & 1200.4 & 110.4632 & 0.0049 \\
+canonical\_cond & 44 & 0.656 & 0.893 & 30.2 & 0.1076 & 0.0032 \\
 canonical\_global & 42 & 0.312 & 0.423 & 5.1 & 0.0036 & 0.0024 \\
 canonical\_global & 43 & 0.066 & 0.006 & 5.1 & 0.0032 & 0.0022 \\
+canonical\_global & 44 & 0.265 & 0.395 & 5.1 & 0.0044 & 0.0021 \\
 floor02\_cond & 42 & 0.373 & 0.606 & 4.6 & 0.0026 & 0.0032 \\
+floor02\_cond & 43 & 0.409 & 0.547 & 4.6 & 0.0026 & 0.0028 \\
+floor02\_cond & 44 & 0.419 & 0.583 & 4.6 & 0.0020 & 0.0033 \\
 no\_anneal\_const\_cond & 42 & 2.932 & 1.195 & 4300.4 & 972.7919 & 0.0020 \\
+no\_anneal\_const\_cond & 43 & 0.058 & 0.003 & 6.3 & 0.0042 & 0.0022 \\
+no\_anneal\_const\_cond & 44 & 0.839 & 0.604 & 200.7 & 6.2891 & 0.0023 \\
 no\_anneal\_const\_global & 42 & 0.188 & 0.072 & 5.3 & 0.0032 & 0.0022 \\
+no\_anneal\_const\_global & 43 & 0.144 & 0.029 & 5.1 & 0.0023 & 0.0017 \\
+no\_anneal\_const\_global & 44 & 0.168 & 0.048 & 5.5 & 0.0027 & 0.0018 \\
 stein\_cond & 42 & 0.086 & 0.022 & 1842.8 & 384.3731 & 0.0021 \\
+stein\_cond & 43 & 0.403 & 0.590 & 514.5 & 74.4273 & 0.0024 \\
+stein\_cond & 44 & 0.361 & 0.458 & 2089.8 & 555.6733 & 0.0034 \\
 stein\_global & 42 & 0.383 & 1.051 & 5.0 & 0.0031 & 0.0028 \\
+stein\_global & 43 & 0.380 & 0.688 & 5.1 & 0.0032 & 0.0024 \\
+stein\_global & 44 & 0.351 & 0.884 & 5.1 & 0.0028 & 0.0025 \\
 detach\_h\_cond & 42 & 1.219 & 1.057 & 133.7 & 3.3694 & 0.0034 \\
 detach\_h\_cond & 43 & 2.473 & 1.394 & 400.9 & 9.5097 & 0.0028 \\
 detach\_h\_cond & 44 & 0.387 & 0.560 & 7.0 & 0.0047 & 0.0029 \\
+fixed\_h\_cond & 42 & 0.734 & 0.933 & 60.8 & 0.6399 & 0.0026 \\
+fixed\_h\_cond & 43 & 0.629 & 0.389 & 8.7 & 0.0073 & 0.0029 \\
+fixed\_h\_cond & 44 & 0.405 & 0.757 & 8.3 & 0.0064 & 0.0026 \\
+fixed\_h\_stein\_cond & 42 & 0.440 & 0.623 & 679.0 & 101.1022 & 0.0024 \\
+fixed\_h\_stein\_cond & 43 & 0.473 & 0.501 & 480.2 & 31.4295 & 0.0030 \\
+fixed\_h\_stein\_cond & 44 & 0.781 & 0.927 & 10.3 & 0.0214 & 0.0035 \\
 \bottomrule\end{longtable}
 \normalsize
 \section{All screening outcomes}
@@ -620,14 +653,17 @@ stein\_global & 1.094 & 2.2 & 5.005 \\
 \bottomrule\end{longtable}
 \normalsize
 \section{Artifact guide}
-\texttt{evidence\_figures.pdf} contains confirmation, training-path,
-exact-marginal noise, broad-screening, schedule/curvature, and final-sample
-figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
+\texttt{evidence\_figures.pdf} contains a directly readable mathematical
+report with proofs and numerical tables, followed by confirmation,
+training-path, exact-marginal noise, broad-screening, schedule/curvature,
+and final-sample figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
 \texttt{trajectories.csv} expose numerical outcomes without selecting
 favorable seeds. JSON files retain evaluation standard errors, nested density
 sizes, run source commits, and probe parameters. The standalone source of
 this report requires no external figure or bibliography files and can be
-compiled independently.
+compiled independently. The PDF was generated directly with ReportLab;
+the native LaTeX compiler was unavailable with a platform-directory error,
+so compilation of this supplementary source is unverified.
 
 \begin{thebibliography}{9}
 \bibitem{cheng} Z. Cheng, L. Yu, T. Xie, S. Zhang and C. Zhang (2024).

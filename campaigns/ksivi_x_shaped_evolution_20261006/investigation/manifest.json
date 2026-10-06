@@ -1,14 +1,15 @@
 {
-  "status": "interim",
-  "source_commit": "83ed3b793f342392f50cda534a9c08ba9fc51f17",
-  "completed_runs": 50,
-  "evaluated_runs": 35,
+  "status": "completed",
+  "source_commit": "1fedb81010f999ae7940cd734027379be55b0ade",
+  "completed_runs": 53,
+  "evaluated_runs": 53,
   "run_source_commits": [
     "0040e70297dd66d52eaccf35d9c1e101256391b5",
     "02af936f9c21b7f0ac27cc19d1dc40022aab20b0",
     "394f6fd02d2abb481255c125b9b5f3327a870410",
     "62889e2dae131edd22847c457cdaae31b7adf136",
     "9b24b85659e423e355455a9aaec276177210987b",
+    "b84f39ea8cf40057b42d004ae425b23905e57763",
     "d5beb76a5c11a9c49815131c2a4cf8368367a9df",
     "d89a861352449586916b09cb0964ff95538451f9",
     "e628014e9d27583f76c26b2223ffbeec43d2ed7d",
@@ -21,7 +22,7 @@
     },
     {
       "name": "trajectories",
-      "caption": "Vertical line: annealing reaches the final target. Diagnostic RNG is isolated from training."
+      "caption": "Vertical line: annealing reaches the final target. The floor fraction uses a common threshold of 0.00010001 across methods. Diagnostic RNG is isolated from training."
     },
     {
       "name": "exact_marginal_noise",
@@ -42,6 +43,7 @@
   ],
   "paired_sw2_difference": [
     "Seed 42: +2.380",
-    "Seed 43: +2.480"
+    "Seed 43: +2.480",
+    "Seed 44: +0.391"
   ]
 }
