@@ -19,13 +19,14 @@ train:
       step_size: 1000
       gamma: 0.9
   annealing:
-    enabled: false
+    enabled: true
     scheme: linear
     steps: 25000
   ksivi:
     statistic: v
     kernel: riesz
     detach_kernel: false
+    detach_bandwidth: true
     log_p_reg: 0.05
     log_p_reg_mode: warmup_only
     affine_invariant: true
