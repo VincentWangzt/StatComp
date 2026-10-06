@@ -1,4 +1,4 @@
-"""Run seed-43 global Gaussian KSIVI for 5k/50k steps with initial plots."""
+"""Run global Gaussian KSIVI for 5k/50k steps with initial plots."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ sys.path.insert(0, str(REPO / "campaigns/ksivi_x_shaped_evolution_20261006"))
 from run_campaign import CANONICAL, execute_rounds
 
 
-def specifications(results_root: Path, tb_root: Path) -> dict[str, list[dict]]:
+def specifications(results_root: Path, tb_root: Path, seed: int = 43) -> dict[str, list[dict]]:
     specs = []
     for key, epochs, freq in (("short", 5000, 500), ("long", 50000, 5000)):
         row_results, row_tb = results_root / key, tb_root / key
@@ -26,16 +26,16 @@ def specifications(results_root: Path, tb_root: Path) -> dict[str, list[dict]]:
                            "sample": {"freq": freq, "preserve_rng": True},
                            "plot": {"freq": freq, "initial": True}}
         command = [sys.executable, "-u", str(REPO / "src.py"), "--config", str(CANONICAL),
-                   "seed=43", "vi_model_type=ConditionalGaussianGlobal",
+                   f"seed={seed}", "vi_model_type=ConditionalGaussianGlobal",
                    f"train.epochs={epochs}", f"train.sample.freq={freq}", f"train.plot.freq={freq}",
                    "train.plot.initial=true", "train.sample.preserve_rng=true",
                    "train.log.metric_log_freq=0", "metric.kl_ite.enabled=false",
                    "metric.w2.enabled=false", "metric.elbo.enabled=false",
                    f"output.results_dir={row_results}", f"output.tb_dir={row_tb}"]
-        specs.append({"key": key, "label": f"{epochs:,} steps", "seed": 43,
+        specs.append({"key": key, "label": f"{epochs:,} steps", "seed": seed,
                       "epochs": epochs, "plot_freq": freq, "train_overrides": train_overrides,
                       "results_root": str(row_results), "tb_root": str(row_tb), "command": command})
-    return {"global_seed43": specs}
+    return {f"global_seed{seed}": specs}
 
 
 def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
@@ -45,6 +45,8 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
     from plot_evolution import render_grid
 
     canonical = OmegaConf.load(canonical_path)
+    seed = specs[0]["seed"]
+    assert all(spec["seed"] == seed for spec in specs)
     report_root.mkdir(parents=True, exist_ok=True)
     rows, runs, paths, model_configs = [], [], {}, []
     for spec in specs:
@@ -58,7 +60,7 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
             OmegaConf.merge(canonical.train, spec["train_overrides"]), resolve=True)
         expected_train["log"]["metric_log_freq"] = 0
         assert OmegaConf.to_container(cfg.train, resolve=True) == expected_train
-        assert cfg.seed == 43 and cfg.vi_model_type == "ConditionalGaussianGlobal"
+        assert cfg.seed == seed and cfg.vi_model_type == "ConditionalGaussianGlobal"
         assert cfg.vi_model.hidden_dim == 128 and cfg.vi_model.num_layers == 2
         assert cfg.vi_model.epsilon_dim == cfg.vi_model.z_dim == 2
         assert cfg.vi_model.get("variance_parameterization", "softplus_var") == "softplus_var"
@@ -101,12 +103,12 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
                 assert not optimizer["state"] and torch.equal(state["var_raw"], torch.ones(2))
             variance[str(step)] = torch.nn.functional.softplus(state["var_raw"]).clamp(min=1e-4).tolist()
         row = {"label": spec["label"], "plots": [p["plot"] for p in panels]}
-        title = f"KSIVI x-shaped: global variance, seed 43, {spec['epochs']:,} steps"
+        title = f"KSIVI x-shaped: global variance, seed {seed}, {spec['epochs']:,} steps"
         grid = render_grid([row], report_root / f"{spec['key']}_evolution_1x{len(steps)}.png",
                            title, " | initial variance 1.3133", steps, "ConditionalGaussianGlobal")
         duration = re.search(r"Training completed\. Total time: ([0-9.]+)s", log)
         rows.append(row)
-        runs.append({"key": spec["key"], "seed": 43, "total_steps": spec["epochs"],
+        runs.append({"key": spec["key"], "seed": seed, "total_steps": spec["epochs"],
                      "steps": list(steps), "plot_freq": spec["plot_freq"], "grid_shape": [1, len(steps)],
                      "run_path": str(run_path), "exit_code": 0, "initial_lr": cfg.train.vi.lr,
                      "final_lr": cfg.train.vi.lr * 0.9 ** (spec["epochs"] // 1000),
@@ -132,13 +134,13 @@ def finalize_round(specs: list[dict], report_root: Path, source_commit: str,
         checks = {"initial_weights_identical": True, "initial_samples_identical": True,
                   "shared_step": shared_step, "shared_step_weights_identical": True}
     grid = render_grid(rows, report_root / f"{round_name}_evolution_{len(rows)}x{len(runs[0]['steps'])}.png",
-                       "KSIVI x-shaped: global variance, seed 43, LR 0.001",
+                       f"KSIVI x-shaped: global variance, seed {seed}, LR 0.001",
                        " | initial variance 1.3133", tuple(runs[0]["steps"]), "ConditionalGaussianGlobal",
                        "Top: 0 to 5,000, every 500. Bottom: 0 to 50,000, every 5,000. "
                        "First column: initialization. Orange: variational samples; blue: target contours."
                        if len(rows) == 2 else None)
     manifest = {"round": round_name, "source_commit": source_commit,
-                "vi_model_type": "ConditionalGaussianGlobal", "seed": 43,
+                "vi_model_type": "ConditionalGaussianGlobal", "seed": seed,
                 "hidden_width": 128, "input_noise_dim": 2, "batch_size": 128,
                 "annealing_enabled": True, "annealing_steps": 25000,
                 "metric_evaluation_temporarily_disabled": True,
@@ -153,7 +155,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--tb-root", type=Path, required=True)
-    parser.add_argument("--report-root", type=Path, default=CAMPAIGN_DIR / "generated_reports")
+    parser.add_argument("--report-root", type=Path)
+    parser.add_argument("--seed", type=int, default=43)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     canonical = OmegaConf.load(CANONICAL)
@@ -161,11 +164,13 @@ def main():
     assert canonical.train.batch_size == 128 and canonical.train.annealing.enabled
     assert canonical.train.annealing.steps == 25000
     assert canonical.train.plot.num == canonical.train.sample.num == 10000
-    plans = specifications(args.results_root, args.tb_root)
+    plans = specifications(args.results_root, args.tb_root, args.seed)
     if args.dry_run:
         print(json.dumps(plans, indent=2))
         return
-    execute_rounds(plans, args.results_root, args.report_root, round_finalizer=finalize_round)
+    report_campaign = CAMPAIGN_DIR.with_name(CAMPAIGN_DIR.name.replace("seed43", f"seed{args.seed}"))
+    report_root = args.report_root or report_campaign / "generated_reports"
+    execute_rounds(plans, args.results_root, report_root, round_finalizer=finalize_round)
 
 
 if __name__ == "__main__":
