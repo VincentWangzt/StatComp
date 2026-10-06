@@ -35,8 +35,10 @@ class KSIVIRunner(BaseSIVIRunner):
         kernel (str): Kernel type. One of 'gaussian', 'imq', 'laplace', 'riesz'.
                       Default: 'gaussian'.
         detach_kernel (bool): If True, detach z from computation graph when
-                              computing kernel matrix (stops gradient through
-                              kernel bandwidth). Default: True.
+                              computing kernel matrix. Default: True.
+        detach_bandwidth (bool): Detach the fitted median bandwidth while
+                                 retaining kernel gradients through z when
+                                 detach_kernel=False. Default: False.
         log_p_reg (float): Coefficient for optional log p(z) regularization.
                            If > 0, subtracts log_p_reg * E[log p(z)] from loss.
                            Default: 0.0.
@@ -61,6 +63,7 @@ class KSIVIRunner(BaseSIVIRunner):
         self.kernel_type = kernel_type
 
         self.detach_kernel: bool = ksivi_cfg.get('detach_kernel', True)
+        self.detach_bandwidth: bool = ksivi_cfg.get('detach_bandwidth', False)
         self.log_p_reg: float = ksivi_cfg.get('log_p_reg', 0.0)
         self.log_p_reg_mode: str = ksivi_cfg.get(
             'log_p_reg_mode', 'warmup_only')
@@ -81,6 +84,7 @@ class KSIVIRunner(BaseSIVIRunner):
         logger.info(
             f"KSIVIRunner initialized: statistic={self.statistic_type}, "
             f"kernel={kernel_type}, detach_kernel={self.detach_kernel}, "
+            f"detach_bandwidth={self.detach_bandwidth}, "
             f"log_p_reg={self.log_p_reg}, "
             f"log_p_reg_mode={self.log_p_reg_mode}, "
             f"affine_invariant={self.affine_invariant}"
@@ -216,7 +220,7 @@ class KSIVIRunner(BaseSIVIRunner):
                 z1,
                 z2,
                 fit_h=True,
-                detach_h=False,
+                detach_h=self.detach_bandwidth,
             )
 
         # Score product matrix: [N, N]
