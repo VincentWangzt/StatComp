@@ -271,6 +271,10 @@ def build(root,out,partial=False):
          'the Stein mean-direction second moment stays bounded. Scaling final-layer mean rows is an available network parameter direction, so this mechanism can contaminate mean updates too.')
     para('The variance constant is computed from Gaussian quadratic-form Laplace transforms. X-X\' has covariance eigenvalues (7.6,0.4) or (4,4), equally weighted. '
          'At h=0.75 and N=128, the predicted asymptotic variance is 0.000099824/v<super>2</super>. No parameter is fitted to the gradient experiment.')
+    para('The mean-direction corollary requires its independently fixed bandwidth. With full median differentiation, uniform sample dilation also dilates h and cancels the kernel derivative. '
+         'The same cancellation need not hold for other available mean directions: scaling only one coordinate gives a leading kernel coefficient proportional to '
+         'delta<sub>1</sub><super>2</super> - ||delta||<super>2</super> r, where r is the coordinate ratio of the median-distance pair. '
+         'Nonmedian pairs generally have different ratios, leaving inverse-variance noise terms. The full manuscript derives this coefficient and distinguishes the leading-term calculation from the fixed-bandwidth theorem.')
     rr=probe['exact_marginal']
     result_table([[('0.02 / 0.20 mixture' if r['heterogeneous'] else str(r['v'])),f"{r['conditional_grad_var']:.5f}",f"{r['stein_grad_var']:.5f}",
                    ('-' if r['heterogeneous'] else f"{r['gradient_asymptotic_prediction']:.5f}")] for r in rr],

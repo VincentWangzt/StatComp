@@ -330,11 +330,34 @@ inverse variance and is bounded in $L^2$ by polynomial Gaussian moments.
 \end{proof}
 Dilating mean outputs is an available parameter direction: scale the mean
 rows and biases of the final linear layer, leaving the variance rows
-unchanged. Thus the mechanism is not confined to the variance-head gradient.
-The corollary assumes spatial kernel differentiation, as in the canonical
-implementation. Detaching the entire kernel removes this leading mean-gradient
-term but changes the update away from the full KSD gradient; detaching only
-the bandwidth does not remove it.
+unchanged. Thus the mechanism is not confined to the variance-head gradient
+under the independently fixed bandwidth of this corollary. Detaching the
+entire kernel removes this leading mean-gradient term but changes the update
+away from the full KSD gradient; detaching only the bandwidth does not remove
+it. Full adaptive-median differentiation needs a separate calculation:
+uniform dilation of all points also dilates the median bandwidth, so that
+the Gaussian kernel itself is invariant. The fixed-bandwidth coefficient
+must not be applied to that adaptive, isotropic mean direction.
+
+This cancellation is not generic across mean parameters. To see why, scale
+only the first mean output, an available final-layer row direction. In the
+$v\downarrow0$ construction, put $\delta_{ij}=M_{0,i}-M'_{0,j}$,
+$D_{ij}=\|\delta_{ij}\|^2$. Let $(a,b)$ be the unique median-distance pair
+and $r_* = \delta_{ab,1}^2/D_{ab}$. For the implemented median rule,
+$h^2=D_{ab}/[2\log(N+1)]$, and differentiating the kernel gives
+\[
+ \partial_\theta k_{ij}
+ =-\frac{k_{ij}}{h^2}(\delta_{ij,1}^2-D_{ij}r_*)=-A_{ij}.
+\]
+The leading conditional-score pair-average gradient is therefore
+$-(N^2v)^{-1}\sum_{ij}A_{ij}U_i^TU'_j$. Conditional on the means, its
+variance is $2(N^4v^2)^{-1}\sum_{ij}A_{ij}^2$. The median pair has zero
+coefficient, but other pairs do not all have its directional ratio almost
+surely for this continuous two-dimensional target and $N=128$. Thus adaptive
+bandwidth differentiation does not remove all inverse-variance mean-gradient
+terms. This leading-term calculation is distinct from the proved full
+fixed-bandwidth variance asymptotic above, and is not a universal bound on
+every network-gradient coordinate.
 
 The experiment's reported residual second moments use the exact identity
 (\ref{eq:noise}) with the target Fisher information estimated independently
