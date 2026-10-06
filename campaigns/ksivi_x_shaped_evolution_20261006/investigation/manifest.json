@@ -1,0 +1,47 @@
+{
+  "status": "interim",
+  "source_commit": "83ed3b793f342392f50cda534a9c08ba9fc51f17",
+  "completed_runs": 50,
+  "evaluated_runs": 35,
+  "run_source_commits": [
+    "0040e70297dd66d52eaccf35d9c1e101256391b5",
+    "02af936f9c21b7f0ac27cc19d1dc40022aab20b0",
+    "394f6fd02d2abb481255c125b9b5f3327a870410",
+    "62889e2dae131edd22847c457cdaae31b7adf136",
+    "9b24b85659e423e355455a9aaec276177210987b",
+    "d5beb76a5c11a9c49815131c2a4cf8368367a9df",
+    "d89a861352449586916b09cb0964ff95538451f9",
+    "e628014e9d27583f76c26b2223ffbeec43d2ed7d",
+    "efda0f7898e582780d94edc61a1693cde9483152"
+  ],
+  "figures": [
+    {
+      "name": "confirmation",
+      "caption": "Matched initial mean/variance, seeds 42--44. KSD uses h=0.75 chosen independently of evaluation draws."
+    },
+    {
+      "name": "trajectories",
+      "caption": "Vertical line: annealing reaches the final target. Diagnostic RNG is isolated from training."
+    },
+    {
+      "name": "exact_marginal_noise",
+      "caption": "Global dilation parameter theta=0 is a population optimum. Fixed h=0.75; independent cross batches."
+    },
+    {
+      "name": "screening",
+      "caption": "Screening ranks are not final-target convergence claims. Blue: global variance; red: conditional variance."
+    },
+    {
+      "name": "geometry_and_schedule",
+      "caption": "The X-shaped mixture violates the global bounded-Hessian assumption. This is a boundary of the theorem, not by itself a cause of the family gap."
+    },
+    {
+      "name": "final_samples",
+      "caption": "Hexbin densities are for visual comparison. Quantitative metrics include all samples, including escaped tails."
+    }
+  ],
+  "paired_sw2_difference": [
+    "Seed 42: +2.380",
+    "Seed 43: +2.480"
+  ]
+}
