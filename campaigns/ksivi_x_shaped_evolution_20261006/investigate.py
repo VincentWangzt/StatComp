@@ -212,6 +212,7 @@ def create_runner(spec, out, tb):
     seed = spec['seed']
     torch.manual_seed(seed)
     cfg = OmegaConf.load(REPO / 'configs/ksivi_x_shaped.yaml')
+    cfg.config_path = str(REPO / 'configs/ksivi_x_shaped.yaml')
     cfg.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     cfg.seed = seed
     cfg.vi_model_type = 'ConditionalGaussianGlobal'
