@@ -39,3 +39,30 @@ generation uses the corresponding training times.
 
 Generate and commit report artifacts on the remote server from pushed source,
 then push and pull them locally through git.
+
+All five seeds completed with finite final weights and 10,000 saved samples at
+iteration 50,000. There were no nonfinite-update warnings. The full paper
+evaluation produced finite metrics without constrained-sampling fallbacks.
+
+| Metric | Mean ± SE across five seeds | Seed 42 |
+| --- | ---: | ---: |
+| KL-style negative ELBO | 4.511571 ± 1.786559 | 2.729987 |
+| Truncated W2, coordinate threshold 8 | 0.748537 ± 0.628046 | 0.082846 |
+
+Seeds 42, 44, 45, and 46 have KL-style values between 2.711 and 2.735 and
+truncated W2 between 0.083 and 0.149. Seed 43 has values 11.658 and 3.260,
+respectively, and contributes to the larger standard errors. All five seeds
+are included in the reported averages.
+
+Independent checks reproduced the means and sample-standard-deviation divided
+by square root of five. The other method-target groups are identical in the
+cached per-run, raw, and aggregate evaluations. The updated scatter PNG changes
+only the KSIVI Student-t panel; the other 17 panels are pixel-identical. The
+campaign PDF and the PDF exported beside the paper source are byte-identical.
+
+The section-only manuscript compiled locally to 13 pages using
+`latexmk -pdf -outdir=build main.tex`. Rendered pages 2, 5, 7, and 8 were visually
+checked, including the updated scatter grid, five-seed protocol, metric table,
+and training description. The wrapper retains its three existing unresolved
+theory labels: `assump:bounded_score`, `assump:bounded_reparam`, and
+`app:linear-growth`. The user's manual edits to `experiments.tex` are preserved.
