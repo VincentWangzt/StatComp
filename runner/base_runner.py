@@ -336,6 +336,7 @@ class BaseSIVIRunner():
         self.plot_cfg = self.training_cfg['plot']
         self.plot_freq = self.plot_cfg['freq']
         self.plot_num = self.plot_cfg['num']
+        self.plot_initial = bool(self.plot_cfg.get('initial', False))
         self.plot_save_path = os.path.join(self.save_path, "plots")
         os.makedirs(self.plot_save_path, exist_ok=True)
 
@@ -1009,6 +1010,47 @@ class BaseSIVIRunner():
                 self.curr_epoch,
             )
 
+    def _sample_for_reporting(self, num: int):
+        """Optionally keep saved samples and plots from consuming training RNG."""
+        device = torch.device(self.device)
+        devices = [device] if device.type == 'cuda' else []
+        with torch.random.fork_rng(
+                devices=devices,
+                enabled=bool(self.training_sample_cfg.get('preserve_rng', False))):
+            return self.vi_model.sampling(num=num)
+
+    def _save_contour_plot(self, epoch: int):
+        _, z_plot = self._sample_for_reporting(self.plot_num)
+        try:
+            self.target_model.contour_plot(
+                self.config.target.bbox,
+                fnet=None,
+                samples=z_plot.cpu().numpy(),
+                save_to_path=os.path.join(
+                    self.plot_save_path, f"contour_epoch_{epoch}.png"),
+                quiver=False,
+                t=epoch,
+            )
+            logger.debug(f"Saved contour plot at epoch {epoch}.")
+        except Exception:
+            self.target_model.trace_plot(
+                z_plot,
+                figpath=self.plot_save_path,
+                figname=f"trace_epoch_{epoch}.png",
+                figtitle=f"Trace Plot at Epoch {epoch}",
+            )
+            logger.debug(f"Saved trace plot at epoch {epoch}.")
+
+    def _save_initial_distribution(self):
+        """Capture the actual model before its first training update."""
+        device = torch.device(self.device)
+        devices = [device] if device.type == 'cuda' else []
+        with torch.random.fork_rng(devices=devices):
+            self.save_samples(0)
+            if self.ckpt_enabled:
+                self.save_checkpoint(0)
+            self._save_contour_plot(0)
+
     def save_samples(self, epoch: int):
         '''
         Save samples from the VI model at the given epoch.
@@ -1016,7 +1058,7 @@ class BaseSIVIRunner():
             epoch (int): Current epoch number.
         '''
         current_sample_time = time.perf_counter()
-        epsilon_sample, z_sample = self.vi_model.sampling(
+        epsilon_sample, z_sample = self._sample_for_reporting(
             num=self.training_sample_num)
 
         sample_dict = {
@@ -1360,6 +1402,8 @@ class BaseSIVIRunner():
         last_time = time.perf_counter()
         self.train_start_time = time.perf_counter()
         time_scalars = {}
+        if self.plot_initial:
+            self._save_initial_distribution()
 
         for epoch in tqdm(
                 range(self.train_start_epoch, self.training_num_epochs + 1),
@@ -1563,29 +1607,7 @@ class BaseSIVIRunner():
             # Generate and save contour plots
             if needs_plot:
                 t_plot0 = time.perf_counter()
-                _, z_plot = self.vi_model.sampling(num=self.plot_num)
-
-                try:
-                    self.target_model.contour_plot(
-                        self.config.target.bbox,
-                        fnet=None,
-                        samples=z_plot.cpu().numpy(),
-                        save_to_path=os.path.join(
-                            self.plot_save_path,
-                            f"contour_epoch_{epoch}.png",
-                        ),
-                        quiver=False,
-                        t=epoch,
-                    )
-                    logger.debug(f"Saved contour plot at epoch {epoch}.")
-                except Exception as e:
-                    self.target_model.trace_plot(
-                        z_plot,
-                        figpath=self.plot_save_path,
-                        figname=f"trace_epoch_{epoch}.png",
-                        figtitle=f"Trace Plot at Epoch {epoch}",
-                    )
-                    logger.debug(f"Saved trace plot at epoch {epoch}.")
+                self._save_contour_plot(epoch)
 
                 t_plot1 = time.perf_counter()
                 time_plot_step = t_plot1 - t_plot0

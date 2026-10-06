@@ -51,28 +51,9 @@ def save_state(path: Path, state: dict) -> None:
     temporary.replace(path)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results-root", type=Path, required=True)
-    parser.add_argument("--tb-root", type=Path, required=True)
-    parser.add_argument("--report-root", type=Path, default=CAMPAIGN_DIR / "generated_reports")
-    parser.add_argument("--rounds", nargs="+", choices=("seeds", "learning_rates"),
-                        default=["seeds", "learning_rates"])
-    parser.add_argument("--variance-init", type=float,
-                        help="Constant initial conditional variance; remains trainable")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-    canonical = OmegaConf.load(CANONICAL)
-    assert canonical.vi_model_type == "ConditionalGaussian"
-    assert canonical.train.epochs == 50000 and canonical.train.batch_size == 128
-    assert canonical.train.vi.lr == 0.001 and canonical.train.annealing.enabled
-    assert canonical.train.plot.freq == canonical.train.sample.freq == 5000
-    assert canonical.train.plot.num == canonical.train.sample.num == 10000
-    plans = specifications(args.results_root, args.tb_root, args.variance_init)
-    plans = {name: plans[name] for name in dict.fromkeys(args.rounds)}
-    if args.dry_run:
-        print(json.dumps(plans, indent=2))
-        return
+def execute_rounds(plans: dict[str, list[dict]], results_root: Path,
+                   report_root: Path, campaign_validator=None) -> None:
+    """Run each round in parallel, then validate and render its saved outputs."""
     for specs in plans.values():
         for spec in specs:
             if Path(spec["results_root"]).exists():
@@ -80,7 +61,7 @@ def main() -> None:
     from plot_evolution import finalize_round
 
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
-    runtime = args.results_root / "runtime"
+    runtime = results_root / "runtime"
     runtime.mkdir(parents=True, exist_ok=True)
     state_path = runtime / "state.json"
     state = {"status": "running", "source_commit": source_commit,
@@ -120,20 +101,47 @@ def main() -> None:
                 raise RuntimeError(f"A training job failed in round {name}")
             state["rounds"][name]["status"] = "rendering"
             save_state(state_path, state)
-            report = finalize_round(specs, args.report_root / name, source_commit, CANONICAL, name)
+            report = finalize_round(specs, report_root / name, source_commit, CANONICAL, name)
             state["rounds"][name]["status"] = "completed"
-            state["rounds"][name]["grid"] = str(args.report_root / name / report["grid"])
+            state["rounds"][name]["grid"] = str(report_root / name / report["grid"])
             save_state(state_path, state)
             print(f"Completed {name}: {report['grid']}", flush=True)
+        if campaign_validator is not None:
+            state["checks"] = campaign_validator(plans, report_root)
         state["status"] = "completed"
         state["finished_at"] = time.time()
         save_state(state_path, state)
-        (args.report_root / "campaign.json").write_text(json.dumps(state, indent=2) + "\n")
+        (report_root / "campaign.json").write_text(json.dumps(state, indent=2) + "\n")
     except Exception as error:
         state["status"] = "failed"
         state["error"] = repr(error)
         save_state(state_path, state)
         raise
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results-root", type=Path, required=True)
+    parser.add_argument("--tb-root", type=Path, required=True)
+    parser.add_argument("--report-root", type=Path, default=CAMPAIGN_DIR / "generated_reports")
+    parser.add_argument("--rounds", nargs="+", choices=("seeds", "learning_rates"),
+                        default=["seeds", "learning_rates"])
+    parser.add_argument("--variance-init", type=float,
+                        help="Constant initial conditional variance; remains trainable")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+    canonical = OmegaConf.load(CANONICAL)
+    assert canonical.vi_model_type == "ConditionalGaussian"
+    assert canonical.train.epochs == 50000 and canonical.train.batch_size == 128
+    assert canonical.train.vi.lr == 0.001 and canonical.train.annealing.enabled
+    assert canonical.train.plot.freq == canonical.train.sample.freq == 5000
+    assert canonical.train.plot.num == canonical.train.sample.num == 10000
+    plans = specifications(args.results_root, args.tb_root, args.variance_init)
+    plans = {name: plans[name] for name in dict.fromkeys(args.rounds)}
+    if args.dry_run:
+        print(json.dumps(plans, indent=2))
+        return
+    execute_rounds(plans, args.results_root, args.report_root)
 
 
 if __name__ == "__main__":

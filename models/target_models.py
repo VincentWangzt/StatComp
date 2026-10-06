@@ -223,7 +223,7 @@ class Toy_2D:
             ax.quiver(cxx, cyy, scores[:, 0], scores[:, 1], width=0.002)
         plt.xticks(fontsize=15)
         plt.yticks(fontsize=15)
-        if t:
+        if t is not None:
             ax.set_title("t = {}".format(t), fontsize=30, y=1.04)
         else:
             ax.set_title(f"{self.name}", fontsize=20, y=1.04)
