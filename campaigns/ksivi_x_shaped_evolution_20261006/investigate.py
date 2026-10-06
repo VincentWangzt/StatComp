@@ -149,21 +149,25 @@ def specs(stage, names=None):
              dict(name='gaussian_global', family='global', rho=0.),
              dict(name='rho05_cond', family='cond', rho=.5),
              dict(name='rho05_global', family='global', rho=.5)]
-    broad += [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
-              dict(name='fixed_h_global', family='global', fixed_h=.75),
-              dict(name='fixed_h_stein_cond', family='cond', fixed_h=.75,
-                   estimator='stein',detach_h=True)]
-    if stage in ('screen','contrast'):
+    fixed = [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
+             dict(name='fixed_h_global', family='global', fixed_h=.75),
+             dict(name='fixed_h_stein_cond', family='cond', fixed_h=.75,
+                  estimator='stein',detach_h=True)]
+    if stage == 'screen':
         entries = core + broad
+    elif stage == 'contrast':
+        entries = [s for s in core if s['name'] == 'detach_h_cond']
+    elif stage == 'fixed':
+        entries = [s for s in fixed if s['name'] != 'fixed_h_global']
     else:
-        # Prespecified confirmation contrasts: reproduction, score integration,
+        # Long-run confirmation contrasts: reproduction, score integration,
         # bounded variance, and a stationary target with sustained step size.
         entries = [s for s in core if s['name'] in
                    ('canonical_cond','canonical_global','stein_cond','stein_global')]
         entries += [s for s in broad if s['name'] in
                     ('floor02_cond','no_anneal_const_cond','no_anneal_const_global')]
     if names:
-        entries = [s for s in core+broad if s['name'] in names]
+        entries = [s for s in core+broad+fixed if s['name'] in names]
         assert set(names) == {s['name'] for s in entries}
     seeds = [42] if stage == 'screen' else [42, 43, 44]
     return [dict(s, seed=seed, steps=10000 if stage == 'screen' else 50000,

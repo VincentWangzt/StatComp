@@ -242,7 +242,7 @@ batches. The population loss and its first derivative are zero in every
 row. The numerical variances are:
 \begin{center}
 \begin{tabular}{lrrr}\toprule
-Component variance & Conditional gradient variance & Stein gradient variance & $\E\|f\|^2$\\\midrule
+Component variance & \shortstack{Conditional\\gradient variance} & \shortstack{Stein\\gradient variance} & $\E\|f\|^2$\\\midrule
 @@PROBES@@
 \bottomrule\end{tabular}
 \end{center}
@@ -387,6 +387,18 @@ Procedure & $n$ & SW$_2$ & KL$(p\|q)$ & KSD$^2_{h=0.75}$\\\midrule
 @@RESULTS@@
 \bottomrule\end{tabular}
 \end{center}
+@@OUTCOMES@@
+
+The fixed-bandwidth comparison sets an important boundary: with $h=0.75$,
+Stein improves SW$_2$ for seeds 42 and 43 but worsens it for seed 44.
+Its mean forward KL is nearly unchanged and mean held-out KSD is worse.
+The adaptive-bandwidth estimator improvement therefore does not establish
+a universal benefit from changing estimators, even when the population
+objectives agree. A successful Stein conditional run also retains a large
+inverse-variance tail: small component variance does not itself imply poor
+marginal approximation. It makes the conditional-score estimator noisy;
+the optimizer and kernel policy determine how that noise affects learning.
+
 The variance-floor intervention restricts every conditional variance to at
 least $0.2$, so the exact construction (\ref{eq:exact}) remains available in
 the flexible-mean closure. It also changes optimization geometry and creates
@@ -470,8 +482,9 @@ non-convergence result as a proof of this two-dimensional failure.
 \section{What is established, and what remains an inference?}
 \textbf{Established analytically:} population representation invariance;
 nested variational families; the exact global Gaussian-noise boundary;
-the inverse-variance identity for representation noise; a marginal-preserving
-heteroscedastic counterfactual; and unbounded target curvature.
+the inverse-variance identity for representation noise; inverse-square
+gradient-variance growth in a marginal-preserving counterfactual, including
+an available mean-parameter direction; and unbounded target curvature.
 
 \textbf{Established empirically in these experiments:} the numerical seed
 comparisons and intervention outcomes in the tables; the gradient-noise
@@ -564,14 +577,17 @@ Screening procedure & SW$_2$ & $\E[1/v]$ & $\E[A^2B^2]$\\\midrule
 \bottomrule\end{longtable}
 \normalsize
 \section{Artifact guide}
-\texttt{evidence\_figures.pdf} contains confirmation, training-path,
-exact-marginal noise, broad-screening, schedule/curvature, and final-sample
-figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
+\texttt{evidence\_figures.pdf} contains a directly readable mathematical
+report with proofs and numerical tables, followed by confirmation,
+training-path, exact-marginal noise, broad-screening, schedule/curvature,
+and final-sample figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
 \texttt{trajectories.csv} expose numerical outcomes without selecting
 favorable seeds. JSON files retain evaluation standard errors, nested density
 sizes, run source commits, and probe parameters. The standalone source of
 this report requires no external figure or bibliography files and can be
-compiled independently.
+compiled independently. The PDF was generated directly with ReportLab;
+the native LaTeX compiler was unavailable with a platform-directory error,
+so compilation of this supplementary source is unverified.
 
 \begin{thebibliography}{9}
 \bibitem{cheng} Z. Cheng, L. Yu, T. Xie, S. Zhang and C. Zhang (2024).

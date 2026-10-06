@@ -99,14 +99,14 @@ def build(root,out,partial=False):
         n=spec['name'];t=s['trajectory'];steps=[r['step'] for r in t]
         for ax,m in zip(axes,['sw2','inverse_v','floor_fraction']):
             ax.plot(steps,[r[m] for r in t],c=COLORS[n],alpha=.65,lw=1.6)
-    for ax,title in zip(axes,['Sliced Wasserstein distance','Mean inverse conditional variance','Fraction at variance floor']):
+    for ax,title in zip(axes,['Sliced Wasserstein distance','Mean inverse conditional variance','Fraction at canonical floor (0.0001)']):
         ax.set_title(title,fontsize=11);ax.set_xlabel('Updates');ax.axvline(25000,c='k',ls=':',alpha=.5);ax.grid(alpha=.2)
     axes[1].set_yscale('log');axes[0].set_ylim(bottom=0)
     for n in ['canonical_cond','canonical_global','stein_cond','floor02_cond']:
         axes[0].plot([],[],c=COLORS[n],label=LABELS[n])
     axes[0].legend(fontsize=8)
     fig.suptitle('Training path and the small-variance tail (three independent trajectories per method)',fontsize=13)
-    save(fig,'trajectories','Vertical line: annealing reaches the final target. Diagnostic RNG is isolated from training.')
+    save(fig,'trajectories','Vertical line: annealing reaches the final target. The floor fraction uses a common threshold of 0.00010001 across methods. Diagnostic RNG is isolated from training.')
 
     fig,axes=plt.subplots(1,2,figsize=(10,4.4),layout='constrained')
     exact=[r for r in probe['exact_marginal'] if not r['heterogeneous']]
@@ -228,7 +228,13 @@ def build(root,out,partial=False):
         def plain(k,prec=3):
             a=np.array([r[k] for r in rr]);return f'{a.mean():.{prec}f} ({a.std(ddof=1):.{prec}f})' if len(a)>1 else f'{a[0]:.{prec}f}'
         rows.append([LABELS[n],len(rr),plain('sw2'),plain('kl_pq_best'),plain('ksd2_h0.75',4)])
-    result_table(rows,['Procedure','n','SW2','KL(p || q)','KSD squared'],[195,25,92,100,105])
+    result_table(rows,['Procedure','n','SW2','KL(p || q)','KSD squared'],[186,25,92,100,105])
+    def group_mean(name,key):return np.mean([r[key] for r in by_name[name]])
+    para(f"The canonical gap occurs in all three paired seeds: mean SW2 is {group_mean('canonical_cond','sw2'):.3f} versus "
+         f"{group_mean('canonical_global','sw2'):.3f}, and forward KL is {group_mean('canonical_cond','kl_pq_best'):.3f} versus "
+         f"{group_mean('canonical_global','kl_pq_best'):.3f}. Raising the conditional variance floor to 0.2 improves every canonical conditional seed, "
+         f"with mean SW2 {group_mean('floor02_cond','sw2'):.3f}. The adaptive-bandwidth Stein conditional variant also improves every canonical conditional seed "
+         f"and has mean SW2 {group_mean('stein_cond','sw2'):.3f}; detaching bandwidth alone leaves mean SW2 {group_mean('detach_h_cond','sw2'):.3f}.")
     para('Theory 1: population representation invariance','Heading1')
     equation(r'f=s_p(X)-s_c(X,\epsilon)=s_p(X)+U/\sigma(\epsilon)')
     equation(r'\mathbb{E}[s_c(X,\epsilon)\mid X]=s_q(X)')
@@ -279,6 +285,10 @@ def build(root,out,partial=False):
     para('The variance-floor intervention bounds conditional variance below by 0.2; the exact target construction remains available in the flexible-mean closure. '
          'It also changes gradient geometry and introduces clamped zero gradients, so it is not a pure noise intervention. '
          'Removing annealing and sustaining learning rate does not guarantee rescue: outcomes differ across seeds, and at least one conditional run under that policy beats its global counterpart.')
+    para('The independently fixed-bandwidth training contrast sets an important limit: Stein improves SW2 for seeds 42 and 43 but worsens it for seed 44. '
+         'Its mean forward KL is nearly unchanged and mean held-out KSD is worse. Thus eliminating explicit inverse-variance terms does not ensure better optimization; '
+         'the large adaptive-bandwidth improvement cannot be transferred to every kernel policy. Conversely, a successful Stein conditional run still has a large inverse-variance tail. '
+         'Small variance can represent the target well; the stochastic estimator determines whether that representation is difficult to optimize.')
     para('Broad screening varied batch size, floors, shared versus separate networks, annealing duration, decay, estimator, bandwidth differentiation, and correlation. '
          'These one-seed runs lasted 10,000 updates; annealed runs still target a tempered density at that horizon. The isotropic Gaussian control shows no comparable conditional disadvantage. '
          'Shared-trunk removal or larger batches alone do not establish a full explanation. An exact empirical critical correlation is not located by these tests.')
@@ -355,6 +365,13 @@ def build(root,out,partial=False):
                   '@@KL_STABILITY@@':'; '.join(diagnostics),
                   '@@COUNT@@':str(len(summaries)),'@@AUDIT_COUNT@@':str(len(json.loads((out/'existing_audit.json').read_text())['rows'])),
                   '@@COMMIT@@':git_commit(),'@@STATUS@@':'INTERIM' if partial else 'COMPLETED'}
+    replacements['@@OUTCOMES@@']=(
+        f"The canonical gap appears in all three paired seeds: mean SW$_2$ is {group_mean('canonical_cond','sw2'):.3f} versus "
+        f"{group_mean('canonical_global','sw2'):.3f}, and mean forward KL is {group_mean('canonical_cond','kl_pq_best'):.3f} versus "
+        f"{group_mean('canonical_global','kl_pq_best'):.3f}. Raising the conditional variance floor to $0.2$ improves each "
+        f"canonical conditional seed, with mean SW$_2$ {group_mean('floor02_cond','sw2'):.3f}. The adaptive-bandwidth Stein conditional "
+        f"variant also improves each canonical conditional seed, with mean SW$_2$ {group_mean('stein_cond','sw2'):.3f}; "
+        f"bandwidth detachment alone leaves mean SW$_2$ {group_mean('detach_h_cond','sw2'):.3f}.")
     source=(CAMPAIGN/'investigation_template.tex').read_text()
     for k,v in replacements.items():source=source.replace(k,v)
     assert '@@' not in source
