@@ -125,7 +125,7 @@ def git_commit():
     return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip()
 
 
-def specs(stage):
+def specs(stage, names=None):
     core = [dict(name='canonical_cond', family='cond'),
             dict(name='canonical_global', family='global'),
             dict(name='no_anneal_cond', family='cond', anneal=False),
@@ -151,7 +151,7 @@ def specs(stage):
              dict(name='rho05_global', family='global', rho=.5)]
     broad += [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
               dict(name='fixed_h_global', family='global', fixed_h=.75)]
-    if stage == 'screen':
+    if stage in ('screen','contrast'):
         entries = core + broad
     else:
         # Prespecified confirmation contrasts: reproduction, score integration,
@@ -160,6 +160,9 @@ def specs(stage):
                    ('canonical_cond','canonical_global','stein_cond','stein_global')]
         entries += [s for s in broad if s['name'] in
                     ('floor02_cond','no_anneal_const_cond','no_anneal_const_global')]
+    if names:
+        entries = [s for s in core+broad if s['name'] in names]
+        assert set(names) == {s['name'] for s in entries}
     seeds = [42] if stage == 'screen' else [42, 43, 44]
     return [dict(s, seed=seed, steps=10000 if stage == 'screen' else 50000,
                  stage=stage) for seed in seeds for s in entries]
@@ -169,10 +172,14 @@ class CorrelatedTarget(X_shaped):
     def __init__(self, device, rho):
         super().__init__(device)
         scale = 4 * (1 - rho * rho)
+        self.normalization_correction = .5*math.log(.76/scale)
         self._sigmasqinv_0 = torch.tensor([[2., -2*rho], [-2*rho, 2.]], device=device) / scale
         self._sigmasqinv_1 = torch.tensor([[2., 2*rho], [2*rho, 2.]], device=device) / scale
         self._cov_0 = torch.tensor([[2., 2*rho], [2*rho, 2.]], device=device)
         self._cov_1 = torch.tensor([[2., -2*rho], [-2*rho, 2.]], device=device)
+
+    def logp(self, X):
+        return super().logp(X) + self.normalization_correction
 
 
 class SeparateConditional(ConditionalGaussian):
@@ -301,8 +308,8 @@ def train_one(spec, root, tbroot):
     write_json(out/'summary.json', {'spec': spec, 'source_commit': source_commit, 'trajectory': rows})
 
 
-def campaign(stage, root, tbroot, workers):
-    pending = specs(stage)
+def campaign(stage, root, tbroot, workers, names=None):
+    pending = specs(stage,names)
     active = []
     state = {'source_commit': git_commit(), 'stage': stage, 'started': time.time(),
              'completed': [], 'status': 'running', 'specs': pending.copy()}
@@ -399,13 +406,14 @@ def main():
     p.add_argument('--tbroot', default='/root/ruivi/tb_logs/ksivi_variance_investigation_20261006')
     p.add_argument('--output', default='campaigns/ksivi_x_shaped_evolution_20261006/investigation/existing_audit.json')
     p.add_argument('--spec')
-    p.add_argument('--stage', choices=['screen','confirm'], default='screen')
+    p.add_argument('--stage', choices=['screen','confirm','contrast'], default='screen')
+    p.add_argument('--names',nargs='+')
     p.add_argument('--workers', type=int, default=3)
     a = p.parse_args()
     if a.action == 'validate': validate()
     elif a.action == 'audit': audit(a.root, a.output)
     elif a.action == 'train': train_one(json.loads(a.spec), a.root, a.tbroot)
-    else: campaign(a.stage, a.root, a.tbroot, a.workers)
+    else: campaign(a.stage, a.root, a.tbroot, a.workers,a.names)
 
 
 if __name__ == '__main__':
