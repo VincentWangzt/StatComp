@@ -137,6 +137,14 @@ def remove_file_handlers() -> None:
 
 def prepare_config(rec: RunRecord, *, device: str, scratch_results: str, scratch_tb: str):
     cfg = OmegaConf.load(rec.config_path)
+    extra_overrides = rec.entry.get("extra_overrides") or []
+    if isinstance(extra_overrides, str):
+        extra_overrides = [extra_overrides]
+    if extra_overrides:
+        cfg = OmegaConf.merge(
+            cfg, OmegaConf.from_dotlist([str(item) for item in extra_overrides]),
+        )
+    cfg.seed = rec.seed
     cfg.config_path = rec.config_path.as_posix()
     if device == "cpu":
         resolved_device = "cpu"
@@ -591,6 +599,8 @@ def _append_langevin_sgld_if_needed(
     cfg: Any,
 ) -> list[dict[str, Any]]:
     if not _sgld_enabled(cfg):
+        return run_rows
+    if not any(row.get("target") == "Langevin_post" for row in run_rows):
         return run_rows
     if any(row.get("target") == "Langevin_post" and str(row.get("method")).upper() == "SGLD" for row in run_rows):
         return run_rows

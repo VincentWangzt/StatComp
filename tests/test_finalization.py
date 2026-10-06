@@ -1,17 +1,47 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import torch
-from finalization.artifacts import normalize_target
+from finalization.artifacts import RunRecord, normalize_target, resolve_repo_path
 from omegaconf import OmegaConf
 
 from finalization.plots import langevin_panel_labels
-from finalization.runner_eval import constrained_w2, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
+from finalization.runner_eval import _append_langevin_sgld_if_needed, constrained_w2, prepare_config, summarize, truncated_w2_metric_name, warning_rows_from_run_rows
 from finalization.tables import render_bnn_table, render_langevin_table, render_toy_method_grid
 
 
 class FinalizationTests(unittest.TestCase):
+    def test_existing_relative_artifact_path_becomes_absolute(self) -> None:
+        path = Path("configs/dsivi_banana.yaml")
+        self.assertTrue(path.is_file())
+        self.assertEqual(resolve_repo_path(path), path.absolute())
+
+    def test_prepare_config_preserves_run_overrides_and_seed(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        record = RunRecord(
+            run_id="seed46_dsivi_banana", seed=46, method="DSIVI",
+            target="banana", runner_type="DSIVI",
+            config_path=root / "configs/dsivi_banana.yaml",
+            result_path=root / "results/unused", duration_sec=None,
+            status="completed", entry={"extra_overrides": [
+                "train.reverse.epochs=1", "train.reverse.batch_size=512",
+            ]},
+        )
+        cfg = prepare_config(record, device="cpu", scratch_results="results/test_finalization",
+                             scratch_tb="tb_logs/test_finalization")
+        self.assertEqual(cfg.seed, 46)
+        self.assertEqual(cfg.train.reverse.epochs, 1)
+        self.assertEqual(cfg.train.reverse.batch_size, 512)
+
+    def test_sgld_baseline_is_not_added_without_langevin_runs(self) -> None:
+        rows = [{"method": "DSIVI", "target": "banana"}]
+        cfg = OmegaConf.create({"evaluation": {"langevin_kde_elm": {
+            "enabled": True, "sgld": {"enabled": True},
+        }}})
+        self.assertEqual(_append_langevin_sgld_if_needed(rows, [], cfg), rows)
+
     def test_target_aliases(self) -> None:
         self.assertEqual(normalize_target("multi_model"), "multimodal")
         self.assertEqual(normalize_target("8_gaussian"), "8_gaussians")
@@ -232,10 +262,10 @@ class FinalizationTests(unittest.TestCase):
 
         table = render_toy_method_grid(rows, cfg)
 
-        self.assertIn("Target & Metric & UIVI & AISIVI & DSIVI", table)
+        self.assertIn("Target & Metric & UIVI & AISIVI & DIVI", table)
         self.assertIn("UIVI", table)
         self.assertIn("AISIVI", table)
-        self.assertIn("DSIVI", table)
+        self.assertIn("DIVI", table)
         self.assertIn("$D_{\\mathrm{KL}}$", table)
         self.assertNotIn("banana", table)
         self.assertIn("Wall-clock time (s)", table)
@@ -314,10 +344,10 @@ class FinalizationTests(unittest.TestCase):
 
         table = render_bnn_table(rows, ["Bnn_boston", "Bnn_yacht"], ["SIVI", "DSIVI"], cfg)
 
-        self.assertIn("Dataset & Metric & SIVI & DSIVI", table)
+        self.assertIn("Dataset & Metric & SIVI & DIVI", table)
         self.assertIn("\\multirow{2}{*}{Boston}", table)
-        self.assertIn("& RMSE & 3.0 $\\pm$ {\\footnotesize 0.10} & \\textbf{2.5} $\\pm$ {\\footnotesize 0.20}", table)
-        self.assertIn("& NLL & 2.0 $\\pm$ {\\footnotesize 0.01} & \\textbf{1.9} $\\pm$ {\\footnotesize 0.02}", table)
+        self.assertIn("& RMSE & \\underline{3.0} $\\pm$ {\\footnotesize 0.10} & \\textbf{2.5} $\\pm$ {\\footnotesize 0.20}", table)
+        self.assertIn("& NLL & \\underline{2.0} $\\pm$ {\\footnotesize 0.01} & \\textbf{1.9} $\\pm$ {\\footnotesize 0.02}", table)
         self.assertIn("\\addlinespace[2pt]", table)
         self.assertIn("\\multicolumn{2}{l}{Avg. wall-clock time} & 151 & \\textbf{56}", table)
         self.assertIn("Boston", table)
