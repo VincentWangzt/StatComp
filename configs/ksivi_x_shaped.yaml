@@ -6,7 +6,7 @@ use_cuda: true
 
 runner_type: KSIVI
 target_type: x_shaped
-vi_model_type: ConditionalGaussianGlobal
+vi_model_type: ConditionalGaussian
 
 train:
   epochs: 50000
