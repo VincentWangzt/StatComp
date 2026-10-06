@@ -52,13 +52,15 @@ def save_state(path: Path, state: dict) -> None:
 
 
 def execute_rounds(plans: dict[str, list[dict]], results_root: Path,
-                   report_root: Path, campaign_validator=None) -> None:
+                   report_root: Path, campaign_validator=None, round_finalizer=None) -> None:
     """Run each round in parallel, then validate and render its saved outputs."""
     for specs in plans.values():
         for spec in specs:
             if Path(spec["results_root"]).exists():
                 raise FileExistsError(f"Run output already exists: {spec['results_root']}")
-    from plot_evolution import finalize_round
+    if round_finalizer is None:
+        from plot_evolution import finalize_round
+        round_finalizer = finalize_round
 
     source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     runtime = results_root / "runtime"
@@ -101,7 +103,7 @@ def execute_rounds(plans: dict[str, list[dict]], results_root: Path,
                 raise RuntimeError(f"A training job failed in round {name}")
             state["rounds"][name]["status"] = "rendering"
             save_state(state_path, state)
-            report = finalize_round(specs, report_root / name, source_commit, CANONICAL, name)
+            report = round_finalizer(specs, report_root / name, source_commit, CANONICAL, name)
             state["rounds"][name]["status"] = "completed"
             state["rounds"][name]["grid"] = str(report_root / name / report["grid"])
             save_state(state_path, state)

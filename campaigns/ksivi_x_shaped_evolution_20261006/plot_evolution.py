@@ -22,17 +22,19 @@ STEPS = tuple(range(5000, 50001, 5000))
 
 
 def render_grid(rows: list[dict], output: Path, title: str,
-                initialization: str = "", steps: tuple[int, ...] = STEPS) -> dict:
+                initialization: str = "", steps: tuple[int, ...] = STEPS,
+                model_type: str = "ConditionalGaussian", footer: str | None = None) -> dict:
     """Use the exact native training plots, without resampling the model."""
-    if len(rows) != 3 or any(len(row["plots"]) != len(steps) for row in rows):
-        raise ValueError("The evolution grid requires three rows and one plot per step")
+    if not rows or any(len(row["plots"]) != len(steps) for row in rows):
+        raise ValueError("The evolution grid requires one plot per column in each row")
     output.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(3, len(steps), figsize=(3.4 * len(steps), 10.6), squeeze=False)
-    fig.subplots_adjust(left=0.06, right=0.997, bottom=0.045, top=0.90,
+    height = 3.0 * len(rows) + 1.6
+    fig, axes = plt.subplots(len(rows), len(steps), figsize=(3.4 * len(steps), height), squeeze=False)
+    fig.subplots_adjust(left=0.06, right=0.997, bottom=0.477 / height, top=1 - 1.06 / height,
                         hspace=0.01, wspace=0.01)
-    fig.suptitle(title, fontsize=23, y=0.995)
-    fig.text(0.5, 0.935,
-             "ConditionalGaussian | width 128 | noise dimension 2 | batch 128 | annealing enabled"
+    fig.suptitle(title, fontsize=23, y=1 - 0.053 / height)
+    fig.text(0.5, 1 - 0.689 / height,
+             f"{model_type} | width 128 | noise dimension 2 | batch 128 | annealing enabled"
              + initialization,
              ha="center", fontsize=16)
     for row_index, row in enumerate(rows):
@@ -47,9 +49,10 @@ def render_grid(rows: list[dict], output: Path, title: str,
                  ha="center", va="center", rotation=90, fontsize=19)
     interval = steps[1] - steps[0]
     initial = " (first column: initialization)" if steps[0] == 0 else ""
-    fig.text(0.5, 0.017,
-             f"Columns: {steps[0]:,} to {steps[-1]:,} updates, every {interval:,}{initial}. "
-             "Orange: variational samples; blue: target contours.",
+    if footer is None:
+        footer = (f"Columns: {steps[0]:,} to {steps[-1]:,} updates, every {interval:,}{initial}. "
+                  "Orange: variational samples; blue: target contours.")
+    fig.text(0.5, 0.1802 / height, footer,
              ha="center", fontsize=14)
     fig.savefig(output, dpi=160, facecolor="white")
     fig.savefig(output.with_suffix(".pdf"), facecolor="white")
