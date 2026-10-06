@@ -847,6 +847,10 @@ def load_score_config(path: Path | str | None = None, overrides: list[str] | Non
     cfg = OmegaConf.load(config_path)
     if overrides:
         cfg = OmegaConf.merge(cfg, OmegaConf.from_dotlist(overrides))
+    return validate_score_config(cfg)
+
+
+def validate_score_config(cfg: DictConfig) -> DictConfig:
     methods = [str(method).upper() for method in cfg.selection.methods]
     if not methods or len(methods) != len(set(methods)) or any(method not in METHODS for method in methods):
         raise ValueError(f"Select unique score estimators from {METHODS}; NFVI defines another variational family.")
