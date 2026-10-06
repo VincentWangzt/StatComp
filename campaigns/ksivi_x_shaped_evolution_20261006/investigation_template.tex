@@ -231,7 +231,9 @@ Adding $N(0,vI)$ gives exactly $p$. One may also randomize $v$ between
 $0.02$ and $0.2$, since the conditional-on-$v$ marginal is $p$ in both cases.
 The random variance has mean $0.11$, exactly matching a constant-$0.11$
 representation. This isolates hierarchy and estimator noise from all
-approximation error and training path differences.
+approximation error and training path differences. This distributional
+simulation is not a finite neural-network representation; the training
+experiments provide the architecture-specific link.
 
 The experiment differentiates a common global dilation
 $X_\theta=e^\theta X$, $\sigma_\theta=e^\theta\sigma$ at $\theta=0$,
@@ -306,8 +308,9 @@ it does not identify which of the two changes is responsible. The separate
 one-factor screening controls are retained in the appendix.
 
 \subsection{Historical canonical runs and initialization controls}
-We audited @@AUDIT_COUNT@@ saved checkpoints. Duplicate canonical runs are
-deduplicated by family, seed, and initialization before the table below.
+We audited @@AUDIT_COUNT@@ saved checkpoints. One historical canonical
+result per family, seed, and initialization is retained in the table below;
+repeated runs using the same seed are not treated as independent seeds.
 These are historical comparisons, not matched-mean randomizations: changing
 the output layer shape can change initial mean biases under the same seed.
 \begin{center}\small

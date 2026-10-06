@@ -148,6 +148,10 @@ def build(root,out,partial=False):
                 path=Path(r['path']);state=torch.load(path/'snapshot_50000.pt',map_location='cpu',weights_only=True)
                 x=state['x'].numpy();ax=axes[row,col]
                 ax.hexbin(x[:,0],x[:,1],gridsize=60,extent=(-5,5,-5,5),mincnt=1,cmap='Blues',bins='log')
+                xx,yy=np.meshgrid(np.linspace(-5,5,160),np.linspace(-5,5,160))
+                ell=-math.log(2*math.pi)-.5*math.log(.76)-(xx*xx+yy*yy)/.76
+                ell+=np.logaddexp(1.8/.76*xx*yy,-1.8/.76*xx*yy)-math.log(2)
+                ax.contour(xx,yy,np.exp(ell),levels=[.005,.02,.07,.14],colors='#333333',linewidths=.65)
                 ax.set(xlim=(-5,5),ylim=(-5,5),aspect='equal')
                 if row==0:ax.set_title(LABELS[n].replace(': ','\n'),fontsize=10)
                 ax.text(.02,.98,f"Seed {r['spec']['seed']}\nSW2={r['sw2']:.3f}",transform=ax.transAxes,va='top',fontsize=9)
