@@ -175,7 +175,7 @@ def build(root,out,partial=False):
     from reportlab.lib import colors
     from PIL import Image as PILImage
     styles=getSampleStyleSheet()
-    styles['BodyText'].fontSize=10.5;styles['BodyText'].leading=14.5;styles['BodyText'].spaceAfter=7
+    styles['BodyText'].fontSize=10.5;styles['BodyText'].leading=14;styles['BodyText'].spaceAfter=6
     styles['Heading1'].fontSize=15;styles['Heading1'].leading=18
     styles['Title'].fontSize=23;styles['Title'].leading=28
     doc=BaseDocTemplate(str(out/'evidence_figures.pdf'),pagesize=(595,842),
