@@ -305,6 +305,9 @@ the measured $0.2804$; no coefficient was fitted to that measurement. This
 is a small-$v$ asymptotic, not an assertion of equality at finite $v$. It
 proves a concrete way that small conditional variances can defeat a
 uniform gradient-noise guarantee even at an exact marginal optimum.
+The actual code has a positive $10^{-4}$ variance floor. The asymptotic
+therefore explains potentially very large finite variance constants; it does
+not assert that the actual finite-floor runs have infinite variance.
 
 \begin{corollary}[Noise can also contaminate mean updates]
 If the same construction dilates only the means,
