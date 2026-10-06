@@ -17,6 +17,7 @@ venv/
 .DS_Store
 Thumbs.db
 *.tar.gz
+.env
 
 # Project artifacts
 results*/
