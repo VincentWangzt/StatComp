@@ -4,6 +4,8 @@ import argparse
 import csv
 import json
 import math
+import io
+import textwrap
 from collections import defaultdict
 from pathlib import Path
 
@@ -167,17 +169,149 @@ def build(root,out,partial=False):
 
     # Combine figure pages through reportlab; keep the mathematical report
     # standalone so the Codex built-in LaTeX compiler requires no project files.
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.utils import ImageReader
-    c=canvas.Canvas(str(out/'evidence_figures.pdf'),pagesize=(1008,720))
+    from reportlab.platypus import (BaseDocTemplate,PageTemplate,Frame,Paragraph,
+                                   Spacer,Image,Table,TableStyle,PageBreak,NextPageTemplate)
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+    from PIL import Image as PILImage
+    styles=getSampleStyleSheet()
+    styles['BodyText'].fontSize=10.5;styles['BodyText'].leading=14.5;styles['BodyText'].spaceAfter=7
+    styles['Heading1'].fontSize=15;styles['Heading1'].leading=18
+    styles['Title'].fontSize=23;styles['Title'].leading=28
+    doc=BaseDocTemplate(str(out/'evidence_figures.pdf'),pagesize=(595,842),
+                        title='KSIVI on the X-shaped target: theory and evidence',
+                        author='StatComp variance investigation')
+    def footer(c,d):
+        c.saveState();c.setFont('Helvetica',8)
+        c.drawString(36,22,'KSIVI variance investigation | campaign 20261006')
+        c.drawRightString(c._pagesize[0]-36,22,str(d.page));c.restoreState()
+    doc.addPageTemplates([
+        PageTemplate(id='Report',pagesize=(595,842),frames=[Frame(36,40,523,750,id='r')],onPage=footer),
+        PageTemplate(id='Figures',pagesize=(1008,720),frames=[Frame(30,40,948,640,id='f')],onPage=footer)])
+    story=[]
+    def para(s,style='BodyText'):story.append(Paragraph(s,styles[style]))
+    def equation(s):
+        fig=plt.figure(figsize=(7,.55))
+        fig.text(.5,.5,'$'+s+'$',ha='center',va='center',fontsize=15)
+        buf=io.BytesIO();fig.savefig(buf,format='png',dpi=220,bbox_inches='tight',pad_inches=.05);plt.close(fig)
+        buf.seek(0);im=PILImage.open(buf);w,h=im.size;scale=min(1,505/(w/220*72))
+        story.append(Image(buf,width=w/220*72*scale,height=h/220*72*scale));story.append(Spacer(1,6))
+    def result_table(rows,headers,widths):
+        cells=[[Paragraph(str(c),styles['BodyText']) for c in row] for row in [headers]+rows]
+        t=Table(cells,colWidths=widths,repeatRows=1,hAlign='LEFT')
+        t.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEBELOW',(0,0),(-1,0),1,colors.HexColor('#2767a0')),
+                               ('LINEBELOW',(0,-1),(-1,-1),.7,colors.grey),('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#f2f5f7')]),
+                               ('LEFTPADDING',(0,0),(-1,-1),5),('RIGHTPADDING',(0,0),(-1,-1),5)]))
+        story.append(t);story.append(Spacer(1,12))
+    para('When conditional variance harms KSIVI on the X-shaped target','Title')
+    para('Geometry, representation noise, and optimization boundaries','Heading2')
+    para(('INTERIM REVIEW COPY. ' if partial else '')+
+         f'{len(summaries)} new remote runs; three-seed long comparisons; {len(json.loads((out/"existing_audit.json").read_text())["rows"])} historical checkpoints audited.')
+    para('The main conclusion','Heading1')
+    para('The gap is a failure mode of finite stochastic optimization, not an intrinsic inferiority of the conditional variational family. '
+         'The larger family contains the global family, and a fixed-kernel population KSD depends only on the marginal distribution. '
+         'For this target, a global variance of 0.2 already supplies exactly the needed transverse width. Conditional scale directions can '
+         'instead develop small-variance tails that sharply increase conditional-score gradient noise. The optimizer and moving target determine whether that noise leads to failure.')
+    para('The evidence is deliberately qualified: not every conditional run fails, not every global run succeeds, and the intervention results do not imply a universal preference for the Stein estimator. '
+         'The full standalone manuscript, report.tex, supplies additional derivations, per-seed diagnostics, and evaluation details.')
+    para('The exact comparison','Heading1')
+    para('Canonical policy: two width-128 SiLU hidden layers, Gaussian latent dimension 2, softplus conditional variances with floor 0.0001; '
+         'Adam (0.9, 0.999), learning rate 0.001, StepLR(1000, 0.9), two independent batches of 128, and 50,000 updates. '
+         'The target-score multiplier moves linearly from 0.1 to 1 over 25,000 updates. Gaussian spatial kernels and the empirical median bandwidth are differentiated. '
+         'New comparisons match mean weights and initial variance to float32 roundoff and pair the training noise. Diagnostics preserve training RNG.')
+    para('Long comparisons: means (sample standard deviations across trained seeds). SW2 is sliced Wasserstein distance; KL is forward KL estimated from exact target samples. '
+         'Independent KSD uses a fixed h=0.75. Each trained model, not each evaluation sample, is one statistical replicate.')
+    rows=[]
+    for n in LABELS:
+        rr=by_name.get(n,[])
+        if not rr:continue
+        def plain(k,prec=3):
+            a=np.array([r[k] for r in rr]);return f'{a.mean():.{prec}f} ({a.std(ddof=1):.{prec}f})' if len(a)>1 else f'{a[0]:.{prec}f}'
+        rows.append([LABELS[n],len(rr),plain('sw2'),plain('kl_pq_best'),plain('ksd2_h0.75',4)])
+    result_table(rows,['Procedure','n','SW2','KL(p || q)','KSD squared'],[195,25,92,100,105])
+    para('Theory 1: population representation invariance','Heading1')
+    equation(r'f=s_p(X)-s_c(X,\epsilon)=s_p(X)+U/\sigma(\epsilon)')
+    equation(r'\mathbb{E}[s_c(X,\epsilon)\mid X]=s_q(X)')
+    para('For two independent hierarchical draws, conditional expectation converts E[k(X,X\') f(X,epsilon)<super>T</super> f(X\',epsilon\')] '
+         'into the marginal KSD squared. The same marginal q therefore has the same population loss under different Gaussian-mixture representations. '
+         'Constant variance is available inside the conditional network by zeroing variance-output weights, so its globally optimized fixed-kernel loss cannot be worse. '
+         'This says nothing about finite Adam optimization or a data-adaptive kernel.')
+    para('Theory 2: the exact global-variance boundary','Heading1')
+    para('The target is an equal mixture of centered Gaussians with diagonal entries 2 and off-diagonal entries +1.8 or -1.8. Its component eigenvalues are 3.8 and 0.2. '
+         'Let S be an equiprobable sign and T and U be independent standard normal draws:')
+    equation(r'X=\sqrt{1.8}\,T(1,S)^T+\sqrt{0.2}\,U')
+    para('This has exactly the target distribution: mixing means supply the long arms and global noise supplies transverse width. '
+         'A finite continuous neural mean approximates the branch switch; the construction is not a claim of exact representation by a finite width-128 network.')
+    equation(r'D=\mathrm{diag}(d_1,d_2):\quad (2-d_1)(2-d_2)\geq3.24,\quad d_1,d_2\leq2')
+    para('<b>Proof of the boundary.</b> These inequalities are equivalent to both residual covariance matrices being positive semidefinite, which suffices by Gaussian convolution. '
+         'If a residual covariance is negative in a direction, dividing the target characteristic function by the noise characteristic function gives a positive exponential term growing without bound. '
+         'A characteristic function has absolute value at most one, so exact deconvolution is impossible. For isotropic D=vI the exact boundary is 0 &lt;= v &lt;= 0.2. '
+         'For off-diagonals +/-2 rho it becomes v &lt;= 2(1-|rho|).')
+    para('Theory 3: latent representation noise at an exact optimum','Heading1')
+    equation(r'q=p:\quad\mathbb{E}\|s_p-s_c\|^2=\mathbb{E}\,\mathrm{tr}(D^{-1})-\mathbb{E}_p\|s_p\|^2')
+    para('<b>Proof.</b> Expand the squared residual and use E[s_c|X]=s_p(X). A Gaussian conditional score has second moment tr(D<super>-1</super>). '
+         'Thus the residual can be noisy even when the marginal is exactly correct. Jensen gives E[1/v] &gt;= 1/E[v]. A moderate average variance can conceal substantial noise from a small-variance tail. '
+         'This identity concerns score noise; it does not alone prove an increase in every gradient coordinate.')
+    para('Theory 4: an analytic gradient-noise explosion','Heading1')
+    para('For any 0 &lt; v &lt;= 0.2, use mixing means from the residual covariance mixture and add independent N(0,vI) noise. '
+         'The marginal remains exactly p for every v. Differentiate a global dilation X(theta)=exp(theta)X, sigma(theta)=exp(theta)sigma at theta=0, using an independently fixed Gaussian bandwidth h:')
+    equation(r'\lim_{v\to0}v^2\mathrm{Var}(g_v)=\frac{2}{N^2}\mathbb{E}_{p\otimes p}\left[k_h^2\left(2+\frac{\|X-X^{\prime}\|^2}{h^2}\right)^2\right]>0')
+    para('<b>Proof.</b> The leading pair-gradient term is -k(X,X\')[2+||X-X\'||<super>2</super>/h<super>2</super>] U<super>T</super>U\'/v. '
+         'Couple the residual Gaussian means so they converge to independent target draws as v approaches zero. Polynomial growth of the target score derivatives and Gaussian moments give L2 convergence of v times the gradient. '
+         'Different pair summands have zero covariance even if they share one index, because the other Gaussian noise is centered. E[(U<super>T</super>U\')<super>2</super>]=2, giving the positive limit. '
+         'The actual variance floor is positive; this is a mechanism for large finite variance constants, not a claim of infinite runtime variance.')
+    para('The Stein integration-by-parts gradient is a deterministic function of the independent marginal samples X and X\'. Its full dilation-gradient distribution is therefore exactly representation invariant in this construction. '
+         'Dilating only mean outputs still gives inverse-square conditional-gradient variance growth, with the squared bracket replaced by ||X-X\'||<super>4</super>/h<super>4</super>; '
+         'the Stein mean-direction second moment stays bounded. Scaling final-layer mean rows is an available network parameter direction, so this mechanism can contaminate mean updates too.')
+    para('The variance constant is computed from Gaussian quadratic-form Laplace transforms. X-X\' has covariance eigenvalues (7.6,0.4) or (4,4), equally weighted. '
+         'At h=0.75 and N=128, the predicted asymptotic variance is 0.000099824/v<super>2</super>. No parameter is fitted to the gradient experiment.')
+    rr=probe['exact_marginal']
+    result_table([[('0.02 / 0.20 mixture' if r['heterogeneous'] else str(r['v'])),f"{r['conditional_grad_var']:.5f}",f"{r['stein_grad_var']:.5f}",
+                   ('-' if r['heterogeneous'] else f"{r['gradient_asymptotic_prediction']:.5f}")] for r in rr],
+                 ['Component variance','Measured conditional variance','Measured Stein variance','Analytic asymptotic'],[125,135,125,125])
+    para('Each row uses 256 independent repetitions, two batches of 128, and exactly the same marginal p. At v=0.002 the prediction is 24.96 and measurement 24.46, while the Stein variance is about 0.002. '
+         'Randomizing variance between 0.02 and 0.20 keeps both marginal p and mean variance 0.11, but raises the measured conditional gradient variance about sevenfold relative to constant 0.11. '
+         'This is a distributional counterfactual; architecture-specific causal evidence comes from training controls.')
+    para('What the training controls do and do not establish','Heading1')
+    para('The Stein training variant removes explicit U/sigma from the integrand. The bandwidth-only control also detaches the median but retains spatial kernel gradients. '
+         'Their comparison separates bandwidth detachment from the estimator change. A second three-seed contrast fixes h=0.75 in both estimators, so it also removes adaptive-bandwidth bias. '
+         'The population-equivalence claim is restricted to fixed independent kernels: jointly data-dependent bandwidths introduce additional integration-by-parts terms.')
+    para('The variance-floor intervention bounds conditional variance below by 0.2; the exact target construction remains available in the flexible-mean closure. '
+         'It also changes gradient geometry and introduces clamped zero gradients, so it is not a pure noise intervention. '
+         'Removing annealing and sustaining learning rate does not guarantee rescue: outcomes differ across seeds, and at least one conditional run under that policy beats its global counterpart.')
+    para('Broad screening varied batch size, floors, shared versus separate networks, annealing duration, decay, estimator, bandwidth differentiation, and correlation. '
+         'These one-seed runs lasted 10,000 updates; annealed runs still target a tempered density at that horizon. The isotropic Gaussian control shows no comparable conditional disadvantage. '
+         'Shared-trunk removal or larger batches alone do not establish a full explanation. An exact empirical critical correlation is not located by these tests.')
+    para('Why the convergence theorem does not settle the observation','Heading1')
+    para('Annealing reaches the final target after learning rate has fallen to 0.0000718. Only about 6.7% of total nominal step-size mass is spent on that final target. '
+         'This is not an Adam-displacement bound, but explains limited late adaptation. The target also has unbounded Hessian:')
+    equation(r'\log p(x,y)=\mathrm{const}-\frac{a}{2}(x^2+y^2)+\log\cosh(bxy),\quad a=2/0.76,\ b=1.8/0.76')
+    equation(r'\partial_{xx}\log p(0,R)=-a+b^2R^2\to\infty')
+    para('The global bounded-Hessian assumption of the published optimization theorem is therefore not literally met by this toy target. This applies to both families and is not itself a cause of their ordering. '
+         'The theorem also concerns stationarity under stated assumptions, not global minimization or small KL. The observation does not contradict a guarantee of family expressiveness or successful global optimization.')
+    para('Evidence, reproducibility, and limits','Heading1')
+    para('All runs used the specified server after reloading AGENTS.md (port 37874), an RTX 4090, PyTorch 2.9.0+cu126, and the ruivi environment. '
+         'Jobs ran in tmux; code and generated reports were synchronized through Git. Raw logs, samples, checkpoints, and state are under /root/ruivi/results/ksivi_variance_investigation_20261006. '
+         'Each run records its own code revision. The fast research objective gradient was verified against the production update on CPU and GPU.')
+    para('Held-out SW2 uses 10,000 samples and 128 directions. KL uses 4,096 exact target draws and nested explicit Gaussian mixtures; integration increases to 262,144 latent draws when needed. '
+         'Finite latent integration remains a source of KL uncertainty. Independent KSD uses 16 pairs of 256 samples and fixed bandwidths 0.5, 0.75, and 1.5. '
+         'Tables and JSON retain every seed, evaluation standard errors, latent integration checks, and failed interventions. Covariance alone is insufficient: target cross-fourth moment in rotated coordinates is 0.76, compared with 4 for a covariance-matched isotropic Gaussian.')
+    para('The analytical identities, exact representation boundary, and gradient asymptotic are proved. The training comparisons and unchanged-marginal simulation are measured. '
+         'The combined account of stochastic noise, geometry, and basin selection is a supported interpretation, not a proof that one scalar diagnostic determines every outcome. '
+         'Three seeds do not establish universal optimizer, kernel, or target boundaries.')
+    para('References','Heading1')
+    for s in ['Cheng et al. (2024), Kernel Semi-Implicit Variational Inference, ICML / PMLR 235. https://proceedings.mlr.press/v235/cheng24l.html',
+              'Yu et al. (2026), A Kernel Approach for Semi-implicit Variational Inference. https://arxiv.org/abs/2601.12023. Appendix A.4 records global variance in their experiments.',
+              'Korba et al. (2021), Kernel Stein Discrepancy Descent, ICML / PMLR 139. https://proceedings.mlr.press/v139/korba21a.html',
+              'Original code: https://github.com/longinYu/KSIVI']:para(s)
+    story.append(NextPageTemplate('Figures'));story.append(PageBreak())
     for i,f in enumerate(figures):
-        c.setFont('Helvetica-Bold',16);c.drawString(35,683,f"Figure {i+1}: {f['name'].replace('_',' ')}")
-        c.drawImage(ImageReader(str(out/(f['name']+'.png'))),30,70,width=948,height=580,preserveAspectRatio=True,anchor='c')
-        c.setFont('Helvetica',9)
-        caption=f['caption'].replace('--','-')
-        for j,start in enumerate(range(0,len(caption),145)):c.drawString(35,47-j*12,caption[start:start+145])
-        c.showPage()
-    c.save()
+        para(f"Figure {i+1}: {f['name'].replace('_',' ')}",'Heading1')
+        im=PILImage.open(out/(f['name']+'.png'));w,h=im.size;scale=min(936/w,545/h)
+        story.append(Image(str(out/(f['name']+'.png')),width=w*scale,height=h*scale))
+        para(f['caption'].replace('--','-'))
+        if i!=len(figures)-1:story.append(PageBreak())
+    doc.build(story)
 
     table=[]
     for n in LABELS:
