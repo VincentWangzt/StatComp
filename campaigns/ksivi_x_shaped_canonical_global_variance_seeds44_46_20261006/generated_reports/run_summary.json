@@ -1,0 +1,152 @@
+[
+  {
+    "source_commit": "ba3eb08d0398f4e77730f177b4057bc0b9db2a24",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 44,
+    "vi_model_type": "ConditionalGaussianGlobal",
+    "variance_type": "global",
+    "adam_betas": [
+      0.9,
+      0.999
+    ],
+    "optimizer_checkpoint_betas_verified": true,
+    "input_noise_dim": 2,
+    "output_dim": 2,
+    "hidden_width": 128,
+    "hidden_layers": 2,
+    "activation": "silu",
+    "variance_parameterization": "softplus_var",
+    "variance_min": 0.0001,
+    "initial_global_variance": [
+      1.31326162815094,
+      1.31326162815094
+    ],
+    "final_global_variance": [
+      0.20024415850639343,
+      0.19888944923877716
+    ],
+    "batch_size": 128,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": true,
+    "annealing_steps": 25000,
+    "original_canonical_defaults_preserved": true,
+    "only_canonical_config_change": "vi_model_type: ConditionalGaussianGlobal",
+    "metric_evaluation_temporarily_disabled": true,
+    "canonical_metric_evaluation_enabled": true,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 392.385,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_canonical_global_seed44_20261006_no_metrics/KSIVI/x_shaped/20261006_193542",
+    "plot": "ksivi_x_shaped_canonical_global_seed44_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "fb2dda540b6713d7242e978b556802c7fc66a21002991920e53a65a942d98702",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "ba3eb08d0398f4e77730f177b4057bc0b9db2a24",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 45,
+    "vi_model_type": "ConditionalGaussianGlobal",
+    "variance_type": "global",
+    "adam_betas": [
+      0.9,
+      0.999
+    ],
+    "optimizer_checkpoint_betas_verified": true,
+    "input_noise_dim": 2,
+    "output_dim": 2,
+    "hidden_width": 128,
+    "hidden_layers": 2,
+    "activation": "silu",
+    "variance_parameterization": "softplus_var",
+    "variance_min": 0.0001,
+    "initial_global_variance": [
+      1.31326162815094,
+      1.31326162815094
+    ],
+    "final_global_variance": [
+      0.1991889625787735,
+      0.20198442041873932
+    ],
+    "batch_size": 128,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": true,
+    "annealing_steps": 25000,
+    "original_canonical_defaults_preserved": true,
+    "only_canonical_config_change": "vi_model_type: ConditionalGaussianGlobal",
+    "metric_evaluation_temporarily_disabled": true,
+    "canonical_metric_evaluation_enabled": true,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 395.844,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_canonical_global_seed45_20261006_no_metrics/KSIVI/x_shaped/20261006_193542",
+    "plot": "ksivi_x_shaped_canonical_global_seed45_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "07a4f5858aa54253ed7460654a688861c1661638c7a02931ace1cacca7d7c766",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "ba3eb08d0398f4e77730f177b4057bc0b9db2a24",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 46,
+    "vi_model_type": "ConditionalGaussianGlobal",
+    "variance_type": "global",
+    "adam_betas": [
+      0.9,
+      0.999
+    ],
+    "optimizer_checkpoint_betas_verified": true,
+    "input_noise_dim": 2,
+    "output_dim": 2,
+    "hidden_width": 128,
+    "hidden_layers": 2,
+    "activation": "silu",
+    "variance_parameterization": "softplus_var",
+    "variance_min": 0.0001,
+    "initial_global_variance": [
+      1.31326162815094,
+      1.31326162815094
+    ],
+    "final_global_variance": [
+      0.1996448040008545,
+      0.2008514553308487
+    ],
+    "batch_size": 128,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": true,
+    "annealing_steps": 25000,
+    "original_canonical_defaults_preserved": true,
+    "only_canonical_config_change": "vi_model_type: ConditionalGaussianGlobal",
+    "metric_evaluation_temporarily_disabled": true,
+    "canonical_metric_evaluation_enabled": true,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 383.388,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_canonical_global_seed46_20261006_no_metrics/KSIVI/x_shaped/20261006_193542",
+    "plot": "ksivi_x_shaped_canonical_global_seed46_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "d765b1c80f1123ceb771889793cb190cdb9ea2d2eb6b0263eefc6da1902f864d",
+    "exit_code": 0
+  }
+]
