@@ -1,0 +1,22 @@
+{
+  "source_commit": "db0ae9604f195c11efbdcf45235b8134ae459d4e",
+  "branch": "codex/ksivi-x-shaped-seed43-20261006",
+  "server": "root@connect.nmb1.seetacloud.com",
+  "ssh_port": 37874,
+  "seed": 43,
+  "completed_updates": 50000,
+  "sample_count": 10000,
+  "all_samples_finite": true,
+  "metric_evaluation_enabled": false,
+  "detach_kernel": false,
+  "detach_bandwidth": false,
+  "elapsed_seconds": 344.655,
+  "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed43_20261006_no_metrics/KSIVI/x_shaped/20261006_174427",
+  "plot": "ksivi_x_shaped_seed43_epoch50000.png",
+  "plot_size": [
+    445,
+    491
+  ],
+  "plot_sha256": "5066e855be0718f03f5a5ed652d373919f510853c0c126c2a45648ce2028c947",
+  "exit_code": 0
+}
