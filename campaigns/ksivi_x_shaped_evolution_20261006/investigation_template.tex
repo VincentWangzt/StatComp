@@ -1,22 +1,38 @@
-\documentclass[11pt]{article}
-\usepackage[margin=0.85in]{geometry}
-\usepackage{amsmath,amssymb,amsthm,booktabs,longtable,array}
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=24mm,headheight=14pt,includeheadfoot]{geometry}
+\usepackage{amsmath,amsthm,booktabs,longtable,array}
 \usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype,graphicx,pdflscape,caption,fancyhdr,xcolor}
 \usepackage{hyperref}
-\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
-\newtheorem{proposition}{Proposition}
-\newtheorem{corollary}{Corollary}
+\definecolor{ink}{HTML}{23384D}
+\hypersetup{colorlinks=true,urlcolor=ink,linkcolor=ink,citecolor=ink,
+  pdftitle={When conditional variance harms KSIVI on the X-shaped target},
+  pdfauthor={StatComp variance investigation}}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}[proposition]{Corollary}
+\numberwithin{equation}{section}
 \newcommand{\E}{\mathbb E}
 \newcommand{\Var}{\operatorname{Var}}
 \newcommand{\Cov}{\operatorname{Cov}}
 \newcommand{\tr}{\operatorname{tr}}
 \newcommand{\diag}{\operatorname{diag}}
-\setlength{\parskip}{5pt}
-\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{1em}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.16}
+\setlength{\emergencystretch}{1.5em}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape KSIVI on the X-shaped target}
+\fancyhead[R]{\small Variance investigation}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
 \title{When conditional variance harms KSIVI on the X-shaped target\\
 \large Geometry, representation noise, and optimization boundaries}
 \author{Reproducible investigation of the StatComp implementation}
-\date{Campaign initiated 6 October 2026; @@STATUS@@}
+\date{6 October 2026}
 \begin{document}
 \maketitle
 \begin{abstract}
@@ -46,8 +62,10 @@ families implemented in this repository are
  x=\mu_\phi(\epsilon)+\sigma_\phi\odot u.
 \]
 Both means have two width-128 SiLU hidden layers. Conditional variances are
-$v_j(\epsilon)=\max\{10^{-4},\operatorname{softplus}(a_j(\epsilon))\}$;
-global variances have the same softplus transform applied to two learnable
+\[
+v_j(\epsilon)=\max\{10^{-4},\operatorname{softplus}(a_j(\epsilon))\}.
+\]
+Global variances have the same softplus transform applied to two learnable
 scalars. The conditional model shares its hidden layers between mean and
 variance outputs. Changing \texttt{train.vi.var\_lr} does not change its
 variance learning rate: the production optimizer creates a separate variance
@@ -540,7 +558,7 @@ than a blanket recommendation to replace the original KSIVI estimator.
 
 \section{Reproduction and measurement}
 All new experiments ran on the server specified by the reloaded
-\texttt{AGENTS.md}: \texttt{connect.nmb1.seetacloud.com}, SSH port 37874,
+\texttt{AGENTS.md}: \nolinkurl{connect.nmb1.seetacloud.com}, SSH port 37874,
 RTX 4090, PyTorch 2.9.0+cu126, conda environment \texttt{ruivi}. Jobs ran in
 tmux. Code was committed locally, pushed, and fetched into the requested
 branch's remote worktree. Report data and figures were generated remotely
@@ -575,6 +593,7 @@ Cross-batch estimates can be slightly negative, especially near zero.
 Maximum absolute forward-KL changes between the last two evaluated mixture
 sizes, within each confirmation group: @@KL_STABILITY@@.
 
+\clearpage
 \appendix
 \section{Per-seed accuracy and trained-model gradient noise}
 The last two columns are variances over 128 independent repetitions of the
@@ -600,17 +619,19 @@ Screening procedure & SW$_2$ & $\E[1/v]$ & $\E[A^2B^2]$\\\midrule
 \bottomrule\end{longtable}
 \normalsize
 \section{Artifact guide}
-\texttt{evidence\_figures.pdf} contains a directly readable mathematical
-report with proofs and numerical tables, followed by confirmation,
-training-path, exact-marginal noise, broad-screening, schedule/curvature,
-and final-sample figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
+\texttt{report.pdf} contains this mathematical report, all numerical tables,
+and the scientific figure appendix. \texttt{evidence\_figures.pdf} is the
+companion figure booklet, with a separate final-sample page for each seed.
+\texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
 \texttt{trajectories.csv} expose numerical outcomes without selecting
 favorable seeds. JSON files retain evaluation standard errors, nested density
-sizes, run source commits, and probe parameters. The standalone source of
-this report requires no external figure or bibliography files and can be
-compiled independently. The PDF was generated directly with ReportLab;
-the native LaTeX compiler was unavailable with a platform-directory error,
-so compilation of this supplementary source is unverified.
+sizes, run source commits, and probe parameters. The LaTeX source of
+this report is \texttt{report.tex}; its vector figure assets are in
+\texttt{figures/}. Both PDFs are compiled from LaTeX. The recorded compiler
+versions, input hashes, and output hashes are in \texttt{typesetting.json}.
+
+\clearpage
+@@FIGURES@@
 
 \begin{thebibliography}{9}
 \bibitem{cheng} Z. Cheng, L. Yu, T. Xie, S. Zhang and C. Zhang (2024).

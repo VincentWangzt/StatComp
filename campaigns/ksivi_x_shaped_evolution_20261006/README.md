@@ -30,11 +30,13 @@ Reports are written under this campaign's `generated_reports/` directory.
 ## Conditional versus global variance investigation
 
 The `investigation/` directory contains the author-facing mathematical report
-and remote evidence for the variance comparison. `evidence_figures.pdf` includes
-the proofs, complete long-run comparison table, limitations, and six scientific
-figures. `report.tex` is the fuller standalone manuscript, including per-seed
-gradient diagnostics and all screening results. The PDF is generated directly;
-native LaTeX compilation was unavailable because of a platform-directory error.
+and remote evidence for the variance comparison. `report.pdf` contains the
+proofs, complete comparisons, per-seed gradient diagnostics, screening results,
+limitations, and scientific figure appendix. `evidence_figures.pdf` is a
+landscape figure booklet with larger sample panels for each seed. Both PDFs
+are compiled from LaTeX, with Times text and mathematics, vector plot labels,
+and numbered captions. Their editable sources and plot assets are retained;
+`typesetting.json` records the compiler version and source/output hashes.
 
 The investigation audits 334 historical checkpoints and adds 53 remote training
 runs: 23 one-seed screening runs at 10,000 updates, 21 long comparisons, three
@@ -66,7 +68,14 @@ $PY -u campaigns/ksivi_x_shaped_evolution_20261006/evidence.py evaluate \
 $PY -u campaigns/ksivi_x_shaped_evolution_20261006/evidence.py probes \
   --output campaigns/ksivi_x_shaped_evolution_20261006/investigation/mechanism_probes.json
 $PY campaigns/ksivi_x_shaped_evolution_20261006/build_investigation.py
+$PY campaigns/ksivi_x_shaped_evolution_20261006/typeset_investigation.py \
+  --engine tectonic --bootstrap-tectonic
 ```
+
+The remote typesetting command caches the pinned portable compiler and its
+resources under the campaign's `results/` runtime directory. On a machine with
+TeX Live, use `--engine latexmk` and give `--runtime` a local results directory.
+Use `--output` to compile review copies separately from the tracked artifacts.
 
 Stages skip finished runs; use `--root` and `--tbroot` pointing to new subfolders
 of the existing results/log directories for a fresh campaign. Saved snapshots
