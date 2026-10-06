@@ -1,7 +1,7 @@
 # Finalization Report
 
-Completed manifest runs discovered: 25
-Evaluation runs selected: 16
+Completed manifest runs discovered: 26
+Evaluation runs selected: 17
 Per-run rows: 0
 Aggregate rows: 0
 
