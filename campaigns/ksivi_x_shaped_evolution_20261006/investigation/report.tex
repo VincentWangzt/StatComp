@@ -1,22 +1,38 @@
-\documentclass[11pt]{article}
-\usepackage[margin=0.85in]{geometry}
-\usepackage{amsmath,amssymb,amsthm,booktabs,longtable,array}
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=24mm,headheight=14pt,includeheadfoot]{geometry}
+\usepackage{amsmath,amsthm,booktabs,longtable,array}
 \usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype,graphicx,pdflscape,caption,fancyhdr,xcolor}
 \usepackage{hyperref}
-\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
-\newtheorem{proposition}{Proposition}
-\newtheorem{corollary}{Corollary}
+\definecolor{ink}{HTML}{23384D}
+\hypersetup{colorlinks=true,urlcolor=ink,linkcolor=ink,citecolor=ink,
+  pdftitle={When conditional variance harms KSIVI on the X-shaped target},
+  pdfauthor={StatComp variance investigation}}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}[proposition]{Corollary}
+\numberwithin{equation}{section}
 \newcommand{\E}{\mathbb E}
 \newcommand{\Var}{\operatorname{Var}}
 \newcommand{\Cov}{\operatorname{Cov}}
 \newcommand{\tr}{\operatorname{tr}}
 \newcommand{\diag}{\operatorname{diag}}
-\setlength{\parskip}{5pt}
-\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{1em}
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.16}
+\setlength{\emergencystretch}{1.5em}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape KSIVI on the X-shaped target}
+\fancyhead[R]{\small Variance investigation}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
 \title{When conditional variance harms KSIVI on the X-shaped target\\
 \large Geometry, representation noise, and optimization boundaries}
 \author{Reproducible investigation of the StatComp implementation}
-\date{Campaign initiated 6 October 2026; COMPLETED}
+\date{6 October 2026}
 \begin{document}
 \maketitle
 \begin{abstract}
@@ -46,8 +62,10 @@ families implemented in this repository are
  x=\mu_\phi(\epsilon)+\sigma_\phi\odot u.
 \]
 Both means have two width-128 SiLU hidden layers. Conditional variances are
-$v_j(\epsilon)=\max\{10^{-4},\operatorname{softplus}(a_j(\epsilon))\}$;
-global variances have the same softplus transform applied to two learnable
+\[
+v_j(\epsilon)=\max\{10^{-4},\operatorname{softplus}(a_j(\epsilon))\}.
+\]
+Global variances have the same softplus transform applied to two learnable
 scalars. The conditional model shares its hidden layers between mean and
 variance outputs. Changing \texttt{train.vi.var\_lr} does not change its
 variance learning rate: the production optimizer creates a separate variance
@@ -565,7 +583,7 @@ than a blanket recommendation to replace the original KSIVI estimator.
 
 \section{Reproduction and measurement}
 All new experiments ran on the server specified by the reloaded
-\texttt{AGENTS.md}: \texttt{connect.nmb1.seetacloud.com}, SSH port 37874,
+\texttt{AGENTS.md}: \nolinkurl{connect.nmb1.seetacloud.com}, SSH port 37874,
 RTX 4090, PyTorch 2.9.0+cu126, conda environment \texttt{ruivi}. Jobs ran in
 tmux. Code was committed locally, pushed, and fetched into the requested
 branch's remote worktree. Report data and figures were generated remotely
@@ -575,7 +593,7 @@ are under
 There are 53 completed new training runs. The report source and its
 figures are under the branch's
 \texttt{campaigns/ksivi\_x\_shaped\_evolution\_20261006/investigation}.
-Generation code commit: \texttt{abb8f3d352671d528462f49f26abce3ea3cd0d96}. Individual run manifests record
+Generation code commit: \texttt{0c66f0c00fe443efe9d7a2bcdb7d9f0c466d7204}. Individual run manifests record
 their own source commits; scripts were extended during the campaign, and
 later launches use those recorded revisions rather than an assumed common
 commit. The governing optimizer/architecture definitions are in
@@ -600,6 +618,7 @@ Cross-batch estimates can be slightly negative, especially near zero.
 Maximum absolute forward-KL changes between the last two evaluated mixture
 sizes, within each confirmation group: canonical\_cond: 0.038; canonical\_global: 0.004; floor02\_cond: 0.004; no\_anneal\_const\_cond: 0.041; no\_anneal\_const\_global: 0.003; stein\_cond: 0.013; stein\_global: 0.002; detach\_h\_cond: 0.009; fixed\_h\_cond: 0.006; fixed\_h\_stein\_cond: 0.013.
 
+\clearpage
 \appendix
 \section{Per-seed accuracy and trained-model gradient noise}
 The last two columns are variances over 128 independent repetitions of the
@@ -676,17 +695,56 @@ stein\_global & 1.094 & 2.2 & 5.005 \\
 \bottomrule\end{longtable}
 \normalsize
 \section{Artifact guide}
-\texttt{evidence\_figures.pdf} contains a directly readable mathematical
-report with proofs and numerical tables, followed by confirmation,
-training-path, exact-marginal noise, broad-screening, schedule/curvature,
-and final-sample figures. \texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
+\texttt{report.pdf} contains this mathematical report, all numerical tables,
+and the scientific figure appendix. \texttt{evidence\_figures.pdf} is the
+companion figure booklet, with a separate final-sample page for each seed.
+\texttt{new\_metrics.csv}, \texttt{historical\_metrics.csv}, and
 \texttt{trajectories.csv} expose numerical outcomes without selecting
 favorable seeds. JSON files retain evaluation standard errors, nested density
-sizes, run source commits, and probe parameters. The standalone source of
-this report requires no external figure or bibliography files and can be
-compiled independently. The PDF was generated directly with ReportLab;
-the native LaTeX compiler was unavailable with a platform-directory error,
-so compilation of this supplementary source is unverified.
+sizes, run source commits, and probe parameters. The LaTeX source of
+this report is \texttt{report.tex}; its vector figure assets are in
+\texttt{figures/}. Both PDFs are compiled from LaTeX. The recorded compiler
+versions, input hashes, and output hashes are in \texttt{typesetting.json}.
+
+\clearpage
+\begin{landscape}
+\section{Scientific figures}
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/confirmation.pdf}
+\caption{Matched comparisons after 50,000 updates. Dots are independently trained seeds 42--44; vertical strokes mark means. Initial mean weights, variance values, and training noise are paired. Forward KL uses the largest evaluated latent mixture; held-out KSD uses an independent fixed bandwidth of 0.75.}
+\end{figure}
+\clearpage
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/trajectories.pdf}
+\caption{Accuracy and the small-variance tail across three trajectories per procedure. The dotted line marks completion of target annealing at update 25,000. Floor occupancy uses the common threshold 0.00010001; diagnostic draws preserve training RNG.}
+\end{figure}
+\clearpage
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/exact_marginal_noise.pdf}
+\caption{Representation noise at exactly equal marginal distributions. Each measurement uses 256 independent repetitions and two batches of 128 at fixed bandwidth 0.75. The dashed curve is the analytic small-variance prediction, with no fitted coefficient. The right panel holds both the marginal and mean component variance 0.11 fixed.}
+\end{figure}
+\clearpage
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/screening.pdf}
+\caption{All 23 screening outcomes at 10,000 updates, seed 42. Blue denotes global variance; red denotes conditional variance. Annealed runs still have a score multiplier of 0.46 unless warmup is shortened. Distances are measured against the final target and do not establish final-target convergence.}
+\end{figure}
+\clearpage
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/geometry_and_schedule.pdf}
+\caption{Target path, learning-rate decay, and target curvature. The score multiplier reaches one after the learning rate has fallen to approximately 0.0000718. The diverging Hessian entry violates the global bounded-Hessian assumption for both variational families; this fact alone does not explain their ordering.}
+\end{figure}
+\clearpage
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth,height=.76\textheight,keepaspectratio]{figures/final_samples.pdf}
+\caption{Final samples for seeds 42--44, with exact target contours and a common viewing window. All samples contribute to numerical metrics, including tails outside the plot. The separate sample pages in the companion booklet provide larger panels for each seed.}
+\end{figure}
+\end{landscape}
 
 \begin{thebibliography}{9}
 \bibitem{cheng} Z. Cheng, L. Yu, T. Xie, S. Zhang and C. Zhang (2024).

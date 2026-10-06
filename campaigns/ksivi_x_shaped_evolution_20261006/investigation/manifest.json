@@ -1,6 +1,6 @@
 {
   "status": "completed",
-  "source_commit": "abb8f3d352671d528462f49f26abce3ea3cd0d96",
+  "source_commit": "0c66f0c00fe443efe9d7a2bcdb7d9f0c466d7204",
   "completed_runs": 53,
   "evaluated_runs": 53,
   "run_source_commits": [
@@ -39,6 +39,18 @@
     {
       "name": "final_samples",
       "caption": "Hexbin densities are for visual comparison. Quantitative metrics include all samples, including escaped tails."
+    },
+    {
+      "name": "final_samples_s42",
+      "caption": "Final samples, seed 42, after 50,000 updates. Black curves are exact target contours. All four procedures use matched initial mean functions and variance values. The common viewing window omits some tails, which remain included in all numerical metrics."
+    },
+    {
+      "name": "final_samples_s43",
+      "caption": "Final samples, seed 43, after 50,000 updates. Black curves are exact target contours. All four procedures use matched initial mean functions and variance values. The common viewing window omits some tails, which remain included in all numerical metrics."
+    },
+    {
+      "name": "final_samples_s44",
+      "caption": "Final samples, seed 44, after 50,000 updates. Black curves are exact target contours. All four procedures use matched initial mean functions and variance values. The common viewing window omits some tails, which remain included in all numerical metrics."
     }
   ],
   "paired_sw2_difference": [
