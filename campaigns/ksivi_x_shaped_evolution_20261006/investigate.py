@@ -151,7 +151,15 @@ def specs(stage):
              dict(name='rho05_global', family='global', rho=.5)]
     broad += [dict(name='fixed_h_cond', family='cond', fixed_h=.75),
               dict(name='fixed_h_global', family='global', fixed_h=.75)]
-    entries = core + broad if stage == 'screen' else core
+    if stage == 'screen':
+        entries = core + broad
+    else:
+        # Prespecified confirmation contrasts: reproduction, score integration,
+        # bounded variance, and a stationary target with sustained step size.
+        entries = [s for s in core if s['name'] in
+                   ('canonical_cond','canonical_global','stein_cond','stein_global')]
+        entries += [s for s in broad if s['name'] in
+                    ('floor02_cond','no_anneal_const_cond','no_anneal_const_global')]
     seeds = [42] if stage == 'screen' else [42, 43, 44]
     return [dict(s, seed=seed, steps=10000 if stage == 'screen' else 50000,
                  stage=stage) for seed in seeds for s in entries]
