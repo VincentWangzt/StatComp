@@ -103,10 +103,6 @@ python src.py --config configs/nfvi_8_gaussians.yaml
 the exact flow density and does not use a reverse conditional or score proxy.
 It is available for individual runs without changing the standard config grid.
 
-For KSIVI, `train.ksivi.detach_bandwidth` controls gradients through the fitted
-median bandwidth independently of `detach_kernel`. The Student-UC config uses
-detached bandwidth, 25,000-step annealing, and the existing Riesz-kernel setup.
-
 Monitor with:
 
 ```bash
@@ -135,7 +131,10 @@ baselines/mcmc/                                    # SGLD samples (.pt)
 
 ## Scripts & Tools
 
-**Scripts** (`scripts/`): Campaign orchestration, baseline generation, artifact fetching.
+**Scripts** (`scripts/`): Grid orchestration, baseline generation, and finalization.
+
+Run Python entrypoints with `python` and shell wrappers with `bash` from the
+repository root.
 
 - Key scripts: `reproduce_baselines.sh`, `run_default_config_grid.sh`, `run_finalization.py`
 - Full reference: [`scripts/README.md`](scripts/README.md)

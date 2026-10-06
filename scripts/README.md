@@ -15,6 +15,9 @@ artifacts on the remote branch, push, then pull the artifact commit locally.
 
 ## Quick Start
 
+Run commands from the repository root with the project environment activated.
+Invoke Python scripts with `python` and shell wrappers with `bash`, as shown below.
+
 The two shell scripts provide one-command entrypoints for the most common
 workflows. See each script's header comments for the full option list.
 

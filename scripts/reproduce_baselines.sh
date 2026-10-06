@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Reproduce all baseline sample files under baselines/.
 #
 # 1) Exact toy 2D baselines  -> baselines/exact/<target>_exact_100k.pt

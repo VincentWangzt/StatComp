@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # End-to-end script for the default_config_grid campaign.
 #

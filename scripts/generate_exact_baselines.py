@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Generate exact baseline samples for toy 2D targets.
 
 Draws 100k samples (seed=42) for each target with an analytic sampler
