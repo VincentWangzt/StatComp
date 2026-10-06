@@ -1,0 +1,54 @@
+[
+  {
+    "source_commit": "7ef7cb043794672e57ddb412be51502767133dd1",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 44,
+    "batch_size": 500,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": true,
+    "only_training_change_vs_corresponding_batch128_run_is_batch_size": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 382.02,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed44_b500_anneal_on_20261006_no_metrics/KSIVI/x_shaped/20261006_182946",
+    "reference_config": "/root/ruivi/results/ksivi_x_shaped_seed44_20261006_no_metrics/KSIVI/x_shaped/20261006_175558/full_config.yaml",
+    "plot": "ksivi_x_shaped_seed44_batch500_annealing_on_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "33e8c1db6faefa49febe376b11da3462aea0b3fb5862606fed431b4647dfc1bf",
+    "exit_code": 0
+  },
+  {
+    "source_commit": "7ef7cb043794672e57ddb412be51502767133dd1",
+    "branch": "codex/ksivi-x-shaped-seed43-20261006",
+    "server": "root@connect.nmb1.seetacloud.com",
+    "ssh_port": 37874,
+    "seed": 44,
+    "batch_size": 500,
+    "completed_updates": 50000,
+    "sample_count": 10000,
+    "all_samples_finite": true,
+    "annealing_enabled": false,
+    "only_training_change_vs_corresponding_batch128_run_is_batch_size": true,
+    "metric_evaluation_enabled": false,
+    "detach_kernel": false,
+    "detach_bandwidth": false,
+    "elapsed_seconds": 383.026,
+    "remote_run_path": "/root/ruivi/results/ksivi_x_shaped_seed44_b500_anneal_off_20261006_no_metrics/KSIVI/x_shaped/20261006_182946",
+    "reference_config": "/root/ruivi/results/ksivi_x_shaped_seed44_20261006_no_annealing_no_metrics/KSIVI/x_shaped/20261006_181118/full_config.yaml",
+    "plot": "ksivi_x_shaped_seed44_batch500_annealing_off_epoch50000.png",
+    "plot_size": [
+      445,
+      491
+    ],
+    "plot_sha256": "57abd9ee8429ea86256b0a7e61f67be710e36f8894c15a43a4e44bc38dc5a63b",
+    "exit_code": 0
+  }
+]
