@@ -164,7 +164,7 @@ def build(root,out,partial=False):
                 ax.text(.02,.98,f"Seed {r['spec']['seed']}\nSW2={r['sw2']:.3f}",transform=ax.transAxes,va='top',fontsize=9)
                 if col==0:ax.set_ylabel('x2')
                 if row==2:ax.set_xlabel('x1')
-        fig.suptitle('Final samples, common viewing window; numerical tail metrics report mass outside this window',fontsize=13)
+        fig.suptitle('Final samples, common viewing window; all samples contribute to quantitative metrics',fontsize=13)
         save(fig,'final_samples','Hexbin densities are for visual comparison. Quantitative metrics include all samples, including escaped tails.')
 
     # Combine figure pages through reportlab; keep the mathematical report
@@ -218,7 +218,7 @@ def build(root,out,partial=False):
     para('Canonical policy: two width-128 SiLU hidden layers, Gaussian latent dimension 2, softplus conditional variances with floor 0.0001; '
          'Adam (0.9, 0.999), learning rate 0.001, StepLR(1000, 0.9), two independent batches of 128, and 50,000 updates. '
          'The target-score multiplier moves linearly from 0.1 to 1 over 25,000 updates. Gaussian spatial kernels and the empirical median bandwidth are differentiated. '
-         'New comparisons match mean weights and initial variance to float32 roundoff and pair the training noise. Diagnostics preserve training RNG.')
+         'New comparisons match mean weights and initial variance 1.31326 to float32 roundoff and pair the training noise. Diagnostics preserve training RNG.')
     para('Long comparisons: means (sample standard deviations across trained seeds). SW2 is sliced Wasserstein distance; KL is forward KL estimated from exact target samples. '
          'Independent KSD uses a fixed h=0.75. Each trained model, not each evaluation sample, is one statistical replicate.')
     rows=[]
@@ -248,7 +248,7 @@ def build(root,out,partial=False):
     equation(r'X=\sqrt{1.8}\,T(1,S)^T+\sqrt{0.2}\,U')
     para('This has exactly the target distribution: mixing means supply the long arms and global noise supplies transverse width. '
          'A finite continuous neural mean approximates the branch switch; the construction is not a claim of exact representation by a finite width-128 network.')
-    equation(r'D=\mathrm{diag}(d_1,d_2):\quad (2-d_1)(2-d_2)\geq3.24,\quad d_1,d_2\leq2')
+    equation(r'D=\mathrm{diag}(d_1,d_2):\quad (2-d_1)(2-d_2)\geq3.24,\quad 0\leq d_1,d_2\leq2')
     para('<b>Proof of the boundary.</b> These inequalities are equivalent to both residual covariance matrices being positive semidefinite, which suffices by Gaussian convolution. '
          'If a residual covariance is negative in a direction, dividing the target characteristic function by the noise characteristic function gives a positive exponential term growing without bound. '
          'A characteristic function has absolute value at most one, so exact deconvolution is impossible. For isotropic D=vI the exact boundary is 0 &lt;= v &lt;= 0.2. '
