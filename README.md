@@ -1,3 +1,8 @@
+# Denoising Implicit Variational Inference (DIVI)
+
+Official codebase for **Denoising Implicit Variational Inference**, accepted at
+**NeurIPS 2026**.
+
 ## Environment Setup
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
@@ -48,7 +53,7 @@ All runners implement `runner.learn()`, called by `src.py`.
 | SIVI | `runner/sivi.py` | None (prior) | Standard semi-implicit VI |
 | UIVI | `runner/uivi.py` | HMC | Unbiased importance weighting |
 | AISIVI | `runner/aisivi.py` | Learned + annealed | Annealed importance sampling |
-| DSIVI | `runner/dsivi.py` | Diffusion | Diffusion-based reverse |
+| DIVI | `runner/dsivi.py` | Denoising | Denoising score estimation |
 | KSIVI | `runner/ksivi.py` | None | Kernel Stein discrepancy |
 | NFVI | `runner/nfvi.py` | None | Exact-density RealNVP variational inference |
 
@@ -115,7 +120,7 @@ For full campaign sweeps, baseline generation, and finalization (evaluation + re
 
 For score accuracy and native estimator timing on shared frozen DIVI
 checkpoints, see [`finalization/README.md`](finalization/README.md). These
-entrypoints load existing checkpoints and use posterior HMC as the reference.
+entrypoints load given checkpoints and use posterior HMC as the reference.
 
 ## Output Layout
 
@@ -146,3 +151,7 @@ python tools/config_reviewer/server.py --port 8765
 ```
 
 Details: [`tools/config_reviewer/README.md`](tools/config_reviewer/README.md)
+
+## Citation
+
+The official BibTeX entry will be added after the preprint is uploaded to arXiv.
