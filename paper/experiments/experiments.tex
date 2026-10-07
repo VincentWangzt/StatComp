@@ -42,6 +42,17 @@ where $w_t$ is one-dimensional Brownian motion.  We discretize the path with Eul
 $
   x = (x_{\Delta t}, x_{2\Delta t}, \ldots, x_{100\Delta t}) \in \mathbb{R}^{100}.
 $
+The corresponding path prior is
+\begin{equation}
+  p_{\mathrm{prior}}(x)
+  =
+  \prod_{i=1}^{100}(2\pi\Delta t)^{-1/2}
+  \exp\left\{
+    -\frac{\left[x_{i\Delta t}-x_{(i-1)\Delta t}
+      -10x_{(i-1)\Delta t}(1-x_{(i-1)\Delta t}^2)\Delta t\right]^2}
+    {2\Delta t}
+  \right\}.
+\end{equation}
 Observations are made every five time steps,
 \begin{equation}
   y = (y_{5\Delta t}, y_{10\Delta t}, \ldots, y_{100\Delta t}),
