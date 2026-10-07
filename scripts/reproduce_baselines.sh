@@ -24,7 +24,7 @@ echo "=== SGLD Langevin_post: 1K chains, 100K steps ==="
 SGLD_1K_DIR=$(mktemp -d)
 python scripts/run_sgld_baseline.py \
     --target Langevin_post \
-    --num-samples 100000 \
+    --num-samples 1000 \
     --burn-in 100000 \
     --step-size 1e-4 \
     --thinning 1 \
