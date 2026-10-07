@@ -19,7 +19,7 @@ http://127.0.0.1:8765/
 ## Comparison Modes
 
 **Methods on target** - Compare all selected methods for a single target.
-Shows how configs differ across SIVI, UIVI, AISIVI, DSIVI, and KSIVI for the
+Shows how configs differ across SIVI, UIVI, AISIVI, DIVI, and KSIVI for the
 same target distribution.
 
 **Targets for method** - Compare all selected targets for a single method.
@@ -41,7 +41,7 @@ The reviewer expands the same nested config layers the runners load at runtime:
 
 - `target_config_path` into `target`
 - `vi_model_config_path` into `vi_model`
-- `reverse_model_config_path` into `reverse_model` (AISIVI/DSIVI)
+- `reverse_model_config_path` into `reverse_model` (AISIVI/DIVI)
 - `reverse_model_config_path` into `hmc` (UIVI)
 
 If a nested path is omitted, the reviewer uses the runner-style default path
@@ -58,5 +58,5 @@ the server.
 - `sivi` (SIVI)
 - `uivi` (UIVI)
 - `aisivi` (AISIVI)
-- `dsivi` (DSIVI)
+- `divi` (DIVI)
 - `ksivi` (KSIVI)

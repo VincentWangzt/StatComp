@@ -5,7 +5,7 @@ selection:
   targets: [x_shaped]
   seeds: auto
   checkpoint_epochs: [2000, 4000, 6000, 8000, 10000]
-  methods: [SIVI, UIVI, AISIVI, DSIVI]
+  methods: [SIVI, UIVI, AISIVI, DIVI]
 
 estimator_configs:
   SIVI: configs/sivi_{target}.yaml

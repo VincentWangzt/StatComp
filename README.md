@@ -53,7 +53,7 @@ All runners implement `runner.learn()`, called by `src.py`.
 | SIVI | `runner/sivi.py` | None (prior) | Standard semi-implicit VI |
 | UIVI | `runner/uivi.py` | HMC | Unbiased importance weighting |
 | AISIVI | `runner/aisivi.py` | Learned + annealed | Annealed importance sampling |
-| DIVI | `runner/dsivi.py` | Denoising | Denoising score estimation |
+| DIVI | `runner/divi.py` | Denoising | Denoising score estimation |
 | KSIVI | `runner/ksivi.py` | None | Kernel Stein discrepancy |
 | NFVI | `runner/nfvi.py` | None | Exact-density RealNVP variational inference |
 
@@ -94,6 +94,7 @@ Runner types are registered in `runner/runners.py` and selected via `runner_type
 ### Single Experiment
 
 ```bash
+python src.py --config configs/divi_x_shaped.yaml
 python src.py --config configs/sivi_banana.yaml
 python src.py --config configs/sivi_banana.yaml train.epochs=20000 train.vi.lr=0.001
 ```

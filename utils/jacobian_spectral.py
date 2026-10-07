@@ -4,7 +4,7 @@ Computes  E_ε[‖∇_φ μ_φ(ε)‖₂⁴]  and  E_ε[‖∇_φ σ_φ(ε)‖�
 is the matrix 2-norm (largest singular value) of the d_z × d_φ Jacobian.
 
 This supports empirical validation of the Bounded Reparameterization Assumption
-used in the DSIVI convergence theory.
+used in the DIVI convergence theory.
 """
 
 from __future__ import annotations

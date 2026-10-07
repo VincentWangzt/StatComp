@@ -26,7 +26,7 @@ from .artifacts import completed_runs, find_all_checkpoints, load_manifest, reso
 from .config import REPO_ROOT, repo_path
 from .runner_eval import remove_file_handlers
 
-METHODS = ("SIVI", "UIVI", "AISIVI", "DSIVI")
+METHODS = ("SIVI", "UIVI", "AISIVI", "DIVI")
 DEFAULT_CONFIG = REPO_ROOT / "configs/finalization/score_approximation.yaml"
 
 def stable_seed(*parts: object) -> int:
@@ -786,7 +786,7 @@ def native_aisivi_score(
     }
     return torch.cat(scores, dim=0), merged
 
-def native_dsivi_score(
+def native_divi_score(
     runner: Any,
     z: torch.Tensor,
 ) -> tuple[torch.Tensor, dict[str, float]]:
@@ -815,8 +815,8 @@ def method_native_score(
             z,
             z_chunk_size=aisivi_z_chunk_size,
         )
-    if method_upper == "DSIVI":
-        return native_dsivi_score(runner, z)
+    if method_upper == "DIVI":
+        return native_divi_score(runner, z)
     raise ValueError(f"Unsupported score-analysis method: {method}")
 
 
@@ -883,7 +883,7 @@ def select_checkpoints(cfg: DictConfig) -> list[FrozenCheckpoint]:
     if not run_dirs:
         records = completed_runs(load_manifest(cfg.selection.manifest_path))
         run_dirs = [record.result_path for record in records
-                    if record.method.upper() == "DSIVI" and record.target in targets
+                    if record.method.upper() == "DIVI" and record.target in targets
                     and (seed_set is None or record.seed in seed_set)]
     requested = cfg.selection.get("checkpoint_epochs", "all")
     epochs = None if requested == "all" else {int(epoch) for epoch in requested}
@@ -897,8 +897,8 @@ def select_checkpoints(cfg: DictConfig) -> list[FrozenCheckpoint]:
         if not snapshot.is_file():
             raise FileNotFoundError(f"Saved training configuration is required: {snapshot}")
         saved = OmegaConf.load(snapshot)
-        if saved.runner_type != "DSIVI":
-            raise ValueError(f"Expected a DIVI/DSIVI source run: {run_dir}")
+        if saved.runner_type != "DIVI":
+            raise ValueError(f"Expected a DIVI source run: {run_dir}")
         target, seed = str(saved.target_type), int(saved.seed)
         if target not in targets or (seed_set is not None and seed not in seed_set):
             continue
@@ -949,7 +949,7 @@ def _build_frozen_runner(cfg: DictConfig, checkpoint: FrozenCheckpoint, method: 
     saved = OmegaConf.load(checkpoint.config_path)
     if str(saved.vi_model_type) != "ConditionalGaussian":
         raise ValueError("This score comparison currently supports the ConditionalGaussian toy family.")
-    if method == "DSIVI":
+    if method == "DIVI":
         runner_config = OmegaConf.create(OmegaConf.to_container(saved, resolve=True))
     else:
         template = str(cfg.estimator_configs[method]).format(target=checkpoint.target)
@@ -990,7 +990,7 @@ def _build_frozen_runner(cfg: DictConfig, checkpoint: FrozenCheckpoint, method: 
     for parameter in runner.vi_model.parameters():
         parameter.requires_grad_(False)
     runner.curr_epoch = checkpoint.epoch
-    if method == "DSIVI":
+    if method == "DIVI":
         runner.reverse_model.load_state_dict(torch.load(checkpoint.checkpoint_dir / "reverse_model.pt", map_location=device, weights_only=True))
         runner.reverse_model.eval()
         for parameter in runner.reverse_model.parameters():

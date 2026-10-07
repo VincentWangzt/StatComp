@@ -8,8 +8,8 @@ from .config import repo_path
 
 
 def _display_method(name: str) -> str:
-    """Map internal method name to display name for table headers/legends."""
-    if name.upper() == "DSIVI":
+    """Normalize method names for table headers/legends."""
+    if name.upper() == "DIVI":
         return "DIVI"
     return name
 
@@ -350,7 +350,7 @@ def _method_metric_table(
     return "\n".join(lines)
 
 
-TOY_METHOD_GRID_METHODS = ["SIVI", "KSIVI", "AISIVI", "UIVI", "DSIVI"]
+TOY_METHOD_GRID_METHODS = ["SIVI", "KSIVI", "AISIVI", "UIVI", "DIVI"]
 TOY_METHOD_GRID_TARGETS = ["x_shaped", "student_uc", "8_gaussians"]
 TOY_METHOD_GRID_W2_METRICS = {
     "student_uc": "w2_trunc_abs_8",
@@ -639,7 +639,7 @@ def render_tables(summary_rows: list[dict[str, Any]], cfg: Any) -> dict[str, Pat
 
     if bool(cfg.modules.get("toy_tables", False)):
         toy_targets = [str(target) for target in cfg.selection.evaluation_targets if str(target) != "Langevin_post" and not str(target).startswith("Bnn_")]
-        toy_methods = _ordered_methods(methods, drop={"SIVI"}, last=["DSIVI"])
+        toy_methods = _ordered_methods(methods, drop={"SIVI"}, last=["DIVI"])
         toy_text = _target_metric_table(
             summary_rows,
             targets=toy_targets,
@@ -659,13 +659,13 @@ def render_tables(summary_rows: list[dict[str, Any]], cfg: Any) -> dict[str, Pat
         outputs["toy_method_grid"].write_text(toy_method_grid_text, encoding="utf-8")
 
     if bool(cfg.modules.get("langevin_table", False)):
-        langevin_methods = _ordered_methods(methods, last=["DSIVI"])
+        langevin_methods = _ordered_methods(methods, last=["DIVI"])
         langevin_text = render_langevin_table(summary_rows, langevin_methods, cfg)
         outputs["langevin"] = out_dir / "langevin_metrics.tex"
         outputs["langevin"].write_text(langevin_text, encoding="utf-8")
 
     if bool(cfg.modules.get("student_edge_table", False)):
-        student_methods = _ordered_methods(methods, drop={"KSIVI"}, last=["DSIVI"])
+        student_methods = _ordered_methods(methods, drop={"KSIVI"}, last=["DIVI"])
         edge_text = _method_metric_table(
             summary_rows,
             target="student_uc",
@@ -681,7 +681,7 @@ def render_tables(summary_rows: list[dict[str, Any]], cfg: Any) -> dict[str, Pat
 
     if bool(cfg.modules.get("bnn_table", False)):
         bnn_targets = [str(target) for target in cfg.selection.bnn_targets]
-        bnn_methods = _ordered_methods(methods, last=["DSIVI"])
+        bnn_methods = _ordered_methods(methods, last=["DIVI"])
         bnn_text = render_bnn_table(summary_rows, bnn_targets, bnn_methods, cfg)
         outputs["bnn"] = out_dir / "bnn_rmse_nll.tex"
         outputs["bnn"].write_text(bnn_text, encoding="utf-8")

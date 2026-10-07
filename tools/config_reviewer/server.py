@@ -17,16 +17,16 @@ from omegaconf import OmegaConf
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-METHODS = ["sivi", "uivi", "aisivi", "dsivi", "ksivi"]
+METHODS = ["sivi", "uivi", "aisivi", "divi", "ksivi"]
 METHOD_LABELS = {
     "sivi": "SIVI",
     "uivi": "UIVI",
     "aisivi": "AISIVI",
-    "dsivi": "DSIVI",
+    "divi": "DIVI",
     "ksivi": "KSIVI",
 }
 
-CORE_METHODS = ["sivi", "uivi", "aisivi", "dsivi"]
+CORE_METHODS = ["sivi", "uivi", "aisivi", "divi"]
 KERNEL_METHODS = ["ksivi"]
 METHOD_GROUPS = {
     "all": METHODS,
@@ -70,7 +70,7 @@ TARGET_TO_GROUP = {
     **{target: "BNN" for target in BNN_TARGETS},
 }
 
-REVERSE_RUNNERS = {"AISIVI", "DSIVI"}
+REVERSE_RUNNERS = {"AISIVI", "DIVI"}
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 

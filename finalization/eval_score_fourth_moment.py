@@ -1,6 +1,6 @@
 """Post-hoc evaluation of score fourth moments at each checkpoint.
 
-Loads DSIVI checkpoints from the campaign manifest and computes
+Loads DIVI checkpoints from the campaign manifest and computes
 E_z[||score_p(z)||^4] and E_z[||score_q(z)||^4] at each saved checkpoint,
 where z ~ q_phi (the VI model), score_p is the target score, and score_q
 is the proxy (reverse/denoising model) score.
@@ -230,7 +230,7 @@ DEFAULT_MANIFEST = "campaigns/default_config_grid/manifest.json"
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Evaluate score fourth moments at DSIVI checkpoints.",
+        description="Evaluate score fourth moments at DIVI checkpoints.",
     )
     p.add_argument(
         "--manifest",
@@ -242,7 +242,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--targets",
         nargs="*",
         default=None,
-        help="Target names to evaluate (default: all DSIVI targets in manifest).",
+        help="Target names to evaluate (default: all DIVI targets in manifest).",
     )
     p.add_argument(
         "--seeds",
@@ -282,7 +282,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
 
-    # Load manifest and filter to DSIVI runs
+    # Load manifest and filter to DIVI runs
     manifest_path = repo_path(args.manifest)
     if manifest_path is None or not manifest_path.exists():
         print(f"ERROR: Manifest not found: {args.manifest}", file=sys.stderr)
@@ -290,34 +290,34 @@ def main(argv: list[str] | None = None) -> None:
     manifest = load_manifest(args.manifest)
     records = completed_runs(manifest)
 
-    # Filter to DSIVI only
-    dsivi_records = [r for r in records if r.runner_type.upper() == "DSIVI"]
-    if not dsivi_records:
-        print("No completed DSIVI runs found in manifest.", file=sys.stderr)
+    # Filter to DIVI only
+    divi_records = [r for r in records if r.runner_type.upper() == "DIVI"]
+    if not divi_records:
+        print("No completed DIVI runs found in manifest.", file=sys.stderr)
         sys.exit(1)
 
     # Filter by targets
     if args.targets:
         target_set = set(args.targets)
-        dsivi_records = [r for r in dsivi_records if r.target in target_set]
+        divi_records = [r for r in divi_records if r.target in target_set]
 
     # Filter by seeds
     if args.seeds:
         seed_set = set(args.seeds)
-        dsivi_records = [r for r in dsivi_records if r.seed in seed_set]
+        divi_records = [r for r in divi_records if r.seed in seed_set]
 
-    if not dsivi_records:
-        print("No matching DSIVI runs after filtering.", file=sys.stderr)
+    if not divi_records:
+        print("No matching DIVI runs after filtering.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Evaluating {len(dsivi_records)} DSIVI runs...")
+    print(f"Evaluating {len(divi_records)} DIVI runs...")
 
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = REPO_ROOT / output_dir
 
     all_results: list[dict[str, Any]] = []
-    for rec in tqdm(dsivi_records, desc="Runs"):
+    for rec in tqdm(divi_records, desc="Runs"):
         try:
             run_results = evaluate_run(
                 rec,

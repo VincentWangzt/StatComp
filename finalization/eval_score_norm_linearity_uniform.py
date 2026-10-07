@@ -1,6 +1,6 @@
 """Post-hoc evaluation of score-norm linearity with uniform-sphere z sampling.
 
-Loads DSIVI checkpoints from the campaign manifest and computes
+Loads DIVI checkpoints from the campaign manifest and computes
 
     log max(||nabla_z log p(z)||_2, ||s_psi(z)||_2) - log(||z||_2 + 1)
 
@@ -278,7 +278,7 @@ def evaluate_score_norm_linearity_uniform(
     records: list[RunRecord],
     cfg: Any,
 ) -> Path:
-    """Evaluate score-norm linearity (uniform z) for selected DSIVI runs.
+    """Evaluate score-norm linearity (uniform z) for selected DIVI runs.
 
     Returns the path to the output CSV.
     """
@@ -297,20 +297,20 @@ def evaluate_score_norm_linearity_uniform(
         logger.info("Score norm linearity uniform CSV already exists at %s; skipping.", csv_path)
         return csv_path
 
-    # Filter to DSIVI only
-    dsivi_records = [r for r in records if r.runner_type.upper() == "DSIVI"]
-    if not dsivi_records:
-        logger.warning("No DSIVI records found for score norm linearity uniform evaluation.")
+    # Filter to DIVI only
+    divi_records = [r for r in records if r.runner_type.upper() == "DIVI"]
+    if not divi_records:
+        logger.warning("No DIVI records found for score norm linearity uniform evaluation.")
         write_csv([], csv_path)
         return csv_path
 
     logger.info(
-        "Evaluating score norm linearity (uniform z): %d DSIVI runs, epochs=%s, n_samples=%d",
-        len(dsivi_records), target_epochs, n_samples,
+        "Evaluating score norm linearity (uniform z): %d DIVI runs, epochs=%s, n_samples=%d",
+        len(divi_records), target_epochs, n_samples,
     )
 
     all_results: list[dict[str, Any]] = []
-    for rec in tqdm(dsivi_records, desc="Score norm linearity (uniform)"):
+    for rec in tqdm(divi_records, desc="Score norm linearity (uniform)"):
         max_radius = float(max_radius_cfg.get(rec.target, DEFAULT_MAX_RADIUS.get(rec.target, 10.0)))
         try:
             run_results = evaluate_run(
@@ -340,7 +340,7 @@ DEFAULT_MANIFEST = "campaigns/default_config_grid/manifest.json"
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Evaluate score-norm linearity (uniform z) on DSIVI checkpoints.",
+        description="Evaluate score-norm linearity (uniform z) on DIVI checkpoints.",
     )
     p.add_argument(
         "--manifest",
@@ -421,21 +421,21 @@ def main(argv: list[str] | None = None) -> None:
     records = completed_runs(manifest)
 
     # Filter
-    dsivi_records = [r for r in records if r.runner_type.upper() == "DSIVI"]
+    divi_records = [r for r in records if r.runner_type.upper() == "DIVI"]
     if args.targets:
         target_set = set(args.targets)
-        dsivi_records = [r for r in dsivi_records if r.target in target_set]
+        divi_records = [r for r in divi_records if r.target in target_set]
     if args.seeds:
         seed_set = set(args.seeds)
-        dsivi_records = [r for r in dsivi_records if r.seed in seed_set]
+        divi_records = [r for r in divi_records if r.seed in seed_set]
 
-    if not dsivi_records:
-        print("No matching DSIVI runs after filtering.", file=sys.stderr)
+    if not divi_records:
+        print("No matching DIVI runs after filtering.", file=sys.stderr)
         sys.exit(1)
 
     max_radius_map = _parse_max_radius(args.max_radius)
 
-    print(f"Evaluating score norm linearity (uniform z) for {len(dsivi_records)} DSIVI runs...")
+    print(f"Evaluating score norm linearity (uniform z) for {len(divi_records)} DIVI runs...")
     print(f"  Max radius map: {max_radius_map}")
 
     output_dir = Path(args.output_dir)
@@ -443,7 +443,7 @@ def main(argv: list[str] | None = None) -> None:
         output_dir = REPO_ROOT / output_dir
 
     all_results: list[dict[str, Any]] = []
-    for rec in tqdm(dsivi_records, desc="Runs"):
+    for rec in tqdm(divi_records, desc="Runs"):
         max_radius = max_radius_map.get(rec.target, 10.0)
         try:
             run_results = evaluate_run(

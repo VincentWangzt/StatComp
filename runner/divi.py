@@ -13,12 +13,12 @@ from utils.kernels import GaussianKernel
 logger = get_logger()
 
 
-class DSIVIRunner(BaseReverseConditionalRunner):
+class DIVIRunner(BaseReverseConditionalRunner):
 
     def __init__(
         self,
         config: DictConfig,
-        name: str = "DSIVI",
+        name: str = "DIVI",
     ):
         super().__init__(config=config, name=name)
         self.reverse_model: BaseDenoiseModel

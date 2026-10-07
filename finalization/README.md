@@ -36,7 +36,7 @@ python scripts/run_score_approximation.py selection.targets=[x_shaped] evaluatio
 ```
 
 This uses `configs/finalization/score_approximation.yaml`. Explicit
-`selection.run_dirs=[results/DSIVI/x_shaped/<timestamp>]` replaces manifest
+`selection.run_dirs=[results/DIVI/x_shaped/<timestamp>]` replaces manifest
 selection. Each source run must include `full_config.yaml` and both
 `vi_model.pt` and `reverse_model.pt` for every selected checkpoint epoch.
 

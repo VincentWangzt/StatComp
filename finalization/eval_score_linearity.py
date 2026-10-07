@@ -1,6 +1,6 @@
 """Post-hoc evaluation of the score-linearity assumption.
 
-Loads DSIVI checkpoints from the campaign manifest and computes
+Loads DIVI checkpoints from the campaign manifest and computes
 
     log ‖∇_z log p(z) − s_ψ(z)‖₂ − log(‖z‖₂ + 1)
 
@@ -223,7 +223,7 @@ def evaluate_score_linearity(
     records: list[RunRecord],
     cfg: Any,
 ) -> Path:
-    """Evaluate score linearity for selected DSIVI runs at target checkpoints.
+    """Evaluate score linearity for selected DIVI runs at target checkpoints.
 
     Returns the path to the output CSV.
     """
@@ -241,20 +241,20 @@ def evaluate_score_linearity(
         logger.info("Score linearity CSV already exists at %s; skipping.", csv_path)
         return csv_path
 
-    # Filter to DSIVI only
-    dsivi_records = [r for r in records if r.runner_type.upper() == "DSIVI"]
-    if not dsivi_records:
-        logger.warning("No DSIVI records found for score linearity evaluation.")
+    # Filter to DIVI only
+    divi_records = [r for r in records if r.runner_type.upper() == "DIVI"]
+    if not divi_records:
+        logger.warning("No DIVI records found for score linearity evaluation.")
         write_csv([], csv_path)
         return csv_path
 
     logger.info(
-        "Evaluating score linearity: %d DSIVI runs, epochs=%s, n_samples=%d",
-        len(dsivi_records), target_epochs, n_samples,
+        "Evaluating score linearity: %d DIVI runs, epochs=%s, n_samples=%d",
+        len(divi_records), target_epochs, n_samples,
     )
 
     all_results: list[dict[str, Any]] = []
-    for rec in tqdm(dsivi_records, desc="Score linearity"):
+    for rec in tqdm(divi_records, desc="Score linearity"):
         try:
             run_results = evaluate_run(
                 rec,
@@ -282,7 +282,7 @@ DEFAULT_MANIFEST = "campaigns/default_config_grid/manifest.json"
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Evaluate score-linearity assumption on DSIVI checkpoints.",
+        description="Evaluate score-linearity assumption on DIVI checkpoints.",
     )
     p.add_argument(
         "--manifest",
@@ -343,26 +343,26 @@ def main(argv: list[str] | None = None) -> None:
     records = completed_runs(manifest)
 
     # Filter
-    dsivi_records = [r for r in records if r.runner_type.upper() == "DSIVI"]
+    divi_records = [r for r in records if r.runner_type.upper() == "DIVI"]
     if args.targets:
         target_set = set(args.targets)
-        dsivi_records = [r for r in dsivi_records if r.target in target_set]
+        divi_records = [r for r in divi_records if r.target in target_set]
     if args.seeds:
         seed_set = set(args.seeds)
-        dsivi_records = [r for r in dsivi_records if r.seed in seed_set]
+        divi_records = [r for r in divi_records if r.seed in seed_set]
 
-    if not dsivi_records:
-        print("No matching DSIVI runs after filtering.", file=sys.stderr)
+    if not divi_records:
+        print("No matching DIVI runs after filtering.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Evaluating score linearity for {len(dsivi_records)} DSIVI runs...")
+    print(f"Evaluating score linearity for {len(divi_records)} DIVI runs...")
 
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = REPO_ROOT / output_dir
 
     all_results: list[dict[str, Any]] = []
-    for rec in tqdm(dsivi_records, desc="Runs"):
+    for rec in tqdm(divi_records, desc="Runs"):
         try:
             run_results = evaluate_run(
                 rec,

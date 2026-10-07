@@ -180,12 +180,12 @@ def aisivi_score(
         score = score - score.mean(dim=0, keepdim=True)
     return score
 
-def dsivi_score(
+def divi_score(
     runner: Any,
     z: torch.Tensor,
     generating_epsilon: torch.Tensor,
 ) -> torch.Tensor:
-    """Estimate the DSIVI/DIVI score with one score-network forward pass."""
+    """Estimate the DIVI score with one score-network forward pass."""
 
     del generating_epsilon
     with torch.no_grad():
@@ -227,7 +227,7 @@ def estimator_metadata(runner: Any, method: str) -> dict[str, Any]:
             "hmc_burn_in_steps": None,
             "hmc_leapfrog_steps": None,
         }
-    if normalized == "DSIVI":
+    if normalized == "DIVI":
         return {
             "estimator": "score-network forward pass",
             "native_auxiliary_samples": 0,
@@ -269,7 +269,7 @@ def environment_metadata(device: torch.device) -> dict[str, Any]:
 
 
 ESTIMATORS: dict[str, ScoreEstimator] = {
-    "SIVI": sivi_score, "UIVI": uivi_score, "AISIVI": aisivi_score, "DSIVI": dsivi_score,
+    "SIVI": sivi_score, "UIVI": uivi_score, "AISIVI": aisivi_score, "DIVI": divi_score,
 }
 
 

@@ -6,8 +6,8 @@ seed: 42
 cuda_visible_devices: "0"
 use_cuda: true
 
-runner_type: DSIVI
-target_type: multimodal
+runner_type: DIVI
+target_type: 8_gaussians
 vi_model_type: ConditionalGaussian
 reverse_model_type: MLPDenoiseModel
 
@@ -19,7 +19,7 @@ train:
     scheduler:
       type: StepLR
       step_size: 1000
-      gamma: 0.7
+      gamma: 0.9
   reverse:
     lr: 1.0e-3
     batch_size: 2048
@@ -80,4 +80,5 @@ metric:
     model_chunk: 5000
     min_bandwidth: 1.0e-6
     dtype: float32
+
 

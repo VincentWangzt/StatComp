@@ -43,8 +43,8 @@ from .eval_vi_fourth_moment import (
 
 
 def _display_method(name: str) -> str:
-    """Map internal method name to display name for legends/titles."""
-    if name.upper() == "DSIVI":
+    """Normalize method names for legends/titles."""
+    if name.upper() == "DIVI":
         return "DIVI"
     return name
 
@@ -343,11 +343,11 @@ def _trace_stats(samples: torch.Tensor, target_model: Any) -> tuple[np.ndarray, 
 def langevin_panel_labels(methods: list[str], available_methods: set[str] | None = None) -> list[str]:
     available = None if available_methods is None else {method.upper() for method in available_methods}
     method_labels = [method.upper() for method in methods if available is None or method.upper() in available]
-    labels = ["SGLD"] + [method for method in method_labels if method != "DSIVI"]
-    if "DSIVI" not in method_labels:
+    labels = ["SGLD"] + [method for method in method_labels if method != "DIVI"]
+    if "DIVI" not in method_labels:
         return labels
     cols = math.ceil((len(labels) + 1) / 2)
-    labels.insert(cols, "DSIVI")
+    labels.insert(cols, "DIVI")
     return labels
 
 
@@ -432,7 +432,6 @@ _KL_METHOD_COLORS: dict[str, str] = {
     "UIVI": "#1f77b4",   # blue
     "AISIVI": "#ff7f0e", # orange
     "DIVI": "#2ca02c",   # green
-    "DSIVI": "#2ca02c",  # green (internal name)
     "KSIVI": "#d62728",  # red
     "SIVI": "#9467bd",   # purple
 }
@@ -829,7 +828,7 @@ def _evaluate_m_eps(
     targets: list[str],
     cfg: Any,
 ) -> Path:
-    """Compute M_eps at every checkpoint for all matching DSIVI runs.
+    """Compute M_eps at every checkpoint for all matching DIVI runs.
 
     Writes results to ``{output_dir}/m_eps_results.csv``.  When the CSV
     already exists and ``evaluation.m_eps.overwrite`` is false the
@@ -855,13 +854,13 @@ def _evaluate_m_eps(
     device = str(cfg.evaluation.get("device", "auto"))
 
     target_set = {normalize_target(t) for t in targets}
-    dsivi_records = [
+    divi_records = [
         rec for rec in records
-        if rec.method.upper() == "DSIVI" and rec.target in target_set
+        if rec.method.upper() == "DIVI" and rec.target in target_set
     ]
 
     all_results: list[dict[str, Any]] = []
-    for rec in dsivi_records:
+    for rec in divi_records:
         try:
             n_samples = int(n_samples_override.get(rec.target, n_samples_default))
             run_results = evaluate_m_eps_run(
@@ -888,7 +887,7 @@ def _collect_m_eps_curves(
     """Load M_eps CSV and build per-seed (epoch, M_eps) curves.
 
     Returns:
-        Mapping of ``("DSIVI", target)`` to list of ``(epochs, values)``
+        Mapping of ``("DIVI", target)`` to list of ``(epochs, values)``
         seed curves, matching the shape expected by
         :func:`_aggregate_curves_minmax`.
     """
@@ -911,7 +910,7 @@ def _collect_m_eps_curves(
         points.sort(key=lambda p: p[0])
         epochs = np.array([p[0] for p in points], dtype=np.float64)
         values = np.array([p[1] for p in points], dtype=np.float64)
-        curves.setdefault(("DSIVI", target), []).append((epochs, values))
+        curves.setdefault(("DIVI", target), []).append((epochs, values))
     return curves
 
 
@@ -979,7 +978,7 @@ def _evaluate_vi_fourth_moment(
     targets: list[str],
     cfg: Any,
 ) -> Path:
-    """Compute VI output fourth moments at every checkpoint for all matching DSIVI runs.
+    """Compute VI output fourth moments at every checkpoint for all matching DIVI runs.
 
     Writes results to ``{output_dir}/vi_fourth_moment_results.csv``.  When the CSV
     already exists and ``evaluation.vi_fourth_moment.overwrite`` is false the
@@ -1002,13 +1001,13 @@ def _evaluate_vi_fourth_moment(
     device = str(cfg.evaluation.get("device", "auto"))
 
     target_set = {normalize_target(t) for t in targets}
-    dsivi_records = [
+    divi_records = [
         rec for rec in records
-        if rec.method.upper() == "DSIVI" and rec.target in target_set
+        if rec.method.upper() == "DIVI" and rec.target in target_set
     ]
 
     all_results: list[dict[str, Any]] = []
-    for rec in dsivi_records:
+    for rec in divi_records:
         try:
             run_results = evaluate_vi_4th_run(
                 rec,
@@ -1034,7 +1033,7 @@ def _collect_vi_fourth_moment_curves(
     """Load VI fourth moment CSV and build per-seed (epoch, vi_fourth_moment) curves.
 
     Returns:
-        Mapping of ``("DSIVI", target)`` to list of ``(epochs, values)``
+        Mapping of ``("DIVI", target)`` to list of ``(epochs, values)``
         seed curves, matching the shape expected by
         :func:`_aggregate_curves_minmax`.
     """
@@ -1057,7 +1056,7 @@ def _collect_vi_fourth_moment_curves(
         points.sort(key=lambda p: p[0])
         epochs = np.array([p[0] for p in points], dtype=np.float64)
         values = np.array([p[1] for p in points], dtype=np.float64)
-        curves.setdefault(("DSIVI", target), []).append((epochs, values))
+        curves.setdefault(("DIVI", target), []).append((epochs, values))
     return curves
 
 
@@ -1125,7 +1124,7 @@ def _evaluate_score_4th_moment(
     targets: list[str],
     cfg: Any,
 ) -> Path:
-    """Compute score fourth moments at every checkpoint for all matching DSIVI runs.
+    """Compute score fourth moments at every checkpoint for all matching DIVI runs.
 
     Writes results to ``{output_dir}/score_4th_moment_results.csv``.  When the CSV
     already exists and ``evaluation.score_4th_moment.overwrite`` is false the
@@ -1150,13 +1149,13 @@ def _evaluate_score_4th_moment(
     device = str(cfg.evaluation.get("device", "auto"))
 
     target_set = {normalize_target(t) for t in targets}
-    dsivi_records = [
+    divi_records = [
         rec for rec in records
-        if rec.method.upper() == "DSIVI" and rec.target in target_set
+        if rec.method.upper() == "DIVI" and rec.target in target_set
     ]
 
     all_results: list[dict[str, Any]] = []
-    for rec in dsivi_records:
+    for rec in divi_records:
         try:
             run_results = evaluate_score_4th_run(
                 rec,
@@ -1187,7 +1186,7 @@ def _collect_score_4th_moment_curves(
 
     Returns:
         (score_p_curves, score_q_curves, score_diff_curves) -- each mapping
-        ``("DSIVI", target)`` to list of ``(epochs, values)`` seed curves,
+        ``("DIVI", target)`` to list of ``(epochs, values)`` seed curves,
         matching the shape expected by :func:`_aggregate_curves_minmax`.
     """
     import csv as _csv
@@ -1214,9 +1213,9 @@ def _collect_score_4th_moment_curves(
         p_values = np.array([p[1] for p in points], dtype=np.float64)
         q_values = np.array([p[2] for p in points], dtype=np.float64)
         diff_values = np.array([p[3] for p in points], dtype=np.float64)
-        score_p_curves.setdefault(("DSIVI", target), []).append((epochs, p_values))
-        score_q_curves.setdefault(("DSIVI", target), []).append((epochs, q_values))
-        score_diff_curves.setdefault(("DSIVI", target), []).append((epochs, diff_values))
+        score_p_curves.setdefault(("DIVI", target), []).append((epochs, p_values))
+        score_q_curves.setdefault(("DIVI", target), []).append((epochs, q_values))
+        score_diff_curves.setdefault(("DIVI", target), []).append((epochs, diff_values))
     return score_p_curves, score_q_curves, score_diff_curves
 
 
