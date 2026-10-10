@@ -29,7 +29,7 @@ import yaml
 from models.networks import SIMINet
 from models.target_models import X_shaped
 from sivistein_2d import KernelSIVI
-from utils.kernels import gaussian_kernel, gaussian_kernel_matmul
+from utils.kernels import gaussian_kernel
 
 HERE = Path(__file__).resolve().parent
 WORKSPACE = HERE.parent.parent
@@ -76,10 +76,9 @@ def source_info():
     }
 
 
-def make_runner(condition, seed, backend="matmul", batch=None):
+def make_runner(condition, seed, batch=None):
     raw = yaml.safe_load((HERE / "configs/x_shaped.yml").read_text())
     raw["train"].update(TREATMENTS[condition])
-    raw["train"]["pairwise_backend"] = backend
     if batch is not None:
         raw["train"]["batchsize"] = batch
     config = namespace(raw)
@@ -147,7 +146,7 @@ def worker(args):
     torch.set_num_threads(args.threads)
     torch.set_num_interop_threads(1)
     condition, seed = args.conditions[0], args.seeds[0]
-    runner, config = make_runner(condition, seed, args.backend, args.batch)
+    runner, config = make_runner(condition, seed, args.batch)
     total = args.steps or runner.num_iters
     directory = args.root / f"{condition}_s{seed}"
     directory.mkdir(parents=True, exist_ok=True)
@@ -224,7 +223,7 @@ def check(args):
         ['git', 'show', f'{vendor_commit}:third_party/KSIVI/models/networks.py'], cwd=WORKSPACE, text=True)
     scope = {}
     exec(compile(baseline, '<pristine-upstream-networks>', 'exec'), scope)
-    current, _ = make_runner('canonical_global', 42, 'upstream', 17)
+    current, _ = make_runner('canonical_global', 42, 17)
     config = current.trainpara
     torch.manual_seed(42)
     pristine = scope['SIMINet'](config, torch.device('cpu'))
@@ -241,50 +240,34 @@ def check(args):
     results['global_model_matches_pristine_bytes_and_forward'] = True
     results['vendor_commit'] = vendor_commit
 
-    global_runner, _ = make_runner('canonical_global', 43, 'upstream', 17)
+    global_runner, _ = make_runner('canonical_global', 43, 17)
     global_rng = torch.random.get_rng_state()
-    conditional_runner, _ = make_runner('canonical_cond', 43, 'upstream', 17)
+    conditional_runner, _ = make_runner('canonical_cond', 43, 17)
     assert torch.equal(global_rng, torch.random.get_rng_state())
     for p, q in zip(global_runner.SemiVInet.mu.parameters(), conditional_runner.SemiVInet.mu.parameters()):
         torch.testing.assert_close(p, q, rtol=0, atol=0)
     torch.testing.assert_close(conditional_runner.SemiVInet.getstd(z), torch.ones(17, 2), rtol=0, atol=0)
     results['paired_initial_mean_variance_and_training_rng'] = True
 
-    # Compare the parameter gradient to the upstream expression on identical
-    # samples, and separately compare the memory-saving distance calculation.
-    for dtype in [torch.float64, torch.float32]:
-        a, _ = make_runner('canonical_global', 44, 'upstream', 37)
-        a.SemiVInet.to(dtype=dtype)
-        z1, z2 = torch.randn(37, 3, dtype=dtype), torch.randn(37, 3, dtype=dtype)
-        x, b = a.SemiVInet(z1)
-        y, c = a.SemiVInet(z2)
-        # Upstream target constructs float32 constants; use float32 samples for
-        # the full runner comparison. Kernel-only checks also cover float64.
-        if dtype == torch.float32:
-            reference = (((a.target_model.score(x) + b) @ (a.target_model.score(y) + c).T)
-                         * gaussian_kernel(x, y, detach=False)).mean()
-            parameters = list(a.SemiVInet.parameters())
-            rg = torch.autograd.grad(reference, parameters, retain_graph=True)
-            actual, _ = a.loss_from_samples(x, b, y, c)
-            ag = torch.autograd.grad(actual, parameters, retain_graph=True)
-            for p, q in zip(rg, ag):
-                torch.testing.assert_close(p, q, rtol=0, atol=0)
-            a.trainpara.pairwise_backend = 'matmul'
-            fast, _ = a.loss_from_samples(x, b, y, c)
-            fg = torch.autograd.grad(fast, parameters, retain_graph=True)
-            largest = max(float((p-q).abs().max()) for p,q in zip(rg,fg))
-            for p, q in zip(rg, fg):
-                torch.testing.assert_close(p, q, rtol=2e-4, atol=3e-6)
-            results['original_loss_refactor_exact'] = True
-            results['matmul_full_parameter_gradient_max_abs_error'] = largest
-        r = gaussian_kernel(x, y, detach=False)
-        f = gaussian_kernel_matmul(x, y, detach=False)
-        tolerance = 1e-11 if dtype == torch.float64 else 3e-6
-        torch.testing.assert_close(r, f, rtol=tolerance * 10, atol=tolerance)
+    # Compare every parameter gradient to the upstream expression on identical
+    # samples. The final reproduction uses the untouched upstream kernel.
+    a, _ = make_runner('canonical_global', 44, 37)
+    z1, z2 = torch.randn(37, 3), torch.randn(37, 3)
+    x, b = a.SemiVInet(z1)
+    y, c = a.SemiVInet(z2)
+    reference = (((a.target_model.score(x) + b) @ (a.target_model.score(y) + c).T)
+                 * gaussian_kernel(x, y, detach=False)).mean()
+    parameters = list(a.SemiVInet.parameters())
+    rg = torch.autograd.grad(reference, parameters, retain_graph=True)
+    actual, _ = a.loss_from_samples(x, b, y, c)
+    ag = torch.autograd.grad(actual, parameters)
+    for p, q in zip(rg, ag):
+        torch.testing.assert_close(p, q, rtol=0, atol=0)
+    results['original_loss_refactor_exact'] = True
 
     # Derive the Stein kernel by automatic spatial differentiation of k rather
     # than repeating the closed-form expression used for training.
-    a, _ = make_runner('stein_cond', 42, 'matmul', 2)
+    a, _ = make_runner('stein_cond', 42, 2)
     a.trainpara.fixed_bandwidth = .75
     x = torch.tensor([[.3, -.8], [1.1, .2]], requires_grad=True)
     y = torch.tensor([[-.4, .6], [.7, -.1]], requires_grad=True)
@@ -305,7 +288,7 @@ def check(args):
         torch.testing.assert_close(p, q, rtol=2e-5, atol=3e-6)
     results['stein_value_and_gradient_match_spatial_autodiff'] = True
 
-    a, _ = make_runner('floor02_cond', 42, 'matmul', 17)
+    a, _ = make_runner('floor02_cond', 42, 17)
     with torch.no_grad():
         a.SemiVInet.variance_head.bias.fill_(-100)
     torch.testing.assert_close(a.SemiVInet.getstd(z).square(), torch.full((17, 2), .2), atol=3e-8, rtol=0)
@@ -321,23 +304,22 @@ def check(args):
 def benchmark(args):
     records = []
     for condition in ['canonical_global', 'stein_cond']:
-        for backend in ['upstream', 'matmul']:
-            for threads in [1, 2, 4]:
-                torch.set_num_threads(threads)
-                runner, _ = make_runner(condition, 42, backend, args.batch)
-                optimizer, scheduler = optimizer_for(runner)
-                start = time.perf_counter()
-                for step in range(1, 201):
-                    loss, _ = runner.training_loss(step)
-                    optimizer.zero_grad(set_to_none=True)
-                    loss.backward()
-                    optimizer.step()
-                    scheduler.step()
-                seconds = time.perf_counter() - start
-                record = {'condition': condition, 'backend': backend, 'threads': threads,
-                          'steps': 200, 'seconds': seconds, 'ms_per_step': seconds * 5}
-                records.append(record)
-                print(json.dumps(record), flush=True)
+        for threads in [1, 2, 4]:
+            torch.set_num_threads(threads)
+            runner, _ = make_runner(condition, 42, args.batch)
+            optimizer, scheduler = optimizer_for(runner)
+            start = time.perf_counter()
+            for step in range(1, 201):
+                loss, _ = runner.training_loss(step)
+                optimizer.zero_grad(set_to_none=True)
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+            seconds = time.perf_counter() - start
+            record = {'condition': condition, 'backend': 'upstream', 'threads': threads,
+                      'steps': 200, 'seconds': seconds, 'ms_per_step': seconds * 5}
+            records.append(record)
+            print(json.dumps(record), flush=True)
     write_json(args.root / 'benchmark.json', records)
 
 
@@ -351,7 +333,7 @@ def run(args):
             result = json.loads(existing.read_text())
             expected = args.steps or 50000
             if result['status'] == 'completed' and result['steps'] == expected:
-                _, expected_config = make_runner(name, seed, args.backend, args.batch)
+                _, expected_config = make_runner(name, seed, args.batch)
                 if result['specification']['config'] != expected_config:
                     raise RuntimeError(f'Refusing to reuse results from a different configuration: {existing}')
                 if result['specification']['source']['source_sha256'] != source_info()['source_sha256']:
@@ -367,7 +349,7 @@ def run(args):
             log = (directory / 'console.log').open('w', encoding='utf-8')
             command = [sys.executable, '-W', 'ignore::SyntaxWarning', str(Path(__file__).resolve()),
                        'worker', '--root', str(args.root), '--conditions', name, '--seeds', str(seed),
-                       '--threads', str(args.threads), '--backend', args.backend]
+                       '--threads', str(args.threads)]
             if args.steps:
                 command += ['--steps', str(args.steps)]
             if args.batch:
@@ -504,7 +486,6 @@ def main():
     parser.add_argument('--batch',type=int)
     parser.add_argument('--threads',type=int,default=1)
     parser.add_argument('--jobs',type=int,default=6)
-    parser.add_argument('--backend',choices=['upstream','matmul'],default='matmul')
     args=parser.parse_args()
     args.root=args.root.resolve()
     if args.jobs < 1 or args.threads < 1 or (args.steps is not None and args.steps < 1):

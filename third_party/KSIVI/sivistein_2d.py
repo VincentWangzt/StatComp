@@ -40,9 +40,6 @@ class KernelSIVI(object):
         detach_width = (getattr(self.trainpara, "stein_detach_bandwidth", True)
                         if estimator == "stein" else self.trainpara.detach)
         kernel = self.kernel
-        if (self.config.kernel == "gaussian"
-                and getattr(self.trainpara, "pairwise_backend", "upstream") == "matmul"):
-            kernel = gaussian_kernel_matmul
         fixed_h = getattr(self.trainpara, "fixed_bandwidth", -1)
         if estimator == "conditional":
             K, h = kernel(X, X_aux, h=fixed_h, get_width=True, detach=detach_width)
@@ -52,8 +49,7 @@ class KernelSIVI(object):
                 raise ValueError("The local Stein implementation requires a Gaussian kernel")
             K, h = kernel(X, X_aux, h=fixed_h, get_width=True, detach=detach_width)
             h2 = h * h
-            distances = (X.square().sum(1, keepdim=True) + X_aux.square().sum(1)[None]
-                         - 2 * (X @ X_aux.T)).clamp_min(0)
+            distances = (X[:, None, :] - X_aux[None, :, :]).square().sum(-1)
             # (sx - sy) dot (x - y), without a [N,N,D] temporary.
             cross = ((sx * X).sum(1, keepdim=True) + (sy * X_aux).sum(1)[None]
                      - sx @ X_aux.T - X @ sy.T)

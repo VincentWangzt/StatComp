@@ -38,12 +38,13 @@ retain the upstream derivative through the fitted width. Their finite-batch
 updates should therefore not be interpreted as two unbiased estimators of one
 fixed-bandwidth objective.
 
-For local CPU efficiency, the harness computes pairwise squared distances
-using matrix products rather than a broadcast `[N,N,D]` tensor. This leaves the
-mathematical kernel and median rule unchanged; the `check` command compares
-values and full parameter gradients against the pristine upstream expression.
-`--backend upstream` selects the original distance implementation. Diagnostics
-run outside the training RNG stream and are saved every 5,000 updates, avoiding
+The Gaussian kernel code is unchanged from upstream. A matrix-product distance
+optimization was screened, then discarded: float32 rounding can change the
+selected median pair and its gradient even when loss values agree closely.
+The interrupted pilot is excluded from the reported results. The `check`
+command compares values and full parameter gradients against the pristine
+upstream expression. Diagnostics run outside the training RNG stream and are
+saved every 5,000 updates, avoiding
 the upstream per-epoch plotting and snapshot overhead. Checkpoints include
 Adam, scheduler, and RNG state for reproducible resumption.
 
