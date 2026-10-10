@@ -31,6 +31,46 @@ class KernelSIVI(object):
     def preprocess(self):
         self.save_fig_to_path = os.path.join(self.config.log_path, "fig")
         os.makedirs(self.save_fig_to_path,exist_ok=True)
+
+    def loss_from_samples(self, X, neg_score, X_aux, neg_score_aux, alpha=1.0):
+        """Original conditional-score loss, or its Gaussian Stein-kernel form."""
+        estimator = getattr(self.trainpara, "estimator", "conditional")
+        sx = alpha * self.target_model.score(X)
+        sy = alpha * self.target_model.score(X_aux)
+        detach_width = (getattr(self.trainpara, "stein_detach_bandwidth", True)
+                        if estimator == "stein" else self.trainpara.detach)
+        kernel = self.kernel
+        if (self.config.kernel == "gaussian"
+                and getattr(self.trainpara, "pairwise_backend", "upstream") == "matmul"):
+            kernel = gaussian_kernel_matmul
+        fixed_h = getattr(self.trainpara, "fixed_bandwidth", -1)
+        if estimator == "conditional":
+            K, h = kernel(X, X_aux, h=fixed_h, get_width=True, detach=detach_width)
+            loss = (((sx + neg_score) @ (sy + neg_score_aux).T) * K).mean()
+        elif estimator == "stein":
+            if self.config.kernel != "gaussian":
+                raise ValueError("The local Stein implementation requires a Gaussian kernel")
+            K, h = kernel(X, X_aux, h=fixed_h, get_width=True, detach=detach_width)
+            h2 = h * h
+            distances = (X.square().sum(1, keepdim=True) + X_aux.square().sum(1)[None]
+                         - 2 * (X @ X_aux.T)).clamp_min(0)
+            # (sx - sy) dot (x - y), without a [N,N,D] temporary.
+            cross = ((sx * X).sum(1, keepdim=True) + (sy * X_aux).sum(1)[None]
+                     - sx @ X_aux.T - X @ sy.T)
+            inner = sx @ sy.T + cross / h2 + X.shape[1] / h2 - distances / h2**2
+            loss = (inner * K).mean()
+        else:
+            raise ValueError(f"Unknown estimator: {estimator}")
+        return loss, h
+
+    def training_loss(self, iteration):
+        Z = torch.randn([self.trainpara.batchsize, self.trainpara.z_dim], device=self.device)
+        X, neg_score = self.SemiVInet(Z)
+        Z_aux = torch.randn([self.trainpara.batchsize, self.trainpara.z_dim], device=self.device)
+        X_aux, neg_score_aux = self.SemiVInet(Z_aux)
+        alpha = annealing(iteration, warm_up_interval=self.num_iters // self.trainpara.warm_ratio,
+                          anneal=self.trainpara.annealing)
+        return self.loss_from_samples(X, neg_score, X_aux, neg_score_aux, alpha)
     def learn(self):
         self.preprocess()
 
@@ -66,12 +106,9 @@ class KernelSIVI(object):
                 if not self.trainpara.ustat:
                     Z_aux = torch.randn([self.trainpara.batchsize, self.trainpara.z_dim]).to(self.device)
                     X_aux, neg_score_implicit_aux = self.SemiVInet(Z_aux)
-                    compu_targetscore = self.target_model.score(X) * annealing_coef(self.iter_idx)
-                    compu_targetscore_aux = self.target_model.score(X_aux) * annealing_coef(self.iter_idx)
-                    
-                    x_xaux_dist = torch.matmul((compu_targetscore + neg_score_implicit),(compu_targetscore_aux  + neg_score_implicit_aux).T)
-                    kernel_dist = self.kernel(X, X_aux, detach=self.trainpara.detach)
-                    loss_kxy = (x_xaux_dist * kernel_dist).mean()
+                    loss_kxy, _ = self.loss_from_samples(
+                        X, neg_score_implicit, X_aux, neg_score_implicit_aux,
+                        annealing_coef(self.iter_idx))
                 else:
                     compu_targetscore = self.target_model.score(X) * annealing_coef(self.iter_idx)
                     x_xaux_dist = torch.matmul((compu_targetscore + neg_score_implicit),(compu_targetscore  + neg_score_implicit).T)
@@ -86,7 +123,7 @@ class KernelSIVI(object):
                 if i % (self.trainpara.num_perepoch//2) == 0: 
                     loss_list.append(loss_kxy.item())
                     logger.info('{} Iter {} | Loss: {:.4f}'.format(time.asctime(time.localtime(time.time())), self.iter_idx, loss_kxy))
-                    logger.info("compu_targetscore: {:.4f}, neg_score_implicit: {:.4f}, f_norm, {:.4f}".format(compu_targetscore.mean().item(), neg_score_implicit.abs().mean().item(),(compu_targetscore + neg_score_implicit).mean().item()))
+                    logger.info("neg_score_implicit: {:.4f}".format(neg_score_implicit.abs().mean().item()))
         torch.save(X.detach().cpu(),os.path.join(self.save_fig_to_path, str(self.iter_idx)+'.pt'))
         np.save(os.path.join(self.save_fig_to_path, "loss"+'.npy'), np.array(loss_list))
 if __name__ == "__main__":
