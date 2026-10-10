@@ -1,0 +1,9 @@
+{
+  "global_model_matches_pristine_bytes_and_forward": true,
+  "vendor_commit": "896ca1bb9ae2be465c86c9d0a274f410e4e177b4",
+  "paired_initial_mean_variance_and_training_rng": true,
+  "original_loss_refactor_exact": true,
+  "stein_value_and_gradient_match_spatial_autodiff": true,
+  "variance_floor_and_isolated_diagnostic_rng": true,
+  "status": "passed"
+}

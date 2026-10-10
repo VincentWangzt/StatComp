@@ -1,0 +1,9 @@
+{
+  "processor": "Intel(R) Core(TM) Ultra 9 185H",
+  "physical_cores": 16,
+  "logical_processors": 22,
+  "total_memory_gib": 31.43,
+  "execution": "Local Windows CPU",
+  "worker_processes": 6,
+  "torch_threads_per_worker": 1
+}

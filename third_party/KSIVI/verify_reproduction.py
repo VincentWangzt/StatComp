@@ -16,7 +16,7 @@ def verify(root):
     torch.set_num_interop_threads(1)
     upstream = json.loads((experiment.HERE / "UPSTREAM.json").read_text())
     original_hashes = {item["path"]: item["sha256"] for item in upstream["files"]}
-    for path in ["configs/x_shaped.yml", "utils/kernels.py"]:
+    for path in ["configs/x_shaped.yml", "utils/kernels.py", "models/target_models.py"]:
         assert hashlib.sha256((experiment.HERE / path).read_bytes()).hexdigest() == original_hashes[path]
     current_hashes = experiment.source_info()["source_sha256"]
     records = []
@@ -80,7 +80,7 @@ def verify(root):
         str(seed): experiment.sliced_w2(experiment.target_samples(10000, seed=seed), reference)
         for seed in [42, 43, 44]
     }
-    output = {"status": "passed", "canonical_config_and_kernel_unchanged_from_upstream": True,
+    output = {"status": "passed", "canonical_config_target_and_kernel_unchanged_from_upstream": True,
               "source_sha256": current_hashes, "runs": records,
               "independent_exact_target_sample_sw2": sampling_baselines,
               "note": "The exact-target sample distances indicate evaluation noise; they are not an error correction."}

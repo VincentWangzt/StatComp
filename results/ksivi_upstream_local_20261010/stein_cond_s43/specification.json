@@ -1,0 +1,51 @@
+{
+  "condition": "stein_cond",
+  "seed": 43,
+  "steps": 50000,
+  "threads": 1,
+  "config": {
+    "target_score": "x_shaped",
+    "kernel": "gaussian",
+    "train": {
+      "SIMI": "SIMINet",
+      "num_epochs": 500,
+      "num_perepoch": 100,
+      "batchsize": 500,
+      "lr_SIMI": 0.001,
+      "gamma": 0.9,
+      "gamma_step": 1000,
+      "z_dim": 3,
+      "h_dim": 50,
+      "out_dim": 2,
+      "annealing": false,
+      "detach": false,
+      "ustat": false,
+      "warm_ratio": 2,
+      "log_var_ini": 0,
+      "log_var_min": -20,
+      "variance_mode": "conditional",
+      "estimator": "stein",
+      "stein_detach_bandwidth": true
+    },
+    "sampling": {
+      "visual_time": 10,
+      "num": 1000
+    }
+  },
+  "source": {
+    "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+    "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+    "source_sha256": {
+      "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+      "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+      "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+      "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+      "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+    },
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "torch": "2.9.0+cpu",
+    "numpy": "2.3.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "device": "cpu"
+  }
+}

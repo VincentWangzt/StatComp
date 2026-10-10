@@ -1,0 +1,1197 @@
+{
+  "status": "completed",
+  "runs": 12,
+  "source": {
+    "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+    "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+    "source_sha256": {
+      "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+      "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+      "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+      "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+      "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+    },
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "torch": "2.9.0+cpu",
+    "numpy": "2.3.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "device": "cpu"
+  },
+  "canonical_config": {
+    "target_score": "x_shaped",
+    "kernel": "gaussian",
+    "train": {
+      "SIMI": "SIMINet",
+      "num_epochs": 500,
+      "num_perepoch": 100,
+      "batchsize": 500,
+      "lr_SIMI": 0.001,
+      "gamma": 0.9,
+      "gamma_step": 1000,
+      "z_dim": 3,
+      "h_dim": 50,
+      "out_dim": 2,
+      "annealing": false,
+      "detach": false,
+      "ustat": false,
+      "warm_ratio": 2,
+      "log_var_ini": 0,
+      "log_var_min": -20
+    },
+    "sampling": {
+      "visual_time": 10,
+      "num": 1000
+    }
+  },
+  "treatments": {
+    "canonical_cond": {
+      "variance_mode": "conditional",
+      "estimator": "conditional"
+    },
+    "canonical_global": {
+      "variance_mode": "global",
+      "estimator": "conditional"
+    },
+    "stein_cond": {
+      "variance_mode": "conditional",
+      "estimator": "stein",
+      "stein_detach_bandwidth": true
+    },
+    "floor02_cond": {
+      "variance_mode": "conditional",
+      "estimator": "conditional",
+      "variance_floor": 0.2
+    }
+  },
+  "summary": {
+    "canonical_cond": {
+      "n": 3,
+      "sw2_mean": 0.3686943986558244,
+      "sw2_sd": 0.25297218775115626,
+      "sw2_by_seed": {
+        "42": 0.480371721684187,
+        "43": 0.07910146570148235,
+        "44": 0.5466100085818038
+      }
+    },
+    "canonical_global": {
+      "n": 3,
+      "sw2_mean": 0.03850096785362849,
+      "sw2_sd": 0.0026479691173604343,
+      "sw2_by_seed": {
+        "42": 0.039748781598834715,
+        "43": 0.040294489592060334,
+        "44": 0.03545963236999042
+      }
+    },
+    "stein_cond": {
+      "n": 3,
+      "sw2_mean": 0.05324256061929619,
+      "sw2_sd": 0.021026859189308016,
+      "sw2_by_seed": {
+        "42": 0.037780836588880144,
+        "43": 0.0447613862148428,
+        "44": 0.07718545905416563
+      }
+    },
+    "floor02_cond": {
+      "n": 3,
+      "sw2_mean": 0.04269659269360632,
+      "sw2_sd": 0.00410209001622271,
+      "sw2_by_seed": {
+        "42": 0.03813887558798387,
+        "43": 0.04385851186129789,
+        "44": 0.04609239063153719
+      }
+    }
+  },
+  "figures": {
+    "combined": "final_samples.png",
+    "individual": [
+      "canonical_cond_s42.png",
+      "canonical_global_s42.png",
+      "stein_cond_s42.png",
+      "floor02_cond_s42.png",
+      "canonical_cond_s43.png",
+      "canonical_global_s43.png",
+      "stein_cond_s43.png",
+      "floor02_cond_s43.png",
+      "canonical_cond_s44.png",
+      "canonical_global_s44.png",
+      "stein_cond_s44.png",
+      "floor02_cond_s44.png"
+    ]
+  },
+  "notes": [
+    "Local CPU runs; no remote execution.",
+    "Original width-50 ReLU architecture, exponential variance, batch 500, no annealing, Adam and StepLR.",
+    "Conditional variance shares the original two hidden layers; its head starts at constant variance 1.",
+    "All methods have identical initial means, variances, and training RNG streams for each seed.",
+    "Original estimator differentiates median bandwidth; Stein variant detaches it, as in the earlier investigation.",
+    "Default variance floor is exp(-20), including conditional/Stein; the floor treatment uses variance 0.2.",
+    "Plot window is [-5,5]^2; SW2 includes all 10000 samples, including tails outside the plot.",
+    "SW2 is root mean squared projected quantile distance over 128 directions, not full 2D Wasserstein distance.",
+    "These are independent upstream-default experiments; they do not reuse the earlier remote samples."
+  ],
+  "results": [
+    {
+      "condition": "canonical_cond",
+      "seed": 42,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1638.0791215000208,
+      "final_loss": 0.04346020147204399,
+      "metrics": {
+        "sw2": 0.480371721684187,
+        "mean": [
+          0.5595242584687192,
+          -0.011054256241978146
+        ],
+        "covariance": [
+          [
+            1.535547947341569,
+            -0.019887173119717553
+          ],
+          [
+            -0.019887173119717553,
+            1.9305918566864948
+          ]
+        ],
+        "variance_mean": 0.2619772079227042,
+        "variance_median": 0.12171782180666924,
+        "variance_q01": 0.0009666746010771021,
+        "variance_min": 7.149829343688907e-06,
+        "inverse_variance_mean": 78.87712992275472,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 149.6240234375,
+        "outside_plot_fraction": 0.0019,
+        "positive_diagonal_fraction": 0.4888,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_cond",
+        "seed": 42,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "canonical_global",
+      "seed": 42,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1613.7070006998256,
+      "final_loss": 0.002149434993043542,
+      "metrics": {
+        "sw2": 0.039748781598834715,
+        "mean": [
+          -0.01800040376135148,
+          0.011774941904749722
+        ],
+        "covariance": [
+          [
+            1.9864711994911328,
+            -0.04199502053582184
+          ],
+          [
+            -0.04199502053582184,
+            1.9834180401139594
+          ]
+        ],
+        "variance_mean": 0.19473560899496078,
+        "variance_median": 0.19473560899496078,
+        "variance_q01": 0.1903587132692337,
+        "variance_min": 0.1903587132692337,
+        "inverse_variance_mean": 5.137763120295906,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 10.27408218383789,
+        "outside_plot_fraction": 0.0007,
+        "positive_diagonal_fraction": 0.4904,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_global",
+        "seed": 42,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "global",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "stein_cond",
+      "seed": 42,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 2611.8211133999284,
+      "final_loss": -0.0025112503208220005,
+      "metrics": {
+        "sw2": 0.037780836588880144,
+        "mean": [
+          0.013833189139282331,
+          0.008048988042148994
+        ],
+        "covariance": [
+          [
+            1.9457422598007204,
+            -0.052001886698703564
+          ],
+          [
+            -0.052001886698703564,
+            1.9734256322150556
+          ]
+        ],
+        "variance_mean": 0.023098861245893818,
+        "variance_median": 0.00020299934112699702,
+        "variance_q01": 2.06115369216775e-09,
+        "variance_min": 2.06115369216775e-09,
+        "inverse_variance_mean": 20075230.680132136,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.02985,
+        "component_score_second_moment": 39054404.0,
+        "outside_plot_fraction": 0.0006,
+        "positive_diagonal_fraction": 0.4995,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "stein_cond",
+        "seed": 42,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "stein",
+            "stein_detach_bandwidth": true
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "floor02_cond",
+      "seed": 42,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1629.6294050998986,
+      "final_loss": 0.0031062487978488207,
+      "metrics": {
+        "sw2": 0.03813887558798387,
+        "mean": [
+          -0.013197413177741691,
+          -0.011460539206303657
+        ],
+        "covariance": [
+          [
+            1.989821684012723,
+            0.017336390930971432
+          ],
+          [
+            0.017336390930971432,
+            1.9855877976986809
+          ]
+        ],
+        "variance_mean": 0.20009194968491792,
+        "variance_median": 0.19999998807907104,
+        "variance_q01": 0.19999998807907104,
+        "variance_min": 0.19999998807907104,
+        "inverse_variance_mean": 4.997887051839376,
+        "variance_floor": 0.2,
+        "floor_fraction": 0.99185,
+        "component_score_second_moment": 9.996896743774414,
+        "outside_plot_fraction": 0.0006,
+        "positive_diagonal_fraction": 0.5022,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "floor02_cond",
+        "seed": 42,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional",
+            "variance_floor": 0.2
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "canonical_cond",
+      "seed": 43,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1627.5833085998893,
+      "final_loss": -0.06367439776659012,
+      "metrics": {
+        "sw2": 0.07910146570148235,
+        "mean": [
+          -0.054473341452516616,
+          0.0408580814528279
+        ],
+        "covariance": [
+          [
+            1.9044554385401284,
+            0.07588596547101122
+          ],
+          [
+            0.07588596547101122,
+            1.9520271438012096
+          ]
+        ],
+        "variance_mean": 0.12621226953077758,
+        "variance_median": 0.08886764198541641,
+        "variance_q01": 0.0011776937998365612,
+        "variance_min": 2.8870226742583327e-05,
+        "inverse_variance_mean": 65.73436591586888,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 137.96693420410156,
+        "outside_plot_fraction": 0.0007,
+        "positive_diagonal_fraction": 0.4969,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_cond",
+        "seed": 43,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "canonical_global",
+      "seed": 43,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1613.2644263999537,
+      "final_loss": 0.00038199793198145926,
+      "metrics": {
+        "sw2": 0.040294489592060334,
+        "mean": [
+          -0.009983302590693348,
+          -0.011625013651209883
+        ],
+        "covariance": [
+          [
+            1.9831994290070631,
+            -0.001886173815698569
+          ],
+          [
+            -0.001886173815698569,
+            1.986534024106968
+          ]
+        ],
+        "variance_mean": 0.19234108924865723,
+        "variance_median": 0.19234108924865723,
+        "variance_q01": 0.18660874664783478,
+        "variance_min": 0.18660874664783478,
+        "inverse_variance_mean": 5.203719146542539,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 10.4125394821167,
+        "outside_plot_fraction": 0.0008,
+        "positive_diagonal_fraction": 0.5027,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_global",
+        "seed": 43,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "global",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "stein_cond",
+      "seed": 43,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 2355.8999506998807,
+      "final_loss": -0.0040976558811962605,
+      "metrics": {
+        "sw2": 0.0447613862148428,
+        "mean": [
+          -0.0020335218753665687,
+          0.033474777238909154
+        ],
+        "covariance": [
+          [
+            1.9328072658539326,
+            0.020831937993979612
+          ],
+          [
+            0.020831937993979612,
+            1.9388030185368095
+          ]
+        ],
+        "variance_mean": 0.07629326070997247,
+        "variance_median": 0.060567036271095276,
+        "variance_q01": 0.00024376471352297813,
+        "variance_min": 1.9106864783680066e-06,
+        "inverse_variance_mean": 317.4404155681762,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 648.2130126953125,
+        "outside_plot_fraction": 0.0003,
+        "positive_diagonal_fraction": 0.5045,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "stein_cond",
+        "seed": 43,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "stein",
+            "stein_detach_bandwidth": true
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "floor02_cond",
+      "seed": 43,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1577.935032399837,
+      "final_loss": -0.00024588865926489234,
+      "metrics": {
+        "sw2": 0.04385851186129789,
+        "mean": [
+          -0.009382115283329039,
+          -0.011392886929307133
+        ],
+        "covariance": [
+          [
+            1.9440644249081158,
+            0.028733934321012285
+          ],
+          [
+            0.028733934321012285,
+            1.9673700270843795
+          ]
+        ],
+        "variance_mean": 0.2001308323197067,
+        "variance_median": 0.19999998807907104,
+        "variance_q01": 0.19999998807907104,
+        "variance_min": 0.19999998807907104,
+        "inverse_variance_mean": 4.9970808016125385,
+        "variance_floor": 0.2,
+        "floor_fraction": 0.99095,
+        "component_score_second_moment": 9.996942520141602,
+        "outside_plot_fraction": 0.0011,
+        "positive_diagonal_fraction": 0.4901,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "floor02_cond",
+        "seed": 43,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional",
+            "variance_floor": 0.2
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "canonical_cond",
+      "seed": 44,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1573.435251200106,
+      "final_loss": -0.04431118071079254,
+      "metrics": {
+        "sw2": 0.5466100085818038,
+        "mean": [
+          -0.6308974881110422,
+          0.03980331163937226
+        ],
+        "covariance": [
+          [
+            1.5237536207032687,
+            -0.0930750159767518
+          ],
+          [
+            -0.0930750159767518,
+            1.9532304711976356
+          ]
+        ],
+        "variance_mean": 0.23501177697878262,
+        "variance_median": 0.1307094469666481,
+        "variance_q01": 0.0004223581662517973,
+        "variance_min": 7.576471148240671e-07,
+        "inverse_variance_mean": 226.3862093612913,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 339.24151611328125,
+        "outside_plot_fraction": 0.0015,
+        "positive_diagonal_fraction": 0.4868,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_cond",
+        "seed": 44,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "canonical_global",
+      "seed": 44,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1562.917181200115,
+      "final_loss": 0.0019764138851314783,
+      "metrics": {
+        "sw2": 0.03545963236999042,
+        "mean": [
+          0.010816359027381987,
+          -0.015190790830994956
+        ],
+        "covariance": [
+          [
+            2.028125045389514,
+            0.025001778167262782
+          ],
+          [
+            0.025001778167262782,
+            2.019664690041944
+          ]
+        ],
+        "variance_mean": 0.19720014184713364,
+        "variance_median": 0.19720014184713364,
+        "variance_q01": 0.1742745339870453,
+        "variance_min": 0.1742745339870453,
+        "inverse_variance_mean": 5.140465453182823,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.0,
+        "component_score_second_moment": 10.268012046813965,
+        "outside_plot_fraction": 0.0003,
+        "positive_diagonal_fraction": 0.5048,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "canonical_global",
+        "seed": 44,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "global",
+            "estimator": "conditional"
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "stein_cond",
+      "seed": 44,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 2353.0608304000925,
+      "final_loss": 0.002377293771132827,
+      "metrics": {
+        "sw2": 0.07718545905416563,
+        "mean": [
+          0.0019170284247025848,
+          0.06355648492774926
+        ],
+        "covariance": [
+          [
+            1.8851126673456127,
+            -0.042122832654399575
+          ],
+          [
+            -0.042122832654399575,
+            1.867382722259313
+          ]
+        ],
+        "variance_mean": 0.11918092220112494,
+        "variance_median": 0.05283743888139725,
+        "variance_q01": 4.85140558907915e-07,
+        "variance_min": 2.06115369216775e-09,
+        "inverse_variance_mean": 710209.9238897227,
+        "variance_floor": 2.061153622438558e-09,
+        "floor_fraction": 0.00075,
+        "component_score_second_moment": 846734.625,
+        "outside_plot_fraction": 0.0003,
+        "positive_diagonal_fraction": 0.4943,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "stein_cond",
+        "seed": 44,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "stein",
+            "stein_detach_bandwidth": true
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    },
+    {
+      "condition": "floor02_cond",
+      "seed": 44,
+      "steps": 50000,
+      "status": "completed",
+      "elapsed_seconds": 1358.925171900075,
+      "final_loss": 0.00036218040622770786,
+      "metrics": {
+        "sw2": 0.04609239063153719,
+        "mean": [
+          -0.003442986002191901,
+          -0.03354745418755337
+        ],
+        "covariance": [
+          [
+            2.046420376301319,
+            0.007687659005306601
+          ],
+          [
+            0.007687659005306601,
+            2.026260232121093
+          ]
+        ],
+        "variance_mean": 0.20012581986561417,
+        "variance_median": 0.19999998807907104,
+        "variance_q01": 0.19999998807907104,
+        "variance_min": 0.19999998807907104,
+        "inverse_variance_mean": 4.997154120228683,
+        "variance_floor": 0.2,
+        "floor_fraction": 0.9893,
+        "component_score_second_moment": 9.963081359863281,
+        "outside_plot_fraction": 0.0002,
+        "positive_diagonal_fraction": 0.5086,
+        "samples": 10000,
+        "projection_directions": 128
+      },
+      "specification": {
+        "condition": "floor02_cond",
+        "seed": 44,
+        "steps": 50000,
+        "threads": 1,
+        "config": {
+          "target_score": "x_shaped",
+          "kernel": "gaussian",
+          "train": {
+            "SIMI": "SIMINet",
+            "num_epochs": 500,
+            "num_perepoch": 100,
+            "batchsize": 500,
+            "lr_SIMI": 0.001,
+            "gamma": 0.9,
+            "gamma_step": 1000,
+            "z_dim": 3,
+            "h_dim": 50,
+            "out_dim": 2,
+            "annealing": false,
+            "detach": false,
+            "ustat": false,
+            "warm_ratio": 2,
+            "log_var_ini": 0,
+            "log_var_min": -20,
+            "variance_mode": "conditional",
+            "estimator": "conditional",
+            "variance_floor": 0.2
+          },
+          "sampling": {
+            "visual_time": 10,
+            "num": 1000
+          }
+        },
+        "source": {
+          "upstream": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+          "workspace_commit": "47da86d902029f34e172661eaa219e751929f968",
+          "source_sha256": {
+            "models/networks.py": "bed33c5e2c8f9a0f51061f7d52fc06c32268034557029169831651b8607f2809",
+            "sivistein_2d.py": "a560f6ddf113b997ced9d232b48e2eb8932a591234447423899e73df3c90b6d3",
+            "utils/kernels.py": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c",
+            "configs/x_shaped.yml": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3",
+            "reproduce_x_shaped.py": "7433eb379d363ed6dcc6e46bd9e1509110e07d60d25d0fdb95a41c6aad00c3da"
+          },
+          "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+          "torch": "2.9.0+cpu",
+          "numpy": "2.3.5",
+          "platform": "Windows-11-10.0.26200-SP0",
+          "device": "cpu"
+        }
+      }
+    }
+  ],
+  "checks": {
+    "global_model_matches_pristine_bytes_and_forward": true,
+    "vendor_commit": "896ca1bb9ae2be465c86c9d0a274f410e4e177b4",
+    "paired_initial_mean_variance_and_training_rng": true,
+    "original_loss_refactor_exact": true,
+    "stein_value_and_gradient_match_spatial_autodiff": true,
+    "variance_floor_and_isolated_diagnostic_rng": true,
+    "status": "passed"
+  }
+}
