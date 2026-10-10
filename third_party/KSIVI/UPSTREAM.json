@@ -1,0 +1,125 @@
+{
+  "repository": "https://github.com/longinYu/KSIVI",
+  "commit": "4d995745265b06f37143f156760fa5ebe7ecbbec",
+  "omitted_files": [
+    "datasets/.DS_Store"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "311722009ecf696be5b5b9a2f66948cc339e82535ed25e526749cce64233ed18"
+    },
+    {
+      "path": "SGLD_trace/parallel_MALA_LRwaveform.pt",
+      "sha256": "44993592a16a57db8e3def0634d7a58676f659c63c6e1349f302fb7c4230dc69"
+    },
+    {
+      "path": "SGLD_trace/parallel_SGLD_LRwaveform.pt",
+      "sha256": "e3037fd9d0f02cac2167c48d60287cb259f38bd2e39fc841e893e21480a656ce"
+    },
+    {
+      "path": "configs/LRwaveform.yml",
+      "sha256": "1574de815aadf69fe9b64429136d3a1241c8560d5414f4ad4e7f3351b7922fdd"
+    },
+    {
+      "path": "configs/banana.yml",
+      "sha256": "9069ece295e2d32b50125263aa110e016be4fcf365b6d317eb563f253487030c"
+    },
+    {
+      "path": "configs/kernel_sivi_boston.yml",
+      "sha256": "0dd356e8ef8308c89e8103b350b778b5e33968ab6549e2c7e3bedaea7847fbcf"
+    },
+    {
+      "path": "configs/kernel_sivi_langevin_post.yml",
+      "sha256": "37381e48c007b8c143a8e8e634f8d8737b12de299f676c2b9d971107a0600a83"
+    },
+    {
+      "path": "configs/multimodal.yml",
+      "sha256": "79365b3ee860bf0c25546b25212dbb813c5d8693a294f4e4d27a09ef25f9f80d"
+    },
+    {
+      "path": "configs/student_uc.yml",
+      "sha256": "3ffc98a30893f6afc6d97696f31f480ed5516cefe5e1c7edbe1400f2e100dca5"
+    },
+    {
+      "path": "configs/x_shaped.yml",
+      "sha256": "3f821e80e1b5df3b660dbf28bc4014ea49213c09c37bf89bc7183b9feaddaed3"
+    },
+    {
+      "path": "datasets/boston_housing.txt",
+      "sha256": "baadf72995725d76efe787b664e1f083388c79ba21ef9a7990d87f774184735a"
+    },
+    {
+      "path": "models/networks.py",
+      "sha256": "936ede0184aed0b259c1d41625b640afce48609981c4487fa3a51e46cf008cbc"
+    },
+    {
+      "path": "models/target_models.py",
+      "sha256": "c85683f4c56fabdfdc2d75ed2ea03c2a7aa34a42a9aa6d71ae7eebc3adbc61ec"
+    },
+    {
+      "path": "run.sh",
+      "sha256": "b0f577082204b91fad8a042d7ea66305e4ab3d02b10d410df70f5f3352155fb8"
+    },
+    {
+      "path": "sgld_langevin_post.py",
+      "sha256": "cace4382e6fe4ccc05259f72b7459d358d3facbd3b6271c9a7a61ebbfffa2f3e"
+    },
+    {
+      "path": "sgld_lr.py",
+      "sha256": "1a614371518be65da283957c4ee05f464eefbb4f4bb8222326987f87b19c326a"
+    },
+    {
+      "path": "sivistein_2d.py",
+      "sha256": "41549fa5d66c003220b86ebfa2451f46ba143319b277757b38c6b73a2bf9696e"
+    },
+    {
+      "path": "sivistein_bnn.py",
+      "sha256": "cbea6df0364e336440e8e9f0a69f168702cf3337db111195f6fe0a06524058cc"
+    },
+    {
+      "path": "sivistein_langevin_post.py",
+      "sha256": "45e815b29913bd526da6b514e31c866cafb4a3e9a5e62fbf92eb8d26ad0963d0"
+    },
+    {
+      "path": "sivistein_lr.py",
+      "sha256": "5701effda32f58672d40a5b2cd960522cb669572313e4e174f3d912c36082bce"
+    },
+    {
+      "path": "sivistein_t_student.py",
+      "sha256": "86e6eec7732fdf5ada58051e3970aac8b6d96689b42e0411b37a9e46eed6308c"
+    },
+    {
+      "path": "utils/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "utils/annealing.py",
+      "sha256": "f7f3e1fc388e79390f77ccc6ccdb4ce48e2e829b00e81d9ccc43dcd854ed3771"
+    },
+    {
+      "path": "utils/batch_jacobian.py",
+      "sha256": "710860ae5ac639d2f38b3a10cf5da046fb463506581eab02cd581929aba25a8f"
+    },
+    {
+      "path": "utils/density_estimation.py",
+      "sha256": "66489e7651d608b9e8a6d3635fcdadb0e47fb9064196f42b2d2606fa3a83dda3"
+    },
+    {
+      "path": "utils/ema.py",
+      "sha256": "5fe446d75ea5216b95c331418b40589fa364ccb469539b8992128065165475c8"
+    },
+    {
+      "path": "utils/kernels.py",
+      "sha256": "979ac537914c0efce2b7cee760f2b3d0b0fe8257b4c2f23f6137cd365426478c"
+    },
+    {
+      "path": "utils/parse_config.py",
+      "sha256": "5633f93d4987e104a9914e7f1a8f983566ce7b99eb27e6a4b5a79131bf6cb186"
+    },
+    {
+      "path": "utils/svgd_bnn_hyperparam.py",
+      "sha256": "fd451b82ec3392a2f2da11a09c9fb68470f60ee2f7aa6eae85e5adbf86e168c1"
+    }
+  ]
+}
