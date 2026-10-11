@@ -3,7 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amsthm}
 \usepackage{newtxtext,newtxmath,microtype}
-\usepackage{booktabs,longtable,array,graphicx,pdflscape,caption,fancyhdr,xcolor,hyperref,placeins}
+\usepackage{booktabs,longtable,array,graphicx,pdflscape,caption,fancyhdr,xcolor,hyperref,placeins,float}
 \definecolor{ink}{HTML}{23384D}
 \hypersetup{colorlinks=true,linkcolor=ink,urlcolor=ink,citecolor=ink,
  pdftitle={Variance learning rates and backbones in KSIVI},pdfauthor={StatComp research investigation}}
@@ -500,8 +500,11 @@ convergence theorem for the implemented Adam procedure is claimed.
 \section{Complete numerical comparisons}
 @APPENDIX_TABLES@
 
+\clearpage
+\begin{landscape}
 \section{Final sample distributions}
 @SAMPLE_FIGURES@
+\end{landscape}
 
 \section{Reproduction, validation, and artifact inventory}
 @REPRODUCIBILITY@

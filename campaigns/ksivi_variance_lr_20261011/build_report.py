@@ -61,6 +61,10 @@ def table(headers,rows,caption=None,label_name=None,width='4.8cm',long=False):
     columns='@{}p{'+width+'}'+'r'*(len(headers)-1)+'@{}'
     body='\n'.join(' & '.join(map(str,row))+r' \\' for row in rows)
     if long:
+        if len(rows)<=16:
+            return (r'\begin{table}[H]\centering\small'+'\n'+
+                    (r'\caption{'+caption+'}'+(r'\label{'+label_name+'}' if label_name else '')+'\n' if caption else '')+
+                    table(headers,rows,width=width)+r'\end{table}'+'\n')
         title=(r'\caption{'+caption+'}'+(r'\label{'+label_name+'}' if label_name else '')+r'\\'+'\n') if caption else ''
         header=' & '.join(headers)+r' \\ \midrule'+'\n'
         return r'{\small'+'\n'+r'\begin{longtable}{'+columns+'}\n'+title+r'\toprule'+'\n'+header+r'\endfirsthead'+'\n'+r'\toprule'+'\n'+header+r'\endhead'+'\n'+body+'\n'+r'\bottomrule\end{longtable}}'+'\n'
@@ -68,9 +72,9 @@ def table(headers,rows,caption=None,label_name=None,width='4.8cm',long=False):
 
 
 def figure(name,caption,wide=False):
-    body=(r'\begin{figure}['+('p' if wide else 'htbp')+r']\centering'+'\n'+r'\includegraphics[width=\linewidth]{figures/'+name+'.pdf}\n'+
+    body=(r'\begin{figure}[H]\centering'+'\n'+r'\includegraphics[width='+('.93' if wide else '')+r'\linewidth]{figures/'+name+'.pdf}\n'+
             r'\caption{'+caption+r'}\label{fig:'+name+'}\n'+r'\end{figure}'+'\n')
-    return r'\begin{landscape}'+'\n'+body+r'\end{landscape}'+'\n' if wide else body
+    return body
 
 
 def paired(a,b):
