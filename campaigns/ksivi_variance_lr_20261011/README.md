@@ -94,6 +94,17 @@ The slow shared head improves all five paired equal-LR runs. It beats global
 variance on three of five seeds; these data do **not** establish superiority
 over global variance. The linear variance map learns nearly global variance:
 its mean conditional coefficient of variation is about 3.3% on held-out seeds.
+
+The focused [4 x 5 sample grid](report/figures/selected_4x5_samples.png)
+shows shared equal-LR, shared slow-head, independent linear, and global variance
+as rows, with all five held-out seeds 45--49 as columns. Each panel uses its
+saved 10K samples at 50K updates, common axes and a shared logarithmic count
+scale, with exact target contours and the original SW2 diagnostic. Row labels
+give the same mean and sample SD as the summary table. A companion PDF and
+JSON provenance record (including sample hashes) are saved beside the image.
+Regenerate on the server with
+`python campaigns/ksivi_variance_lr_20261011/plot_selected_grid.py`.
+
 Making an independent variance branch arbitrarily slow fails: linear ratios
 0.001--0.1 under-adapt, and the exact finite-budget Adam reachability theorem
 rules out an exact target fit at the smallest rates in the stated budgets.
