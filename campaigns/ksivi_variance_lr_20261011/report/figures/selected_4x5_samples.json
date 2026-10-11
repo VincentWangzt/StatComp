@@ -1,0 +1,211 @@
+{
+  "source_revision": "7b2dbbfbc4f40498f47f27efa40072f4b7bcbbcb",
+  "phase": "confirmation",
+  "steps": 50000,
+  "layout": {
+    "rows": 4,
+    "columns": 5
+  },
+  "seeds": [
+    45,
+    46,
+    47,
+    48,
+    49
+  ],
+  "sample_count_per_panel": 10000,
+  "plot_limits": [
+    -5,
+    5
+  ],
+  "metric": "Original 10K-sample, 128-direction SW2 diagnostic used in the summary table",
+  "shared_count_scale": {
+    "vmin": 1,
+    "vmax": 125.0,
+    "normalization": "log"
+  },
+  "summaries": [
+    {
+      "name": "shared_r1",
+      "mean_sw2": 0.8698788464069367,
+      "sd_sw2": 0.5235023162955477
+    },
+    {
+      "name": "shared_r0p01",
+      "mean_sw2": 0.12904949486255646,
+      "sd_sw2": 0.04406718349478034
+    },
+    {
+      "name": "linear_r1",
+      "mean_sw2": 0.1293520823121071,
+      "sd_sw2": 0.016781380097357596
+    },
+    {
+      "name": "global",
+      "mean_sw2": 0.15868764519691467,
+      "sd_sw2": 0.07852391108924103
+    }
+  ],
+  "panels": [
+    {
+      "name": "shared_r1",
+      "seed": 45,
+      "sw2": 0.5344757437705994,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r1_s45/samples_50000.npy",
+      "sample_sha256": "c3bad6c168755774cd3b9c68f324f7542bdef2ec33abd721d17cf185fd481f6f",
+      "outside_plot_fraction": 0.0145
+    },
+    {
+      "name": "shared_r1",
+      "seed": 46,
+      "sw2": 0.45658496022224426,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r1_s46/samples_50000.npy",
+      "sample_sha256": "936ca437ce15d3cca252c0641352f8180faa226ca6608c655f0331e7356b7256",
+      "outside_plot_fraction": 0.0105
+    },
+    {
+      "name": "shared_r1",
+      "seed": 47,
+      "sw2": 1.1015105247497559,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r1_s47/samples_50000.npy",
+      "sample_sha256": "db894838d9ed982b117cceed129e7d6b03d0207c37343e6a2ce7cb4f5e484789",
+      "outside_plot_fraction": 0.043
+    },
+    {
+      "name": "shared_r1",
+      "seed": 48,
+      "sw2": 0.5691351294517517,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r1_s48/samples_50000.npy",
+      "sample_sha256": "6e874b1e1641709ba868552f41f1447173a5c2d22f1daba1fcab7c9e594d0b3d",
+      "outside_plot_fraction": 0.0185
+    },
+    {
+      "name": "shared_r1",
+      "seed": 49,
+      "sw2": 1.687687873840332,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r1_s49/samples_50000.npy",
+      "sample_sha256": "aed105933577280d4dac4d0550f0e9a1f68f3451a98a32d8c1a7273b0ab0c058",
+      "outside_plot_fraction": 0.0856
+    },
+    {
+      "name": "shared_r0p01",
+      "seed": 45,
+      "sw2": 0.16136419773101807,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r0p01_s45/samples_50000.npy",
+      "sample_sha256": "c5c4c0645cd76022f6763167ec2b47ca2bb49c399bbeebcae3ed91fd6542cdbd",
+      "outside_plot_fraction": 0.0029
+    },
+    {
+      "name": "shared_r0p01",
+      "seed": 46,
+      "sw2": 0.09433058649301529,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r0p01_s46/samples_50000.npy",
+      "sample_sha256": "4e27961b3327ce4d84c43ba32ff1b3cb9ea58edd1a68d557341672ec324d7611",
+      "outside_plot_fraction": 0.0005
+    },
+    {
+      "name": "shared_r0p01",
+      "seed": 47,
+      "sw2": 0.1738923341035843,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r0p01_s47/samples_50000.npy",
+      "sample_sha256": "d3215690ff641972f5927925f2f12a2a9479218e3aebb9b5d05eec03babf2eb9",
+      "outside_plot_fraction": 0.0009
+    },
+    {
+      "name": "shared_r0p01",
+      "seed": 48,
+      "sw2": 0.14393159747123718,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r0p01_s48/samples_50000.npy",
+      "sample_sha256": "e88ed8fd8449e8fd791a3ff341a6ea86bd1c15eb0a0826e8b01395991776a19e",
+      "outside_plot_fraction": 0.0024
+    },
+    {
+      "name": "shared_r0p01",
+      "seed": 49,
+      "sw2": 0.07172875851392746,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/shared_r0p01_s49/samples_50000.npy",
+      "sample_sha256": "5f43f2d638b200399ef7f2c584a8a3c5ec4849b688c29d2e9fcfc2bd92470700",
+      "outside_plot_fraction": 0.0013
+    },
+    {
+      "name": "linear_r1",
+      "seed": 45,
+      "sw2": 0.13766151666641235,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/linear_r1_s45/samples_50000.npy",
+      "sample_sha256": "e6c4abc72586ca7ab26b320df0309cbe16ed4060705aebe156c7b549c4e311e9",
+      "outside_plot_fraction": 0.0015
+    },
+    {
+      "name": "linear_r1",
+      "seed": 46,
+      "sw2": 0.14498008787631989,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/linear_r1_s46/samples_50000.npy",
+      "sample_sha256": "798cefd61a9ba4acb863fe80a13b0b34c2ada23724f70a808d2b764d7a65c383",
+      "outside_plot_fraction": 0.001
+    },
+    {
+      "name": "linear_r1",
+      "seed": 47,
+      "sw2": 0.13325881958007812,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/linear_r1_s47/samples_50000.npy",
+      "sample_sha256": "24dba4dd19558e8d2be5347783aaa1ae324b5cae6d59a0c3b1b118c41c1a062b",
+      "outside_plot_fraction": 0.0003
+    },
+    {
+      "name": "linear_r1",
+      "seed": 48,
+      "sw2": 0.12975245714187622,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/linear_r1_s48/samples_50000.npy",
+      "sample_sha256": "bdd32fa22a4d07503bfb8cc7c889f084c708207423798fd85ac9541291712042",
+      "outside_plot_fraction": 0.001
+    },
+    {
+      "name": "linear_r1",
+      "seed": 49,
+      "sw2": 0.10110753029584885,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/linear_r1_s49/samples_50000.npy",
+      "sample_sha256": "f4b9fa172b5bdbd65131bb32f6bc4023b40a6f032809eeb7ba228232200fded0",
+      "outside_plot_fraction": 0.0004
+    },
+    {
+      "name": "global",
+      "seed": 45,
+      "sw2": 0.2982170283794403,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/global_s45/samples_50000.npy",
+      "sample_sha256": "96264555a7a0cdb9334723260739a78d075375e24294f8bc4c74e27ac1d27b8d",
+      "outside_plot_fraction": 0.0007
+    },
+    {
+      "name": "global",
+      "seed": 46,
+      "sw2": 0.11075334250926971,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/global_s46/samples_50000.npy",
+      "sample_sha256": "a30d9cffbe4b4777e37f5080c62747706643f282313f071ec4d73944d732ad18",
+      "outside_plot_fraction": 0.0004
+    },
+    {
+      "name": "global",
+      "seed": 47,
+      "sw2": 0.1344180554151535,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/global_s47/samples_50000.npy",
+      "sample_sha256": "a8574c9a9e8511dec53b2693084eade51898b6d3c81ee1e426c0055857fa383e",
+      "outside_plot_fraction": 0.0001
+    },
+    {
+      "name": "global",
+      "seed": 48,
+      "sw2": 0.12041521072387695,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/global_s48/samples_50000.npy",
+      "sample_sha256": "26f7b0fb1136f4303b240ec388c2f73fc95bcfe160e0e74c1a76199eee2f694d",
+      "outside_plot_fraction": 0.0009
+    },
+    {
+      "name": "global",
+      "seed": 49,
+      "sw2": 0.12963458895683289,
+      "sample_path": "/root/ruivi/results/ksivi_variance_lr_20261011/confirmation/global_s49/samples_50000.npy",
+      "sample_sha256": "36ba2dc32885f6ed77b8c9e7cbc153306753655a20dab56d51cfa7fad56b99ee",
+      "outside_plot_fraction": 0.0007
+    }
+  ]
+}
