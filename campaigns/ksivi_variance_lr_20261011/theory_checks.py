@@ -8,7 +8,11 @@ import torch
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
-from experiment import ROOT,write_json,revision
+from experiment import ROOT,write_json,revision,loss_from_samples,rng,create_model,loss_at
+
+
+class StandardGaussian:
+    def score(self,x):return -x
 
 
 def checks(output,repeats=20000,batch=128):
@@ -51,7 +55,42 @@ def checks(output,repeats=20000,batch=128):
     v0=float(torch.nn.functional.softplus(torch.tensor(1.)).item())
     target_characteristic=.5*np.exp(-.1*ts**2)+.5*np.exp(-1.9*ts**2)
     lower=((target_characteristic-np.exp(-v0*ts**2/2))/ts).max()
+    rbf=[]
+    for v in [.2,.05,.01,.003,.001]:
+        samples=[]
+        with rng(543216):
+            for _ in range(512):
+                e=torch.randn(batch,2,device=device,dtype=torch.float64);u=torch.randn_like(e)
+                ep=torch.randn_like(e);up=torch.randn_like(e)
+                theta=torch.zeros((),device=device,dtype=torch.float64,requires_grad=True)
+                value=v*theta.exp()
+                x=(1-value).sqrt()*e+value.sqrt()*u
+                y=(1-value).sqrt()*ep+value.sqrt()*up
+                original=loss_from_samples(x,u/value.sqrt(),y,up/value.sqrt(),StandardGaussian(),1.,'original',fixed_h=.75)
+                stein=loss_from_samples(x,u/value.sqrt(),y,up/value.sqrt(),StandardGaussian(),1.,'stein',fixed_h=.75)
+                gc=torch.autograd.grad(original,theta,retain_graph=True)[0].item()
+                gs=torch.autograd.grad(stein,theta)[0].item()
+                samples.append([gc,gs])
+        array=np.asarray(samples)
+        rbf.append(dict(v=v,repeats=512,batch=batch,dimension=2,h=.75,
+                        original_mean=float(array[:,0].mean()),stein_mean=float(array[:,1].mean()),
+                        original_variance=float(array[:,0].var(ddof=1)),stein_variance=float(array[:,1].var(ddof=1))))
+    # A head frozen after it has learned can still move through shared features.
+    from analyze import functional_drift
+    from models.target_models import X_shaped
+    drift=[]
+    for architecture in ['shared','separate','stopgrad']:
+        spec=dict(seed=42,architecture=architecture,ratio=.1)
+        model,opt,_=create_model(spec,device);target=X_shaped(torch.device(device))
+        for _ in range(5):
+            opt.zero_grad();loss_at(model,target,spec,25000).backward();opt.step()
+        measured=functional_drift(model,opt,target,spec,freeze=True)
+        assert measured['identity_max_error']<1e-12
+        if architecture=='separate':assert measured['actual_rms']==0
+        else:assert measured['actual_rms']>0
+        drift.append(dict(architecture=architecture,**measured))
     result=dict(source_revision=revision(),device=device,repeats=repeats,batch=batch,representation_noise=rows,
+                rbf_representation_noise=rbf,trained_frozen_head_drift=drift,
                 quadratic_block_updates_equal=True,step_lr_50k_sum=primary,step_lr_200k_sum=extended,
                 additional_fraction=(extended-primary)/primary,
                 frozen_initial_variance=v0,projected_wasserstein_lower_bound=float(lower),
