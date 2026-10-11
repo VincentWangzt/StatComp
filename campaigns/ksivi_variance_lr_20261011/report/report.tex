@@ -46,7 +46,7 @@ defaults are not substituted for that policy in this campaign.
 \end{enumerate}
 
 \begin{center}\small
-\begin{tabular}{@{}p{7cm}rr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{7cm}rr@{}}
 \toprule
 50K configuration & Discovery (3) & Held out (5) \\ \midrule
 Shared, equal LR & $2.016\pm1.138$ & $0.870\pm0.524$ \\
@@ -506,7 +506,7 @@ Selection was committed at \texttt{808b97f} before seeds 45--49 were launched. T
 \end{figure}
 \begin{table}[H]\centering\small
 \caption{Paired held-out differences in training-diagnostic SW$_2$; negative favors the slow shared head.}
-\begin{tabular}{@{}p{7cm}rrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{7cm}rrr@{}}
 \toprule
 Slow shared minus comparator & Mean difference & SD of differences & Wins \\ \midrule
 Shared, equal LR & -0.741 & 0.543 & 5/5 \\
@@ -526,7 +526,7 @@ The selected alternative is an independent affine map $a(Z)=WZ+c$ with only six 
 \end{figure}
 \begin{table}[H]\centering\small
 \caption{Parameter counts. The common mean-only network has 17,154 parameters. For shared features, the last column counts additional variance output parameters; the backbone still receives both paths.}
-\begin{tabular}{@{}p{8cm}rr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{8cm}rr@{}}
 \toprule
 Variance architecture & Total parameters & Variance parameters \\ \midrule
 Global variance & 17156 & 2 \\
@@ -552,7 +552,7 @@ All continuations start from the exact 50K model, Adam moments, and training RNG
 
 \begin{table}[H]\centering\small
 \caption{Update-matched continuation results; means $\pm$ sample SD over three seeds. Restart changes cumulative LR as well as running longer.}
-\begin{tabular}{@{}p{4.2cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.2cm}rrrr@{}}
 \toprule
 Parent & Policy & 50K & 100K & 200K \\ \midrule
 Global variance & decay & $0.197\pm0.130$ & $0.192\pm0.127$ & $0.192\pm0.127$ \\
@@ -591,7 +591,7 @@ The Gaussian-kernel theorem predicts $v^2\Var(\widehat g_c)\to1.50498e-05$. The 
 \subsection{Independent marginal metrics and density-approximation checks}
 \begin{table}[H]\centering\small
 \caption{Independent evaluation of the same five held-out trained models. SD is across training seeds; KSD values are means of unbiased cross-batch estimates.}
-\begin{tabular}{@{}p{6.1cm}rrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{6.1cm}rrr@{}}
 \toprule
 Held-out configuration & SW$_2$ (20K) & Forward KL & KSD$^2$, $h=.75$ \\ \midrule
 Shared, equal LR & $0.859\pm0.496$ & $0.895\pm0.260$ & 0.0162 \\
@@ -610,7 +610,7 @@ The linear variance model has held-out mean conditional coefficient of variation
 \subsection{Gradient paths and functional drift at trained checkpoints}
 \begin{table}[H]\centering\small
 \caption{Discovery checkpoints at 50K. Norms/cosines use the original loss and average 32 stochastic gradients per model and then training seeds. Freeze drift uses a standardized local mean LR 0.001, with the variance block frozen; it is an intervention, not an additional training run.}
-\begin{tabular}{@{}p{4.4cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.4cm}rrrr@{}}
 \toprule
 Checkpoint & Mean path norm & Variance path norm & Mean cosine & Freeze drift RMS \\ \midrule
 Shared, equal LR & 14.4 & 5.99 & 0.013 & 0.0199 \\
@@ -623,7 +623,7 @@ The measured gradient decomposition has maximum reported mean relative residual 
 
 \begin{table}[H]\centering\small
 \caption{Unfrozen standardized local step and stochastic backbone gradients at the same checkpoints. Feature drift denotes the $W\Delta h$ term, including independent variance features for the separate network. Noise traces concern the original loss and only the mean backbone; a zero variance-path trace in separate/routed models is structural, not zero noise in their variance branch.}
-\begin{tabular}{@{}p{4.2cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.2cm}rrrr@{}}
 \toprule
 Checkpoint & \shortstack{Head drift\\RMS} & \shortstack{Feature drift\\RMS} & \shortstack{Mean-path\\noise trace} & \shortstack{Var-path\\noise trace} \\ \midrule
 Shared, equal LR & 0.021 & 0.0199 & 467 & 75.8 \\
@@ -640,6 +640,7 @@ The slow shared head has feature-driven raw-variance drift larger than head-driv
 \end{figure}
 
 
+\clearpage
 \section{Claim-to-evidence audit and practical interpretation}
 \FloatBarrier
 {\small\begin{longtable}{@{}p{4.3cm}p{6.2cm}p{5cm}@{}}\toprule Claim & Evidence & Boundary \\ \midrule\endhead
@@ -674,7 +675,7 @@ convergence theorem for the implemented Adam procedure is claimed.
 \section{Complete numerical comparisons}
 \subsection{Full shared/separate LR sweep}
 {\small
-\begin{longtable}{@{}p{5cm}rrrr@{}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{5cm}rrrr@{}}
 \caption{Final training-diagnostic SW$_2$, 10K samples and 128 fixed projection directions, at 50K updates. All seeds are shown.}\\
 \toprule
 Configuration & 42 & 43 & 44 & Mean $\pm$ SD \\ \midrule
@@ -708,7 +709,7 @@ Shared, Stein loss & 0.107 & 0.389 & 0.339 & $0.278\pm0.151$ \\
 \subsection{Variance architecture and routing sweep}
 \begin{table}[H]\centering\small
 \caption{Final training-diagnostic SW$_2$, 10K samples and 128 fixed projection directions, at 50K updates. All seeds are shown.}
-\begin{tabular}{@{}p{5cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{5cm}rrrr@{}}
 \toprule
 Configuration & 42 & 43 & 44 & Mean $\pm$ SD \\ \midrule
 Linear variance; LR ratio 0.001 & 9.830 & 9.586 & 9.824 & $9.747\pm0.139$ \\
@@ -729,7 +730,7 @@ Shared stop-gradient; LR ratio 1 & 1.010 & 2.081 & 1.067 & $1.386\pm0.603$ \\
 \subsection{Prospective held-out training seeds}
 \begin{table}[H]\centering\small
 \caption{Final training-diagnostic SW$_2$, 10K samples and 128 fixed projection directions, at 50K updates. All seeds are shown.}
-\begin{tabular}{@{}p{5cm}rrrrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{5cm}rrrrrr@{}}
 \toprule
 Configuration & 45 & 46 & 47 & 48 & 49 & Mean $\pm$ SD \\ \midrule
 Shared, floor 0.2 & 0.407 & 0.402 & 0.382 & 0.408 & 0.386 & $0.397\pm0.012$ \\
@@ -744,7 +745,7 @@ Shared, Stein loss & 0.431 & 0.047 & 0.333 & 0.096 & 0.401 & $0.262\pm0.178$ \\
 \subsection{Every atomic ablation}
 \begin{table}[H]\centering\small
 \caption{Final training-diagnostic SW$_2$, 10K samples and 128 fixed projection directions, at 50K updates. All seeds are shown.}
-\begin{tabular}{@{}p{5cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{5cm}rrrr@{}}
 \toprule
 Configuration & 42 & 43 & 44 & Mean $\pm$ SD \\ \midrule
 global init02 & 0.363 & 0.064 & 0.083 & $0.170\pm0.167$ \\
@@ -765,7 +766,7 @@ stein noanneal & 0.552 & 0.543 & 0.505 & $0.533\pm0.025$ \\
 \subsection{All continuation endpoints}
 \begin{table}[H]\centering\small
 \caption{Every 200K endpoint; the initial 50K updates are shared with the corresponding parent.}
-\begin{tabular}{@{}p{7cm}rrrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{7cm}rrrr@{}}
 \toprule
 Parent and policy & 42 & 43 & 44 & Mean $\pm$ SD \\ \midrule
 Global variance; decay & 0.286 & 0.048 & 0.242 & $0.192\pm0.127$ \\
@@ -781,9 +782,9 @@ Shared, equal LR; restart1e-4 & 2.191 & 1.490 & 0.702 & $1.461\pm0.745$ \\
 Shared, Stein loss; decay & 0.100 & 0.387 & 0.341 & $0.276\pm0.154$ \\
 Shared, Stein loss; restart1e-4 & 0.055 & 0.327 & 0.293 & $0.225\pm0.148$ \\
 \bottomrule\end{tabular}\end{table}
-\subsection{Component variance diagnostics on discovery runs}
+\clearpage\subsection{Component variance diagnostics on discovery runs}
 {\small
-\begin{longtable}{@{}p{6.5cm}rrrr@{}}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{6.5cm}rrrr@{}}
 \caption{Arithmetic means of per-model diagnostics over three discovery seeds. Quantiles pool latent samples and coordinates within a model; they are not quantiles across training seeds.}\\
 \toprule
 Configuration & $\E[1/v]$ & 1\% quantile & Median & Mean \\ \midrule
@@ -831,7 +832,7 @@ Shared stop-gradient; LR ratio 1 & 310 & 0.0001 & 0.344 & 0.366 \\
 \subsection{Finite-budget theoretical numerical checks}
 \begin{table}[H]\centering\small
 \caption{Numerical maximization of the proved projection bound, $P(B_3)=0.933359$. A zero bound is inconclusive, not a guarantee of good optimization.}
-\begin{tabular}{@{}p{6.2cm}rrr@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{6.2cm}rrr@{}}
 \toprule
 Ratio and policy & Coordinate bound & $\ell$ on $B_3$ & Projected $W_2$ bound \\ \midrule
 0.001; 50k & 0.07233 & 1.11034 & 0.08375 \\

@@ -1,7 +1,7 @@
 {
   "engine": "tectonic",
   "version": "tectonic 0.15.0Tectonic 0.15.0",
-  "source_sha256": "1c82aed874a1bc2d2259e8817b583222f01d7d7c752dc9143e4ae56aa9eee5e2",
-  "pdf_sha256": "0f4bdb5a8f4ae24232e51d7a86820cd4453b764a2234871eacca9e334a9e3cfa",
-  "pdf_bytes": 783477
+  "source_sha256": "0cdfa99cf3d49fbbaa59d77c2527b1547dd15e3c15c6f4124c9980d93d0c9234",
+  "pdf_sha256": "536f84421a09415a7fcedf2879dac0471a164fdccccb2547f2501bd09046cbe7",
+  "pdf_bytes": 783328
 }
