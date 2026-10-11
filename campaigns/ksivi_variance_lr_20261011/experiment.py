@@ -26,7 +26,7 @@ sys.path.insert(0, str(REPO))
 from models.vi_model import ConditionalGaussian, ConditionalGaussianGlobal, ConditionalGaussianHeads
 from models.target_models import X_shaped
 from utils.annealing import annealing
-from utils.kernels import GaussianKernel
+from utils.kernels import GaussianKernel, _pairwise_squared_distances
 
 ROOT = Path('/root/ruivi/results/ksivi_variance_lr_20261011') if os.name != 'nt' else REPO/'results/ksivi_variance_lr_20261011'
 RATIOS = [0., .001, .003, .01, .03, .1, .3, 1., 3.]
@@ -154,10 +154,19 @@ def create_model(spec, device):
 
 def loss_from_samples(x,b,y,c,target,alpha,estimator,detach_h=False,fixed_h=None):
     sx,sy=alpha*target.score(x),alpha*target.score(y)
+    if estimator=='original':
+        # Same operations and gradients as GaussianKernel.pair_eval, omitting
+        # its diagnostic-only h.item() device synchronization on every update.
+        distances=_pairwise_squared_distances(x,y)
+        if fixed_h is None:
+            median=torch.median(distances.detach() if detach_h else distances)
+            h=torch.sqrt(.5*median/np.log(x.shape[0]+1))
+        else:
+            h=torch.as_tensor(fixed_h,device=x.device,dtype=x.dtype)
+        k=torch.exp(-distances/h**2/2)
+        return (((sx+b)@(sy+c).T)*k).mean()
     kernel=GaussianKernel(-1 if fixed_h is None else fixed_h)
     k=kernel.pair_eval(x,y,fit_h=fixed_h is None,detach_h=detach_h or estimator=='stein')
-    if estimator=='original':
-        return (((sx+b)@(sy+c).T)*k).mean()
     h2=kernel.h**2
     delta=x[:,None]-y[None,:]
     inner=sx@sy.T+((sx[:,None]-sy[None,:])*delta).sum(-1)/h2

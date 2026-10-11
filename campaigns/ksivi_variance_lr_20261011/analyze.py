@@ -120,7 +120,7 @@ def flatten(grads,params):
 def path_gradients(model,target,repeats=32):
     if not isinstance(model,ConditionalGaussianHeads):return None
     backbone=list(model.mean_backbone.parameters())
-    entries=[]
+    entries=[];mean_samples=[];variance_samples=[]
     with rng(77171):
         for _ in range(repeats):
             e1,e2=model.sample_epsilon(128),model.sample_epsilon(128)
@@ -135,8 +135,14 @@ def path_gradients(model,target,repeats=32):
             cosine=(mean@variance/(mean.norm()*variance.norm()).clamp_min(1e-20)).item()
             entries.append(dict(mean_norm=mean.norm().item(),variance_norm=variance.norm().item(),
                                 total_norm=total.norm().item(),cosine=cosine,decomposition_relative_error=error))
+            mean_samples.append(mean.detach().cpu().numpy());variance_samples.append(variance.detach().cpu().numpy())
+    mean_array=np.asarray(mean_samples,dtype=np.float64);variance_array=np.asarray(variance_samples,dtype=np.float64)
     return dict(repeats=repeats,**{k:float(np.mean([r[k] for r in entries])) for k in entries[0]},
-                antagonistic_fraction=float(np.mean([r['cosine']<0 for r in entries])))
+                antagonistic_fraction=float(np.mean([r['cosine']<0 for r in entries])),
+                mean_path_signal_norm=float(np.linalg.norm(mean_array.mean(0))),
+                variance_path_signal_norm=float(np.linalg.norm(variance_array.mean(0))),
+                mean_path_noise_trace=float(mean_array.var(0,ddof=1).sum()),
+                variance_path_noise_trace=float(variance_array.var(0,ddof=1).sum()))
 
 
 def functional_drift(model,optimizer,target,spec,freeze=False):
