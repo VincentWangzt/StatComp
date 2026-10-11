@@ -218,7 +218,7 @@ def build(root,output,draft=False):
     if 'rbf_small_variance_asymptotic' in theory:
         coefficient=theory['rbf_small_variance_asymptotic']['limit_v_squared_original_gradient_variance']
         small=[r for r in theory['rbf_representation_noise'] if r['v']<=.003]
-        mechanisms+=(rf'The Gaussian-kernel theorem predicts $v^2\Var(\widehat g_c)\to{coefficient:.6g}$. '
+        mechanisms+=(rf'The Gaussian-kernel theorem predicts $v^2\Var(\widehat g_c)\to{coefficient*1e5:.5f}\times10^{{-5}}$. '
           + 'The observed ratios to that limit are '+', '.join(f"{r['scaled_original_ratio_to_limit']:.4f} at $v={r['v']}$" for r in small)+
           r'. Thus the fixed-RBF simulation checks a proved coefficient, with the same Gaussian marginal throughout. A slower LR acts on the resulting update; it does not remove this estimator-level divergence.\n\n')
     if confirm and evaluation:
@@ -311,7 +311,7 @@ def build(root,output,draft=False):
         f"{r['projected_wasserstein_lower_bound']:.5f}"] for r in theory['linear_head_reachability']],
         'Numerical maximization of the proved projection bound, $P(B_3)=0.933359$. A zero bound is inconclusive, not a guarantee of good optimization.',width='6.2cm',long=True)
 
-    samples=figure('final_samples','Held-out seeds 45--47, selected before viewing these results. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black and a common logarithmic count scale. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.',wide=True) if (output/'figures/final_samples.pdf').exists() else 'Sample grids are pending.'
+    samples=figure('final_samples','The first three held-out seeds (45--47), with configurations fixed from discovery. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black and a common logarithmic count scale. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.',wide=True) if (output/'figures/final_samples.pdf').exists() else 'Sample grids are pending.'
 
     updates=sum(150000 if r['spec']['phase']=='extension' else 50000 for r in rows)
     repro=(rf'The final campaign contains {sum(counts.values())} completed training trajectories: {counts["sweep"]} sweep, {counts["architecture"]} architecture, '
