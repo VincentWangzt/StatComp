@@ -586,7 +586,7 @@ The shared equal-LR discovery mean $\E[1/v]$ is 1490.1, compared with 8.12 for t
 \end{figure}
 Increasing batch size can reduce this noise, but cannot give a variance-uniform guarantee at a fixed batch size. In the exact proxy, original variance behaves as $(Nv)^{-2}$ when $v$ is small; keeping it bounded requires $N$ to grow at least on the order of $1/v$. The Stein proxy instead has variance of order $v/N^2$ in that limit. This is an exact counterexample to a uniform fixed-batch cure, not a claim that every neural-network gradient has the same batch-size law. No new batch-size sweep is used to infer an X-shaped threshold.
 
-The Gaussian-kernel theorem predicts $v^2\Var(\widehat g_c)\to1.50498e-05$. The observed ratios to that limit are 0.9744 at $v=0.003$, 0.9659 at $v=0.001$. Thus the fixed-RBF simulation checks a proved coefficient, with the same Gaussian marginal throughout. A slower LR acts on the resulting update; it does not remove this estimator-level divergence.
+The Gaussian-kernel theorem predicts $v^2\Var(\widehat g_c)\to1.50498\times10^{-5}$. The observed ratios to that limit are 0.9744 at $v=0.003$, 0.9659 at $v=0.001$. Thus the fixed-RBF simulation checks a proved coefficient, with the same Gaussian marginal throughout. A slower LR acts on the resulting update; it does not remove this estimator-level divergence.
 
 \subsection{Independent marginal metrics and density-approximation checks}
 \begin{table}[H]\centering\small
@@ -852,7 +852,7 @@ Ratio and policy & Coordinate bound & $\ell$ on $B_3$ & Projected $W_2$ bound \\
 \section{Final sample distributions}
 \begin{figure}[H]\centering
 \includegraphics[width=.93\linewidth]{figures/final_samples.pdf}
-\caption{Held-out seeds 45--47, selected before viewing these results. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black and a common logarithmic count scale. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.}\label{fig:final_samples}
+\caption{The first three held-out seeds (45--47), with configurations fixed from discovery. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black and a common logarithmic count scale. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.}\label{fig:final_samples}
 \end{figure}
 
 \end{landscape}
