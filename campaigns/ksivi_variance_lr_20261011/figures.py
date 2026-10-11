@@ -144,6 +144,9 @@ def make(rows,selection,evaluation,theory,root,output):
         for name,color in [('original',COLORS[0]),('stein',COLORS[5])]:
             ax.loglog(x,[r[name+'_variance'] for r in data],'-o',color=color,label=name.capitalize())
             if key=='representation_noise':ax.loglog(x,[r[name+'_exact'] for r in data],'--',color=color,alpha=.6)
+        if key=='rbf_representation_noise' and 'rbf_small_variance_asymptotic' in theory:
+            coefficient=theory['rbf_small_variance_asymptotic']['limit_v_squared_original_gradient_variance']
+            ax.loglog(x,[coefficient/v**2 for v in x],':',color=COLORS[0],label='Original small-v limit')
         ax.set_xlabel('Component variance v (marginal remains N(0,I))');ax.set_ylabel('Gradient variance');ax.grid(alpha=.2);ax.legend()
     axes[0].set_title('Exact constant-kernel proxy (d=1)');axes[1].set_title('Fixed Gaussian kernel h=0.75 (d=2)')
     save(fig,output,'representation_noise')
@@ -174,9 +177,10 @@ def make(rows,selection,evaluation,theory,root,output):
         for row,seed in enumerate(seeds):
             for col,name in enumerate(sample_names):
                 ax=axes[row,col];x=np.load(root/phase/f'{name}_s{seed}'/'samples_50000.npy')
-                ax.hexbin(x[:,0],x[:,1],gridsize=40,extent=(-5,5,-5,5),mincnt=1,cmap='viridis',norm=LogNorm(1,150),rasterized=True)
+                mesh=ax.hexbin(x[:,0],x[:,1],gridsize=40,extent=(-5,5,-5,5),mincnt=1,cmap='viridis',norm=LogNorm(1,150),rasterized=True)
                 ax.contour(xx,yy,density,levels=[.005,.02,.05,.1],colors='black',linewidths=.5)
                 ax.set(xlim=(-5,5),ylim=(-5,5),xticks=[-5,0,5],yticks=[-5,0,5]);ax.set_aspect('equal');ax.tick_params(labelsize=6)
                 if row==0:ax.set_title(label(name),fontsize=7)
                 if col==0:ax.set_ylabel(f'Seed {seed}',fontsize=8)
+        fig.colorbar(mesh,ax=axes.ravel().tolist(),fraction=.018,pad=.012,label='Samples per hexagon (log scale)')
         save(fig,output,'final_samples')

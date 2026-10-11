@@ -68,8 +68,9 @@ def table(headers,rows,caption=None,label_name=None,width='4.8cm',long=False):
 
 
 def figure(name,caption,wide=False):
-    return (r'\begin{figure}[htbp]\centering'+'\n'+r'\includegraphics[width=\linewidth]{figures/'+name+'.pdf}\n'+
+    body=(r'\begin{figure}['+('p' if wide else 'htbp')+r']\centering'+'\n'+r'\includegraphics[width=\linewidth]{figures/'+name+'.pdf}\n'+
             r'\caption{'+caption+r'}\label{fig:'+name+'}\n'+r'\end{figure}'+'\n')
+    return r'\begin{landscape}'+'\n'+body+r'\end{landscape}'+'\n' if wide else body
 
 
 def paired(a,b):
@@ -228,7 +229,7 @@ def build(root,output,draft=False):
         unresolved=sum(d>.02 for d in deltas)
         mechanisms+=(rf'The independent samples preserve the main comparisons without recycling the selection metric sample. Across all {len(evaluation)} evaluated checkpoints, '
            rf'{unresolved} retain a last KL mixture-refinement change above 0.02; the maximum is {max(deltas):.3g}. '
-           r'Those density estimates are flagged in the CSV and must not be treated as exact KL. Independent fixed-bandwidth KSD values and their Monte Carlo standard errors are retained at all three widths, including negative estimates. '
+           r'Those density estimates are flagged in the CSV and must not be treated as exact KL. None of the held-out 50K comparisons has a final refinement change above 0.02. Independent fixed-bandwidth KSD values and their Monte Carlo standard errors are retained at all three widths, including negative estimates. '
            r'KSD, forward KL, and SW$_2$ measure different aspects of fit and need not order all bad runs identically. For example, if $q_R=(1-\epsilon)p+\epsilon r_R$, then $D_{KL}(p\Vert q_R)\le-\log(1-\epsilon)$ even when $r_R$ moves arbitrarily far away. '
            r'Transport error can then grow without bound. This elementary example explains why a modest forward KL alone cannot rule out escaped mass; it does not assert that a particular checkpoint has this exact mixture form.\n\n')
         if alternative in eg and 'variance_conditional_cv_mean' in eg[alternative][0]['metrics']:
@@ -245,7 +246,7 @@ def build(root,output,draft=False):
            f"{mean([r['gradient_paths']['variance_norm'] for r in g]):.3g}",
            number(mean([r['gradient_paths']['cosine'] for r in g])),
            f"{mean([r['freeze_drift']['actual_rms'] for r in g]):.3g}"] for n,g in pg.items()],
-          'Discovery checkpoints at 50K. Norms/cosines average 32 stochastic gradients per model and then training seeds. Freeze drift uses a standardized local mean LR 0.001, with the variance block frozen; it is an intervention, not an additional training run.',width='4.4cm',long=True)
+          'Discovery checkpoints at 50K. Norms/cosines use the original loss and average 32 stochastic gradients per model and then training seeds. Freeze drift uses a standardized local mean LR 0.001, with the variance block frozen; it is an intervention, not an additional training run.',width='4.4cm',long=True)
         maxerror=max(r['gradient_paths']['decomposition_relative_error'] for r in probes if r.get('gradient_paths'))
         maxdrift=max(r['freeze_drift']['identity_max_error'] for r in probes if r.get('freeze_drift'))
         mechanisms+=(rf'The measured gradient decomposition has maximum reported mean relative residual {maxerror:.3g}; the raw-output drift identity has maximum absolute residual {maxdrift:.3g}. '
@@ -306,7 +307,7 @@ def build(root,output,draft=False):
         f"{r['projected_wasserstein_lower_bound']:.5f}"] for r in theory['linear_head_reachability']],
         'Numerical maximization of the proved projection bound, $P(B_3)=0.933359$. A zero bound is inconclusive, not a guarantee of good optimization.',width='6.2cm',long=True)
 
-    samples=figure('final_samples','Held-out seeds 45--47, selected before viewing these results. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.') if (output/'figures/final_samples.pdf').exists() else 'Sample grids are pending.'
+    samples=figure('final_samples','Held-out seeds 45--47, selected before viewing these results. Each panel shows all 10K final samples within the common viewing window, with exact target contours in black and a common logarithmic count scale. Metrics include samples outside the window. Columns: equal-LR conditional, slow shared, selected separate, linear variance, global variance, Stein loss.',wide=True) if (output/'figures/final_samples.pdf').exists() else 'Sample grids are pending.'
 
     updates=sum(150000 if r['spec']['phase']=='extension' else 50000 for r in rows)
     repro=(rf'The final campaign contains {sum(counts.values())} completed training trajectories: {counts["sweep"]} sweep, {counts["architecture"]} architecture, '
