@@ -1,0 +1,420 @@
+{
+  "rule": "minimum arithmetic mean final SW2 on discovery seeds 42,43,44; positive LR; original loss",
+  "selected": [
+    {
+      "name": "shared_r0p01",
+      "architecture": "shared",
+      "ratio": 0.01
+    },
+    {
+      "name": "separate_r0p03",
+      "architecture": "separate",
+      "ratio": 0.03
+    },
+    {
+      "name": "linear_r1",
+      "architecture": "linear",
+      "ratio": 1.0,
+      "variance_width": 128,
+      "variance_depth": 0
+    }
+  ],
+  "rankings": {
+    "shared": [
+      {
+        "name": "shared_r0p01",
+        "mean_sw2": 0.1781906932592392,
+        "spec": {
+          "name": "shared_r0p01",
+          "architecture": "shared",
+          "ratio": 0.01,
+          "seed": 43,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r0p03",
+        "mean_sw2": 0.18486041575670242,
+        "spec": {
+          "name": "shared_r0p03",
+          "architecture": "shared",
+          "ratio": 0.03,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r0p003",
+        "mean_sw2": 0.2040951500336329,
+        "spec": {
+          "name": "shared_r0p003",
+          "architecture": "shared",
+          "ratio": 0.003,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r0p001",
+        "mean_sw2": 0.3221355602145195,
+        "spec": {
+          "name": "shared_r0p001",
+          "architecture": "shared",
+          "ratio": 0.001,
+          "seed": 44,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r0p1",
+        "mean_sw2": 0.3738086223602295,
+        "spec": {
+          "name": "shared_r0p1",
+          "architecture": "shared",
+          "ratio": 0.1,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r0p3",
+        "mean_sw2": 0.3942970832188924,
+        "spec": {
+          "name": "shared_r0p3",
+          "architecture": "shared",
+          "ratio": 0.3,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r3",
+        "mean_sw2": 0.7357482413450877,
+        "spec": {
+          "name": "shared_r3",
+          "architecture": "shared",
+          "ratio": 3.0,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shared_r1",
+        "mean_sw2": 2.0159098307291665,
+        "spec": {
+          "name": "shared_r1",
+          "architecture": "shared",
+          "ratio": 1.0,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      }
+    ],
+    "separate": [
+      {
+        "name": "separate_r0p03",
+        "mean_sw2": 0.12233408292134602,
+        "spec": {
+          "name": "separate_r0p03",
+          "architecture": "separate",
+          "ratio": 0.03,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r0p1",
+        "mean_sw2": 0.13791992391149202,
+        "spec": {
+          "name": "separate_r0p1",
+          "architecture": "separate",
+          "ratio": 0.1,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r0p01",
+        "mean_sw2": 0.20794095595677695,
+        "spec": {
+          "name": "separate_r0p01",
+          "architecture": "separate",
+          "ratio": 0.01,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r0p3",
+        "mean_sw2": 0.5454759697119395,
+        "spec": {
+          "name": "separate_r0p3",
+          "architecture": "separate",
+          "ratio": 0.3,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r1",
+        "mean_sw2": 0.9149360060691833,
+        "spec": {
+          "name": "separate_r1",
+          "architecture": "separate",
+          "ratio": 1.0,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r0p003",
+        "mean_sw2": 4.238588968912761,
+        "spec": {
+          "name": "separate_r0p003",
+          "architecture": "separate",
+          "ratio": 0.003,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r3",
+        "mean_sw2": 4.562489946683248,
+        "spec": {
+          "name": "separate_r3",
+          "architecture": "separate",
+          "ratio": 3.0,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "separate_r0p001",
+        "mean_sw2": 8.980141957600912,
+        "spec": {
+          "name": "separate_r0p001",
+          "architecture": "separate",
+          "ratio": 0.001,
+          "seed": 42,
+          "phase": "sweep",
+          "steps": 50000
+        }
+      }
+    ],
+    "alternative": [
+      {
+        "name": "linear_r1",
+        "mean_sw2": 0.10136170188585918,
+        "spec": {
+          "name": "linear_r1",
+          "architecture": "linear",
+          "ratio": 1.0,
+          "variance_width": 128,
+          "variance_depth": 0,
+          "seed": 44,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "narrow_r0p1",
+        "mean_sw2": 0.1470095415910085,
+        "spec": {
+          "name": "narrow_r0p1",
+          "architecture": "narrow",
+          "ratio": 0.1,
+          "variance_width": 32,
+          "variance_depth": 2,
+          "seed": 43,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shallow_r0p1",
+        "mean_sw2": 0.20919521152973175,
+        "spec": {
+          "name": "shallow_r0p1",
+          "architecture": "shallow",
+          "ratio": 0.1,
+          "variance_width": 128,
+          "variance_depth": 1,
+          "seed": 44,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "narrow_r1",
+        "mean_sw2": 0.27830864613254863,
+        "spec": {
+          "name": "narrow_r1",
+          "architecture": "narrow",
+          "ratio": 1.0,
+          "variance_width": 32,
+          "variance_depth": 2,
+          "seed": 42,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "stopgrad_r0p1",
+        "mean_sw2": 0.36463138461112976,
+        "spec": {
+          "name": "stopgrad_r0p1",
+          "architecture": "stopgrad",
+          "ratio": 0.1,
+          "seed": 43,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shallow_r1",
+        "mean_sw2": 0.47328417499860126,
+        "spec": {
+          "name": "shallow_r1",
+          "architecture": "shallow",
+          "ratio": 1.0,
+          "variance_width": 128,
+          "variance_depth": 1,
+          "seed": 42,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "shallow_r0p01",
+        "mean_sw2": 1.0970110197861989,
+        "spec": {
+          "name": "shallow_r0p01",
+          "architecture": "shallow",
+          "ratio": 0.01,
+          "variance_width": 128,
+          "variance_depth": 1,
+          "seed": 44,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "stopgrad_r1",
+        "mean_sw2": 1.385764718055725,
+        "spec": {
+          "name": "stopgrad_r1",
+          "architecture": "stopgrad",
+          "ratio": 1.0,
+          "seed": 44,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "narrow_r0p01",
+        "mean_sw2": 4.593484083811442,
+        "spec": {
+          "name": "narrow_r0p01",
+          "architecture": "narrow",
+          "ratio": 0.01,
+          "variance_width": 32,
+          "variance_depth": 2,
+          "seed": 44,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "stopgrad_r0p01",
+        "mean_sw2": 6.681831995646159,
+        "spec": {
+          "name": "stopgrad_r0p01",
+          "architecture": "stopgrad",
+          "ratio": 0.01,
+          "seed": 43,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "linear_r0p1",
+        "mean_sw2": 6.968911012013753,
+        "spec": {
+          "name": "linear_r0p1",
+          "architecture": "linear",
+          "ratio": 0.1,
+          "variance_width": 128,
+          "variance_depth": 0,
+          "seed": 43,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "linear_r0p003",
+        "mean_sw2": 9.472448031107584,
+        "spec": {
+          "name": "linear_r0p003",
+          "architecture": "linear",
+          "ratio": 0.003,
+          "variance_width": 128,
+          "variance_depth": 0,
+          "seed": 42,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "linear_r0p01",
+        "mean_sw2": 9.547692934672037,
+        "spec": {
+          "name": "linear_r0p01",
+          "architecture": "linear",
+          "ratio": 0.01,
+          "variance_width": 128,
+          "variance_depth": 0,
+          "seed": 42,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      },
+      {
+        "name": "linear_r0p001",
+        "mean_sw2": 9.746743520100912,
+        "spec": {
+          "name": "linear_r0p001",
+          "architecture": "linear",
+          "ratio": 0.001,
+          "variance_width": 128,
+          "variance_depth": 0,
+          "seed": 42,
+          "phase": "architecture",
+          "steps": 50000
+        }
+      }
+    ]
+  },
+  "validation_seeds": [
+    45,
+    46,
+    47,
+    48,
+    49
+  ],
+  "source_revision": "b79347726c2844b5fdd35c747df482ea781574a0"
+}

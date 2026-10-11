@@ -1,0 +1,22 @@
+{
+  "device": "cuda",
+  "legacy_shared_update_max_errors": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "parameter_counts": {
+    "shared": 17412,
+    "stopgrad": 17412,
+    "separate": 34308,
+    "narrow": 18372,
+    "shallow": 17796,
+    "linear": 17160
+  },
+  "loss_and_gradient_equal": true,
+  "zero_lr_freeze": true,
+  "optimizer_coverage": true,
+  "production_update_max_error": 0.0,
+  "revision": "71699cd91cda4884b706b71c551bf3861eea1220"
+}
