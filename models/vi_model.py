@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import copy
+from torch import nn
+from torch.nn import functional as F
 import math
 import torch.distributions as dist
 import normflows as nf
@@ -842,7 +845,101 @@ class RealNVP(BaseVIModel):
         return self.flow.q0.log_prob(flat_epsilon).reshape(leading_shape)
 
 
+class ConditionalGaussianHeads(ConditionalGaussian):
+    def __init__(self, config):
+        super().__init__(config)
+        self.name = "ConditionalGaussianHeads"
+        self.variance_backbone = config.get("variance_backbone", "shared")
+        if self.variance_backbone not in ("shared", "stopgrad", "separate"):
+            raise ValueError("variance_backbone must be shared, stopgrad, or separate")
+        original = self.net
+        self.mean_backbone = original[:-1]
+        # Extra module construction must not change the subsequent noise stream.
+        with torch.random.fork_rng(devices=[]):
+            self.mean_head = nn.Linear(self.hidden_dim, self.z_dim)
+            self.variance_head = nn.Linear(self.hidden_dim, self.z_dim)
+            with torch.no_grad():
+                self.mean_head.weight.copy_(original[-1].weight[:self.z_dim])
+                self.mean_head.bias.copy_(original[-1].bias[:self.z_dim])
+                self.variance_head.weight.copy_(original[-1].weight[self.z_dim:])
+                self.variance_head.bias.copy_(original[-1].bias[self.z_dim:])
+            if self.variance_backbone == "separate":
+                width = int(config.get("variance_hidden_dim", self.hidden_dim))
+                depth = int(config.get("variance_num_layers", self.num_layers))
+                if width < 1 or depth < 0:
+                    raise ValueError("variance width must be positive and depth nonnegative")
+                if width == self.hidden_dim and depth == self.num_layers:
+                    self.variance_net = copy.deepcopy(self.mean_backbone)
+                    in_dim = self.hidden_dim
+                else:
+                    layers = []
+                    in_dim = self.epsilon_dim
+                    for _ in range(depth):
+                        layers += [nn.Linear(in_dim, width), _make_activation(self.activation)]
+                        in_dim = width
+                    self.variance_net = nn.Sequential(*layers)
+                head = nn.Linear(in_dim, self.z_dim)
+                # The campaign uses constant initialization, independent of width.
+                if config.get("variance_init", None) is None:
+                    raise ValueError("separate variance backbones require variance_init")
+                with torch.no_grad():
+                    head.weight.zero_()
+                    head.bias.copy_(self.variance_head.bias)
+                self.variance_head = head
+        del self.net
+
+    def raw_parameters(self, epsilon):
+        features = self.mean_backbone(epsilon)
+        if self.variance_backbone in ("shared", "stopgrad"):
+            weight = torch.cat((self.mean_head.weight, self.variance_head.weight))
+            bias = torch.cat((self.mean_head.bias, self.variance_head.bias))
+            output = F.linear(features, weight, bias)
+            mu, raw = output.chunk(2, -1)
+            if self.variance_backbone == "stopgrad":
+                # The second full-width operation preserves the forward values.
+                raw = F.linear(features.detach(), weight, bias)[:, self.z_dim:]
+        else:
+            mu = self.mean_head(features)
+            raw = self.variance_head(self.variance_net(epsilon))
+        return mu, raw
+
+    def variance_features(self, epsilon):
+        if self.variance_backbone == "separate":
+            return self.variance_net(epsilon)
+        return self.mean_backbone(epsilon)
+
+    def getmu(self, epsilon):
+        return self.raw_parameters(epsilon)[0]
+
+    def getstd(self, epsilon):
+        return self._variance_from_raw(self.raw_parameters(epsilon)[1])[0].sqrt()
+
+    def forward(self, epsilon):
+        return self.reparameterize(*self.raw_parameters(epsilon))
+
+    def score(self, z, epsilon):
+        mu, raw = self.raw_parameters(epsilon)
+        variance, _ = self._variance_from_raw(raw)
+        return -(z - mu) / variance
+
+    def logp(self, z, epsilon):
+        import math
+        mu, raw = self.raw_parameters(epsilon)
+        variance, log_variance = self._variance_from_raw(raw)
+        return -0.5 * self.z_dim * math.log(2 * math.pi) - 0.5 * (
+            log_variance.sum(-1) + ((z - mu).square() / variance).sum(-1))
+
+    def optimizer_parameter_groups(self, mean_lr, variance_lr):
+        mean = list(self.mean_backbone.parameters()) + list(self.mean_head.parameters())
+        variance = list(self.variance_head.parameters())
+        if self.variance_backbone == "separate":
+            variance = list(self.variance_net.parameters()) + variance
+        return [dict(params=mean, lr=mean_lr, name="mean_and_shared_backbone"),
+                dict(params=variance, lr=variance_lr, name="variance")]
+
+
 VIModel: dict[str, type[BaseVIModel]] = {
+    "ConditionalGaussianHeads": ConditionalGaussianHeads,
     "ConditionalGaussian": ConditionalGaussian,
     "ConditionalGaussianUniform": ConditionalGaussianUniform,
     "ConditionalGaussianGlobalUniform": ConditionalGaussianGlobalUniform,

@@ -1,0 +1,9 @@
+z_dim: ${target.z_dim}
+epsilon_dim: ${target.epsilon_dim}
+hidden_dim: 128
+num_layers: 2
+device: ${device}
+variance_init: 1.31326162815094
+variance_backbone: shared
+variance_hidden_dim: 128
+variance_num_layers: 2

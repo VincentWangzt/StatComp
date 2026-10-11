@@ -262,7 +262,13 @@ class BaseSIVIRunner():
             "Only StepLR scheduler is supported for VI optimizer."
 
         # Create VI optimizer and scheduler
-        if self.vi_var_lr is not None and hasattr(self.vi_model, 'var_raw'):
+        if hasattr(self.vi_model, 'optimizer_parameter_groups'):
+            variance_lr = self.vi_lr if self.vi_var_lr is None else self.vi_var_lr
+            self.optimizer_vi = torch.optim.Adam(
+                self.vi_model.optimizer_parameter_groups(self.vi_lr, variance_lr),
+                betas=self.vi_opt_betas,
+            )
+        elif self.vi_var_lr is not None and hasattr(self.vi_model, 'var_raw'):
             other_params = [
                 p for n, p in self.vi_model.named_parameters()
                 if n != 'var_raw'
