@@ -151,9 +151,9 @@ def create_model(spec, device):
 
 
 def loss_from_samples(x,b,y,c,target,alpha,estimator,detach_h=False,fixed_h=None):
+    sx,sy=alpha*target.score(x),alpha*target.score(y)
     kernel=GaussianKernel(-1 if fixed_h is None else fixed_h)
     k=kernel.pair_eval(x,y,fit_h=fixed_h is None,detach_h=detach_h or estimator=='stein')
-    sx,sy=alpha*target.score(x),alpha*target.score(y)
     if estimator=='original':
         return (((sx+b)@(sy+c).T)*k).mean()
     h2=kernel.h**2
@@ -363,8 +363,27 @@ def validate(root):
         assert torch.isfinite(m.logp(z,eps)).all()
         assert torch.allclose(m.score(z,eps),-(z-m.getmu(eps))/m.getstd(eps).square(),atol=1e-5)
         coverage[architecture]=sum(p.numel() for p in m.parameters())
+    # Validate the production runner's actual optimizer update, including graph order.
+    from runner.ksivi import KSIVIRunner
+    cfg=OmegaConf.load(REPO/'configs/ksivi_x_shaped.yaml')
+    cfg.config_path=str(REPO/'configs/ksivi_x_shaped.yaml');cfg.device=str(device)
+    cfg.vi_model_type='ConditionalGaussianHeads';cfg.train.vi.var_lr=1e-5
+    cfg.output=dict(results_dir=str(Path(root)/'validation_production'),
+                    tb_dir=str(REPO/'tb_logs/ksivi_variance_lr_20261011/validation'))
+    for metric in cfg.metric.values():metric.enabled=False
+    runner=KSIVIRunner(cfg);cloned=copy.deepcopy(runner.vi_model)
+    other=torch.optim.Adam(cloned.optimizer_parameter_groups(.001,1e-5),betas=(.9,.999))
+    assert [g['lr'] for g in runner.optimizer_vi.param_groups]==[.001,1e-5]
+    with rng(54321):production_loss=runner._compute_loss_and_step(5000)['loss']
+    with rng(54321):campaign_loss=loss_at(cloned,runner.target_model,{},5000)
+    other.zero_grad();campaign_loss.backward();other.step()
+    production_error=max((p-q).abs().max().item() for p,q in zip(runner.vi_model.parameters(),cloned.parameters()))
+    assert torch.equal(production_loss,campaign_loss)
+    assert production_error<2e-7,production_error
+    runner.writer.close()
     write_json(Path(root)/'validation.json',dict(device=str(device),legacy_shared_update_max_errors=errors,parameter_counts=coverage,
-                                                loss_and_gradient_equal=True,zero_lr_freeze=True,optimizer_coverage=True,revision=revision()))
+                                                loss_and_gradient_equal=True,zero_lr_freeze=True,optimizer_coverage=True,
+                                                production_update_max_error=production_error,revision=revision()))
     print('VALIDATION PASSED',device,errors,coverage)
 
 
