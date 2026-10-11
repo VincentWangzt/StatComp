@@ -22,7 +22,7 @@ from models.target_models import X_shaped
 def load(path,step=None,device=None):
     device=device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     spec=json.loads((path/'specification.json').read_text())['spec']
-    step=step or spec['steps']
+    step=spec['steps'] if step is None else step
     m,o,s=create_model(spec,device)
     state=torch.load(path/f'checkpoint_{step}.pt',map_location=device,weights_only=True)
     m.load_state_dict(state['model']);o.load_state_dict(state['optimizer']);s.load_state_dict(state['scheduler'])
@@ -93,10 +93,13 @@ def independent_metrics(model,target):
             probe=model.sample_epsilon(10000)
             features=model.variance_features(probe)
             raw=model.raw_parameters(probe)[1]
+            vv=model.getstd(probe).square()
             result.update(variance_feature_rms=features.square().mean().sqrt().item(),
                           variance_feature_norm=features.norm(dim=1).mean().item(),
                           variance_head_weight_norm=model.variance_head.weight.norm().item(),
-                          raw_variance_mean=raw.mean().item(),raw_variance_q01=torch.quantile(raw,.01).item())
+                          raw_variance_mean=raw.mean().item(),raw_variance_q01=torch.quantile(raw,.01).item(),
+                          variance_conditional_cv_mean=(vv.std(0)/vv.mean(0)).mean().item(),
+                          variance_between_dimension_mean=vv.mean(0).tolist())
     return result
 
 
@@ -186,13 +189,15 @@ def functional_drift(model,optimizer,target,spec,freeze=False):
 
 def evaluate(root,phases,output,probe=False):
     torch.set_num_threads(1)
+    torch.backends.cuda.matmul.allow_tf32=False
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     result=json.loads(output.read_text()) if output.exists() else dict(rows=[])
-    done={(r['path'],r['step']) for r in result['rows']}
+    done={(r['path'],r['step']):r for r in result['rows']}
     selected=None
     if (root/'selection.json').exists():
         selected=json.loads((root/'selection.json').read_text())['selected']
-    probe_names={'shared_r1','separate_r1','global','stein','floor02','stopgrad_r0p1'}
+    probe_names={'shared_r1','shared_r0p001','shared_r0p01','shared_r0p03','separate_r1','separate_r0p001',
+                 'global','stein','floor02','stopgrad_r0p01','stopgrad_r0p1','linear_r0p001','linear_r1'}
     if selected:probe_names|={s['name'] for s in selected}
     for phase in phases:
         for path in sorted((root/phase).glob('*/result.json')):
@@ -200,18 +205,22 @@ def evaluate(root,phases,output,probe=False):
             steps=[50000] if phase!='extension' else [100000,200000]
             for step in steps:
                 key=(str(path.parent),step)
-                if key in done:continue
+                needs_probe=probe and phase in ('sweep','architecture') and spec['name'] in probe_names
+                if key in done and (not needs_probe or 'directional_noise' in done[key]):continue
                 model,opt,_,spec=load(path.parent,step,device)
                 target=X_shaped(device)
-                metrics=independent_metrics(model,target)
-                quick=next(r for r in completed['trajectory'] if r['step']==step)
-                row=dict(path=str(path.parent),step=step,spec=spec,quick=quick,metrics=metrics)
-                if probe and phase in ('sweep','architecture') and spec['name'] in probe_names:
+                if key in done:row=done[key];metrics=row['metrics']
+                else:
+                    metrics=independent_metrics(model,target)
+                    quick=next(r for r in completed['trajectory'] if r['step']==step)
+                    row=dict(path=str(path.parent),step=step,spec=spec,quick=quick,metrics=metrics)
+                    result['rows'].append(row)
+                if needs_probe:
                     row['directional_noise']=directional_noise(model,target)
                     row['gradient_paths']=path_gradients(model,target)
                     row['drift']=functional_drift(model,opt,target,spec)
                     row['freeze_drift']=functional_drift(model,opt,target,spec,freeze=True)
-                result['rows'].append(row);done.add(key)
+                done[key]=row
                 result.update(source_revision=revision(),metric_definition=dict(sw2='20000 independent samples,128 directions',
                               kl='2048 exact-target points; adaptive Gaussian mixture approximation to q',
                               ksd='16 independent cross-batch estimates,256 samples per batch,fixed bandwidth'))
@@ -242,14 +251,29 @@ def export(root,output):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action',choices=['evaluate','export'])
+    p.add_argument('action',choices=['evaluate','export','merge'])
     p.add_argument('--root',type=Path,default=ROOT)
     p.add_argument('--phase',nargs='+',default=['sweep','architecture','confirmation','ablation','extension'])
     p.add_argument('--output',type=Path,default=HERE/'report/evaluation.json')
     p.add_argument('--probes',action='store_true')
+    p.add_argument('--inputs',type=Path,nargs='+')
     a=p.parse_args()
     if a.action=='evaluate':evaluate(a.root,a.phase,a.output,a.probes)
-    else:export(a.root,a.output)
+    elif a.action=='export':export(a.root,a.output)
+    else:
+        assert a.inputs,'merge requires --inputs'
+        rows={}
+        for path in a.inputs:
+            data=json.loads(path.read_text())
+            for row in data['rows']:
+                key=(row['path'],row['step'])
+                if key in rows:
+                    assert rows[key]['metrics']==row['metrics'],(path,key,'conflicting metrics')
+                    rows[key].update(row)
+                else:rows[key]=row
+        write_json(a.output,dict(rows=list(rows.values()),source_revision=revision(),
+                                inputs=[str(p) for p in a.inputs],metric_definition=data['metric_definition']))
+        print('MERGED',len(rows),'checkpoint evaluations',a.output)
 
 
 if __name__=='__main__':main()
