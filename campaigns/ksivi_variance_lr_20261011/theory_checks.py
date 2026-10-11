@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import sys
+import math
 
 import numpy as np
 import torch
@@ -55,6 +56,19 @@ def checks(output,repeats=20000,batch=128):
     v0=float(torch.nn.functional.softplus(torch.tensor(1.)).item())
     target_characteristic=.5*np.exp(-.1*ts**2)+.5*np.exp(-1.9*ts**2)
     lower=((target_characteristic-np.exp(-v0*ts**2/2))/ts).max()
+    beta1,beta2=.9,.999
+    adam_constant=(1-beta1)/math.sqrt((1-beta2)*(1-beta1**2/beta2))
+    reachability=[]
+    mass=math.erf(1.5)**2
+    for ratio in [.001,.003,.01]:
+        for policy,budget in [('50k',primary),('200k_decay',extended),('200k_restart1e-4',primary+15)]:
+            delta=adam_constant*ratio*budget
+            minimum=float(np.logaddexp(0,1-4*delta))
+            upper=mass*np.exp(-minimum*ts**2/2)+(1-mass)
+            bound=float(np.maximum((target_characteristic-upper)/ts,0).max())
+            reachability.append(dict(ratio=ratio,policy=policy,parameter_displacement_bound=delta,
+                                     latent_l1_radius=3.,latent_mass=mass,minimum_variance_on_latent_region=minimum,
+                                     projected_wasserstein_lower_bound=bound))
     rbf=[]
     for v in [.2,.05,.01,.003,.001]:
         samples=[]
@@ -94,7 +108,8 @@ def checks(output,repeats=20000,batch=128):
                 quadratic_block_updates_equal=True,step_lr_50k_sum=primary,step_lr_200k_sum=extended,
                 additional_fraction=(extended-primary)/primary,
                 frozen_initial_variance=v0,projected_wasserstein_lower_bound=float(lower),
-                scope='constant-kernel Gaussian proxy; not a theorem of universal RBF gradient variance ordering')
+                adam_coordinate_bound_constant=adam_constant,linear_head_reachability=reachability,
+                scope='exact Gaussian proxy, finite RBF checks, and Adam reachability bounds; no universal variance ordering')
     write_json(output,result);print(result)
 
 

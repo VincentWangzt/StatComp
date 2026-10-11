@@ -89,6 +89,14 @@ def independent_metrics(model,target):
         result.update(mean_norm=x.mean(0).norm().item(),var_x=cov[0,0].item(),var_y=cov[1,1].item(),
                       cross_fourth=(t.square()*u.square()).mean().item(),
                       tail_mass=(x.norm(dim=1)>4).float().mean().item())
+        if isinstance(model,ConditionalGaussianHeads):
+            probe=model.sample_epsilon(10000)
+            features=model.variance_features(probe)
+            raw=model.raw_parameters(probe)[1]
+            result.update(variance_feature_rms=features.square().mean().sqrt().item(),
+                          variance_feature_norm=features.norm(dim=1).mean().item(),
+                          variance_head_weight_norm=model.variance_head.weight.norm().item(),
+                          raw_variance_mean=raw.mean().item(),raw_variance_q01=torch.quantile(raw,.01).item())
     return result
 
 

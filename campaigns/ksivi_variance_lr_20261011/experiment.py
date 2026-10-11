@@ -72,6 +72,9 @@ def specifications(phase, root=ROOT):
                                      ('linear',dict(variance_width=128,variance_depth=0)),
                                      ('stopgrad',{})]:
             entries += [dict(name=label(architecture,r), architecture=architecture, ratio=r, **extra) for r in [.01,.1,1.]]
+        # Finite-budget Adam bound predicts under-adaptation for these linear heads.
+        entries += [dict(name=label('linear',r),architecture='linear',ratio=r,
+                         variance_width=128,variance_depth=0) for r in [.001,.003]]
     elif phase in ['confirmation','ablation','extension']:
         selection = json.loads((Path(root)/'selection.json').read_text())
         selected = selection['selected']
@@ -101,6 +104,8 @@ def specifications(phase, root=ROOT):
             parents = selected[:2] + [dict(name='shared_r1',architecture='shared',ratio=1.),
                                       dict(name='global',architecture='global',ratio=1.),
                                       dict(name='stein',architecture='shared',ratio=1.,estimator='stein')]
+            parents += [dict(name='linear_r0p001',architecture='linear',ratio=.001,
+                             variance_width=128,variance_depth=0,parent_phase='architecture')]
             entries=[]
             for s in parents:
                 for policy in ['decay','restart1e-4']:
@@ -229,7 +234,7 @@ def run_one(spec,root,limit=None):
         train_spec['steps']=50000
         train_spec['name']=spec['parent']
         train_spec['phase']='sweep'
-        parent=Path(root)/'sweep'/f"{spec['parent']}_s{spec['seed']}"/'checkpoint_50000.pt'
+        parent=Path(root)/spec.get('parent_phase','sweep')/f"{spec['parent']}_s{spec['seed']}"/'checkpoint_50000.pt'
         state=torch.load(parent,map_location=device,weights_only=True)
         model.load_state_dict(state['model']);optimizer.load_state_dict(state['optimizer']);scheduler.load_state_dict(state['scheduler'])
         torch.set_rng_state(state['cpu_rng'].cpu())
@@ -425,7 +430,16 @@ def main():
     a=p.parse_args()
     if a.action=='validate':validate(a.root)
     elif a.action=='benchmark':benchmark(a.root,a.benchmark_steps)
-    elif a.action=='campaign':campaign(a.phase,a.root,a.jobs,a.limit)
+    elif a.action=='campaign':
+        # Independent phases may run concurrently; duplicate phase invocations
+        # serialize so a queued tmux continuation cannot race an active phase.
+        if os.name!='nt':
+            import fcntl
+            lock=a.root/'runtime'/f'{a.phase}.lock';lock.parent.mkdir(parents=True,exist_ok=True)
+            with lock.open('a') as stream:
+                fcntl.flock(stream,fcntl.LOCK_EX)
+                campaign(a.phase,a.root,a.jobs,a.limit)
+        else:campaign(a.phase,a.root,a.jobs,a.limit)
     elif a.action=='worker':run_one(json.loads(a.spec),a.root,a.limit)
     elif a.action=='select':select(a.root)
     else:print(json.dumps(specifications(a.phase,a.root),indent=2))

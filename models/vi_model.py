@@ -846,6 +846,12 @@ class RealNVP(BaseVIModel):
 
 
 class ConditionalGaussianHeads(ConditionalGaussian):
+    """Separate Adam blocks for a conditional mean and variance function.
+
+    Shared features retain gradients from both outputs. A separate variance
+    network puts all of its parameters in the variance learning-rate block.
+    Shared heads are concatenated for the original final Linear arithmetic.
+    """
     def __init__(self, config):
         super().__init__(config)
         self.name = "ConditionalGaussianHeads"

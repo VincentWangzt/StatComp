@@ -19,6 +19,8 @@ metrics stay under `/root/ruivi/results/ksivi_variance_lr_20261011`.
 3. Capacity or gradient routing matters: test separate variance backbones with
    width 32, one hidden layer, no hidden layer, and a shared stop-gradient
    variant, each at ratios .01, .1, 1. Change one architectural factor at a time.
+   Also test linear heads at .001 and .003: an exact finite-budget Adam
+   coordinate bound predicts a reachable-function obstruction at these rates.
 4. A slower head may merely underfit: compare 0.2 versus 1.3133 initialization,
    including a frozen 0.2 variance, on identical paired seeds.
 5. The annealing/decay schedule can interact with head speed: disable annealing

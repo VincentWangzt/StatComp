@@ -1,0 +1,448 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=24mm,headheight=14pt,includeheadfoot]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath,microtype}
+\usepackage{amsmath,amsthm,booktabs,longtable,array,graphicx,pdflscape,caption,fancyhdr,xcolor,hyperref}
+\definecolor{ink}{HTML}{23384D}
+\hypersetup{colorlinks=true,linkcolor=ink,urlcolor=ink,citecolor=ink,
+ pdftitle={Variance learning rates and backbones in KSIVI},pdfauthor={StatComp research investigation}}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}[proposition]{Corollary}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\Cov}{\operatorname{Cov}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\diag}{\operatorname{diag}}
+\setlength{\parskip}{4pt}\setlength{\parindent}{1em}
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.16}
+\setlength{\emergencystretch}{1.5em}
+\captionsetup{font=small,labelfont=bf,labelsep=period}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\itshape KSIVI: variance learning rates}
+\fancyhead[R]{\small Atomic comparisons and mechanisms}
+\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0.3pt}
+\title{Can a Slower Variance Network Stabilize KSIVI?\\
+\large Learning rates, shared features, and optimization budgets on the X-shaped target}
+\author{StatComp research investigation}\date{11 October 2026}
+\begin{document}\maketitle
+\begin{abstract}
+@ABSTRACT@
+\end{abstract}
+
+\section{Question, findings, and the scope of the evidence}
+The motivating suggestion is to reduce the variance learning rate while retaining
+the mean learning rate. That suggestion has two distinct implementations:
+slowing only a variance output layer on shared features, and slowing an entire
+independent variance network. They need not have the same effect. We return to
+the original StatComp model and training policy; the authors' alternative
+defaults are not substituted for that policy in this campaign.
+
+@FINDINGS@
+
+\begin{center}\small
+@SUMMARY@
+\end{center}
+
+The statistical unit is an independently trained model. Monte Carlo samples
+from one checkpoint do not count as additional training replications. Discovery
+seeds select hyperparameters; held-out seeds assess those choices. Descriptive
+means and sample standard deviations are reported, together with paired
+per-seed outcomes. This is an exploratory investigation, not a preregistered
+confirmatory significance test. No statement below establishes a universal
+ordering of optimizers, architectures, or gradient estimators.
+
+\section{The common model and loss}
+Let $Z\sim N(0,I_2)$ and $U\sim N(0,I_2)$ be independent. StatComp samples
+\[
+ X=\mu_\phi(Z)+\sqrt{v_\phi(Z)}\odot U,\qquad
+ v_\phi(Z)=\max\{10^{-4},\operatorname{softplus}(a_\phi(Z))\}.
+\]
+The mean uses two width-128 SiLU hidden layers. The global model replaces
+$v_\phi(Z)$ by two learnable variance scalars. At initialization all matched
+comparisons have the same mean function and constant variance
+$\operatorname{softplus}(1)=1.3132616$, except explicitly labeled initialization
+ablations. The effective mixing dimension is two: the production target binding
+overrides the raw target-configuration entry.
+
+Write $s_p=\nabla\log p$ and $s_c(X,Z)=\nabla_X\log q_\phi(X\mid Z)$.
+The conditional Gaussian layer returns its negative score
+$-s_c=U/\sqrt v$. With two independent batches of size $N=128$, the original
+loss estimator is
+\begin{equation}
+ \widehat L_c=\frac1{N^2}\sum_{i,j} k_h(X_i,Y_j)
+ \left(\alpha_t s_p(X_i)+\frac{U_i}{\sqrt{v(Z_i)}}\right)^T
+ \left(\alpha_t s_p(Y_j)+\frac{U'_j}{\sqrt{v(Z'_j)}}\right).
+ \label{eq:original}
+\end{equation}
+For a kernel fixed independently of these samples, the Fisher identity
+$\E[s_c\mid X]=s_q(X)$ shows that its expectation is the squared KSD between
+$q_\phi$ and $p_{\alpha_t}\propto p^{\alpha_t}$, under the usual integration
+and differentiation conditions. This is the tractable conditional-score
+formulation underlying KSIVI \cite{ksivi}. A larger conditional family need
+not have a larger minimum population loss; our question concerns finite
+stochastic optimization.
+
+For the Gaussian kernel $k_h(x,y)=\exp[-\|x-y\|^2/(2h^2)]$, integration by
+parts gives the conventional Stein form
+\begin{equation}
+ \widehat L_S=\frac1{N^2}\sum_{i,j} k_h(X_i,Y_j)
+ \left[s_i^Ts'_j+\frac{(s_i-s'_j)^T(X_i-Y_j)}{h^2}
+ +\frac2{h^2}-\frac{\|X_i-Y_j\|^2}{h^4}\right],
+ \label{eq:stein}
+\end{equation}
+where $s_i=\alpha_t s_p(X_i)$. For independently fixed $h$, the two forms
+have the same population objective, but different finite-batch gradients.
+Neither form has a universally smaller gradient covariance.
+
+Production training fits
+$h^2=\operatorname{median}_{ij}\|X_i-Y_j\|^2/[2\log(N+1)]$ on each batch.
+Original-loss runs differentiate this fitted width. Stein runs hold it fixed
+during backpropagation, matching the earlier investigation. Thus the default
+Stein comparison changes both estimator and bandwidth differentiation. We
+include original-loss bandwidth-detachment controls and independently fixed
+bandwidth probes; the fixed-kernel population identity is not asserted for a
+sample-adaptive differentiated statistic.
+
+\section{What a variance learning rate can and cannot control}
+\subsection{A head-only learning rate leaves another path active}
+For a shared backbone $h_b(Z)$, write
+\[
+ \mu(Z)=M_\psi h_b(Z)+m_\psi,\qquad
+ a(Z)=W_\omega h_b(Z)+c_\omega.
+\]
+The backbone gradient decomposes exactly as
+\begin{equation}
+ g_b=J_b\mu^T\partial_\mu\widehat L+J_b a^T\partial_a\widehat L
+       =g_b^{\mu}+g_b^a.
+ \label{eq:paths}
+\end{equation}
+A smaller learning rate for $(W,c)$ leaves the second term in the backbone's
+gradient active at the backbone learning rate. Mean-driven backbone updates
+also change the features read by the variance head.
+
+\begin{proposition}[Exact functional drift decomposition]
+For a fixed probe input, let $h'=h+\Delta h$, $W'=W+\Delta W$, and
+$c'=c+\Delta c$ denote the values before and after one optimizer step. Then
+\begin{equation}
+ \Delta a=\underbrace{\Delta W h+\Delta c}_{\text{head}}
+          +\underbrace{W\Delta h}_{\text{backbone}}
+          +\underbrace{\Delta W\Delta h}_{\text{interaction}}.
+ \label{eq:drift}
+\end{equation}
+Consequently, freezing a trained variance head does not generally freeze its
+predicted variance on a changing shared backbone.
+\end{proposition}
+\begin{proof}
+Expand $(W+\Delta W)(h+\Delta h)+(c+\Delta c)-(Wh+c)$.
+When $\Delta W=\Delta c=0$, the remaining term is $W\Delta h$, which need
+not vanish. At our constant initialization $W=0$, this route is initially
+absent; after the head has learned, it can be present.
+\end{proof}
+
+At a fixed state, a first-order SGD calculation gives
+$\Delta a\simeq-\eta_v J_\omega a\,g_\omega-\eta_bJ_b a\,g_b$.
+As $\eta_v\to0$ with $\eta_b$ fixed, its conditional covariance tends to
+$\eta_b^2J_b a\,\Cov(g_b)J_b a^T$ when this matrix is nonzero. Cross
+covariances matter at finite $\eta_v$; the formula is not a universal positive
+lower bound for every model or state. It does show why head LR alone cannot
+guarantee control of functional variance noise.
+
+For an independent variance network $a_\omega(Z)$, all of its parameters
+receive $\eta_v$. To first order, both functional drift and stochastic
+standard deviation scale with $\eta_v$ at a fixed state. This is genuine
+control of the whole variance function, while also slowing its deterministic
+learning. The gradient-path and trained-head-freeze probes test these routes
+directly rather than inferring them from the final sample plots.
+
+Our stop-gradient ablation detaches the shared features only along the
+variance path. It removes $g_b^a$ but does not prevent $h_b$ from moving under
+$g_b^\mu$. Moreover, this deliberately omits part of the shared model's
+gradient: it is a routing heuristic, not an unbiased gradient of the original
+shared objective. Separating backbones retains the full gradient of the new
+parameterization.
+
+\subsection{Different rates do not create gradient-estimation bias}
+\begin{proposition}[Block learning rates and descent]
+Let $L$ have a $\beta$-Lipschitz gradient, and let a stochastic gradient
+$\widehat g$ at a fixed state have mean $g=\nabla L$ and covariance $\Sigma$.
+For a deterministic positive block-diagonal learning-rate matrix $D$,
+\[
+ \E[D\widehat g]=Dg,
+\]
+and
+\begin{equation}
+ \E[L(\theta-D\widehat g)]\le L(\theta)-g^TDg
+ +\frac\beta2\{g^TD^2g+\tr(D^2\Sigma)\}.
+ \label{eq:descent}
+\end{equation}
+\end{proposition}
+\begin{proof}
+Apply the smoothness inequality to $-D\widehat g$, take expectations, and use
+$\E[\widehat g\widehat g^T]=gg^T+\Sigma$.
+\end{proof}
+
+Thus changing a block LR preconditions the update; it does not by itself bias
+the underlying gradient estimator. For that block, the expected first-order
+movement scales as $\eta_v$, while the covariance of the SGD update scales as
+$\eta_v^2$. Smaller steps can suppress noisy motion but also delay progress.
+This is a local SGD statement. Adam's moment estimates are random and
+history-dependent, so it is not claimed as an Adam convergence theorem.
+
+For Adam, the learning rate multiplies the normalized direction
+$\widehat m/(\sqrt{\widehat s}+\varepsilon)$ \cite{adam}. At fixed parameters,
+historical moments, and a fresh stochastic gradient, scaling that block's LR
+scales its parameter update. Multiplying its gradient by a constant is not
+equivalent: the first and second moments approximately cancel the scale when
+$\varepsilon$ is negligible. We therefore implement actual parameter groups,
+not gradient multipliers. The legacy combined output layer is split into two
+parameter blocks and concatenated for the same forward Linear operation.
+
+\subsection{Separating backbones does not imply half the convergence speed}
+Both networks receive gradients from the same loss and both are updated at
+every iteration. There is no factor $1/2$ in either block's gradient. A simple
+counterexample rules out a necessary twofold slowdown: for
+$L(m,a)=(m^2+a^2)/2$, joint SGD and two simultaneously updated separate
+blocks both obey $(m_{t+1},a_{t+1})=(1-\eta)(m_t,a_t)$ exactly. A separate
+network can require more computation and can change conditioning and capacity;
+those facts do not imply a fixed change in the number of optimizer steps.
+
+\section{Why an arbitrarily slow variance network is not a complete solution}
+\subsection{The initial scale must be able to shrink}
+The X-shaped target is
+\[
+ p=\tfrac12N(0,\Sigma_+)+\tfrac12N(0,\Sigma_-),\qquad
+ \Sigma_\pm=\begin{pmatrix}2&\pm1.8\\\pm1.8&2\end{pmatrix}.
+\]
+Its component eigenvalues are $3.8$ and $0.2$. If $S$ is an equiprobable sign,
+$T\sim N(0,1)$, and $U\sim N(0,I_2)$ independently, then
+\[
+ X=\sqrt{1.8}\,T(1,S)^T+\sqrt{0.2}\,U
+\]
+has exactly this distribution. A global component variance of $0.2$ is
+therefore sufficient with an unrestricted mixing distribution of means; a
+finite continuous neural network approximates the discrete branch selection.
+
+\begin{proposition}[An obstruction for frozen large component variance]
+No mixing distribution of means convolved with $N(0,vI_2)$ can equal this
+target when $v>0.2$.
+\end{proposition}
+\begin{proof}
+In direction $w=(1,-1)^T/\sqrt2$, the target characteristic function is
+$\varphi_p(tw)=\tfrac12e^{-0.1t^2}+\tfrac12e^{-1.9t^2}$. A representation
+$X=M+\sqrt vU$ would require
+$\varphi_M(tw)=\varphi_p(tw)e^{vt^2/2}$, which is unbounded as
+$|t|\to\infty$ if $v>0.2$. Every characteristic function has modulus at most
+one, a contradiction.
+\end{proof}
+
+More quantitatively, any such frozen-variance model satisfies
+\[
+ W_2(w^Tq,w^Tp)\ge W_1(w^Tq,w^Tp)
+ \ge\sup_{t>0}\frac{[\varphi_p(tw)-e^{-vt^2/2}]_+}{t}.
+\]
+The last inequality follows from the Lipschitz constant $t$ of
+$x\mapsto e^{itx}$ and $|\varphi_q(tw)|\le e^{-vt^2/2}$.
+For the initial variance 1.31326, our numerical one-dimensional bound is
+about 0.13535. It is a bound on this projection, not the averaged sliced
+metric, and does not explain the full magnitude of an escaping training run.
+
+This distinguishes a hard floor of $0.2$ from freezing the initial variance
+near $1.3$. The floor permits shrinkage to the target's transverse scale;
+freezing the initial value prevents that adaptation. Initialization at $0.2$
+and its frozen control test this explanation directly.
+
+\subsection{A finite-budget obstruction for a very slow linear variance head}
+There is also a deterministic Adam bound that can make under-adaptation precise.
+Consider Adam without weight decay, initialized with zero moments, with
+$\beta_1^2<\beta_2$ and nonnegative numerical $\varepsilon$. For any coordinate,
+\begin{equation}
+ \left|\frac{\widehat m_t}{\sqrt{\widehat s_t}+\varepsilon}\right|
+ \le C:=\frac{1-\beta_1}{\sqrt{(1-\beta_2)(1-\beta_1^2/\beta_2)}}.
+ \label{eq:adam-bound}
+\end{equation}
+For our betas, $C=7.2703$. This bounds the coordinate update by $C\eta_t$
+for every finite gradient sequence; no stochastic independence is assumed.
+
+\begin{proposition}[Reachability bound for a linear variance model]
+Let $a_j(Z)=w_j^TZ+b_j$, initially $w_j=0$ and $b_j=1$, with every variance
+parameter assigned LR $r\eta_t$. Put $\delta=C r\sum_{t<T}\eta_t$.
+On the latent region $B_M=\{\|Z\|_1\le M\}$, each variance is at least
+$\ell=\operatorname{softplus}(1-(1+M)\delta)$. Since
+$P(B_M)=\operatorname{erf}(M/2)^2=:P_M$, regardless of the trained mean,
+\begin{equation}
+ W_2(w^Tq_T,w^Tp)\ge
+ \sup_{t>0}\frac{[\varphi_p(tw)-P_Me^{-\ell t^2/2}-(1-P_M)]_+}{t},
+ \label{eq:reachable}
+\end{equation}
+where $w=(1,-1)^T/\sqrt2$. A positive right-hand side rules out an exact fit
+within the specified optimization budget.
+\end{proposition}
+\begin{proof}
+For completeness, Cauchy--Schwarz applied to the two weighted gradient moments
+gives the squared bound
+\[
+ C_t^2=\frac{(1-\beta_1)^2}{(1-\beta_1^t)^2}
+ \frac{1-\beta_2^t}{1-\beta_2}
+ \frac{1-(\beta_1^2/\beta_2)^t}{1-\beta_1^2/\beta_2}.
+\]
+The inequality $(1-x)(1-y)\le(1-\sqrt{xy})^2$, with
+$x=\beta_2^t$ and $y=(\beta_1^2/\beta_2)^t$, shows $C_t\le C$.
+Summing coordinate updates gives $|w_{jk}|\le\delta$ and $|b_j-1|\le\delta$,
+so $a_j(Z)\ge1-(1+M)\delta$ on $B_M$. Orthogonal rotation of a standard
+bivariate Gaussian gives $P(B_M)=\operatorname{erf}(M/2)^2$.
+Conditional noise in direction $w$ has variance $(v_1+v_2)/2\ge\ell$ on
+$B_M$. Therefore
+$|\varphi_{q_T}(tw)|\le P_Me^{-\ell t^2/2}+(1-P_M)$, independently of
+the conditional means. The Lipschitz characteristic-function argument from
+the previous subsection gives \eqref{eq:reachable}.
+\end{proof}
+
+For $r=0.001$, $T=50K$, and $M=3$, the coordinate displacement is at most
+about $0.0723$ and $P_M\simeq0.9334$. The resulting projection bound is
+strictly positive. Retaining the original decay through 200K scarcely changes
+it. The recorded numerical checks give the full bounds for the restart policy
+and additional rates. These are bounds for the linear variance architecture,
+in exact arithmetic; they are not bounds for an unrestricted changing shared
+feature map. Linear-head runs at ratios 0.001 and 0.003 are included to test
+this predicted finite-budget limitation. The result shows why a universally
+beneficial prescription to decrease the variance LR cannot hold, even before
+considering stochastic gradient variance.
+
+\subsection{Representation noise can grow without a worse marginal}
+The conditional score has the exact coordinate second moment
+$\E[s_{c,j}^2]=\E[1/v_j(Z)]$. This is a diagnostic of representation noise,
+not a bound on every parameter-gradient variance or a proof of poor marginal
+fit. The following solvable example makes that distinction explicit.
+
+\begin{proposition}[An exact finite-batch gradient-noise example]
+Let $p=N(0,1)$ and, for $0<v<1$, represent $q_v=p$ as
+$X=\sqrt{1-v}\,E+\sqrt v\,U$, where $E,U$ are independent standard Normals.
+Take the constant kernel $k=1$, two independent batches of size $N$, and
+differentiate with respect to $r=\log v$ while preserving this representation.
+Both population objectives are zero for every $v$, but their stochastic
+gradient variances are
+\begin{align}
+ \Var(\widehat g_c)&=\frac{2+v-v^2}{2N^2v^2},\\
+ \Var(\widehat g_S)&=\frac{v}{2(1-v)N^2}.
+ \label{eq:proxy}
+\end{align}
+\end{proposition}
+\begin{proof}
+Put $F=-X+U/\sqrt v$ and $B=\partial_rF$. Direct differentiation gives
+\[
+ F=-\sqrt{1-v}E+\frac{1-v}{\sqrt v}U,\quad
+ B=\frac{v}{2\sqrt{1-v}}E-\frac{1+v}{2\sqrt v}U.
+\]
+Hence $A=\Var(F)=(1-v)/v$,
+$C=\Var(B)=(1+v-v^2)/[4v(1-v)]$, and
+$D=\Cov(F,B)=-1/(2v)$. The original gradient is
+$\bar B\bar F'+\bar F\bar B'$, with independent primed batches, so its
+variance is $2(AC+D^2)/N^2$, giving the first expression.
+For the Stein form, $k=1$ removes all spatial kernel derivatives and the loss
+is $\bar X\bar X'$. Here $\Var(X)=1$,
+$\Var(\partial_rX)=v/[4(1-v)]$, and
+$\Cov(X,\partial_rX)=0$. The same calculation gives the second expression.
+\end{proof}
+
+The constant kernel is an analytically solvable proxy, not the characteristic
+Gaussian kernel used in training. Independent fixed-bandwidth RBF simulations
+with the same unchanged marginal check whether the mechanism also appears
+with the training kernel family. The formulas prove a possible noise mechanism,
+not a universal RBF variance ordering: near $v=0.8$ even the constant-kernel
+ordering reverses. A small learning rate changes update noise, while Stein
+integration removes the explicit component-score terms themselves.
+
+\section{Experimental protocol and atomic controls}
+All primary results use 50,000 updates. The fixed policy is Adam
+$(0.9,0.999)$, mean LR $10^{-3}$, two batches of 128, StepLR multiplier 0.9
+per 1,000 updates, and score annealing
+$\alpha_t=0.1+0.9\min(t/25000,1)$. The Gaussian distance arithmetic remains
+the StatComp implementation. Diagnostic RNG is isolated. We omit a
+diagnostic-only bandwidth-to-CPU synchronization in the fast update; equality
+of the loss, gradients, and production optimizer update is checked on CPU and
+GPU. No gradient clipping, EMA, or log-density regularization is introduced.
+
+Discovery sweeps variance/mean LR ratios
+$\{0,0.001,0.003,0.01,0.03,0.1,0.3,1,3\}$ with seeds 42--44, for shared
+and separate width-128 two-layer backbones. For the shared model, only the
+variance output parameters receive this rate; for a separate model, the
+entire variance network receives it. Both networks are updated every step.
+Separate width-32, one-hidden-layer, linear, and shared stop-gradient
+alternatives are each tested at ratios $\{0.01,0.1,1\}$. Initial mean
+functions, constant variances, and training-noise seeds are paired.
+
+The minimum mean discovery SW$_2$ at a positive LR selects one shared, one
+separate, and one alternative configuration. That selection is recorded
+before held-out seeds 45--49. Held-out controls include equal-LR shared and
+separate models, global variance, Stein loss, and a $0.2$ floor. Further
+paired ablations change only annealing, initial variance, bandwidth detachment,
+or estimator/floor for the selected head LR. Every such change is labeled.
+
+Training diagnostics use 10,000 samples and 128 projection directions.
+Independent final evaluation uses 20,000 samples and 128 directions, plus a
+second 10,000-sample check. Forward KL uses 2,048 exact target points and
+an empirical Gaussian mixture for $q$: mixture sizes 8,192, 16,384, and
+65,536 are checked, and 262,144 is used when the last change exceeds 0.02.
+The last change is retained; the pointwise Monte Carlo standard error does
+not include all mixture-approximation uncertainty. Held-out KSD uses 16
+independent cross-batch estimates, 256 samples per batch, at independently
+fixed bandwidths $0.5,0.75,1.5$. Negative finite-sample estimates are retained.
+
+\subsection{Why update counts and learning-rate budgets are both reported}
+With $\eta_t=10^{-3}0.9^{\lfloor t/1000\rfloor}$, the first 50,000 updates
+have total nominal LR
+\[
+ S_{50K}=1000\cdot10^{-3}\frac{1-0.9^{50}}{1-0.9}=9.94846.
+\]
+The sum through 200,000 is almost 10, adding only 0.518\% to $S_{50K}$.
+These sums are not actual Adam path lengths, but they show why extra decayed
+updates need not compensate for a smaller variance LR. We fork exact 50K
+checkpoints, including Adam and RNG state, to two labeled continuations:
+retained StepLR decay, or a restart at mean LR $10^{-4}$ with the original
+variance/mean LR ratio, held constant. The latter adds nominal mean LR 15
+over the next 150K updates. Its improvement cannot be attributed to update
+count alone. All continuations are compared at 100K and 200K, and no run
+exceeds 200K updates.
+
+\section{Results and ablations}
+@RESULTS@
+
+\section{Mechanistic evidence and boundaries}
+@MECHANISMS@
+
+\section{Claim-to-evidence audit and practical interpretation}
+@CLAIMS@
+
+\subsection{Limitations}
+Discovery minima are selected estimates, so held-out results carry the main
+weight in recommendations. Five held-out seeds give limited precision for
+rare training failures. The investigation covers one two-dimensional target,
+one batch size, one mean architecture, one variance transform, and finite
+training budgets. Shared versus separate backbones change parameterization
+and capacity; narrow, shallow, and linear variants examine but do not eliminate
+all such differences. Gradient-path correlations and inverse-variance moments
+are state diagnostics, not alone proofs of causal responsibility. The freeze
+intervention, paired training ablations, and exact formulas provide different
+forms of evidence and are identified separately. Adaptive bandwidths and
+annealing limit direct application of fixed-population SGD theory; no global
+convergence theorem for the implemented Adam procedure is claimed.
+
+\appendix
+\section{Complete numerical comparisons}
+@APPENDIX_TABLES@
+
+\section{Final sample distributions}
+@SAMPLE_FIGURES@
+
+\section{Reproduction, validation, and artifact inventory}
+@REPRODUCIBILITY@
+
+\begin{thebibliography}{9}
+\bibitem{ksivi} Z. Cheng, L. Yu, T. Xie, S. Zhang, and C. Zhang.
+\emph{Kernel Semi-Implicit Variational Inference}. ICML, 2024.
+\url{https://arxiv.org/abs/2405.18997}.
+\bibitem{adam} D. P. Kingma and J. Ba.
+\emph{Adam: A Method for Stochastic Optimization}. ICLR, 2015.
+\url{https://arxiv.org/abs/1412.6980}.
+\end{thebibliography}
+\end{document}
