@@ -95,6 +95,8 @@ def specifications(phase, root=ROOT):
             entries += [dict(s, name=s['name']+'_init02', initial_variance=.2, parent=s['name']) for s in initial]
             entries += [dict(shared,name=shared['name']+'_stein',estimator='stein',parent=shared['name']),
                         dict(shared,name=shared['name']+'_floor02',floor=.2,parent=shared['name'])]
+            entries += [dict(s,name=s['name']+'_detach',detach_h=True,parent=s['name']) for s in
+                        [dict(name='shared_r1',architecture='shared',ratio=1.),shared]]
         else:
             parents = selected[:2] + [dict(name='shared_r1',architecture='shared',ratio=1.),
                                       dict(name='global',architecture='global',ratio=1.),
@@ -311,8 +313,10 @@ def select(root):
         rankings[group]=ranking
         chosen={k:v for k,v in ranking[0]['spec'].items() if k not in ('seed','phase','steps')}
         selected.append(chosen)
-    write_json(Path(root)/'selection.json',dict(rule='minimum arithmetic mean final SW2 on discovery seeds 42,43,44; positive LR; original loss',
-                                               selected=selected,rankings=rankings,validation_seeds=[45,46,47,48,49]))
+    selection=dict(rule='minimum arithmetic mean final SW2 on discovery seeds 42,43,44; positive LR; original loss',
+                   selected=selected,rankings=rankings,validation_seeds=[45,46,47,48,49],source_revision=revision())
+    write_json(Path(root)/'selection.json',selection)
+    write_json(REPO/'campaigns/ksivi_variance_lr_20261011/report/selection.json',selection)
     print(json.dumps(selected,indent=2))
 
 
