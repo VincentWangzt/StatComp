@@ -58,7 +58,7 @@ def short(name):
 
 
 def table(headers,rows,caption=None,label_name=None,width='4.8cm',long=False):
-    columns='@{}p{'+width+'}'+'r'*(len(headers)-1)+'@{}'
+    columns=r'@{}>{\raggedright\arraybackslash}p{'+width+'}'+'r'*(len(headers)-1)+'@{}'
     body='\n'.join(' & '.join(map(str,row))+r' \\' for row in rows)
     if long:
         if len(rows)<=16:
@@ -300,7 +300,7 @@ def build(root,output,draft=False):
         for name,g in extensions.items():
             arows.append([tex(short(g[0]['spec']['parent']))+'; '+tex(g[0]['spec']['extension_policy'])]+[number(r['final']['sw2']) for r in g]+[ms(values(g))])
         appendix+=r'\subsection{All continuation endpoints}'+'\n'+table(['Parent and policy','42','43','44',r'Mean $\pm$ SD'],arows,'Every 200K endpoint; the initial 50K updates are shared with the corresponding parent.',width='7cm',long=True)
-    appendix+=r'\subsection{Component variance diagnostics on discovery runs}'+'\n'
+    appendix+=r'\clearpage\subsection{Component variance diagnostics on discovery runs}'+'\n'
     appendix+=table(['Configuration',r'$\E[1/v]$',r'1\% quantile','Median','Mean'],[
         [tex(short(n)),f'{mean(values(g,"inverse_v")):.3g}',f'{mean(values(g,"v_q01")):.3g}',
          f'{mean(values(g,"v_median")):.3g}',f'{mean(values(g,"v_mean")):.3g}'] for n,g in (sweep|arch).items()],

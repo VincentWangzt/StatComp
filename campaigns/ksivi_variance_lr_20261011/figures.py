@@ -147,7 +147,7 @@ def make(rows,selection,evaluation,theory,root,output):
         if key=='rbf_representation_noise' and 'rbf_small_variance_asymptotic' in theory:
             coefficient=theory['rbf_small_variance_asymptotic']['limit_v_squared_original_gradient_variance']
             ax.loglog(x,[coefficient/v**2 for v in x],':',color=COLORS[0],label='Original small-v limit')
-        ax.set_xlabel('Component variance v (marginal remains N(0,I))');ax.set_ylabel('Gradient variance');ax.grid(alpha=.2);ax.legend()
+        ax.set_xlabel('Component variance v\nMarginal remains standard Gaussian');ax.set_ylabel('Gradient variance');ax.grid(alpha=.2);ax.legend()
     axes[0].set_title('Exact constant-kernel proxy (d=1)');axes[1].set_title('Fixed Gaussian kernel h=0.75 (d=2)')
     save(fig,output,'representation_noise')
 
