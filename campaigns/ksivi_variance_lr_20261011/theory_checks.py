@@ -89,9 +89,26 @@ def checks(output,repeats=20000,batch=128):
         rbf.append(dict(v=v,repeats=512,batch=batch,dimension=2,h=.75,
                         original_mean=float(array[:,0].mean()),stein_mean=float(array[:,1].mean()),
                         original_variance=float(array[:,0].var(ddof=1)),stein_variance=float(array[:,1].var(ddof=1))))
+    coefficient=2/(batch*batch)*(1+4/.75**2)**(-1)
+    for row in rbf:
+        row['original_small_v_coefficient']=coefficient
+        row['scaled_original_variance']=row['v']**2*row['original_variance']
+        row['scaled_original_ratio_to_limit']=row['scaled_original_variance']/coefficient
+        if row['v']<=.003:assert abs(row['scaled_original_ratio_to_limit']-1)<.15
     # A head frozen after it has learned can still move through shared features.
     from analyze import functional_drift
     from models.target_models import X_shaped
+    target_check=X_shaped(torch.device(device))
+    target_check._sigmasqinv_0=target_check._sigmasqinv_0.double()
+    target_check._sigmasqinv_1=target_check._sigmasqinv_1.double()
+    target_hessian=[]
+    for radius in [0.,1.,2.,4.,8.]:
+        point=torch.tensor([[radius,0.]],device=device,dtype=torch.float64,requires_grad=True)
+        score=torch.autograd.grad(target_check.logp(point).sum(),point,create_graph=True)[0]
+        hyy=torch.autograd.grad(score[:,1].sum(),point)[0][0,1].item()
+        expected=-target_check._sigmasqinv_0[1,1].item()+target_check._sigmasqinv_0[0,1].item()**2*radius**2
+        assert abs(hyy-expected)<1e-8
+        target_hessian.append(dict(radius=radius,spatial_autograd_hyy=hyy,analytic_hyy=expected))
     drift=[]
     for architecture in ['shared','separate','stopgrad']:
         spec=dict(seed=42,architecture=architecture,ratio=.1)
@@ -105,6 +122,9 @@ def checks(output,repeats=20000,batch=128):
         drift.append(dict(architecture=architecture,**measured))
     result=dict(source_revision=revision(),device=device,repeats=repeats,batch=batch,representation_noise=rows,
                 rbf_representation_noise=rbf,trained_frozen_head_drift=drift,
+                rbf_small_variance_asymptotic=dict(dimension=2,batch=batch,h=.75,
+                    limit_v_squared_original_gradient_variance=coefficient,stein_gradient_variance_order='O(v)'),
+                x_target_unbounded_hessian_check=target_hessian,
                 quadratic_block_updates_equal=True,step_lr_50k_sum=primary,step_lr_200k_sum=extended,
                 additional_fraction=(extended-primary)/primary,
                 frozen_initial_variance=v0,projected_wasserstein_lower_bound=float(lower),

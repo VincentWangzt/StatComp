@@ -1,8 +1,9 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[margin=24mm,headheight=14pt,includeheadfoot]{geometry}
 \usepackage[T1]{fontenc}
+\usepackage{amsmath,amsthm}
 \usepackage{newtxtext,newtxmath,microtype}
-\usepackage{amsmath,amsthm,booktabs,longtable,array,graphicx,pdflscape,caption,fancyhdr,xcolor,hyperref}
+\usepackage{booktabs,longtable,array,graphicx,pdflscape,caption,fancyhdr,xcolor,hyperref,placeins}
 \definecolor{ink}{HTML}{23384D}
 \hypersetup{colorlinks=true,linkcolor=ink,urlcolor=ink,citecolor=ink,
  pdftitle={Variance learning rates and backbones in KSIVI},pdfauthor={StatComp research investigation}}
@@ -23,7 +24,7 @@
 \fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0.3pt}
 \title{Can a Slower Variance Network Stabilize KSIVI?\\
 \large Learning rates, shared features, and optimization budgets on the X-shaped target}
-\author{StatComp research investigation}\date{11 October 2026}
+\author{StatComp research investigation}\date{12 October 2026}
 \begin{document}\maketitle
 \begin{abstract}
 @ABSTRACT@
@@ -102,6 +103,29 @@ Stein comparison changes both estimator and bandwidth differentiation. We
 include original-loss bandwidth-detachment controls and independently fixed
 bandwidth probes; the fixed-kernel population identity is not asserted for a
 sample-adaptive differentiated statistic.
+
+\subsection{Relation to the original KSIVI guarantees}
+The KSIVI analysis assumes controlled model derivatives and a uniform positive
+lower bound on component standard deviations (Assumption 4.3), then establishes
+gradient-variance bounds and an SGD stationarity guarantee under its full
+assumptions (Theorems 4.7--4.8) \cite{ksivi}. Our small-variance limit leaves a
+fixed uniformly nondegenerate parameter domain; it does not contradict those
+results. The implemented $10^{-4}$ variance floor truncates that limit but can
+still permit large noise constants. Stationarity also does not imply a small
+transport error. Adam, annealing, and fitted bandwidths require further care
+before applying a fixed-objective SGD theorem to these runs.
+
+There is an additional exact boundary on this particular target: its log-density
+does not have a globally bounded Hessian. In fact, with $c=1.8/0.76$,
+\[
+ \log p(x,y)=C-\frac{x^2+y^2}{0.76}+\log\cosh(cxy),\qquad
+ \partial_{yy}\log p(R,0)=-\frac2{0.76}+c^2R^2.
+\]
+The last expression is unbounded as $R\to\infty$, so the target does not satisfy
+the global Hessian condition in Assumption 4.2. Spatial autograd of the actual
+target implementation checks the formula. This is a limitation on a direct
+theorem application, not an explanation of the ordering of methods: all
+methods in this campaign share the same target.
 
 \section{What a variance learning rate can and cannot control}
 \subsection{A head-only learning rate leaves another path active}
@@ -351,6 +375,51 @@ with the training kernel family. The formulas prove a possible noise mechanism,
 not a universal RBF variance ordering: near $v=0.8$ even the constant-kernel
 ordering reverses. A small learning rate changes update noise, while Stein
 integration removes the explicit component-score terms themselves.
+
+\begin{proposition}[Small-variance asymptotics for the Gaussian kernel]
+Let $p=q_v=N(0,I_d)$ be represented as
+$X_v=\sqrt{1-v}\,E+\sqrt v\,U$ with independent standard Gaussian vectors,
+and use two independent batches of fixed size $N$. For fixed $h>0$ and
+$r=\log v$, the original Gaussian-kernel gradient satisfies
+\begin{equation}
+ \lim_{v\downarrow0}v^2\Var(\partial_r\widehat L_c)
+ =\frac{d}{N^2}\left(1+\frac4{h^2}\right)^{-d/2}>0,
+ \qquad \Var(\partial_r\widehat L_S)=O(v).
+ \label{eq:rbf-asymptotic}
+\end{equation}
+Both population gradients are zero for every $v$. Thus the noise divergence
+also occurs with a characteristic Gaussian kernel, without changing the
+marginal distribution or the population objective.
+\end{proposition}
+\begin{proof}
+For the original estimator $F_v=-X_v+U/\sqrt v$,
+$F_v=U/\sqrt v+O_{L^p}(1)$ and
+$\partial_r F_v=-U/(2\sqrt v)+O_{L^p}(\sqrt v)$ for every finite $p$.
+Also $\partial_rX_v=O_{L^p}(\sqrt v)$. Gaussian kernel derivatives are
+bounded, so differentiation of its factor contributes only
+$O_{L^2}(v^{-1/2})$ to the gradient. Therefore
+\[
+ v\partial_r\widehat L_c\ \longrightarrow\
+ -\frac1{N^2}\sum_{i,j}k_h(E_i,E'_j)U_i^TU'_j
+ \quad\text{in }L^2.
+\]
+All cross terms except identical $(i,j)$ vanish after conditioning on the
+latent $E$'s and taking expectations over independent centered $U$'s.
+The limiting variance is
+$d\E[k_h(E,E')^2]/N^2$.
+Since $E-E'\sim N(0,2I_d)$, this kernel moment equals
+$(1+4/h^2)^{-d/2}$. The Stein integrand and its first spatial derivatives
+have uniformly bounded Gaussian moments, and its only $r$ dependence is
+through $X_v,Y_v$. Its gradient is consequently $O_{L^2}(\sqrt v)$,
+which gives the stated variance order. The $L^2$ limit also justifies passage
+of the mean and variance; the common population loss is identically zero.
+\end{proof}
+
+For $d=2$, $N=128$, and $h=0.75$, the leading coefficient is approximately
+$1.5050\times10^{-5}$. Numerical simulations compare $v^2$ times the original
+gradient variance with this coefficient, rather than relying only on a visual
+log--log slope. This theorem concerns a specified marginal-preserving direction;
+it is not a lower bound for every parameter direction in a trained neural model.
 
 \section{Experimental protocol and atomic controls}
 All primary results use 50,000 updates. The fixed policy is Adam
