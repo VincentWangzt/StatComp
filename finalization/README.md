@@ -40,10 +40,6 @@ This uses `configs/finalization/score_approximation.yaml`. Explicit
 selection. Each source run must include `full_config.yaml` and both
 `vi_model.pt` and `reverse_model.pt` for every selected checkpoint epoch.
 
-VI checkpoints must use the split-head ConditionalGaussian layout (`backbone`,
-`mean_head`, and `variance_head`). Older `net.*` checkpoints and their optimizer
-states are unsupported; new training runs are required for score analysis.
-
 SIVI, UIVI, AISIVI, and DIVI all load the same frozen ConditionalGaussian VI
 checkpoint and receive the same `(epsilon, z)` input bank. DIVI loads its
 matching score-network checkpoint. AISIVI fits its reverse proposal to samples
