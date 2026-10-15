@@ -1,0 +1,120 @@
+{
+  "runs": [
+    {
+      "variant": "random",
+      "seed": 43,
+      "initial_variance": null,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 444.411,
+      "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed43/KSIVI/x_shaped/20261015_181437",
+      "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+      "sample_sha256": "bc20e926eff8bde66c9369760fb3f092d377b34a31e9a8477816df994b48f122",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.26375311613082886,
+      "positive_diagonal_fraction": 0.5224999785423279
+    },
+    {
+      "variant": "random",
+      "seed": 44,
+      "initial_variance": null,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 442.969,
+      "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed44/KSIVI/x_shaped/20261015_181437",
+      "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+      "sample_sha256": "c2ce3b9a181c2e735d7938e39f7768163ace7ba13771a27d1a546ab1e39ccba5",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.48732805252075195,
+      "positive_diagonal_fraction": 0.5809999704360962
+    },
+    {
+      "variant": "random",
+      "seed": 45,
+      "initial_variance": null,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 450.267,
+      "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed45/KSIVI/x_shaped/20261015_181438",
+      "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+      "sample_sha256": "77ecfd5220cadb9b94e98eeef21fd9bc6b061d442b842a6aeae08bf0abb9b8ad",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.5787725448608398,
+      "positive_diagonal_fraction": 0.28949999809265137
+    },
+    {
+      "variant": "constant",
+      "seed": 43,
+      "initial_variance": 1.313,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 439.222,
+      "result_path": "results/ksivi_x_shaped_var_init_1p313_20261015_4090/seed43/KSIVI/x_shaped/20261015_184249",
+      "source_revision": "0b529cbf9528dd91042da23b5a2feb981c271f34",
+      "sample_sha256": "4476985bf7e2887bc0695b512139ae2276efa1fa1d58d7ca28d30061bbf75335",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.13516764342784882,
+      "positive_diagonal_fraction": 0.5131000280380249
+    },
+    {
+      "variant": "constant",
+      "seed": 44,
+      "initial_variance": 1.313,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 439.513,
+      "result_path": "results/ksivi_x_shaped_var_init_1p313_20261015_4090/seed44/KSIVI/x_shaped/20261015_184249",
+      "source_revision": "0b529cbf9528dd91042da23b5a2feb981c271f34",
+      "sample_sha256": "8f60d9381c4853874eb33d0f991cfb1a793fb21eef6389c0fa0e6db9917fccd5",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.2998073995113373,
+      "positive_diagonal_fraction": 0.4607999920845032
+    },
+    {
+      "variant": "constant",
+      "seed": 45,
+      "initial_variance": 1.313,
+      "optimizer_steps": 50000,
+      "mean_lr": 0.001,
+      "variance_lr": 1e-05,
+      "training_seconds": 419.57,
+      "result_path": "results/ksivi_x_shaped_var_init_1p313_20261015_4090/seed45/KSIVI/x_shaped/20261015_184249",
+      "source_revision": "0b529cbf9528dd91042da23b5a2feb981c271f34",
+      "sample_sha256": "79f6d2fce8ea3423de6026fb45d40c0a47c9e81ada267ddd07b3f7d1a25f8fc1",
+      "samples_saved": 10000,
+      "samples_plotted": 2000,
+      "finite_parameters_and_samples": true,
+      "sw2_10k_128_directions": 0.14240191876888275,
+      "positive_diagonal_fraction": 0.5041000247001648
+    }
+  ],
+  "summary": {
+    "random": {
+      "mean_sw2": 0.4432845711708069,
+      "sd_sw2": 0.16206227601268852
+    },
+    "constant": {
+      "mean_sw2": 0.19245898723602295,
+      "sd_sw2": 0.09303679325111446
+    }
+  },
+  "metric": "Root mean squared projected quantile difference; 10K samples, 128 evenly spaced directions",
+  "reference_seed": 20261015,
+  "scatter_selection_seed": 42,
+  "configs_equal_except_variance_init_and_output": true
+}
