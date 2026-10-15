@@ -1,0 +1,53 @@
+{
+  "host": "autodl-container-6wpmndtc06-808ca1a6",
+  "python": "3.14.2",
+  "torch": "2.9.0+cu126",
+  "device": "cpu",
+  "gpu": null,
+  "cpu_threads": 1,
+  "timed_steps_per_trial": 300,
+  "repeats": 3,
+  "baseline_revision": "607f0a63f8a7bb83b64be434a9407249fdbbcad4",
+  "current_revision": "8e7d399d32b3d28704300c09e6d37c5fa02b44b1",
+  "before_updates_per_second": 139.22410312912163,
+  "after_updates_per_second": 137.73598533358359,
+  "slowdown_percent": 1.0804132209414785,
+  "trials": [
+    {
+      "version": "before",
+      "repeat": 0,
+      "seconds": 2.1547993002459407,
+      "updates_per_second": 139.22410312912163
+    },
+    {
+      "version": "after",
+      "repeat": 0,
+      "seconds": 2.1472887843847275,
+      "updates_per_second": 139.71106363597963
+    },
+    {
+      "version": "after",
+      "repeat": 1,
+      "seconds": 2.2046774248592556,
+      "updates_per_second": 136.0743284333996
+    },
+    {
+      "version": "before",
+      "repeat": 1,
+      "seconds": 2.0828638300299644,
+      "updates_per_second": 144.03245938342698
+    },
+    {
+      "version": "before",
+      "repeat": 2,
+      "seconds": 2.2702774619683623,
+      "updates_per_second": 132.14243854576955
+    },
+    {
+      "version": "after",
+      "repeat": 2,
+      "seconds": 2.1780800367705524,
+      "updates_per_second": 137.73598533358359
+    }
+  ]
+}
