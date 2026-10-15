@@ -563,10 +563,16 @@ def render_toy_method_grid(summary_rows: list[dict[str, Any]], cfg: Any) -> str:
             if count != 10:
                 target_tex = target.replace("_", "\\_")
                 seed_description += f"; {_display_method(method)} on \\texttt{{{target_tex}}} uses {count} seeds"
+    caption = ("Toy target final evaluation metrics (mean $\\pm$ standard error over "
+               + seed_description
+               + "). Wall-clock time is averaged across the three targets; bold indicates the best mean.")
+    timing_note = cfg.tables.get("toy_method_grid_timing_note", "")
+    if timing_note:
+        caption += " " + str(timing_note)
     lines = [
         "\\begin{table}[t]",
         "\\centering",
-        "\\caption{Toy target final evaluation metrics (mean $\\pm$ standard error over " + seed_description + "). Wall-clock time is averaged across the three targets; bold indicates the best mean.}",
+        "\\caption{" + caption + "}",
         "\\label{tab:toy-method-grid}",
         "\\small",
         "\\setlength{\\tabcolsep}{3pt}",

@@ -238,3 +238,4 @@ tables:
   best_bold: true
   value_precision: 3
   se_precision: 2
+  toy_method_grid_timing_note: X-shaped KSIVI wall-clock times were measured with up to three concurrent seeds on one GPU.
