@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import math
 import torch.distributions as dist
 from utils.logging import get_logger
@@ -169,27 +170,62 @@ class ConditionalGaussian(BaseVIModel):
             )
         self.log_var_min = float(config.get('log_var_min', -20.0))
         self.activation = config.get('activation', 'silu')
-        # The network outputs both mean and variance
+        # Shared features feed separately trainable mean and variance heads.
         layers = []
         input_dim = self.epsilon_dim
         for _ in range(self.num_layers):
             layers.append(nn.Linear(input_dim, self.hidden_dim))
             layers.append(_make_activation(self.activation))
             input_dim = self.hidden_dim
-        layers.append(nn.Linear(self.hidden_dim, self.out_dim))
-        self.net = nn.Sequential(*layers)
+        self.backbone = nn.Sequential(*layers)
+        # Preserve the original joint initialization and subsequent RNG state.
+        joint_head = nn.Linear(self.hidden_dim, self.out_dim)
+        with torch.random.fork_rng(devices=[]):
+            self.mean_head = nn.Linear(self.hidden_dim, self.z_dim)
+            self.variance_head = nn.Linear(self.hidden_dim, self.z_dim)
+        with torch.no_grad():
+            self.mean_head.weight.copy_(joint_head.weight[:self.z_dim])
+            self.mean_head.bias.copy_(joint_head.bias[:self.z_dim])
+            self.variance_head.weight.copy_(joint_head.weight[self.z_dim:])
+            self.variance_head.bias.copy_(joint_head.bias[self.z_dim:])
         if self.variance_parameterization == 'logvar':
             self._init_logvar_head(float(config.get('log_var_init', 0.0)))
 
     def _init_logvar_head(self, log_var_init: float) -> None:
         """Initialize only the variance head; keep the mean head untouched."""
-        final_layer = self.net[-1]
-        if not isinstance(final_layer, nn.Linear):
-            return
         with torch.no_grad():
-            final_layer.weight[self.z_dim:].zero_()
-            if final_layer.bias is not None:
-                final_layer.bias[self.z_dim:].fill_(log_var_init)
+            self.variance_head.weight.zero_()
+            self.variance_head.bias.fill_(log_var_init)
+
+    def _raw_parameters(
+        self,
+        epsilon: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Evaluate both heads together to preserve the original linear arithmetic."""
+        features = self.backbone(epsilon)
+        weight = torch.cat((self.mean_head.weight, self.variance_head.weight))
+        bias = torch.cat((self.mean_head.bias, self.variance_head.bias))
+        return F.linear(features, weight, bias).chunk(2, dim=-1)
+
+    def optimizer_parameter_groups(
+        self,
+        mean_lr: float,
+        variance_lr: float | None = None,
+    ) -> list[dict]:
+        """Keep shared features at the mean LR; default the variance LR to it."""
+        if variance_lr is None:
+            variance_lr = mean_lr
+        return [
+            {
+                'params': (list(self.backbone.parameters())
+                           + list(self.mean_head.parameters())),
+                'lr': mean_lr,
+            },
+            {
+                'params': list(self.variance_head.parameters()),
+                'lr': variance_lr,
+            },
+        ]
 
     def _variance_from_raw(
         self,
@@ -224,11 +260,11 @@ class ConditionalGaussian(BaseVIModel):
 
     def getmu(self, epsilon: torch.Tensor) -> torch.Tensor:
         """Return `mu(epsilon)` from the network output split."""
-        return self.net(epsilon).chunk(2, dim=-1)[0]
+        return self._raw_parameters(epsilon)[0]
 
     def getstd(self, epsilon: torch.Tensor) -> torch.Tensor:
         """Return `std(epsilon)` by clamping variance and taking square root."""
-        var_raw = self.net(epsilon).chunk(2, dim=-1)[1]
+        var_raw = self._raw_parameters(epsilon)[1]
         var, _ = self._variance_from_raw(var_raw)
         std = torch.sqrt(var)
         return std
@@ -245,7 +281,7 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             (z, neg_score) (torch.Tensor, torch.Tensor): Sample `z` and negative score `u/std`.
         """
-        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        mu, var_raw = self._raw_parameters(epsilon)
         z, neg_score_implicit = self.reparameterize(mu, var_raw)
         return z, neg_score_implicit
 
@@ -294,7 +330,7 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             score (torch.Tensor): Score `-(z - mu(epsilon)) / var(epsilon)`.
         """
-        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        mu, var_raw = self._raw_parameters(epsilon)
         var, _ = self._variance_from_raw(var_raw)
         score = -(z - mu) / (var)
         return score
@@ -313,7 +349,7 @@ class ConditionalGaussian(BaseVIModel):
         Returns:
             log_prob (torch.Tensor): shape [...]
         """
-        mu, var_raw = self.net(epsilon).chunk(2, dim=-1)
+        mu, var_raw = self._raw_parameters(epsilon)
         var, log_var = self._variance_from_raw(var_raw)
         # Gaussian log-likelihood per sample
         const = -0.5 * z.shape[-1] * math.log(2 * math.pi)

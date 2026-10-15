@@ -13,7 +13,7 @@ train:
   batch_size: 128
   vi:
     lr: 1.0e-3
-    var_lr: 1.0e-3
+    var_lr: 1.0e-5
     scheduler:
       type: StepLR
       step_size: 1000
