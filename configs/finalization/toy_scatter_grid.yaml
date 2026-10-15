@@ -7,6 +7,9 @@ campaign:
     - campaigns/toy_scatter_aisivi_additional/manifest.json
   run_group_overrides:
     - method: KSIVI
+      target: x_shaped
+      manifest_path: campaigns/ksivi_x_shaped/manifest.json
+    - method: KSIVI
       target: student_uc
       manifest_path: campaigns/toy_scatter_ksivi_detached_annealing/manifest.json
   output_dir: campaigns/toy_scatter_grid/generated_reports/finalization
