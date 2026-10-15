@@ -87,10 +87,14 @@ class ConditionalGaussianTests(unittest.TestCase):
     def test_initialization_rng_and_sampling_match_legacy(self):
         variants = [
             (ConditionalGaussian, {}),
+            (ConditionalGaussian, dict(variance_init=None)),
             (ConditionalGaussianUniform, {}),
             (ConditionalGaussian, dict(
                 epsilon_dim=3, z_dim=31, hidden_dim=10, activation='relu',
                 variance_parameterization='logvar', log_var_init=-8.0)),
+            (ConditionalGaussian, dict(
+                variance_parameterization='logvar', log_var_init=-8.0,
+                variance_init=None)),
         ]
         for model_type, overrides in variants:
             config = OmegaConf.merge(self.config, overrides)
@@ -118,6 +122,45 @@ class ConditionalGaussianTests(unittest.TestCase):
                     actual_epsilon, actual_z = model.sampling(16)
                     self.assertTrue(torch.equal(expected_epsilon, actual_epsilon))
                     self.assertTrue(torch.equal(expected_z, actual_z))
+
+    def test_constant_variance_preserves_mean_and_rng(self):
+        for parameterization in ('softplus_var', 'logvar'):
+            for variance_init in (1e-4, 1.313, 100.0):
+                with self.subTest(parameterization=parameterization, variance_init=variance_init):
+                    config = OmegaConf.merge(self.config, dict(
+                        variance_parameterization=parameterization, log_var_init=-8.0))
+                    torch.manual_seed(43)
+                    default = ConditionalGaussian(config)
+                    expected_rng = torch.random.get_rng_state()
+                    torch.manual_seed(43)
+                    model = ConditionalGaussian(OmegaConf.merge(
+                        config, dict(variance_init=variance_init)))
+                    self.assertTrue(torch.equal(expected_rng, torch.random.get_rng_state()))
+                    for left, right in zip(default.backbone.parameters(), model.backbone.parameters()):
+                        self.assertTrue(torch.equal(left, right))
+                    epsilon = torch.randn(3, 5, 2)
+                    self.assertTrue(torch.equal(default.getmu(epsilon), model.getmu(epsilon)))
+                    torch.testing.assert_close(model.getstd(epsilon).square(),
+                                               torch.full((3, 5, 2), variance_init))
+
+    def test_constant_initial_variance_remains_trainable(self):
+        model = ConditionalGaussian(OmegaConf.merge(self.config, dict(variance_init=1.313)))
+        epsilon = torch.randn(128, 2)
+        before = model.getstd(epsilon).square().detach()
+        optimizer = torch.optim.Adam(model.optimizer_parameter_groups(1e-3, 1e-5))
+        ksivi_loss(model, X_shaped(torch.device('cpu')), 1).backward()
+        optimizer.step()
+        after = model.getstd(epsilon).square().detach()
+        self.assertFalse(torch.equal(before, after))
+        self.assertGreater(after.std(dim=0).max().item(), 0.0)
+
+    def test_invalid_initial_variance_is_rejected(self):
+        for value in (0.0, -1.0, float('nan'), float('inf'), 5e-5):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                ConditionalGaussian(OmegaConf.merge(self.config, dict(variance_init=value)))
+        with self.assertRaises(ValueError):
+            ConditionalGaussian(OmegaConf.merge(self.config, dict(
+                variance_parameterization='logvar', log_var_min=-2.0, variance_init=0.1)))
 
     def test_missing_and_equal_lr_match_legacy_training(self):
         target = X_shaped(torch.device('cpu'))

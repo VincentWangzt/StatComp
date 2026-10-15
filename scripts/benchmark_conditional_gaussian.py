@@ -59,6 +59,7 @@ def main():
             config.train.epochs = args.steps
             # Equal LRs isolate implementation overhead from different trajectories.
             config.train.vi.var_lr = config.train.vi.lr
+            config.vi_model.variance_init = None
             config.train.log.metric_log_freq = 0
             config.train.plot.freq = 1000000000
             trial_name = f'{args.device}_{label}_{repeat}'

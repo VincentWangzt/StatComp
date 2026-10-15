@@ -7,6 +7,8 @@ use_cuda: true
 runner_type: KSIVI
 target_type: x_shaped
 vi_model_type: ConditionalGaussian
+vi_model:
+  variance_init: 1.313
 
 train:
   epochs: 50000
