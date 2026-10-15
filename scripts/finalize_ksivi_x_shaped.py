@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import shutil
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,10 +97,13 @@ def main() -> None:
         paper_config.modules[module] = module in {"toy_tables", "toy_method_grid"}
     render_tables(merged_summaries, paper_config)
 
-    for path in ("configs/finalization/default_config_grid.yaml", "configs/finalization/toy_scatter_grid.yaml"):
-        plot_config = load_config(path)
-        plot_records = completed_runs(load_campaign_manifest(plot_config.campaign))
-        render_scatter_grid(plot_records, plot_config)
+    # The camera-ready campaign owns the selected qualitative runs. Some
+    # historical default-grid sample directories have since been removed.
+    plot_config = load_config("configs/finalization/toy_scatter_grid.yaml")
+    plot_records = completed_runs(load_campaign_manifest(plot_config.campaign))
+    grid = render_scatter_grid(plot_records, plot_config)
+    for suffix in (".png", ".pdf"):
+        shutil.copyfile(grid.with_suffix(suffix), paper_out / "figures" / grid.with_suffix(suffix).name)
 
     audit = []
     for record in records:
