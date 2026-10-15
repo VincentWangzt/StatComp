@@ -83,11 +83,13 @@ def draw(records, configs, points, seeds, variants, path):
             _draw_toy_contours(ax, 'x_shaped', list(configs[key].target.bbox))
             x = points[key]
             ax.plot(x[:, 0], x[:, 1], '.', color='#ff7f0e', markersize=3, alpha=.45)
-            ax.set_title(f'Seed {seed}', fontsize=14)
+            if row == 0:
+                ax.set_title(f'Seed {seed}', fontsize=14)
             ax.text(.04, .95, f"SW2 = {records[key]['sw2_10k_128_directions']:.3f}",
                     transform=ax.transAxes, va='top', fontsize=10,
                     bbox=dict(facecolor='white', edgecolor='none', alpha=.85))
-            ax.set_xlabel('$z_1$', fontsize=12)
+            if row == len(variants) - 1:
+                ax.set_xlabel('$z_1$', fontsize=12)
             if column == 0:
                 label = 'Random initial variance' if variant == 'random' else 'Constant initial variance: 1.313'
                 ax.set_ylabel(label + '\n$z_2$', fontsize=11)
