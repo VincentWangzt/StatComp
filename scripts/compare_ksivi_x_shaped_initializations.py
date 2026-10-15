@@ -28,6 +28,7 @@ def comparable_config(config):
     result = OmegaConf.to_container(config, resolve=True)
     result.pop('output')
     result['vi_model'].pop('variance_init', None)
+    result['cuda_visible_devices'] = str(result['cuda_visible_devices'])
     return result
 
 
