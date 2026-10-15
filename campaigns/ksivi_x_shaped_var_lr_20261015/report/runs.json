@@ -1,0 +1,47 @@
+[
+  {
+    "seed": 43,
+    "epochs": 50000,
+    "optimizer_steps": 50000,
+    "device": "cuda",
+    "gpu": "RTX 4090",
+    "training_seconds": 444.411,
+    "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed43/KSIVI/x_shaped/20261015_181437",
+    "mean_lr": 0.001,
+    "variance_lr": 1e-05,
+    "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+    "finite_parameters_and_samples": true,
+    "samples_saved": 10000,
+    "samples_plotted": 2000
+  },
+  {
+    "seed": 44,
+    "epochs": 50000,
+    "optimizer_steps": 50000,
+    "device": "cuda",
+    "gpu": "RTX 4090",
+    "training_seconds": 442.969,
+    "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed44/KSIVI/x_shaped/20261015_181437",
+    "mean_lr": 0.001,
+    "variance_lr": 1e-05,
+    "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+    "finite_parameters_and_samples": true,
+    "samples_saved": 10000,
+    "samples_plotted": 2000
+  },
+  {
+    "seed": 45,
+    "epochs": 50000,
+    "optimizer_steps": 50000,
+    "device": "cuda",
+    "gpu": "RTX 4090",
+    "training_seconds": 450.267,
+    "result_path": "results/ksivi_x_shaped_var_lr_20261015_4090/seed45/KSIVI/x_shaped/20261015_181438",
+    "mean_lr": 0.001,
+    "variance_lr": 1e-05,
+    "source_revision": "cfe609b7bddd38ab77f40b2f2feaffe6d4733c27",
+    "finite_parameters_and_samples": true,
+    "samples_saved": 10000,
+    "samples_plotted": 2000
+  }
+]

@@ -1,0 +1,2 @@
+name, driver_version, pstate, clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], utilization.gpu [%], utilization.memory [%], memory.used [MiB], pcie.link.gen.current, pcie.link.width.current
+NVIDIA GeForce RTX 4090, 580.105.08, P2, 2520 MHz, 10251 MHz, 54.39 W, 450.00 W, 0 %, 0 %, 459 MiB, 4, 16
