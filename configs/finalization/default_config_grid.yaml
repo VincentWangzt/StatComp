@@ -43,6 +43,9 @@ selection:
   seed_for_figures: 42
   seed_overrides:
     AISIVI: 44
+  target_seed_overrides:
+    KSIVI:
+      x_shaped: 43
 
 modules:
   evaluate: true

@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import shutil
 import sys
 
@@ -41,14 +42,53 @@ def replace_group(original: list[dict], updated: list[dict]) -> list[dict]:
     return [row for row in original if not matches(row)] + updated
 
 
+def refresh_scatter_grid() -> int:
+    plot_config = load_config("configs/finalization/toy_scatter_grid.yaml")
+    plot_records = completed_runs(load_campaign_manifest(plot_config.campaign))
+    grid = render_scatter_grid(plot_records, plot_config)
+    paper_out = repo_path(str(load_config(None).campaign.output_dir))
+    assert paper_out is not None
+    for suffix in (".png", ".pdf"):
+        shutil.copyfile(grid.with_suffix(suffix), paper_out / "figures" / grid.with_suffix(suffix).name)
+    return int(plot_config.selection.target_seed_overrides.KSIVI.get(
+        "x_shaped", plot_config.selection.seed_for_figures))
+
+
+def update_scatter_reports(seed: int) -> None:
+    canonical_report = ROOT / REPORT_DIR / "finalization_report.md"
+    content = canonical_report.read_text(encoding="utf-8")
+    content = re.sub(r"(?m)^The refreshed grids .* for KSIVI on x_shaped\.$",
+                     f"The refreshed grids use seed {seed} for KSIVI on x_shaped.", content)
+    canonical_report.write_text(content, encoding="utf-8")
+    note = (f"Canonical KSIVI X-shaped metrics and seed-{seed} scatter panel use seeds 42--51 from "
+            "`campaigns/ksivi_x_shaped/generated_reports/finalization/finalization_report.md`. "
+            "These runs use constant variance initialization 1.313 and variance-head LR 1e-5; "
+            "per-run timings include sharing one RTX 4090 with at most two other seeds.")
+    for campaign in ("default_config_grid", "toy_scatter_grid"):
+        report = ROOT / "campaigns" / campaign / "generated_reports/finalization/finalization_report.md"
+        content = report.read_text(encoding="utf-8")
+        pattern = r"(?m)^Canonical KSIVI X-shaped metrics and seed-\d+ scatter panel.*$"
+        if re.search(pattern, content):
+            content = re.sub(pattern, lambda match: note, content)
+        else:
+            content = content.rstrip() + "\n\n" + note + "\n"
+        report.write_text(content, encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-only", action="store_true")
+    parser.add_argument("--scatter-only", action="store_true", help="Refresh the selected scatter panel without changing metrics.")
     args = parser.parse_args()
     torch.set_num_threads(1)
     records = canonical_records()
     if args.check_only:
         print("Validated ten completed canonical X-shaped KSIVI runs.")
+        return
+    if args.scatter_only:
+        figure_seed = refresh_scatter_grid()
+        update_scatter_reports(figure_seed)
+        print(f"Refreshed KSIVI/x_shaped scatter panel from seed {figure_seed}.")
         return
     records = [replace(record, config_path=record.result_path / "full_config.yaml") for record in records]
     config = OmegaConf.merge(load_config(None), {
@@ -97,13 +137,7 @@ def main() -> None:
         paper_config.modules[module] = module in {"toy_tables", "toy_method_grid"}
     render_tables(merged_summaries, paper_config)
 
-    # The camera-ready campaign owns the selected qualitative runs. Some
-    # historical default-grid sample directories have since been removed.
-    plot_config = load_config("configs/finalization/toy_scatter_grid.yaml")
-    plot_records = completed_runs(load_campaign_manifest(plot_config.campaign))
-    grid = render_scatter_grid(plot_records, plot_config)
-    for suffix in (".png", ".pdf"):
-        shutil.copyfile(grid.with_suffix(suffix), paper_out / "figures" / grid.with_suffix(suffix).name)
+    figure_seed = refresh_scatter_grid()
 
     audit = []
     for record in records:
@@ -128,7 +162,7 @@ def main() -> None:
         "Evaluation uses each run's saved configuration and final checkpoint:",
         "5,000 VI samples and 20 batches of 2,048 auxiliary samples for KL-style (-ELBO);",
         "10,000 samples and 5,000 projections for sliced W2.",
-        "The refreshed grids keep the preselected seed 42 for KSIVI on x_shaped.", "",
+        f"The refreshed grids use seed {figure_seed} for KSIVI on x_shaped.", "",
         "| Seed | KL-style (-ELBO) | Sliced W2 | Wall-clock (s) |",
         "| --- | ---: | ---: | ---: |",
     ]
@@ -140,15 +174,7 @@ def main() -> None:
         "No evaluation errors or warnings. Only the KSIVI/x_shaped metric group is replaced.", "",
     ])
     (out / "finalization_report.md").write_text("\n".join(lines), encoding="utf-8")
-    note = ("Canonical KSIVI X-shaped metrics and seed-42 scatter panel use seeds 42--51 from "
-            "`campaigns/ksivi_x_shaped/generated_reports/finalization/finalization_report.md`. "
-            "These runs use constant variance initialization 1.313 and variance-head LR 1e-5; "
-            "per-run timings include sharing one RTX 4090 with at most two other seeds.")
-    for report in (paper_out / "finalization_report.md",
-                   ROOT / "campaigns/toy_scatter_grid/generated_reports/finalization/finalization_report.md"):
-        content = report.read_text(encoding="utf-8")
-        if note not in content:
-            report.write_text(content.rstrip() + "\n\n" + note + "\n", encoding="utf-8")
+    update_scatter_reports(figure_seed)
     print("\n".join(lines))
 
 

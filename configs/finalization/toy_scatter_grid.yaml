@@ -29,6 +29,7 @@ selection:
     AISIVI:
       8_gaussians: 43
     KSIVI:
+      x_shaped: 43
       student_uc: 42
 
 modules:
