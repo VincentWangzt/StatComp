@@ -1,0 +1,11 @@
+iterations,method,result_path,run_id,seed,source_revision,target,training_time_sec,wall_clock_sec
+50000,KSIVI,results/ksivi_x_shaped/seed42/KSIVI/x_shaped/20261015_190451,seed42_ksivi_x_shaped,42,700d331daa0d669bc88154fb35e7cce83b543dad,x_shaped,412.342,418.0622158385813
+50000,KSIVI,results/ksivi_x_shaped/seed43/KSIVI/x_shaped/20261015_190453,seed43_ksivi_x_shaped,43,700d331daa0d669bc88154fb35e7cce83b543dad,x_shaped,435.838,442.0943479500711
+50000,KSIVI,results/ksivi_x_shaped/seed44/KSIVI/x_shaped/20261015_190455,seed44_ksivi_x_shaped,44,700d331daa0d669bc88154fb35e7cce83b543dad,x_shaped,414.07,418.0745218284428
+50000,KSIVI,results/ksivi_x_shaped/seed45/KSIVI/x_shaped/20261015_191220,seed45_ksivi_x_shaped,45,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,411.769,418.0374402180314
+50000,KSIVI,results/ksivi_x_shaped/seed46/KSIVI/x_shaped/20261015_191222,seed46_ksivi_x_shaped,46,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,426.636,432.1456864736974
+50000,KSIVI,results/ksivi_x_shaped/seed47/KSIVI/x_shaped/20261015_191224,seed47_ksivi_x_shaped,47,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,417.654,422.0881653614342
+50000,KSIVI,results/ksivi_x_shaped/seed48/KSIVI/x_shaped/20261015_191934,seed48_ksivi_x_shaped,48,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,410.94,416.11018903926015
+50000,KSIVI,results/ksivi_x_shaped/seed49/KSIVI/x_shaped/20261015_191936,seed49_ksivi_x_shaped,49,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,404.744,410.03563414514065
+50000,KSIVI,results/ksivi_x_shaped/seed50/KSIVI/x_shaped/20261015_191938,seed50_ksivi_x_shaped,50,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,424.413,430.1789927817881
+50000,KSIVI,results/ksivi_x_shaped/seed51/KSIVI/x_shaped/20261015_192648,seed51_ksivi_x_shaped,51,1192cda16cff97d1cfc27a21bb011634a9048810,x_shaped,357.098,362.02678775042295
