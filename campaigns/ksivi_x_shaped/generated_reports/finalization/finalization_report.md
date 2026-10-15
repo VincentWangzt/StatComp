@@ -9,7 +9,7 @@ Linear annealing over 25,000 steps; Gaussian kernel; scheduler gamma 0.9 every 1
 Evaluation uses each run's saved configuration and final checkpoint:
 5,000 VI samples and 20 batches of 2,048 auxiliary samples for KL-style (-ELBO);
 10,000 samples and 5,000 projections for sliced W2.
-The refreshed grids keep the preselected seed 42 for KSIVI on x_shaped.
+The refreshed grids use seed 43 for KSIVI on x_shaped.
 
 | Seed | KL-style (-ELBO) | Sliced W2 | Wall-clock (s) |
 | --- | ---: | ---: | ---: |
