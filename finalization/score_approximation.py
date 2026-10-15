@@ -45,14 +45,13 @@ def _conditional_parameters(
     vi_model: torch.nn.Module,
     epsilon: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    if not hasattr(vi_model, "net") or not hasattr(
+    if not hasattr(vi_model, "_raw_parameters") or not hasattr(
         vi_model, "_variance_from_raw"
     ):
         raise TypeError(
             "Score analysis requires the ConditionalGaussian VI interface."
         )
-    output = vi_model.net(epsilon)
-    mu, var_raw = output.chunk(2, dim=-1)
+    mu, var_raw = vi_model._raw_parameters(epsilon)
     var, _ = vi_model._variance_from_raw(var_raw)
     return mu, var
 
