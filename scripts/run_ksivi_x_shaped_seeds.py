@@ -29,12 +29,21 @@ OVERRIDES = ["train.log.metric_log_freq=0", "train.plot.freq=1000000000"]
 def validate_entry(entry: dict) -> None:
     run = sweep.repo_path(entry["result_path"])
     snapshot = run / "full_config.yaml"
-    assert sweep.artifact_config_hash(snapshot) == entry["config_hash"], entry["seed"]
+    # BaseSIVIRunner resolves a toy target's mixing dimension to model.z_dim
+    # and inserts the disabled Jacobian diagnostic into the saved snapshot.
+    expected = sweep._resolved_effective_config(entry["config_path"], entry["seed"], OVERRIDES)
+    expected["target"]["epsilon_dim"] = expected["target"]["z_dim"]
+    expected["vi_model"]["epsilon_dim"] = expected["target"]["z_dim"]
+    expected["metric"].setdefault("jacobian_spectral", dict(enabled=False, num_samples=128))
+    actual_hash = sweep.artifact_config_hash(snapshot)
+    assert actual_hash == sweep._hash_normalized_payload(expected), entry["seed"]
+    entry["artifact_config_hash"] = actual_hash
     config = OmegaConf.load(snapshot)
     assert config.seed == entry["seed"] and config.device == "cuda"
     assert config.train.epochs == 50000 and config.train.batch_size == 128
     assert config.train.vi.lr == 1e-3 and config.train.vi.var_lr == 1e-5
     assert config.vi_model.variance_init == 1.313
+    assert config.target.epsilon_dim == config.vi_model.epsilon_dim == 2
     assert config.train.annealing.enabled and config.train.annealing.steps == 25000
     assert config.train.ksivi.kernel == "gaussian" and not config.train.ksivi.detach_kernel
     checkpoint, epoch = find_final_checkpoint(run)
@@ -96,10 +105,16 @@ def main() -> None:
     previous = {entry["run_id"]: entry for entry in sweep.read_json_or_default(manifest_path, [])}
     for entry in entries:
         old = previous.get(entry["run_id"])
-        if old and old["status"] == "completed":
+        if old and (old["status"] == "completed" or old.get("exit_code") == 0):
             assert old["config_hash"] == entry["config_hash"], "Completed run has a different configuration"
             validate_entry(old)
             entry.update(old)
+            entry.update(status="completed", failure_reason=None)
+            if "training_time_sec" not in entry:
+                times = re.findall(r"Training completed\. Total time: ([0-9.]+)s",
+                                   (sweep.repo_path(entry["result_path"]) / "run.log").read_text())
+                assert times
+                entry.update(training_time_sec=float(times[-1]), iterations=50000)
 
     console_root = runtime / "console"
     console_root.mkdir(exist_ok=True)

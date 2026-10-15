@@ -108,7 +108,8 @@ def main() -> None:
         audit.append(dict(seed=record.seed, checkpoint_epoch=epoch, sample_epoch=sample_epoch,
                           sample_sha256=hashlib.sha256(samples.read_bytes()).hexdigest(),
                           checkpoint_sha256=hashlib.sha256((checkpoint / "vi_model.pt").read_bytes()).hexdigest(),
-                          config_hash=record.entry["config_hash"], source_revision=record.entry["source_revision"],
+                          config_hash=record.entry["config_hash"], artifact_config_hash=record.entry["artifact_config_hash"],
+                          source_revision=record.entry["source_revision"],
                           batch=record.entry["batch"], result_path=record.result_path.as_posix(),
                           finite_parameters_and_samples=True, optimizer_steps=50000))
     write_csv(out / "seed_audit.csv", audit)
@@ -118,6 +119,7 @@ def main() -> None:
         "Seeds 42--51; 50,000 iterations each. Batches: [42, 43, 44], [45, 46, 47], [48, 49, 50], [51].",
         "One RTX 4090, at most three concurrent seeds. Per-run wall-clock times reflect shared GPU execution.",
         "Constant conditional-variance initialization 1.313; mean-network LR 0.001; variance-head LR 0.00001.",
+        "The saved runner configuration uses a two-dimensional standard Gaussian mixing prior.",
         "Linear annealing over 25,000 steps; Gaussian kernel; scheduler gamma 0.9 every 1,000 steps.",
         "Evaluation uses each run's saved configuration and final checkpoint:",
         "5,000 VI samples and 20 batches of 2,048 auxiliary samples for KL-style (-ELBO);",
