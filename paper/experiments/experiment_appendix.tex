@@ -149,6 +149,8 @@ Table~\ref{tab:toy-target-summary} collects the key parameters of each target.
 \end{table}
 
 
+\input{\finalizationtabledir/toy_method_grid.tex}
+
 \paragraph{Training configuration details.}
 SIVI, UIVI, AISIVI, and DIVI use 10,000 iterations, VI learning rate $10^{-3}$, batch size 128, and a step scheduler with decay factor 0.7 every 1,000 iterations (0.9 on \texttt{8\_gaussians}). Linear annealing over 5,000 steps is applied on all targets except \texttt{student\_uc}, where annealing is disabled for these methods.
 
@@ -162,13 +164,10 @@ AISIVI uses a conditional RealNVP reverse model with 8 coupling layers and hidde
 The proxy score MLP has hidden width 64 and three hidden layers.  The proxy is warm-started for 500 epochs with learning rate $10^{-3}$ and batch size 8,192.  During main training the proxy uses reverse batch size 2,048, reverse learning rate $10^{-3}$, and 5 updates per VI step.
 
 \subparagraph{KSIVI.}
-KSIVI is trained for 50,000 iterations with batch size 128, learning rate $10^{-3}$, 25,000-step linear annealing, and a step-decay schedule with factor 0.9 every 1,000 iterations, following \citet{cheng2024kernel}. We use a Gaussian kernel on \texttt{x\_shaped} and \texttt{8\_gaussians}, and an affine-invariant Riesz kernel on \texttt{student\_uc}. On \texttt{x\_shaped}, the conditional variances are initialized to the constant $1.313$; the mean network uses learning rate $10^{-3}$ and the variance head uses $10^{-5}$, with the same decay schedule. The X-shaped results use seeds 42--51, run on one RTX 4090 in batches of three concurrent seeds (with seed 51 in the final batch); their measured per-run wall-clock times reflect this shared-GPU execution. The qualitative X-shaped KSIVI panel uses the preselected seed 42. On \texttt{student\_uc}, the median kernel bandwidth is detached during backpropagation, and we apply log probability regularization with coefficient $0.05$ during annealing following \citet{cheng2024kernel}.
+KSIVI is trained for 50,000 iterations with batch size 128, learning rate $10^{-3}$, 25,000-step linear annealing, and a step-decay schedule with factor 0.9 every 1,000 iterations, following \citet{cheng2024kernel}. We use a Gaussian kernel on \texttt{x\_shaped} and \texttt{8\_gaussians}, and an affine-invariant Riesz kernel on \texttt{student\_uc}. On \texttt{x\_shaped}, the conditional variances are initialized to the constant $1.313$; the mean network uses learning rate $10^{-3}$ and the variance head uses $10^{-5}$, with the same decay schedule. X-shaped results use seeds 42--51 in batches of up to three concurrent runs on one RTX 4090, with seed 51 run alone; per-run wall-clock times reflect shared-GPU execution. The qualitative panel uses the preselected seed 42. On \texttt{student\_uc}, the median kernel bandwidth is detached during backpropagation, and we apply log probability regularization with coefficient $0.05$ during annealing following \citet{cheng2024kernel}.
 
 \paragraph{Quantitative results.}
 Table~\ref{tab:toy-method-grid} presents the quantitative results across all five methods. DIVI obtains the lowest mean on four of the six quality metrics and the second-lowest on the remaining two, while SIVI is strongest on the Student UC and eight-Gaussian KL-style metrics. DIVI also has the lowest mean end-to-end wall-clock time. The Wasserstein-2 evaluation follows the protocol in Appendix~\ref{app:metric-details}. We are observing divergence on \texttt{8_gaussians} for AISIVI, as a result of drifting support. The same divergence behavior has been observed in the official code of AISIVI, indicating a potential weakness in training stability.
-
-\input{\finalizationtabledir/toy_method_grid.tex}
-
 
 \subsection{Conditioned diffusion process}
 \label{app:diffusion-details}
